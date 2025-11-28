@@ -1,12 +1,6 @@
-Voici **le contenu exact** que tu peux **copier-coller directement dans ton fichier `README.md`**.
-Aucun surplus, aucune explication autour — **juste le contenu pur** du fichier `.md`.
-
----
-
-```markdown
 # 🌱 Garden Care – Convention de Codage
 
-## 📌 Introduction
+##  Introduction
 
 Cette convention décrit les règles de codage utilisées pour le projet **Garden Care**, une plateforme de mise en relation entre clients et jardiniers.  
 Elle assure : cohérence du code, maintenabilité, collaboration efficace et respect des bonnes pratiques Laravel, React et MySQL.
@@ -15,35 +9,38 @@ Elle assure : cohérence du code, maintenabilité, collaboration efficace et res
 
 # 📁 1. Organisation du Projet
 
-## 🟩 Backend — Laravel
+##  Backend — Laravel
 
 ```
-
 /backend
+│
 ├── app
-│   ├── Http/Controllers
+│   ├── Http
+│   │   └── Controllers
 │   ├── Models
 │   ├── Events
 │   ├── Listeners
 │   ├── Policies
 │   └── Services
+│
 ├── routes
 │   ├── web.php
 │   └── api.php
+│
 ├── database
 │   ├── migrations
 │   ├── factories
 │   └── seeders
+│
 ├── storage
 └── config
-
 ```
 
-## 🟦 Frontend — React
+##  Frontend — React
 
 ```
-
 /frontend
+│
 ├── src
 │   ├── Components
 │   │   ├── Common
@@ -55,14 +52,13 @@ Elle assure : cohérence du code, maintenabilité, collaboration efficace et res
 │   ├── Hooks
 │   ├── Utils
 │   └── Assets
-
 ```
 
 ---
 
-# 📝 2. Règles de Nommage
+#  2. Règles de Nommage
 
-## 🔵 Backend (Laravel)
+##  Backend (Laravel)
 
 | Élément      | Style            | Exemple                        |
 |--------------|------------------|--------------------------------|
@@ -76,9 +72,7 @@ Elle assure : cohérence du code, maintenabilité, collaboration efficace et res
 | Colonnes     | snake_case       | `request_date`                 |
 | Constantes   | UPPER_SNAKE_CASE | `MAX_FILE_SIZE`                |
 
----
-
-## 🔵 Frontend (React)
+##  Frontend (React)
 
 | Élément      | Style         | Exemple              |
 |--------------|---------------|----------------------|
@@ -89,9 +83,7 @@ Elle assure : cohérence du code, maintenabilité, collaboration efficace et res
 | CSS Classes  | kebab-case    | `.profile-card`      |
 | Props        | camelCase     | `serviceId`          |
 
----
-
-## 🔵 Base de Données (MySQL)
+##  Base de Données (MySQL)
 
 - Tables : `snake_case`
 - Colonnes : `snake_case`
@@ -101,21 +93,19 @@ Elle assure : cohérence du code, maintenabilité, collaboration efficace et res
 Exemples :
 
 ```
-
 clients
 jardiniers
 service_requests
 jardinier_documents
 chat_messages
 ratings
-
-````
+```
 
 ---
 
-# 🎨 3. Style de Code
+#  3. Style de Code
 
-## 🟩 Laravel & React
+##  Laravel & React
 
 - Indentation : **4 espaces**
 - Accolades : **sur la même ligne**
@@ -132,7 +122,7 @@ public function store(Request $request)
 
     ServiceRequest::create($data);
 }
-````
+```
 
 ### Exemple React
 
@@ -147,12 +137,10 @@ const JardinierCard = ({ name, rating }) => {
 };
 ```
 
----
+##  CSS
 
-## 🎨 CSS
-
-* Indentation : **2 espaces**
-* Style : **kebab-case**
+- Indentation : **2 espaces**
+- Style : **kebab-case**
 
 ```css
 .profile-card {
@@ -163,27 +151,27 @@ const JardinierCard = ({ name, rating }) => {
 
 ---
 
-# 🔐 4. Règles de Sécurité
+#  4. Règles de Sécurité
 
-* Hash password → bcrypt
-* Protection CSRF / XSS / SQL Injection
-* Vérification MIME pour uploads
-* Sessions expirent après 2h
-* Blocage après 5 échecs de connexion
-* HTTPS obligatoire en production
-
----
-
-# 🗄️ 5. Fichiers & Uploads
-
-* Extensions autorisées : `jpg`, `jpeg`, `png`, `pdf`
-* Taille max : **2 Mo**
-* Renommage automatique : **UUID**
-* Stockage Laravel : `storage/app/public/uploads`
+- Hash password → bcrypt
+- Protection CSRF / XSS / SQL Injection
+- Vérification MIME pour uploads
+- Sessions expirent après 2h
+- Blocage après 5 échecs de connexion
+- HTTPS obligatoire en production
 
 ---
 
-# 💬 6. Chat Temps Réel
+#  5. Fichiers & Uploads
+
+- Extensions autorisées : `jpg`, `jpeg`, `png`, `pdf`
+- Taille max : **2 Mo**
+- Renommage automatique : **UUID**
+- Stockage Laravel : `storage/app/public/uploads`
+
+---
+
+#  6. Chat Temps Réel
 
 ### Envoi (AJAX)
 
@@ -202,7 +190,7 @@ const stream = new EventSource(`/api/messages/stream/${userId}`);
 
 ---
 
-# ⭐ 7. Convention API – REST
+#  7. Convention API – REST
 
 ### Format JSON
 
@@ -218,24 +206,24 @@ const stream = new EventSource(`/api/messages/stream/${userId}`);
 
 ### Codes HTTP
 
-* 200 OK
-* 201 Created
-* 400 Bad Request
-* 401 Unauthorized
-* 404 Not Found
-* 422 Validation Error
-* 500 Server Error
+- 200 OK
+- 201 Created
+- 400 Bad Request
+- 401 Unauthorized
+- 404 Not Found
+- 422 Validation Error
+- 500 Server Error
 
 ---
 
-# 📚 8. Documentation et Commentaires
+#  8. Documentation et Commentaires
 
 ## PHPDoc obligatoire pour :
 
-* Controllers
-* Services
-* Méthodes complexes
-* Events & Listeners
+- Controllers
+- Services
+- Méthodes complexes
+- Events & Listeners
 
 ### Exemple
 
@@ -259,31 +247,18 @@ useEffect(() => {
 
 ---
 
-# 🧩 9. Bonnes Pratiques Garden Care
+#  9. Bonnes Pratiques Garden Care
 
-* Validation frontend + backend obligatoire
-* Pagination sur toutes les listes (`paginate(10)`)
-* QueryBuilder recommandé
-* Chargement paresseux (Lazy Loading) pour React
-* Commentaire obligatoire si note ≤ 3
-* Chat actif uniquement en état : pending / negotiating
+- Validation frontend + backend obligatoire
+- Pagination sur toutes les listes (`paginate(10)`)
+- QueryBuilder recommandé
+- Chargement paresseux (Lazy Loading) pour React
+- Commentaire obligatoire si note ≤ 3
+- Chat actif uniquement en état : pending / negotiating
 
 ---
 
-# 📌 10. Conclusion
+#  10. Conclusion
 
 Cette convention garantit une qualité professionnelle du code Garden Care.
 Elle doit être respectée par tous les membres du projet et pourra évoluer si nécessaire.
-
-```
-
----
-
-Si tu veux :
-
-✅ je peux te générer **une version PDF**  
-✅ ou te préparer un **README complet (convention + installation + docs)**  
-✅ ou ajouter **ton logo / couleurs Garden Care**
-
-Dis-moi !
-```

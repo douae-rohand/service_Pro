@@ -13,5 +13,11 @@ Route::get('/', function () {
 Route::get('dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
+//test
+Route::get('/api/test', function () {
+    return response()->json([
+        'message' => 'Laravel et Vue.js fonctionnent ensemble! '
+    ]);
+});
 
 require __DIR__.'/settings.php';

@@ -11,13 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('serviceinformation', function (Blueprint $table) {
-            $table->integer('idInformation');
-            $table->integer('idService')->index('idservice');
-            $table->timestamp('createdAt')->useCurrent();
-            $table->timestamp('updatedAt')->useCurrentOnUpdate()->useCurrent();
+        Schema::create('service_information', function (Blueprint $table) {
+            $table->integer('information_id');
+            $table->integer('service_id')->index('service_id');
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrentOnUpdate()->useCurrent();
 
-            $table->primary(['idInformation', 'idService']);
+            $table->primary(['information_id', 'service_id']);
         });
     }
 
@@ -26,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('serviceinformation');
+        Schema::dropIfExists('service_information');
     }
 };

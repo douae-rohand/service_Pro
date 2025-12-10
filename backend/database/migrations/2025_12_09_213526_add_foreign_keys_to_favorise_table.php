@@ -12,9 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('favorise', function (Blueprint $table) {
-            $table->foreign(['idIntervenant'], 'favorise_ibfk_1')->references(['id'])->on('intervenant')->onUpdate('restrict')->onDelete('restrict');
-            $table->foreign(['idService'], 'favorise_ibfk_2')->references(['id'])->on('service')->onUpdate('restrict')->onDelete('restrict');
-            $table->foreign(['idClient'], 'favorise_ibfk_3')->references(['id'])->on('client')->onUpdate('restrict')->onDelete('restrict');
+            $table->foreign(['intervenant_id'], 'favorise_ibfk_1')->references(['id'])->on('intervenant')->onUpdate('restrict')->onDelete('restrict');
+            $table->foreign(['service_id'], 'favorise_ibfk_2')->references(['id'])->on('service')->onUpdate('restrict')->onDelete('restrict');
+            $table->foreign(['client_id'], 'favorise_ibfk_3')->references(['id'])->on('client')->onUpdate('restrict')->onDelete('restrict');
         });
     }
 

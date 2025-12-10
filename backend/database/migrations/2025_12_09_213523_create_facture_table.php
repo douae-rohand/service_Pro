@@ -12,12 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('facture', function (Blueprint $table) {
-            $table->integer('numFacture', true);
-            $table->string('fichierPath')->nullable();
-            $table->decimal('TTC', 10)->nullable();
-            $table->timestamp('createdAt')->useCurrent();
-            $table->timestamp('updatedAt')->useCurrentOnUpdate()->useCurrent();
-            $table->integer('interventionId')->nullable()->index('interventionid');
+            $table->integer('num_facture', true);
+            $table->string('fichier_path')->nullable();
+            $table->decimal('ttc', 10)->nullable();
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrentOnUpdate()->useCurrent();
+            $table->integer('intervention_id')->nullable()->index('intervention_id');
         });
     }
 

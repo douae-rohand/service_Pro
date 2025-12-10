@@ -11,14 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('photointervention', function (Blueprint $table) {
+        Schema::create('photo_intervention', function (Blueprint $table) {
             $table->integer('id', true);
-            $table->string('photoPath')->nullable();
-            $table->enum('phasePrise', ['avant', 'apres'])->nullable();
+            $table->string('photo_path')->nullable();
+            $table->enum('phase_prise', ['avant', 'apres'])->nullable();
             $table->text('description')->nullable();
-            $table->timestamp('createdAt')->useCurrent();
-            $table->timestamp('updatedAt')->useCurrentOnUpdate()->useCurrent();
-            $table->integer('interventionId')->nullable()->index('interventionid');
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrentOnUpdate()->useCurrent();
+            $table->integer('intervention_id')->nullable()->index('intervention_id');
         });
     }
 
@@ -27,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('photointervention');
+        Schema::dropIfExists('photo_intervention');
     }
 };

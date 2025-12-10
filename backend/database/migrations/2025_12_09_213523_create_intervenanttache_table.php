@@ -11,15 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('intervenanttache', function (Blueprint $table) {
-            $table->integer('idTache')->index('idtache');
-            $table->integer('idIntervenant');
-            $table->float('prixTache')->nullable();
+        Schema::create('intervenant_tache', function (Blueprint $table) {
+            $table->integer('tache_id')->index('tache_id');
+            $table->integer('intervenant_id');
+            $table->float('prix_tache')->nullable();
             $table->boolean('status')->nullable()->default(true);
-            $table->timestamp('createdAt')->useCurrent();
-            $table->timestamp('updatedAt')->useCurrentOnUpdate()->useCurrent();
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrentOnUpdate()->useCurrent();
 
-            $table->primary(['idIntervenant', 'idTache']);
+            $table->primary(['intervenant_id', 'tache_id']);
         });
     }
 
@@ -28,6 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('intervenanttache');
+        Schema::dropIfExists('intervenant_tache');
     }
 };

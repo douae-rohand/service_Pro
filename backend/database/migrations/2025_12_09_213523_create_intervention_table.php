@@ -16,12 +16,12 @@ return new class extends Migration
             $table->text('address')->nullable();
             $table->string('ville', 100)->nullable();
             $table->string('status', 50)->nullable();
-            $table->date('dateIntervention')->nullable();
-            $table->integer('clientId')->nullable()->index('clientid');
-            $table->integer('intervenantId')->nullable()->index('intervenantid');
-            $table->integer('tacheId')->nullable()->index('tacheid');
-            $table->timestamp('createdAt')->useCurrent();
-            $table->timestamp('updatedAt')->useCurrentOnUpdate()->useCurrent();
+            $table->date('date_intervention')->nullable();
+            $table->integer('client_id')->nullable()->index('client_id');
+            $table->integer('intervenant_id')->nullable()->index('intervenant_id');
+            $table->integer('tache_id')->nullable()->index('tache_id');
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrentOnUpdate()->useCurrent();
         });
     }
 

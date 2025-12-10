@@ -16,10 +16,10 @@ return new class extends Migration
             $table->text('address')->nullable();
             $table->string('ville', 100)->nullable();
             $table->text('bio')->nullable();
-            $table->boolean('isActive')->nullable()->default(true);
-            $table->timestamp('createdAt')->useCurrent();
-            $table->timestamp('updatedAt')->useCurrentOnUpdate()->useCurrent();
-            $table->integer('adminId')->nullable()->index('adminid');
+            $table->boolean('is_active')->nullable()->default(true);
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrentOnUpdate()->useCurrent();
+            $table->integer('admin_id')->nullable()->index('admin_id');
         });
     }
 

@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('admin', function (Blueprint $table) {
             $table->integer('id')->primary();
-            $table->timestamp('createdAt')->useCurrent();
-            $table->timestamp('updatedAt')->useCurrentOnUpdate()->useCurrent();
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrentOnUpdate()->useCurrent();
         });
     }
 

@@ -13,12 +13,12 @@ return new class extends Migration
     {
         Schema::create('tache', function (Blueprint $table) {
             $table->integer('id', true);
-            $table->integer('idService')->nullable()->index('idservice');
-            $table->string('nomTache', 150)->nullable();
+            $table->integer('service_id')->nullable()->index('service_id');
+            $table->string('nom_tache', 150)->nullable();
             $table->text('description')->nullable();
             $table->string('status', 50)->nullable();
-            $table->timestamp('createdAt')->useCurrent();
-            $table->timestamp('updatedAt')->useCurrentOnUpdate()->useCurrent();
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrentOnUpdate()->useCurrent();
         });
     }
 

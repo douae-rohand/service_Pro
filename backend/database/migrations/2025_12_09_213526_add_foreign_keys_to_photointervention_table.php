@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('photointervention', function (Blueprint $table) {
-            $table->foreign(['interventionId'], 'photointervention_ibfk_1')->references(['id'])->on('intervention')->onUpdate('restrict')->onDelete('restrict');
+        Schema::table('photo_intervention', function (Blueprint $table) {
+            $table->foreign(['intervention_id'], 'photointervention_ibfk_1')->references(['id'])->on('intervention')->onUpdate('restrict')->onDelete('restrict');
         });
     }
 
@@ -21,7 +21,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('photointervention', function (Blueprint $table) {
+        Schema::table('photo_intervention', function (Blueprint $table) {
             $table->dropForeign('photointervention_ibfk_1');
         });
     }

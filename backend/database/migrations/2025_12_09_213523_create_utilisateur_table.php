@@ -19,10 +19,10 @@ return new class extends Migration
             $table->string('password');
             $table->string('telephone', 20)->nullable();
             $table->string('url')->nullable();
-            $table->string('googlePw')->nullable();
+            $table->string('google_pw')->nullable();
             $table->text('address')->nullable();
-            $table->timestamp('createdAt')->useCurrent();
-            $table->timestamp('updatedAt')->useCurrentOnUpdate()->useCurrent();
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrentOnUpdate()->useCurrent();
         });
     }
 

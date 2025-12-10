@@ -11,14 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('interventioninformation', function (Blueprint $table) {
-            $table->integer('idInformation');
-            $table->integer('idIntervention')->index('idintervention');
+        Schema::create('intervention_information', function (Blueprint $table) {
+            $table->integer('information_id');
+            $table->integer('intervention_id')->index('intervention_id');
             $table->string('information', 200)->nullable();
-            $table->timestamp('createdAt')->useCurrent();
-            $table->timestamp('updatedAt')->useCurrentOnUpdate()->useCurrent();
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrentOnUpdate()->useCurrent();
 
-            $table->primary(['idInformation', 'idIntervention']);
+            $table->primary(['information_id', 'intervention_id']);
         });
     }
 
@@ -27,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('interventioninformation');
+        Schema::dropIfExists('intervention_information');
     }
 };

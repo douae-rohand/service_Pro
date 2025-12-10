@@ -14,11 +14,11 @@ return new class extends Migration
         Schema::create('disponibilite', function (Blueprint $table) {
             $table->integer('id', true);
             $table->enum('type', ['ponctuelle', 'reguliere'])->nullable();
-            $table->time('heureDebut')->nullable();
-            $table->time('heureFin')->nullable();
-            $table->date('dateSpecific')->nullable();
-            $table->enum('joursSemaine', ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'])->nullable();
-            $table->integer('intervenantId')->nullable()->index('intervenantid');
+            $table->time('heure_debut')->nullable();
+            $table->time('heure_fin')->nullable();
+            $table->date('date_specific')->nullable();
+            $table->enum('jours_semaine', ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'])->nullable();
+            $table->integer('intervenant_id')->nullable()->index('intervenant_id');
         });
     }
 

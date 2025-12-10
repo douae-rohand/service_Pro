@@ -14,11 +14,11 @@ return new class extends Migration
         Schema::create('evaluation', function (Blueprint $table) {
             $table->integer('id', true);
             $table->integer('note')->nullable();
-            $table->timestamp('createdAt')->useCurrent();
-            $table->timestamp('updatedAt')->useCurrentOnUpdate()->useCurrent();
-            $table->integer('interventionId')->nullable()->index('interventionid');
-            $table->integer('critaireId')->nullable()->index('critaireid');
-            $table->enum('typeAutheur', ['client', 'intervenant'])->nullable();
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrentOnUpdate()->useCurrent();
+            $table->integer('intervention_id')->nullable()->index('intervention_id');
+            $table->integer('critaire_id')->nullable()->index('critaire_id');
+            $table->enum('type_auteur', ['client', 'intervenant'])->nullable();
         });
     }
 

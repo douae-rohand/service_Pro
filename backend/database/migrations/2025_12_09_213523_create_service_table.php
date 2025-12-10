@@ -13,10 +13,10 @@ return new class extends Migration
     {
         Schema::create('service', function (Blueprint $table) {
             $table->integer('id', true);
-            $table->string('nomService', 100)->nullable();
+            $table->string('nom_service', 100)->nullable();
             $table->text('description')->nullable();
-            $table->timestamp('createdAt')->useCurrent();
-            $table->timestamp('updatedAt')->useCurrentOnUpdate()->useCurrent();
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrentOnUpdate()->useCurrent();
         });
     }
 

@@ -14,10 +14,10 @@ return new class extends Migration
         Schema::create('justificatif', function (Blueprint $table) {
             $table->integer('id', true);
             $table->string('type')->nullable();
-            $table->string('cheminFichier', 100)->nullable();
-            $table->integer('intervenantId')->nullable()->index('intervenantid');
-            $table->timestamp('createdAt')->useCurrent();
-            $table->timestamp('updatedAt')->useCurrentOnUpdate()->useCurrent();
+            $table->string('chemin_fichier', 100)->nullable();
+            $table->integer('intervenant_id')->nullable()->index('intervenant_id');
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrentOnUpdate()->useCurrent();
         });
     }
 

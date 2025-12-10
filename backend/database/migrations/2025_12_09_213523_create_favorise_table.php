@@ -12,13 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('favorise', function (Blueprint $table) {
-            $table->integer('idClient');
-            $table->integer('idIntervenant')->index('idintervenant');
-            $table->integer('idService')->index('idservice');
-            $table->timestamp('createdAt')->useCurrent();
-            $table->timestamp('updatedAt')->useCurrentOnUpdate()->useCurrent();
-
-            $table->primary(['idClient', 'idIntervenant', 'idService']);
+            $table->integer('client_id')->index('client_id');
+            $table->integer('intervenant_id')->index('intervenant_id');
+            $table->integer('service_id')->index('service_id');
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrentOnUpdate()->useCurrent();
+            $table->primary(['client_id', 'intervenant_id', 'service_id']);
         });
     }
 

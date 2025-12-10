@@ -13,9 +13,9 @@ return new class extends Migration
     {
         Schema::create('critaire', function (Blueprint $table) {
             $table->integer('id', true);
-            $table->string('nomCritaire')->nullable();
-            $table->timestamp('createdAt')->useCurrent();
-            $table->timestamp('updatedAt')->useCurrentOnUpdate()->useCurrent();
+            $table->string('nom_critaire')->nullable();
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrentOnUpdate()->useCurrent();
         });
     }
 

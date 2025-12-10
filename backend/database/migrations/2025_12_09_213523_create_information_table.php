@@ -15,8 +15,8 @@ return new class extends Migration
             $table->integer('id', true);
             $table->string('nom', 200)->nullable();
             $table->text('description')->nullable();
-            $table->timestamp('createdAt')->useCurrent();
-            $table->timestamp('updatedAt')->useCurrentOnUpdate()->useCurrent();
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrentOnUpdate()->useCurrent();
         });
     }
 

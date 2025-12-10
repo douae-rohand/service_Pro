@@ -12,9 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('intervention', function (Blueprint $table) {
-            $table->foreign(['clientId'], 'intervention_ibfk_1')->references(['id'])->on('client')->onUpdate('restrict')->onDelete('restrict');
-            $table->foreign(['tacheId'], 'intervention_ibfk_2')->references(['id'])->on('tache')->onUpdate('restrict')->onDelete('restrict');
-            $table->foreign(['intervenantId'], 'intervention_ibfk_3')->references(['id'])->on('intervenant')->onUpdate('restrict')->onDelete('restrict');
+            $table->foreign(['client_id'], 'intervention_ibfk_1')->references(['id'])->on('client')->onUpdate('restrict')->onDelete('restrict');
+            $table->foreign(['tache_id'], 'intervention_ibfk_2')->references(['id'])->on('tache')->onUpdate('restrict')->onDelete('restrict');
+            $table->foreign(['intervenant_id'], 'intervention_ibfk_3')->references(['id'])->on('intervenant')->onUpdate('restrict')->onDelete('restrict');
         });
     }
 

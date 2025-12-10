@@ -11,9 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('tachemateriel', function (Blueprint $table) {
-            $table->foreign(['idMateriel'], 'tachemateriel_ibfk_1')->references(['id'])->on('materiel')->onUpdate('restrict')->onDelete('restrict');
-            $table->foreign(['idTache'], 'tachemateriel_ibfk_2')->references(['id'])->on('tache')->onUpdate('restrict')->onDelete('restrict');
+        Schema::table('tache_materiel', function (Blueprint $table) {
+            $table->foreign(['materiel_id'], 'tachemateriel_ibfk_1')->references(['id'])->on('materiel')->onUpdate('restrict')->onDelete('restrict');
+            $table->foreign(['tache_id'], 'tachemateriel_ibfk_2')->references(['id'])->on('tache')->onUpdate('restrict')->onDelete('restrict');
         });
     }
 
@@ -22,7 +22,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('tachemateriel', function (Blueprint $table) {
+        Schema::table('tache_materiel', function (Blueprint $table) {
             $table->dropForeign('tachemateriel_ibfk_1');
             $table->dropForeign('tachemateriel_ibfk_2');
         });

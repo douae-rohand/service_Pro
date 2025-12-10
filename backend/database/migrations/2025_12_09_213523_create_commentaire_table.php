@@ -14,10 +14,10 @@ return new class extends Migration
         Schema::create('commentaire', function (Blueprint $table) {
             $table->integer('id', true);
             $table->text('commentaire')->nullable();
-            $table->timestamp('createdAt')->useCurrent();
-            $table->timestamp('updatedAt')->useCurrentOnUpdate()->useCurrent();
-            $table->integer('interventionId')->nullable()->index('interventionid');
-            $table->enum('typeAuteur', ['client', 'intervenant'])->nullable();
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrentOnUpdate()->useCurrent();
+            $table->integer('intervention_id')->nullable()->index('intervention_id');
+            $table->enum('type_auteur', ['client', 'intervenant'])->nullable();
         });
     }
 

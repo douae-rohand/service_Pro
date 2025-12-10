@@ -11,12 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('service_justificatif', function (Blueprint $table) {
-            $table->integer('justificatif_id')->index('justificatif_id');
-            $table->integer('service_id');
+        Schema::create('intervenant_service', function (Blueprint $table) {
+            $table->integer('intervenant_id')->index('intervenant_id');
+            $table->integer('service_id')->index('service_id');
+            $table->enum('status', ['active', 'desactive'])->default('active');
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrentOnUpdate()->useCurrent();
-            $table->primary(['service_id', 'justificatif_id']);
+            $table->primary(['intervenant_id', 'service_id']);
         });
     }
 
@@ -25,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('service_justificatif');
+        Schema::dropIfExists('intervenant_service');
     }
 };

@@ -14,12 +14,10 @@
           :key="service.id"
           class="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all"
         >
-          <!-- Image -->
           <div class="flex justify-center items-center p-8 bg-gradient-to-br from-gray-50 to-white">
-              <img :src="service.image" alt="" className="w-64 h-64 object-contain" />
+            <img :src="service.image" :alt="service.name" class="w-64 h-64 object-contain" />
           </div>
 
-          <!-- Content -->
           <div class="p-8 text-center">
             <h3 class="text-3xl mb-4" :style="{ color: service.color }">{{ service.name }}</h3>
             <p class="text-gray-600 mb-6">{{ service.description }}</p>
@@ -54,12 +52,11 @@
 </template>
 
 <script setup>
-const props = defineProps({
-  onServiceClick: Function,
-})
-
 import jardinageImg from '@/assets/jardinage.png'
 import menageImg from '@/assets/menage.png'
+
+// Définir l'événement émis
+const emit = defineEmits(['service-click'])
 
 const services = [
   {
@@ -68,7 +65,6 @@ const services = [
     image: jardinageImg,
     description: 'Des professionnels pour entretenir votre jardin et vos espaces verts.',
     color: '#92B08B',
-
   },
   {
     id: 'menage',
@@ -79,11 +75,8 @@ const services = [
   },
 ]
 
-
 const handleServiceClick = (serviceId) => {
-  if (props.onServiceClick) {
-    props.onServiceClick(serviceId)
-  }
+  emit('service-click', serviceId)
 }
 
 const handleButtonHover = (e) => {
@@ -94,4 +87,3 @@ const handleButtonLeave = (e) => {
   e.currentTarget.style.opacity = '1'
 }
 </script>
-

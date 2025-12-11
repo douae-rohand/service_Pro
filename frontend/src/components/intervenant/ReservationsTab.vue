@@ -1,7 +1,17 @@
 <template>
   <div class="container">
+    <!-- Error Message -->
+    <div v-if="error" class="error-message">
+      {{ error }}
+    </div>
+
+    <!-- Loading State -->
+    <div v-if="loading" class="loading-state">
+      <p>Chargement des réservations...</p>
+    </div>
+
     <!-- Stats -->
-    <div class="stats-grid">
+    <div v-if="!loading" class="stats-grid">
       <div class="stat-card stat-orange">
         <p class="stat-label">En Attente</p>
         <p class="stat-value">{{ pendingCount }}</p>
@@ -17,7 +27,7 @@
     </div>
 
     <!-- Reservations Card -->
-    <div class="card">
+    <div v-if="!loading" class="card">
       <h1>Gérer mes réservations</h1>
       <p class="subtitle">Acceptez ou refusez les demandes de réservation de vos clients</p>
 
@@ -118,67 +128,14 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Check, X, Clock, MapPin, Calendar, MessageSquare, Coins } from 'lucide-vue-next'
+import reservationService from '@/services/intervenantReservationService'
 
 const selectedTab = ref('pending')
-
-const reservations = ref([
-  {
-    id: 1,
-    clientName: 'Karim Alaoui',
-    clientImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop',
-    service: 'Ménage',
-    task: 'Nettoyage en profondeur (Deep Cleaning)',
-    date: '2024-12-10',
-    time: '09:00',
-    duration: '4 heures',
-    hourlyRate: 24,
-    location: 'Tetouan Centre, Rue Mohammed V',
-    status: 'pending',
-    message: 'Bonjour, j\'aurais besoin d\'un grand nettoyage de mon appartement. Merci !'
-  },
-  {
-    id: 2,
-    clientName: 'Meryem Benali',
-    clientImage: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop',
-    service: 'Ménage',
-    task: 'Ménage résidentiel & régulier',
-    date: '2024-12-12',
-    time: '14:00',
-    duration: '3 heures',
-    hourlyRate: 20,
-    location: 'Tetouan Medina',
-    status: 'pending',
-    message: 'Je souhaite un ménage hebdomadaire. Disponible l\'après-midi.'
-  },
-  {
-    id: 3,
-    clientName: 'Samira Idrissi',
-    clientImage: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop',
-    service: 'Ménage',
-    task: 'Lavage vitres & surfaces spécialisées',
-    date: '2024-12-08',
-    time: '10:00',
-    duration: '2 heures',
-    hourlyRate: 22,
-    location: 'Tetouan Saniat Rmel',
-    status: 'accepted'
-  },
-  {
-    id: 4,
-    clientName: 'Omar Tazi',
-    clientImage: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop',
-    service: 'Ménage',
-    task: 'Nettoyage mobilier & textiles',
-    date: '2024-11-28',
-    time: '15:00',
-    duration: '3 heures',
-    hourlyRate: 23,
-    location: 'Tetouan Centre',
-    status: 'completed'
-  }
-])
+const reservations = ref([])
+const loading = ref(false)
+const error = ref(null)
 
 const filteredReservations = computed(() => {
   return reservations.value.filter(r => r.status === selectedTab.value)
@@ -208,21 +165,51 @@ const calculateTotal = (reservation) => {
   return reservation.hourlyRate * hours
 }
 
-const acceptReservation = (id) => {
-  const reservation = reservations.value.find(r => r.id === id)
-  if (reservation) {
-    reservation.status = 'accepted'
+const fetchReservations = async () => {
+  loading.value = true
+  error.value = null
+  try {
+    const response = await reservationService.getMyReservations()
+    reservations.value = response.data
+  } catch (err) {
+    error.value = err.message || 'Erreur lors du chargement des réservations'
+    console.error(err)
+  } finally {
+    loading.value = false
   }
 }
 
-const refuseReservation = (id) => {
-  if (confirm('Êtes-vous sûr de vouloir refuser cette réservation ?')) {
+const acceptReservation = async (id) => {
+  try {
+    await reservationService.acceptReservation(id)
     const reservation = reservations.value.find(r => r.id === id)
     if (reservation) {
-      reservation.status = 'refused'
+      reservation.status = 'accepted'
+    }
+  } catch (err) {
+    alert(err.message || 'Erreur lors de l\'acceptation de la réservation')
+    console.error(err)
+  }
+}
+
+const refuseReservation = async (id) => {
+  if (confirm('Êtes-vous sûr de vouloir refuser cette réservation ?')) {
+    try {
+      await reservationService.refuseReservation(id)
+      const reservation = reservations.value.find(r => r.id === id)
+      if (reservation) {
+        reservation.status = 'refused'
+      }
+    } catch (err) {
+      alert(err.message || 'Erreur lors du refus de la réservation')
+      console.error(err)
     }
   }
 }
+
+onMounted(() => {
+  fetchReservations()
+})
 </script>
 
 <style scoped>
@@ -471,6 +458,21 @@ const refuseReservation = (id) => {
   text-align: center;
   padding: var(--spacing-12) var(--spacing-6);
   color: var(--color-gray-500);
+}
+
+.loading-state {
+  text-align: center;
+  padding: var(--spacing-12) var(--spacing-6);
+  color: var(--color-gray-600);
+}
+
+.error-message {
+  padding: var(--spacing-4);
+  background-color: #FEE2E2;
+  color: #DC2626;
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--spacing-4);
+  border: 1px solid #FCA5A5;
 }
 
 @media (max-width: 768px) {

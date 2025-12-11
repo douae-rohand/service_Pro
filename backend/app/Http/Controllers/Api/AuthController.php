@@ -28,7 +28,7 @@ class AuthController extends Controller
             'nom' => $validated['nom'],
             'prenom' => $validated['prenom'] ?? null,
             'email' => $validated['email'],
-            'password' => $validated['password'], // Le mutateur Hash::make est dans le modèle
+            'password' => $validated['password'],
             'telephone' => $validated['telephone'] ?? null,
             'address' => $validated['address'] ?? null,
         ]);

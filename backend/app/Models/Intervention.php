@@ -19,16 +19,16 @@ class Intervention extends Model
         'address',
         'ville',
         'status',
-        'dateIntervention',
-        'clientId',
-        'intervenantId',
-        'tacheId',
+        'date_intervention',
+        'client_id',
+        'intervenant_id',
+        'tache_id',
     ];
 
     protected function casts(): array
     {
         return [
-            'dateIntervention' => 'date',
+            'date_intervention' => 'date',
         ];
     }
 
@@ -37,7 +37,7 @@ class Intervention extends Model
      */
     public function client()
     {
-        return $this->belongsTo(Client::class, 'clientId', 'id');
+        return $this->belongsTo(Client::class, 'client_id', 'id');
     }
 
     /**
@@ -45,7 +45,7 @@ class Intervention extends Model
      */
     public function intervenant()
     {
-        return $this->belongsTo(Intervenant::class, 'intervenantId', 'id');
+        return $this->belongsTo(Intervenant::class, 'intervenant_id', 'id');
     }
 
     /**
@@ -53,7 +53,7 @@ class Intervention extends Model
      */
     public function tache()
     {
-        return $this->belongsTo(Tache::class, 'tacheId', 'id');
+        return $this->belongsTo(Tache::class, 'tache_id', 'id');
     }
 
     /**
@@ -95,11 +95,10 @@ class Intervention extends Model
     {
         return $this->belongsToMany(
             Information::class,
-            'interventioninformation',
-            'interventionId',
-            'informationId'
-        )->withPivot('valeur')
-            ->withTimestamps();
+            'intervention_information',
+            'intervention_id',
+            'information_id'
+        )->withPivot('information', 'created_at', 'updated_at');
     }
 
     /**
@@ -109,10 +108,10 @@ class Intervention extends Model
     {
         return $this->belongsToMany(
             Materiel::class,
-            'interventionmateriel',
-            'interventionId',
-            'materielId'
-        )->withTimestamps();
+            'intervention_materiel',
+            'intervention_id',
+            'materiel_id'
+        )->withPivot('created_at', 'updated_at');
     }
 
     /**
@@ -128,8 +127,8 @@ class Intervention extends Model
      */
     public function scopeUpcoming(Builder $query): Builder
     {
-        return $query->where('dateIntervention', '>=', now()->toDateString())
-            ->orderBy('dateIntervention', 'asc');
+        return $query->where('date_intervention', '>=', now()->toDateString())
+            ->orderBy('date_intervention', 'asc');
     }
 
     /**

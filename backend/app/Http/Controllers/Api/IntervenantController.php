@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Intervenant;
+use App\Models\Materiel;
 use Illuminate\Http\Request;
 
 class IntervenantController extends Controller
@@ -146,5 +147,232 @@ class IntervenantController extends Controller
             ->get();
 
         return response()->json($taches);
+    }
+
+    /**
+     * Get current intervenant's taches with all details
+     */
+    public function myTaches(Request $request)
+    {
+        // TODO: Uncomment when authentication is implemented
+        // $user = $request->user();
+        // 
+        // if (!$user->intervenant) {
+        //     return response()->json([
+        //         'message' => 'Utilisateur non associé à un intervenant'
+        //     ], 403);
+        // }
+        // 
+        // $intervenant = $user->intervenant;
+        
+        // TEMPORARY: Hardcoded intervenant ID for testing (from seeders: intervenant id=5)
+        $intervenantId = 5;
+        $intervenant = Intervenant::findOrFail($intervenantId);
+        
+        // Get taches with pivot data, service, materials, and completed jobs count
+        $taches = $intervenant->taches()
+            ->with(['service', 'materiels'])
+            ->get()
+            ->map(function ($tache) use ($intervenant) {
+                // Get pivot data (tarif, experience, archived, active)
+                $pivot = $tache->pivot;
+                
+                // Count completed interventions for this tache
+                $completedJobs = $intervenant->interventions()
+                    ->where('tache_id', $tache->id)
+                    ->where('status', 'terminée')
+                    ->count();
+                
+                // Get materials names
+                $materials = $tache->materiels->pluck('nom_materiel')->toArray();
+                
+                // Determine service type (menage or jardinage) from service name
+                $serviceType = 'menage'; // default
+                if ($tache->service) {
+                    $serviceName = strtolower($tache->service->nom_service ?? '');
+                    if (strpos($serviceName, 'jardin') !== false) {
+                        $serviceType = 'jardinage';
+                    }
+                }
+                
+                return [
+                    'id' => $tache->id,
+                    'type' => $serviceType,
+                    'name' => $tache->nom_tache,
+                    'description' => $tache->description,
+                    'hourlyRate' => (float) ($pivot->prix_tache ?? 0),
+                    'active' => $pivot->status ?? true,
+                    'completedJobs' => $completedJobs,
+                    'materials' => $materials,
+                ];
+            });
+
+        return response()->json($taches);
+    }
+
+    /**
+     * Update current intervenant's tache
+     */
+    public function updateMyTache(Request $request, $tacheId)
+    {
+        // TODO: Uncomment when authentication is implemented
+        // $user = $request->user();
+        // 
+        // if (!$user->intervenant) {
+        //     return response()->json([
+        //         'message' => 'Utilisateur non associé à un intervenant'
+        //     ], 403);
+        // }
+        // 
+        // $intervenant = $user->intervenant;
+        
+        // TEMPORARY: Hardcoded intervenant ID for testing (from seeders: intervenant id=5)
+        $intervenantId = 5;
+        $intervenant = Intervenant::findOrFail($intervenantId);
+        
+        // Check if the intervenant has this tache
+        $tache = $intervenant->taches()->find($tacheId);
+        if (!$tache) {
+            return response()->json([
+                'message' => 'Tâche non trouvée'
+            ], 404);
+        }
+
+        $validated = $request->validate([
+            'description' => 'sometimes|string',
+            'hourlyRate' => 'sometimes|numeric|min:0',
+            'materials' => 'sometimes|array',
+            'materials.*' => 'string', // Material names as strings
+            'active' => 'sometimes|boolean',
+        ]);
+
+        // Update pivot data
+        $pivotData = [];
+        if (isset($validated['hourlyRate'])) {
+            $pivotData['prix_tache'] = $validated['hourlyRate'];
+        }
+        if (isset($validated['active'])) {
+            $pivotData['status'] = $validated['active'];
+        }
+        
+        if (!empty($pivotData)) {
+            $intervenant->taches()->updateExistingPivot($tacheId, $pivotData);
+        }
+
+        // Update tache description if provided
+        if (isset($validated['description'])) {
+            $tache->update(['description' => $validated['description']]);
+        }
+
+        // Update materials if provided - convert names to IDs with fuzzy matching
+        if (isset($validated['materials'])) {
+            $materialIds = [];
+            $allMaterials = Materiel::pluck('nom_materiel', 'id')->toArray();
+            
+            foreach ($validated['materials'] as $materialName) {
+                // Try exact match first
+                $material = Materiel::where('nom_materiel', $materialName)->first();
+                
+                if ($material) {
+                    $materialIds[] = $material->id;
+                } else {
+                    // Try partial/contains match for variations
+                    $matchedMaterial = Materiel::where('nom_materiel', 'like', '%' . $materialName . '%')->first();
+                    if ($matchedMaterial) {
+                        $materialIds[] = $matchedMaterial->id;
+                        \Log::info("Partial match found: '{$materialName}' → '{$matchedMaterial->nom_materiel}'");
+                    } else {
+                        \Log::warning("Material not found: '{$materialName}'. Available materials: " . json_encode(array_values($allMaterials)));
+                    }
+                }
+            }
+            
+            // Debug logging
+            \Log::info("Syncing materials for tache {$tacheId}: " . json_encode($materialIds));
+            
+            $tache->materiels()->sync($materialIds);
+            
+            // Verify the sync worked
+            $syncedMaterials = $tache->materiels()->get()->pluck('nom_materiel')->toArray();
+            \Log::info("Materials after sync: " . json_encode($syncedMaterials));
+        }
+
+        return response()->json([
+            'message' => 'Tâche mise à jour avec succès',
+            'updatedMaterials' => isset($validated['materials']) ? $tache->materiels()->get()->pluck('nom_materiel')->toArray() : null,
+        ]);
+    }
+
+    /**
+     * Toggle active status of current intervenant's tache
+     */
+    public function toggleActiveMyTache(Request $request, $tacheId)
+    {
+        // TODO: Uncomment when authentication is implemented
+        // $user = $request->user();
+        // 
+        // if (!$user->intervenant) {
+        //     return response()->json([
+        //         'message' => 'Utilisateur non associé à un intervenant'
+        //     ], 403);
+        // }
+        // 
+        // $intervenant = $user->intervenant;
+        
+        // TEMPORARY: Hardcoded intervenant ID for testing (from seeders: intervenant id=5)
+        $intervenantId = 5;
+        $intervenant = Intervenant::findOrFail($intervenantId);
+        
+        $tache = $intervenant->taches()->find($tacheId);
+        if (!$tache) {
+            return response()->json([
+                'message' => 'Tâche non trouvée'
+            ], 404);
+        }
+
+        $currentStatus = $tache->pivot->status ?? true;
+        
+        $intervenant->taches()->updateExistingPivot($tacheId, [
+            'status' => !$currentStatus,
+        ]);
+
+        return response()->json([
+            'message' => 'Statut mis à jour avec succès',
+            'active' => !$currentStatus,
+        ]);
+    }
+
+    /**
+     * Delete current intervenant's tache (remove relationship)
+     */
+    public function deleteMyTache(Request $request, $tacheId)
+    {
+        // TODO: Uncomment when authentication is implemented
+        // $user = $request->user();
+        // 
+        // if (!$user->intervenant) {
+        //     return response()->json([
+        //         'message' => 'Utilisateur non associé à un intervenant'
+        //     ], 403);
+        // }
+        // 
+        // $intervenant = $user->intervenant;
+        
+        // TEMPORARY: Hardcoded intervenant ID for testing (from seeders: intervenant id=5)
+        $intervenantId = 5;
+        $intervenant = Intervenant::findOrFail($intervenantId);
+        
+        $tache = $intervenant->taches()->find($tacheId);
+        if (!$tache) {
+            return response()->json([
+                'message' => 'Tâche non trouvée'
+            ], 404);
+        }
+
+        $intervenant->taches()->detach($tacheId);
+
+        return response()->json([
+            'message' => 'Tâche supprimée avec succès',
+        ]);
     }
 }

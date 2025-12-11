@@ -11,11 +11,11 @@ class Service extends Model
 
     protected $table = 'service';
 
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = 'updated_at';
 
     protected $fillable = [
-        'nomService',
+        'nom_service',
         'description',
     ];
 
@@ -24,7 +24,7 @@ class Service extends Model
      */
     public function taches()
     {
-        return $this->hasMany(Tache::class, 'idService', 'id');
+        return $this->hasMany(Tache::class, 'service_id', 'id');
     }
 
     /**
@@ -34,10 +34,10 @@ class Service extends Model
     {
         return $this->belongsToMany(
             Information::class,
-            'serviceinformation',
-            'serviceId',
-            'informationId'
-        )->withTimestamps();
+            'service_information',
+            'service_id',
+            'information_id'
+        )->withPivot('created_at', 'updated_at');
     }
 
     /**
@@ -47,9 +47,9 @@ class Service extends Model
     {
         return $this->belongsToMany(
             Justificatif::class,
-            'servicejustificatif',
-            'serviceId',
-            'justificatifId'
-        )->withTimestamps();
+            'service_justificatif',
+            'service_id',
+            'justificatif_id'
+        )->withPivot('created_at', 'updated_at');
     }
 }

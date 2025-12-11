@@ -16,8 +16,8 @@ class Intervenant extends Model
 
     public $incrementing = false;
 
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = 'updated_at';
 
     protected $fillable = [
         'address',
@@ -55,7 +55,7 @@ class Intervenant extends Model
      */
     public function interventions()
     {
-        return $this->hasMany(Intervention::class, 'intervenantId', 'id');
+        return $this->hasMany(Intervention::class, 'intervenant_id', 'id');
     }
 
     /**
@@ -63,7 +63,7 @@ class Intervenant extends Model
      */
     public function disponibilites()
     {
-        return $this->hasMany(Disponibilite::class, 'intervenantId', 'id');
+        return $this->hasMany(Disponibilite::class, 'intervenant_id', 'id');
     }
 
     /**
@@ -73,11 +73,10 @@ class Intervenant extends Model
     {
         return $this->belongsToMany(
             Tache::class,
-            'intervenanttache',
-            'intervenantId',
-            'tacheId'
-        )->withPivot('tarif', 'experience')
-            ->withTimestamps();
+            'intervenant_tache',
+            'intervenant_id',
+            'tache_id'
+        )->withPivot('prix_tache', 'status', 'created_at', 'updated_at');
     }
 
     /**
@@ -87,10 +86,10 @@ class Intervenant extends Model
     {
         return $this->belongsToMany(
             Materiel::class,
-            'intervenantmateriel',
-            'intervenantId',
-            'materielId'
-        )->withTimestamps();
+            'intervenant_materiel',
+            'intervenant_id',
+            'materiel_id'
+        )->withPivot('created_at', 'updated_at');
     }
 
     /**
@@ -101,9 +100,9 @@ class Intervenant extends Model
         return $this->belongsToMany(
             Client::class,
             'favorise',
-            'intervenantId',
-            'clientId'
-        )->withTimestamps();
+            'intervenant_id',
+            'client_id'
+        )->withPivot('created_at', 'updated_at');
     }
 
     /**

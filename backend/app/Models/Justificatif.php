@@ -27,9 +27,9 @@ class Justificatif extends Model
     {
         return $this->belongsToMany(
             Service::class,
-            'servicejustificatif',
-            'justificatifId',
-            'serviceId'
-        )->withTimestamps();
+            'service_justificatif',
+            'justificatif_id',
+            'service_id'
+        )->withPivot('created_at', 'updated_at');
     }
 }

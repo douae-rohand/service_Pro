@@ -65,9 +65,9 @@ class Client extends Model
         return $this->belongsToMany(
             Intervenant::class,
             'favorise',
-            'clientId',
-            'intervenantId'
-        )->withTimestamps();
+            'client_id',
+            'intervenant_id'
+        )->withPivot('created_at', 'updated_at');
     }
 
     /**

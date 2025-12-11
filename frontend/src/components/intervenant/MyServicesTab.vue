@@ -1,7 +1,17 @@
 <template>
   <div class="container">
+    <!-- Error Message -->
+    <div v-if="error" class="error-message">
+      {{ error }}
+    </div>
+
+    <!-- Loading State -->
+    <div v-if="loading" class="loading-state">
+      <p>Chargement des sous-services...</p>
+    </div>
+
     <!-- Stats -->
-    <div class="stats-grid">
+    <div v-if="!loading" class="stats-grid">
       <div class="stat-card stat-green">
         <p class="stat-label">Sous-services Act ifs</p>
         <p class="stat-value">{{ activeServices }}</p>
@@ -17,16 +27,12 @@
     </div>
 
     <!-- Services List -->
-    <div class="card">
+    <div v-if="!loading" class="card">
       <div class="card-header">
         <div>
-          <h1>Mes Sous-services Actifs</h1>
+          <h1>Mes Sous-services</h1>
           <p class="subtitle">Gérez vos sous-services, tarifs et disponibilité</p>
         </div>
-        <button @click="showArchived = !showArchived" class="archive-btn">
-          <Archive :size="16" />
-          {{ showArchived ? 'Sous-services actifs' : 'Sous-services archivés' }}
-        </button>
       </div>
 
       <div class="services-list">
@@ -34,10 +40,9 @@
           v-for="service in displayedServices"
           :key="service.id"
           class="service-item"
-          :class="{ 'service-archived': service.archived }"
           :style="{
             borderColor: service.active ? '#92B08B' : '#E0E0E0',
-            backgroundColor: service.active && !service.archived ? '#E8F5E9' : '#F8F9FA'
+            backgroundColor: service.active ? '#E8F5E9' : '#F8F9FA'
           }"
         >
           <!-- Edit Mode -->
@@ -80,11 +85,7 @@
                 <div class="service-title">
                   <h3>{{ service.name }}</h3>
                   <span
-                    v-if="service.archived"
-                    class="badge badge-gray"
-                  >Archivé</span>
-                  <span
-                    v-else-if="service.active"
+                    v-if="service.active"
                     class="badge badge-green"
                   >Actif</span>
                   <span v-else class="badge badge-inactive">Inactif</span>
@@ -98,33 +99,25 @@
               </div>
 
               <div class="service-actions">
-                <template v-if="!service.archived">
-                  <button
-                    @click="toggleActive(service.id)"
-                    class="toggle-switch"
-                    :style="{
-                      backgroundColor: service.active ? '#92B08B' : '#E0E0E0'
-                    }"
-                    title="Activer/Désactiver"
-                  >
-                    <span
-                      class="toggle-slider"
-                      :class="{ 'toggle-slider-active': service.active }"
-                    ></span>
-                  </button>
-                  <button @click="startEdit(service)" class="icon-btn">
-                    <Edit2 :size="18" />
-                  </button>
-                  <button @click="archiveService(service.id)" class="icon-btn icon-btn-orange">
-                    <Archive :size="18" />
-                  </button>
-                </template>
-                <template v-else>
-                  <button @click="unarchiveService(service.id)" class="restore-btn">Restaurer</button>
-                  <button @click="deleteService(service.id)" class="icon-btn icon-btn-danger">
-                    <Trash2 :size="18" />
-                  </button>
-                </template>
+                <button
+                  @click="toggleActive(service.id)"
+                  class="toggle-switch"
+                  :style="{
+                    backgroundColor: service.active ? '#92B08B' : '#E0E0E0'
+                  }"
+                  title="Activer/Désactiver"
+                >
+                  <span
+                    class="toggle-slider"
+                    :class="{ 'toggle-slider-active': service.active }"
+                  ></span>
+                </button>
+                <button @click="startEdit(service)" class="icon-btn">
+                  <Edit2 :size="18" />
+                </button>
+                <button @click="deleteService(service.id)" class="icon-btn icon-btn-danger">
+                  <Trash2 :size="18" />
+                </button>
               </div>
             </div>
 
@@ -148,51 +141,20 @@
       </div>
 
       <div v-if="displayedServices.length === 0" class="empty-state">
-        <p>{{ showArchived ? 'Aucun sous-service archivé' : 'Vous n\'avez pas encore configuré de sous-services' }}</p>
+        <p>Vous n'avez pas encore configuré de sous-services</p>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { Edit2, Trash2, Archive, Coins } from 'lucide-vue-next'
+import { ref, computed, onMounted } from 'vue'
+import { Edit2, Trash2, Coins } from 'lucide-vue-next'
+import intervenantTacheService from '@/services/intervenantTacheService'
 
-const services = ref([
-  {
-    id: 1,
-    type: 'menage',
-    name: 'Ménage résidentiel & régulier',
-    hourlyRate: 20,
-    description: 'Nettoyage complet de votre domicile : dépoussiérage complet, entretien régulier, sols, cuisine, salle de bain.',
-    active: true,
-    archived: false,
-    completedJobs: 45,
-    materials: ['Aspirateur', 'Balai et serpillière', 'Produits de nettoyage']
-  },
-  {
-    id: 2,
-    type: 'menage',
-    name: 'Nettoyage en profondeur (Deep Cleaning)',
-    hourlyRate: 24,
-    description: 'Désinfection totale, nettoyage sous/derrière meubles, détartrage, plinthes, lavage des murs.',
-    active: true,
-    archived: false,
-    completedJobs: 28,
-    materials: ['Nettoyeur vapeur', 'Produits de nettoyage', 'Chiffons et éponges']
-  },
-  {
-    id: 3,
-    type: 'menage',
-    name: 'Lavage vitres & surfaces spécialisées',
-    hourlyRate: 22,
-    description: 'Vitres intérieur/extérieur, marbre, bois nobles, soins textiles, moquettes & tapis.',
-    active: false,
-    archived: false,
-    completedJobs: 12,
-    materials: ['Chiffons et éponges']
-  }
-])
+const services = ref<any[]>([])
+const loading = ref(false)
+const error = ref<string | null>(null)
 
 const materialsByService: Record<string, string[]> = {
   menage: [
@@ -219,20 +181,17 @@ const editData = ref({
   hourlyRate: 0,
   materials: [] as string[]
 })
-const showArchived = ref(false)
 
 const displayedServices = computed(() => {
-  return showArchived.value
-    ? services.value.filter(s => s.archived)
-    : services.value.filter(s => !s.archived)
+  return services.value
 })
 
 const activeServices = computed(() => {
-  return services.value.filter(s => s.active && !s.archived).length
+  return services.value.filter(s => s.active).length
 })
 
 const totalServices = computed(() => {
-  return services.value.filter(s => !s.archived).length
+  return services.value.length
 })
 
 const totalCompletedJobs = computed(() => {
@@ -243,10 +202,35 @@ const getMaterials = (type: string) => {
   return materialsByService[type] || []
 }
 
-const toggleActive = (id: number) => {
-  const service = services.value.find(s => s.id === id)
-  if (service) {
-    service.active = !service.active
+const fetchServices = async () => {
+  loading.value = true
+  error.value = null
+  try {
+    const response = await intervenantTacheService.getMyTaches()
+    services.value = response.data
+  } catch (err: any) {
+    error.value = err.response?.data?.message || 'Erreur lors du chargement des sous-services'
+    console.error(err)
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  fetchServices()
+})
+
+const toggleActive = async (id: number) => {
+  try {
+    await intervenantTacheService.toggleActive(id)
+    // Refresh the service in the list
+    const service = services.value.find(s => s.id === id)
+    if (service) {
+      service.active = !service.active
+    }
+  } catch (err: any) {
+    alert(err.response?.data?.message || 'Erreur lors de la mise à jour')
+    console.error(err)
   }
 }
 
@@ -259,14 +243,26 @@ const startEdit = (service: any) => {
   }
 }
 
-const saveEdit = (id: number) => {
-  const service = services.value.find(s => s.id === id)
-  if (service) {
-    service.description = editData.value.description
-    service.hourlyRate = editData.value.hourlyRate
-    service.materials = [...editData.value.materials]
+const saveEdit = async (id: number) => {
+  try {
+    await intervenantTacheService.updateMyTache(id, {
+      description: editData.value.description,
+      hourlyRate: editData.value.hourlyRate,
+      materials: editData.value.materials,
+    })
+    
+    // Update local state
+    const service = services.value.find(s => s.id === id)
+    if (service) {
+      service.description = editData.value.description
+      service.hourlyRate = editData.value.hourlyRate
+      service.materials = [...editData.value.materials]
+    }
+    editingService.value = null
+  } catch (err: any) {
+    alert(err.response?.data?.message || 'Erreur lors de la sauvegarde')
+    console.error(err)
   }
-  editingService.value = null
 }
 
 const toggleEditMaterial = (material: string) => {
@@ -278,28 +274,18 @@ const toggleEditMaterial = (material: string) => {
   }
 }
 
-const archiveService = (id: number) => {
-  if (confirm('Êtes-vous sûr de vouloir archiver ce sous-service ?')) {
-    const service = services.value.find(s => s.id === id)
-    if (service) {
-      service.archived = true
-      service.active = false
-    }
-  }
-}
-
-const unarchiveService = (id: number) => {
-  const service = services.value.find(s => s.id === id)
-  if (service) {
-    service.archived = false
-  }
-}
-
-const deleteService = (id: number) => {
+const deleteService = async (id: number) => {
   if (confirm('Êtes-vous sûr de vouloir supprimer définitivement ce sous-service ?')) {
-    const index = services.value.findIndex(s => s.id === id)
-    if (index > -1) {
-      services.value.splice(index, 1)
+    try {
+      await intervenantTacheService.deleteTache(id)
+      // Remove from local state
+      const index = services.value.findIndex(s => s.id === id)
+      if (index > -1) {
+        services.value.splice(index, 1)
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Erreur lors de la suppression')
+      console.error(err)
     }
   }
 }
@@ -397,10 +383,6 @@ const deleteService = (id: number) => {
   border-radius: var(--radius-lg);
   padding: var(--spacing-4);
   transition: all 0.3s;
-}
-
-.service-archived {
-  opacity: 0.6;
 }
 
 .service-header {
@@ -518,19 +500,6 @@ const deleteService = (id: number) => {
 
 .icon-btn-danger {
   color: var(--color-orange);
-}
-
-.restore-btn {
-  padding: 0.25rem 0.75rem;
-  background-color: var(--color-light-green);
-  color: var(--color-primary-green);
-  border-radius: var(--radius-lg);
-  font-size: 0.75rem;
-  transition: background-color 0.2s;
-}
-
-.restore-btn:hover {
-  background-color: #D5EBD5;
 }
 
 .rate-badge {
@@ -666,6 +635,21 @@ const deleteService = (id: number) => {
   text-align: center;
   padding: var(--spacing-12) var(--spacing-6);
   color: var(--color-gray-500);
+}
+
+.loading-state {
+  text-align: center;
+  padding: var(--spacing-12) var(--spacing-6);
+  color: var(--color-gray-600);
+}
+
+.error-message {
+  padding: var(--spacing-4);
+  background-color: #FEE2E2;
+  color: #DC2626;
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--spacing-4);
+  border: 1px solid #FCA5A5;
 }
 
 @media (max-width: 768px) {

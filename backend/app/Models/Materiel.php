@@ -11,12 +11,11 @@ class Materiel extends Model
 
     protected $table = 'materiel';
 
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = 'updated_at';
 
     protected $fillable = [
-        'nom',
-        'description',
+        'nom_materiel',
     ];
 
     /**
@@ -26,11 +25,10 @@ class Materiel extends Model
     {
         return $this->belongsToMany(
             Tache::class,
-            'tachemateriel',
-            'materielId',
-            'tacheId'
-        )->withPivot('quantite')
-            ->withTimestamps();
+            'tache_materiel',
+            'materiel_id',
+            'tache_id'
+        )->withPivot('prix_materiel', 'created_at', 'updated_at');
     }
 
     /**
@@ -40,10 +38,10 @@ class Materiel extends Model
     {
         return $this->belongsToMany(
             Intervenant::class,
-            'intervenantmateriel',
-            'materielId',
-            'intervenantId'
-        )->withTimestamps();
+            'intervenant_materiel',
+            'materiel_id',
+            'intervenant_id'
+        )->withPivot('created_at', 'updated_at');
     }
 
     /**
@@ -53,9 +51,9 @@ class Materiel extends Model
     {
         return $this->belongsToMany(
             Intervention::class,
-            'interventionmateriel',
-            'materielId',
-            'interventionId'
-        )->withTimestamps();
+            'intervention_materiel',
+            'materiel_id',
+            'intervention_id'
+        )->withPivot('created_at', 'updated_at');
     }
 }

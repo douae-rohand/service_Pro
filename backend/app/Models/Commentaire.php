@@ -11,8 +11,7 @@ class Commentaire extends Model
 
     protected $table = 'commentaire';
 
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
+    
 
     protected $fillable = [
         'commentaire',

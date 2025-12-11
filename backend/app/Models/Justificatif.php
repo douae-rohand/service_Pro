@@ -11,8 +11,7 @@ class Justificatif extends Model
 
     protected $table = 'justificatif';
 
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
+    
 
     protected $fillable = [
         'nom',

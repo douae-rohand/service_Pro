@@ -40,6 +40,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Routes Interventions
     // ======================
     Route::apiResource('interventions', InterventionController::class);
+    Route::get('interventions/index', [InterventionController::class, 'index']);
     Route::get('interventions/filter/upcoming', [InterventionController::class, 'upcoming']);
     Route::get('interventions/filter/completed', [InterventionController::class, 'completed']);
     Route::get('clients/{clientId}/interventions', [InterventionController::class, 'getClientInterventions']);
@@ -68,7 +69,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Routes Clients
     // ======================
     Route::apiResource('clients', ClientController::class);
-    Route::get('clients/{id}/interventions', [ClientController::class, 'interventions']);
+    
     Route::post('clients/{id}/favorites', [ClientController::class, 'addFavorite']);
     Route::delete('clients/{id}/favorites/{intervenantId}', [ClientController::class, 'removeFavorite']);
 

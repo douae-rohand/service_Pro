@@ -12,8 +12,7 @@ class Intervention extends Model
 
     protected $table = 'intervention';
 
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
+    
 
     protected $fillable = [
         'address',

@@ -55,7 +55,7 @@ class Client extends Model
      */
     public function interventions()
     {
-        return $this->hasMany(Intervention::class, 'clientId', 'id');
+        return $this->hasMany(Intervention::class, 'client_id', 'id');
     }
 
     /**

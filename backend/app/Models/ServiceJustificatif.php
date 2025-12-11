@@ -11,8 +11,7 @@ class ServiceJustificatif extends Pivot
 
     protected $table = 'servicejustificatif';
 
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
+    
 
     protected $fillable = [
         'idService',

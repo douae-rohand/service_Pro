@@ -9,21 +9,20 @@ class TacheMateriel extends Pivot
 {
     use HasFactory;
 
-    protected $table = 'tachemateriel';
+    protected $table = 'tache_materiel';
 
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
+    
 
     protected $fillable = [
-        'idTache',
-        'idMateriel',
-        'prixMateriel',
+        'tache_id',
+        'materiel_id',
+        'prix_materiel',
     ];
 
     protected function casts(): array
     {
         return [
-            'prixMateriel' => 'decimal:2',
+            'prix_materiel' => 'decimal:2',
         ];
     }
 
@@ -32,7 +31,7 @@ class TacheMateriel extends Pivot
      */
     public function tache()
     {
-        return $this->belongsTo(Tache::class, 'idTache', 'id');
+        return $this->belongsTo(Tache::class, 'tache_id', 'id');
     }
 
     /**
@@ -40,6 +39,6 @@ class TacheMateriel extends Pivot
      */
     public function materiel()
     {
-        return $this->belongsTo(Materiel::class, 'idMateriel', 'id');
+        return $this->belongsTo(Materiel::class, 'materiel_id', 'id');
     }
 }

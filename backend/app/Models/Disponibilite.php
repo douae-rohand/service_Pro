@@ -11,8 +11,7 @@ class Disponibilite extends Model
 
     protected $table = 'disponibilite';
 
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
+    
 
     protected $fillable = [
         'intervenantId',

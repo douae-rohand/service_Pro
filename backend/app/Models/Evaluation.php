@@ -11,8 +11,7 @@ class Evaluation extends Model
 
     protected $table = 'evaluation';
 
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
+    
 
     protected $fillable = [
         'note',

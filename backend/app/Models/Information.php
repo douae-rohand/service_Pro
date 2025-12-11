@@ -11,8 +11,7 @@ class Information extends Model
 
     protected $table = 'information';
 
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
+    
 
     protected $fillable = [
         'nom',

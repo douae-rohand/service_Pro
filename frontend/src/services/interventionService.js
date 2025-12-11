@@ -8,7 +8,7 @@ const interventionService = {
    * Récupérer toutes les interventions
    */
   getAll(params = {}) {
-    return api.get('interventions', { params });
+    return api.get('interventions/index', { params });
   },
 
   /**

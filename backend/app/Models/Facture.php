@@ -11,8 +11,7 @@ class Facture extends Model
 
     protected $table = 'facture';
 
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
+    
 
     protected $fillable = [
         'intervention_id',

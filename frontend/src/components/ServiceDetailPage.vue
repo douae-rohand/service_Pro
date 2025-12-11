@@ -1,31 +1,60 @@
 <template>
   <div class="min-h-screen bg-gray-50">
-    <!-- Header -->
-    <div class="bg-white shadow-lg sticky top-0 z-50">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div class="flex items-center gap-4">
-          <button
-            @click="$emit('back')"
-            @mouseenter="hoverBackButton = true"
-            @mouseleave="hoverBackButton = false"
-            class="flex items-center gap-2 text-gray-600 hover:text-white transition-all mb-4 px-4 py-2 rounded-lg"
-            :style="{ backgroundColor: hoverBackButton ? currentService.color : 'transparent' }"
-          >
-            <ArrowLeft :size="20" />
-          </button>
-          <div>
-            <h1 class="text-5xl" :style="{ color: currentService.color }">
-              Service de {{ currentService.name }}
-            </h1>
-            <p class="text-gray-700 mt-2 text-lg">
-              Découvrez toutes nos tâches et nos meilleurs intervenants
-            </p>
-          </div>
-        </div>
+    <!-- Loading State -->
+    <div v-if="loading" class="min-h-screen flex items-center justify-center">
+      <div class="text-center">
+        <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+        <p class="mt-4 text-gray-600">Chargement du service...</p>
       </div>
     </div>
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <!-- Error State -->
+    <div v-else-if="error" class="min-h-screen flex items-center justify-center">
+      <div class="text-center">
+        <p class="text-red-600 mb-4">{{ error }}</p>
+        <button
+          @click="loadServiceData"
+          class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Réessayer
+        </button>
+        <button
+          @click="$emit('back')"
+          class="ml-4 px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+        >
+          Retour
+        </button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <template v-else-if="currentService">
+      <!-- Header -->
+      <div class="bg-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div class="flex items-center gap-4">
+            <button
+              @click="$emit('back')"
+              @mouseenter="hoverBackButton = true"
+              @mouseleave="hoverBackButton = false"
+              class="flex items-center gap-2 text-gray-600 hover:text-white transition-all mb-4 px-4 py-2 rounded-lg"
+              :style="{ backgroundColor: hoverBackButton ? currentService.color : 'transparent' }"
+            >
+              <ArrowLeft :size="20" />
+            </button>
+            <div>
+              <h1 class="text-5xl" :style="{ color: currentService.color }">
+                Service de {{ currentService.name }}
+              </h1>
+              <p class="text-gray-700 mt-2 text-lg">
+                Découvrez toutes nos tâches et nos meilleurs intervenants
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <!-- Tasks Section -->
       <section class="mb-16">
         <div class="text-center mb-12">
@@ -36,7 +65,7 @@
             Choisissez parmi notre large gamme de services professionnels
           </p>
         </div>
-        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div v-if="currentService.tasks && currentService.tasks.length > 0" class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           <div
             v-for="(task, index) in currentService.tasks"
             :key="task.id"
@@ -71,6 +100,9 @@
             </div>
           </div>
         </div>
+        <div v-else class="text-center py-12">
+          <p class="text-gray-600">Aucun sous-service disponible pour le moment.</p>
+        </div>
       </section>
 
       <!-- Intervenants Section -->
@@ -83,7 +115,7 @@
             Des professionnels vérifiés et expérimentés à votre service
           </p>
         </div>
-        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div v-if="currentService.intervenants && currentService.intervenants.length > 0" class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           <div
             v-for="intervenant in currentService.intervenants"
             :key="intervenant.id"
@@ -155,6 +187,9 @@
             </div>
           </div>
         </div>
+        <div v-else class="text-center py-12">
+          <p class="text-gray-600">Aucun intervenant disponible pour le moment.</p>
+        </div>
         
         <!-- Button to view all intervenants -->
         <div class="text-center mt-12">
@@ -170,17 +205,19 @@
                 : `0 10px 25px ${currentService.color}40`
             }"
           >
-            {{ service === 'menage' ? 'Voir tous les intervenants ménage' : 'Voir tous les jardiniers' }}
+            {{ currentService.name === 'Ménage' ? 'Voir tous les intervenants ménage' : 'Voir tous les jardiniers' }}
             <ArrowLeft :size="20" class="rotate-180" />
           </button>
         </div>
       </section>
-    </div>
+      </div>
+    </template>
   </div>
 </template>
 
 <script>
 import { ArrowLeft, Star, Coins, MapPin, CheckCircle } from 'lucide-vue-next';
+import serviceService from '@/services/serviceService';
 
 export default {
   name: 'ServiceDetailPage',
@@ -193,9 +230,8 @@ export default {
   },
   props: {
     service: {
-      type: String,
-      required: true,
-      validator: (value) => ['jardinage', 'menage'].includes(value)
+      type: [String, Number],
+      required: true
     }
   },
   emits: ['back', 'view-all-intervenants', 'view-profile', 'task-click'],
@@ -203,191 +239,105 @@ export default {
     return {
       hoverBackButton: false,
       hoverViewAll: false,
-      serviceInfo: {
-        jardinage: {
-          name: 'Jardinage',
+      loading: true,
+      error: null,
+      serviceData: null,
+      taches: [],
+      // Configuration par défaut pour les couleurs
+      serviceConfig: {
+        'Jardinage': {
           color: '#92B08B',
-          tasks: [
-            { 
-              id: 1, 
-              name: 'Tonte de pelouse', 
-              description: 'Entretien régulier de votre gazon',
-              image: 'https://images.unsplash.com/photo-1723811898182-aff0c2eca53f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsYXduJTIwbW93aW5nJTIwZ2FyZGVufGVufDF8fHx8MTc2NDY2MTk1OXww&ixlib=rb-4.1.0&q=80&w=1080',
-              accent: '#A8D08D',
-              emoji: '🌿'
-            },
-            { 
-              id: 2, 
-              name: 'Taille de haies', 
-              description: 'Façonnage et entretien de vos haies',
-              image: 'https://images.unsplash.com/photo-1558904541-efa843a96f01?w=1080',
-              accent: '#7FB069',
-              emoji: '✂️'
-            },
-            { 
-              id: 3, 
-              name: 'Plantation de fleurs', 
-              description: 'Création et aménagement de massifs',
-              image: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?w=1080',
-              accent: '#C8E6A0',
-              emoji: '🌸'
-            },
-            { 
-              id: 4, 
-              name: 'Élagage d\'arbres', 
-              description: 'Taille et soin des arbres',
-              image: 'https://images.unsplash.com/photo-1626828476637-5bd713ef9f22?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx0cmVlJTIwcHJ1bmluZ3xlbnwxfHx8fDE3NjQ1ODY0NTJ8MA&ixlib=rb-4.1.0&q=80&w=1080',
-              accent: '#6A9955',
-              emoji: '🌳'
-            },
-            { 
-              id: 5, 
-              name: 'Désherbage', 
-              description: 'Élimination des mauvaises herbes',
-              image: 'https://images.unsplash.com/photo-1706033844083-91d7a6fdab12?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3ZWVkaW5nJTIwZ2FyZGVufGVufDF8fHx8MTc2NDY2MTk2MXww&ixlib=rb-4.1.0&q=80&w=1080',
-              accent: '#92B08B',
-              emoji: '🌱'
-            },
-            { 
-              id: 6, 
-              name: 'Entretien de potager', 
-              description: 'Soin et maintenance de votre potager',
-              image: 'https://images.unsplash.com/photo-1464226184884-fa280b87c399?w=1080',
-              accent: '#B5D99C',
-              emoji: '🥬'
-            },
-          ],
-          intervenants: [
-            {
-              id: 1,
-              name: 'Youssef Benali',
-              rating: 4.9,
-              reviewCount: 127,
-              hourlyRate: 25,
-              location: 'Tetouan Centre',
-              image: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&h=150&fit=crop',
-              verified: true,
-              specialties: ['Tonte de pelouse', 'Taille de haies', 'Plantation'],
-            },
-            {
-              id: 2,
-              name: 'Hassan Alami',
-              rating: 4.8,
-              reviewCount: 156,
-              hourlyRate: 28,
-              location: 'Tetouan Medina',
-              image: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&h=150&fit=crop',
-              verified: true,
-              specialties: ['Élagage', 'Désherbage', 'Entretien potager'],
-            },
-            {
-              id: 3,
-              name: 'Omar El Amrani',
-              rating: 4.7,
-              reviewCount: 94,
-              hourlyRate: 26,
-              location: 'Tetouan Martil',
-              image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop',
-              verified: true,
-              specialties: ['Tonte de pelouse', 'Taille de haies', 'Plantation de fleurs'],
-            },
-          ],
         },
-        menage: {
-          name: 'Ménage',
+        'Ménage': {
           color: '#4682B4',
-          tasks: [
-            { 
-              id: 1, 
-              name: 'Ménage résidentiel & régulier', 
-              description: 'Nettoyage complet, entretien régulier, dépoussiérage, sols, cuisine, salle de bain',
-              image: 'https://images.unsplash.com/photo-1758273238415-01ec03d9ef27?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxyZXNpZGVudGlhbCUyMGhvdXNlJTIwY2xlYW5pbmd8ZW58MXx8fHwxNzY0Njk5ODU4fDA&ixlib=rb-4.1.0&q=80&w=1080',
-              accent: '#8AC4D0',
-              emoji: '🏠'
-            },
-            { 
-              id: 2, 
-              name: 'Nettoyage en profondeur (Deep Cleaning)', 
-              description: 'Désinfection totale, nettoyage sous/derrière meubles, détartrage, plinthes, lavage des murs',
-              image: 'https://images.unsplash.com/photo-1737372805905-be0b91ec86fb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZWVwJTIwY2xlYW5pbmclMjBob21lfGVufDF8fHx8MTc2NDY5OTg1OHww&ixlib=rb-4.1.0&q=80&w=1080',
-              accent: '#6DB3C8',
-              emoji: '✨'
-            },
-            { 
-              id: 3, 
-              name: 'Nettoyage spécial : déménagement & post-travaux', 
-              description: 'Avant/après déménagement, après rénovation, élimination poussières fines et résidus',
-              image: 'https://images.unsplash.com/photo-1631304137068-16117132ee8b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb3ZpbmclMjBob3VzZSUyMGNsZWFuaW5nfGVufDF8fHx8MTc2NDYyMzY3M3ww&ixlib=rb-4.1.0&q=80&w=1080',
-              accent: '#7EC8E3',
-              emoji: '📦'
-            },
-            { 
-              id: 4, 
-              name: 'Lavage vitres & surfaces spécialisées', 
-              description: 'Vitres intérieur/extérieur, marbre, bois nobles, soins textiles, moquettes & tapis',
-              image: 'https://images.unsplash.com/photo-1761689502577-0013be84f1bf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3aW5kb3clMjBjbGVhbmluZyUyMHByb2Zlc3Npb25hbHxlbnwxfHx8fDE3NjQ2NzUyMDl8MA&ixlib=rb-4.1.0&q=80&w=1080',
-              accent: '#B8E2F0',
-              emoji: '🪟'
-            },
-            { 
-              id: 5, 
-              name: 'Nettoyage mobilier & textiles', 
-              description: 'Shampooing canapé, rénovation tissus/cuir, fauteuils, matelas, blanchisserie & repassage',
-              image: 'https://images.unsplash.com/photo-1654511830326-63a577771a7e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmdXJuaXR1cmUlMjB1cGhvbHN0ZXJ5JTIwY2xlYW5pbmd8ZW58MXx8fHwxNzY0Njk5ODY0fDA&ixlib=rb-4.1.0&q=80&w=1080',
-              accent: '#A5D4E6',
-              emoji: '🛋️'
-            },
-            { 
-              id: 6, 
-              name: 'Nettoyage professionnel (bureaux & commerces)', 
-              description: 'Entretien quotidien bureaux, désinfection postes de travail, vidage poubelles, salles de réunion',
-              image: 'https://images.unsplash.com/photo-1762235634143-6d350fe349e8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxvZmZpY2UlMjBjb21tZXJjaWFsJTIwY2xlYW5pbmd8ZW58MXx8fHwxNzY0Njk5ODYwfDA&ixlib=rb-4.1.0&q=80&w=1080',
-              accent: '#C1E7F4',
-              emoji: '🏢'
-            },
-          ],
-          intervenants: [
-            {
-              id: 1,
-              name: 'Fatima Tazi',
-              rating: 5.0,
-              reviewCount: 89,
-              hourlyRate: 22,
-              location: 'Tetouan M\'diq',
-              image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop',
-              verified: true,
-              specialties: ['Ménage résidentiel & régulier', 'Nettoyage mobilier & textiles', 'Lavage vitres & surfaces spécialisées'],
-            },
-            {
-              id: 2,
-              name: 'Amina Chakir',
-              rating: 4.9,
-              reviewCount: 203,
-              hourlyRate: 24,
-              location: 'Tetouan Centre',
-              image: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=150&h=150&fit=crop',
-              verified: true,
-              specialties: ['Nettoyage en profondeur (Deep Cleaning)', 'Nettoyage professionnel (bureaux & commerces)', 'Ménage résidentiel & régulier'],
-            },
-            {
-              id: 3,
-              name: 'Salma Moussaoui',
-              rating: 5.0,
-              reviewCount: 145,
-              hourlyRate: 23,
-              location: 'Tetouan Medina',
-              image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop',
-              verified: true,
-              specialties: ['Nettoyage spécial : déménagement & post-travaux', 'Lavage vitres & surfaces spécialisées', 'Nettoyage mobilier & textiles'],
-            },
-          ],
         },
-      }
+      },
+      // Données d'intervenants par défaut (peut être chargé depuis l'API plus tard)
+      intervenants: [],
     };
+  },
+  async mounted() {
+    await this.loadServiceData();
+  },
+  watch: {
+    service() {
+      this.loadServiceData();
+    }
   },
   computed: {
     currentService() {
-      return this.serviceInfo[this.service];
+      if (!this.serviceData) return null;
+      
+      const serviceName = this.serviceData.nom_service;
+      const config = this.serviceConfig[serviceName] || { color: '#6B7280' };
+      
+      return {
+        id: this.serviceData.id,
+        name: serviceName,
+        description: this.serviceData.description || '',
+        color: config.color,
+        tasks: this.taches.map(tache => ({
+          id: tache.id,
+          name: tache.nom_tache,
+          description: tache.description || '',
+          image: tache.image_url || this.getDefaultImageForTask(tache.nom_tache),
+        })),
+        intervenants: this.intervenants,
+      };
+    }
+  },
+  methods: {
+    async loadServiceData() {
+      try {
+        this.loading = true;
+        this.error = null;
+        
+        // Récupérer le service
+        const serviceId = typeof this.service === 'string' && isNaN(this.service) 
+          ? this.getServiceIdByName(this.service) 
+          : this.service;
+        
+        const serviceResponse = await serviceService.getById(serviceId);
+        this.serviceData = serviceResponse.data;
+        
+        // Récupérer les taches (sous-services)
+        const tachesResponse = await serviceService.getTaches(serviceId);
+        this.taches = tachesResponse.data;
+        
+      } catch (err) {
+        console.error('Erreur lors du chargement du service:', err);
+        this.error = err.message || 'Impossible de charger les données du service. Veuillez réessayer.';
+      } finally {
+        this.loading = false;
+      }
+    },
+    
+    // Helper pour obtenir un ID de service par nom (compatibilité avec l'ancien code)
+    getServiceIdByName(name) {
+      // Cette méthode pourrait faire un appel API si nécessaire
+      // Pour l'instant, on essaie de trouver dans la liste des services chargés
+      return name;
+    },
+    
+    // Helper pour obtenir une image par défaut si aucune image_url n'est fournie
+    getDefaultImageForTask(taskName) {
+      // Images par défaut basées sur le nom de la tâche
+      const defaultImages = {
+        'Tonte de pelouse': 'https://images.unsplash.com/photo-1723811898182-aff0c2eca53f?w=1080',
+        'Taille de haies': 'https://images.unsplash.com/photo-1558904541-efa843a96f01?w=1080',
+        'Plantation de fleurs': 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?w=1080',
+        'Élagage d\'arbres': 'https://images.unsplash.com/photo-1626828476637-5bd713ef9f22?w=1080',
+        'Désherbage': 'https://images.unsplash.com/photo-1706033844083-91d7a6fdab12?w=1080',
+        'Entretien de potager': 'https://images.unsplash.com/photo-1464226184884-fa280b87c399?w=1080',
+        'Ménage résidentiel & régulier': 'https://images.unsplash.com/photo-1758273238415-01ec03d9ef27?w=1080',
+        'Nettoyage en profondeur (Deep Cleaning)': 'https://images.unsplash.com/photo-1737372805905-be0b91ec86fb?w=1080',
+        'Nettoyage spécial : déménagement & post-travaux': 'https://images.unsplash.com/photo-1631304137068-16117132ee8b?w=1080',
+        'Lavage vitres & surfaces spécialisées': 'https://images.unsplash.com/photo-1761689502577-0013be84f1bf?w=1080',
+        'Nettoyage mobilier & textiles': 'https://images.unsplash.com/photo-1654511830326-63a577771a7e?w=1080',
+        'Nettoyage professionnel (bureaux & commerces)': 'https://images.unsplash.com/photo-1762235634143-6d350fe349e8?w=1080',
+      };
+      
+      return defaultImages[taskName] || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=1080';
     }
   }
 };

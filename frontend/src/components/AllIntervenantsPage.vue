@@ -1,22 +1,32 @@
 <template>
   <div class="min-h-screen bg-gray-50">
-    <!-- Top Search Bar -->
-    <div class="bg-white shadow-lg sticky top-0 z-50">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div class="flex items-center gap-4 mb-6">
-          <button
-            @click="$emit('back')"
-            @mouseenter="hoverBackButton = true"
-            @mouseleave="hoverBackButton = false"
-            class="flex items-center gap-2 text-gray-600 hover:text-white transition-all px-4 py-2 rounded-lg"
-            :style="{ backgroundColor: hoverBackButton ? currentService.color : 'transparent' }"
-          >
-            <ArrowLeft :size="20" />
-          </button>
-          <h1 class="text-4xl font-bold" :style="{ color: currentService.color }">
-            Tous nos {{ currentService.name }}
-          </h1>
-        </div>
+    <!-- Loading State -->
+    <div v-if="!currentService || loadingIntervenants" class="min-h-screen flex items-center justify-center">
+      <div class="text-center">
+        <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+        <p class="mt-4 text-gray-600">{{ loadingIntervenants ? 'Chargement des intervenants...' : 'Chargement...' }}</p>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <template v-else>
+      <!-- Top Search Bar -->
+      <div class="bg-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div class="flex items-center gap-4 mb-6">
+            <button
+              @click="$emit('back')"
+              @mouseenter="hoverBackButton = true"
+              @mouseleave="hoverBackButton = false"
+              class="flex items-center gap-2 text-gray-600 hover:text-white transition-all px-4 py-2 rounded-lg"
+              :style="{ backgroundColor: hoverBackButton ? currentService.color : 'transparent' }"
+            >
+              <ArrowLeft :size="20" />
+            </button>
+            <h1 class="text-4xl font-bold" :style="{ color: currentService.color }">
+              Tous nos {{ currentService.name }}
+            </h1>
+          </div>
 
         <!-- Search inputs -->
         <div class="grid md:grid-cols-3 gap-4">
@@ -25,7 +35,8 @@
             <input
               type="text"
               v-model="citySearch"
-              placeholder="Rechercher par ville..."
+              @keyup.enter="applySearch"
+              placeholder="Rechercher par nom, ville ou spécialité..."
               class="w-full pl-12 pr-4 py-3 rounded-lg border-2 border-gray-200 focus:outline-none focus:border-gray-300"
             />
           </div>
@@ -35,13 +46,14 @@
               v-model="serviceTypeFilter"
               class="w-full pl-12 pr-4 py-3 rounded-lg border-2 border-gray-200 focus:outline-none focus:border-gray-300 appearance-none cursor-pointer"
             >
-              <option value="all">Type de {{ service === 'menage' ? 'ménage' : 'jardinage' }}</option>
-              <option v-for="type in currentService.serviceTypes" :key="type" :value="type">
+              <option value="all">Type de service</option>
+              <option v-for="type in (currentService.serviceTypes || [])" :key="type" :value="type">
                 {{ type }}
               </option>
             </select>
           </div>
           <button
+            @click="applySearch"
             class="py-3 rounded-lg text-white font-medium transition-all hover:opacity-90"
             :style="{ backgroundColor: currentService.color }"
           >
@@ -91,7 +103,7 @@
               <label class="block text-sm font-semibold mb-3">Type de service</label>
               <div class="space-y-2 max-h-48 overflow-y-auto">
                 <label
-                  v-for="type in currentService.serviceTypes"
+                  v-for="type in (currentService.serviceTypes || [])"
                   :key="type"
                   class="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
                 >
@@ -206,11 +218,12 @@
                   <p class="text-sm text-gray-600">{{ intervenant.experience }}</p>
                 </div>
 
-                <!-- Specialties -->
+                <!-- Specialties (Sous-services) -->
                 <div class="mb-4">
+                  <p class="text-xs text-gray-500 mb-2 font-semibold">Sous-services :</p>
                   <div class="flex flex-wrap gap-2">
                     <span
-                      v-for="(specialty, index) in intervenant.specialties.slice(0, 2)"
+                      v-for="(specialty, index) in (intervenant.specialties || []).slice(0, 4)"
                       :key="index"
                       class="text-xs px-2 py-1 rounded-md"
                       :style="{
@@ -219,6 +232,12 @@
                       }"
                     >
                       {{ specialty }}
+                    </span>
+                    <span
+                      v-if="intervenant.specialties && intervenant.specialties.length > 4"
+                      class="text-xs px-2 py-1 rounded-md text-gray-500"
+                    >
+                      +{{ intervenant.specialties.length - 4 }} autres
                     </span>
                   </div>
                 </div>
@@ -272,11 +291,14 @@
         </main>
       </div>
     </div>
+    </template>
   </div>
 </template>
 
 <script>
 import { ArrowLeft, Star, Coins, MapPin, Search, Filter, SlidersHorizontal } from 'lucide-vue-next';
+import intervenantService from '@/services/intervenantService';
+import serviceService from '@/services/serviceService';
 
 export default {
   name: 'AllIntervenantsPage',
@@ -291,9 +313,8 @@ export default {
   },
   props: {
     service: {
-      type: String,
-      required: true,
-      validator: (value) => ['jardinage', 'menage'].includes(value)
+      type: [String, Number],
+      required: true
     }
   },
   emits: ['back', 'view-profile'],
@@ -309,6 +330,16 @@ export default {
       ecoProducts: false,
       sortBy: 'pertinence',
       hoverBackButton: false,
+      loading: false,
+      loadingIntervenants: false,
+      serviceData: null,
+      serviceTaches: [], // Les taches du service pour les filtres
+      intervenantsFromApi: [],
+      // Mapping des IDs de service aux configurations
+      serviceIdMapping: {
+        1: 'jardinage',
+        2: 'menage',
+      },
       serviceInfo: {
         jardinage: {
           name: 'Jardiniers',
@@ -493,29 +524,143 @@ export default {
           ],
         },
       },
-      cities: ['Toutes les villes', 'Tetouan Centre', 'Tetouan Medina', 'Tetouan Saniat Rmel', 'Tetouan Martil', 'Tetouan M\'diq', 'Tetouan Fnideq']
+      // Les villes seront extraites dynamiquement depuis les intervenants
     };
+  },
+  async mounted() {
+    await this.loadServiceInfo();
+    await this.loadIntervenants();
+  },
+  watch: {
+    service() {
+      this.loadServiceInfo();
+      this.loadIntervenants();
+    }
   },
   computed: {
     currentService() {
-      return this.serviceInfo[this.service];
+      // Si service est un nombre, utiliser le mapping, sinon utiliser directement
+      const serviceKey = typeof this.service === 'number' 
+        ? this.serviceIdMapping[this.service] 
+        : this.service;
+      
+      // Utiliser les taches du service depuis l'API pour les types de service
+      const serviceTypes = this.serviceTaches.length > 0
+        ? this.serviceTaches.map(tache => tache.nom_tache).filter(Boolean)
+        : [];
+      
+      // Si on a des données du service depuis l'API, les utiliser
+      if (this.serviceData) {
+        const serviceName = this.serviceData.nom_service;
+        const config = this.serviceInfo[serviceKey] || {
+          name: serviceName,
+          color: '#6B7280',
+          serviceTypes: [],
+        };
+        
+        return {
+          ...config,
+          name: config.name || serviceName,
+          serviceTypes: serviceTypes.length > 0 ? serviceTypes : (config.serviceTypes || []),
+        };
+      }
+      
+      // Sinon utiliser les données statiques
+      return this.serviceInfo[serviceKey] || {
+        name: 'Service',
+        color: '#6B7280',
+        serviceTypes: serviceTypes,
+        intervenants: [],
+      };
+    },
+    
+    // Extraire les villes depuis les intervenants chargés
+    cities() {
+      const allCities = ['Toutes les villes'];
+      const uniqueCities = new Set();
+      
+      this.intervenantsFromApi.forEach(intervenant => {
+        if (intervenant.location && intervenant.location !== 'Non spécifiée') {
+          uniqueCities.add(intervenant.location);
+        }
+      });
+      
+      return [...allCities, ...Array.from(uniqueCities).sort()];
     },
     filteredIntervenants() {
-      return this.currentService.intervenants.filter((intervenant) => {
-        const matchesCity = this.selectedCity === 'all' || this.selectedCity === 'Toutes les villes' || intervenant.location === this.selectedCity;
-        const matchesServiceType = this.selectedServiceTypes.length === 0 || this.selectedServiceTypes.some(type => intervenant.specialties.includes(type));
-        const matchesPrice = intervenant.hourlyRate >= this.priceRange[0] && intervenant.hourlyRate <= this.priceRange[1];
+      // Utiliser les intervenants de l'API si disponibles, sinon utiliser les données statiques
+      const intervenants = this.intervenantsFromApi.length > 0 
+        ? this.intervenantsFromApi 
+        : (this.currentService?.intervenants || []);
+      
+      if (!intervenants || intervenants.length === 0) {
+        return [];
+      }
+      
+      return intervenants.filter((intervenant) => {
+        // Recherche par texte (nom ou ville)
+        const searchText = this.citySearch.trim().toLowerCase();
+        let matchesSearch = true;
+        if (searchText) {
+          const intervenantName = (intervenant.name || '').toLowerCase();
+          const intervenantLocation = (intervenant.location || '').toLowerCase();
+          const intervenantSpecialties = (intervenant.specialties || []).join(' ').toLowerCase();
+          matchesSearch = intervenantName.includes(searchText) || 
+                         intervenantLocation.includes(searchText) ||
+                         intervenantSpecialties.includes(searchText);
+        }
         
+        // Filtre par ville (select de la sidebar)
+        const matchesCity = this.selectedCity === 'all' || 
+                          this.selectedCity === 'Toutes les villes' || 
+                          intervenant.location === this.selectedCity;
+        
+        // Filtre par type de service depuis la barre de recherche (si utilisé)
+        let matchesServiceTypeFilter = true;
+        if (this.serviceTypeFilter && this.serviceTypeFilter !== 'all') {
+          const intervenantTacheNames = (intervenant.taches || []).map(t => 
+            (t.nom_tache || t.name || '').toLowerCase().trim()
+          );
+          const filterTypeLower = this.serviceTypeFilter.toLowerCase().trim();
+          matchesServiceTypeFilter = intervenantTacheNames.some(tacheName => 
+            tacheName === filterTypeLower || 
+            tacheName.includes(filterTypeLower) ||
+            filterTypeLower.includes(tacheName)
+          );
+        }
+        
+        // Filtre par type de service depuis la sidebar (checkboxes)
+        let matchesServiceType = true;
+        if (this.selectedServiceTypes.length > 0) {
+          const intervenantTacheNames = (intervenant.taches || []).map(t => 
+            (t.nom_tache || t.name || '').toLowerCase().trim()
+          );
+          matchesServiceType = this.selectedServiceTypes.some(selectedType => {
+            const selectedTypeLower = selectedType.toLowerCase().trim();
+            return intervenantTacheNames.some(tacheName => 
+              tacheName === selectedTypeLower || 
+              tacheName.includes(selectedTypeLower) ||
+              selectedTypeLower.includes(tacheName)
+            );
+          });
+        }
+        
+        // Filtre par prix
+        const matchesPrice = intervenant.hourlyRate >= this.priceRange[0] && 
+                            intervenant.hourlyRate <= this.priceRange[1];
+        
+        // Filtre par note
         let matchesRating = true;
-        if (this.selectedRating === '5+') matchesRating = intervenant.rating === 5.0;
+        if (this.selectedRating === '5+') matchesRating = intervenant.rating >= 5.0;
         else if (this.selectedRating === '4.5+') matchesRating = intervenant.rating >= 4.5;
         else if (this.selectedRating === '4+') matchesRating = intervenant.rating >= 4.0;
         else if (this.selectedRating === '3.5+') matchesRating = intervenant.rating >= 3.5;
         
+        // Filtres supplémentaires
         const matchesMaterial = !this.bringsMaterial || intervenant.bringsMaterial;
         const matchesEco = !this.ecoProducts || intervenant.ecoFriendly;
         
-        return matchesCity && matchesServiceType && matchesPrice && matchesRating && matchesMaterial && matchesEco;
+        return matchesSearch && matchesCity && matchesServiceTypeFilter && matchesServiceType && matchesPrice && matchesRating && matchesMaterial && matchesEco;
       });
     },
     sortedIntervenants() {
@@ -527,6 +672,85 @@ export default {
     }
   },
   methods: {
+    async loadServiceInfo() {
+      // Charger les données du service depuis l'API si c'est un ID
+      if (typeof this.service === 'number') {
+        try {
+          const response = await serviceService.getById(this.service);
+          this.serviceData = response.data;
+          
+          // Charger les taches du service pour les filtres
+          const tachesResponse = await serviceService.getTaches(this.service);
+          this.serviceTaches = tachesResponse.data || [];
+        } catch (error) {
+          console.error('Erreur lors du chargement des informations du service:', error);
+        }
+      }
+    },
+    
+    async loadIntervenants() {
+      try {
+        this.loadingIntervenants = true;
+        
+        // Préparer les paramètres de requête
+        const params = { active: 'true' };
+        
+        // Si un service est spécifié, filtrer par serviceId côté backend
+        if (typeof this.service === 'number') {
+          params.serviceId = this.service;
+        }
+        
+        // Récupérer les intervenants depuis l'API
+        const response = await intervenantService.getAll(params);
+        const intervenants = response.data || [];
+        
+        // Mapper les données de l'API vers le format attendu par le template
+        this.intervenantsFromApi = intervenants.map(intervenant => {
+          const utilisateur = intervenant.utilisateur || {};
+          const taches = intervenant.taches || [];
+          
+          // Extraire les spécialités depuis les taches
+          const specialties = taches.map(tache => tache.nom_tache || tache.name || '').filter(Boolean);
+          
+          // Calculer le tarif moyen depuis les pivots ou utiliser une valeur par défaut
+          let hourlyRate = 25; // Par défaut
+          if (taches.length > 0) {
+            const rates = taches
+              .map(t => t.pivot?.prix_tache || t.pivot?.prixTache)
+              .filter(Boolean);
+            if (rates.length > 0) {
+              hourlyRate = Math.round(rates.reduce((a, b) => a + b, 0) / rates.length);
+            }
+          }
+          
+          // Calculer la note moyenne (pour l'instant valeur par défaut, peut être calculée depuis les évaluations)
+          const rating = 4.5; // Valeur par défaut
+          const reviewCount = 0; // Peut être calculé depuis les évaluations
+          
+          return {
+            id: intervenant.id,
+            name: `${utilisateur.nom || ''} ${utilisateur.prenom || ''}`.trim() || 'Intervenant',
+            rating: rating,
+            reviewCount: reviewCount,
+            hourlyRate: hourlyRate,
+            location: intervenant.ville || utilisateur.address || 'Non spécifiée',
+            image: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&h=150&fit=crop', // Image par défaut
+            verified: intervenant.is_active !== false,
+            specialties: specialties, // Toutes les spécialités
+            taches: taches, // Garder les taches originales pour le filtrage
+            experience: intervenant.bio || `${Math.floor(Math.random() * 10) + 1} ans d'expérience`,
+            bringsMaterial: (intervenant.materiels && intervenant.materiels.length > 0) || false,
+            ecoFriendly: Math.random() > 0.5, // Pour l'instant aléatoire
+          };
+        });
+        
+      } catch (error) {
+        console.error('Erreur lors du chargement des intervenants:', error);
+        this.intervenantsFromApi = [];
+      } finally {
+        this.loadingIntervenants = false;
+      }
+    },
     toggleServiceType(type) {
       if (this.selectedServiceTypes.includes(type)) {
         this.selectedServiceTypes = this.selectedServiceTypes.filter(t => t !== type);
@@ -534,9 +758,31 @@ export default {
         this.selectedServiceTypes.push(type);
       }
     },
+    applySearch() {
+      // Appliquer les filtres de la barre de recherche
+      // Si citySearch contient quelque chose, mettre à jour selectedCity si correspond
+      if (this.citySearch.trim()) {
+        const searchText = this.citySearch.trim().toLowerCase();
+        const matchingCity = this.cities.find(city => 
+          city !== 'Toutes les villes' && city.toLowerCase().includes(searchText)
+        );
+        if (matchingCity) {
+          this.selectedCity = matchingCity;
+        }
+      }
+      
+      // Si serviceTypeFilter est sélectionné, l'ajouter aux selectedServiceTypes
+      if (this.serviceTypeFilter && this.serviceTypeFilter !== 'all') {
+        if (!this.selectedServiceTypes.includes(this.serviceTypeFilter)) {
+          this.selectedServiceTypes.push(this.serviceTypeFilter);
+        }
+      }
+    },
     resetFilters() {
       this.selectedCity = 'all';
       this.selectedServiceTypes = [];
+      this.serviceTypeFilter = 'all';
+      this.citySearch = '';
       this.priceRange = [10, 30];
       this.selectedRating = 'all';
       this.bringsMaterial = false;

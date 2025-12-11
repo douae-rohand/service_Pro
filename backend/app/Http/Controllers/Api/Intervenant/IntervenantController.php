@@ -13,7 +13,7 @@ class IntervenantController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Intervenant::with(['utilisateur', 'admin.utilisateur', 'taches']);
+        $query = Intervenant::with(['utilisateur', 'admin.utilisateur', 'taches', 'materiels']);
 
         // Filtrer les intervenants actifs uniquement si demandé
         if ($request->has('active') && $request->active == 'true') {
@@ -23,7 +23,14 @@ class IntervenantController extends Controller
         // Filtrer par tâche spécifique (intervenants pouvant effectuer une tâche)
         if ($request->has('tacheId')) {
             $query->whereHas('taches', function ($q) use ($request) {
-                $q->where('tache.id', $request->tacheId);
+                $q->where('id', $request->tacheId);
+            });
+        }
+        
+        // Filtrer par service si spécifié
+        if ($request->has('serviceId')) {
+            $query->whereHas('taches.service', function ($q) use ($request) {
+                $q->where('service.id', $request->serviceId);
             });
         }
 

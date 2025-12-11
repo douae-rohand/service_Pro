@@ -25,6 +25,19 @@ Route::get('/test', function () {
     return ['message' => 'API Laravel OK'];
 });
 
+// ======================
+// Routes Services (publiques pour consultation)
+// ======================
+Route::get('services', [ServiceController::class, 'index']);
+Route::get('services/{id}', [ServiceController::class, 'show']);
+Route::get('services/{id}/taches', [ServiceController::class, 'getTaches']);
+
+// ======================
+// Routes Intervenants (publiques pour consultation)
+// ======================
+Route::get('intervenants', [IntervenantController::class, 'index']);
+Route::get('intervenants/{id}', [IntervenantController::class, 'show']);
+
 // Routes protégées (nécessitent une authentification)
 Route::middleware('auth:sanctum')->group(function () {
 
@@ -45,10 +58,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('interventions/{id}/photos', [InterventionController::class, 'addPhoto']);
 
     // ======================
-    // Routes Services
+    // Routes Services (modification - protégées)
     // ======================
-    Route::apiResource('services', ServiceController::class);
-    Route::get('services/{id}/taches', [ServiceController::class, 'getTaches']);
+    Route::post('services', [ServiceController::class, 'store']);
+    Route::put('services/{id}', [ServiceController::class, 'update']);
+    Route::delete('services/{id}', [ServiceController::class, 'destroy']);
 
     // ======================
     // Routes Tâches
@@ -64,9 +78,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('clients/{id}/favorites/{intervenantId}', [ClientController::class, 'removeFavorite']);
 
     // ======================
-    // Routes Intervenants
+    // Routes Intervenants (modification - protégées)
     // ======================
-    Route::apiResource('intervenants', IntervenantController::class);
+    Route::post('intervenants', [IntervenantController::class, 'store']);
+    Route::put('intervenants/{id}', [IntervenantController::class, 'update']);
+    Route::delete('intervenants/{id}', [IntervenantController::class, 'destroy']);
     Route::get('intervenants/{id}/interventions', [IntervenantController::class, 'interventions']);
     Route::get('intervenants/{id}/disponibilites', [IntervenantController::class, 'disponibilites']);
     Route::get('intervenants/{id}/taches', [IntervenantController::class, 'taches']);

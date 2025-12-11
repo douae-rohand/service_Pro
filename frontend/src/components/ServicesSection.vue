@@ -8,7 +8,25 @@
         </p>
       </div>
 
-      <div class="grid md:grid-cols-2 gap-8">
+      <!-- Loading state -->
+      <div v-if="loading" class="text-center py-12">
+        <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+        <p class="mt-4 text-gray-600">Chargement des services...</p>
+      </div>
+
+      <!-- Error state -->
+      <div v-else-if="error" class="text-center py-12">
+        <p class="text-red-600 mb-4">{{ error }}</p>
+        <button
+          @click="loadServices"
+          class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Réessayer
+        </button>
+      </div>
+
+      <!-- Services grid -->
+      <div v-else class="grid md:grid-cols-2 gap-8">
         <div
           v-for="service in services"
           :key="service.id"
@@ -52,28 +70,67 @@
 </template>
 
 <script setup>
+import { ref, onMounted } from 'vue'
+import serviceService from '@/services/serviceService'
 import jardinageImg from '@/assets/jardinage.png'
 import menageImg from '@/assets/menage.png'
 
 // Définir l'événement émis
 const emit = defineEmits(['service-click'])
 
-const services = [
-  {
-    id: 'jardinage',
-    name: 'Jardinage',
+const services = ref([])
+const loading = ref(true)
+const error = ref(null)
+
+// Mapping pour les images et couleurs par nom de service
+const serviceConfig = {
+  'Jardinage': {
     image: jardinageImg,
-    description: 'Des professionnels pour entretenir votre jardin et vos espaces verts.',
     color: '#92B08B',
   },
-  {
-    id: 'menage',
-    name: 'Ménage',
+  'Ménage': {
     image: menageImg,
-    description: 'Des experts en nettoyage pour un intérieur impeccable.',
     color: '#4682B4',
   },
-]
+}
+
+// Fonction pour obtenir la configuration d'un service
+const getServiceConfig = (serviceName) => {
+  return serviceConfig[serviceName] || {
+    image: jardinageImg,
+    color: '#6B7280',
+  }
+}
+
+// Charger les services depuis l'API
+const loadServices = async () => {
+  try {
+    loading.value = true
+    error.value = null
+    const response = await serviceService.getAll()
+    
+    // Mapper les données pour inclure image et couleur
+    services.value = response.data.map(service => {
+      const config = getServiceConfig(service.nom_service)
+      return {
+        id: service.id,
+        name: service.nom_service,
+        description: service.description || '',
+        image: config.image,
+        color: config.color,
+      }
+    })
+  } catch (err) {
+    console.error('Erreur lors du chargement des services:', err)
+    error.value = 'Impossible de charger les services. Veuillez réessayer.'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  loadServices()
+})
 
 const handleServiceClick = (serviceId) => {
   emit('service-click', serviceId)

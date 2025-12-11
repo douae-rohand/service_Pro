@@ -13,7 +13,7 @@ class ServiceController extends Controller
      */
     public function index()
     {
-        $services = Service::with(['taches', 'informations', 'justificatifs'])->get();
+        $services = Service::with('taches')->get();
 
         return response()->json($services);
     }
@@ -24,7 +24,7 @@ class ServiceController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'nomService' => 'required|string|max:100',
+            'nom_service' => 'required|string|max:100',
             'description' => 'nullable|string',
         ]);
 
@@ -41,7 +41,7 @@ class ServiceController extends Controller
      */
     public function show($id)
     {
-        $service = Service::with(['taches', 'informations', 'justificatifs'])->findOrFail($id);
+        $service = Service::with('taches')->findOrFail($id);
 
         return response()->json($service);
     }
@@ -54,7 +54,7 @@ class ServiceController extends Controller
         $service = Service::findOrFail($id);
 
         $validated = $request->validate([
-            'nomService' => 'sometimes|string|max:100',
+            'nom_service' => 'sometimes|string|max:100',
             'description' => 'sometimes|string',
         ]);
 
@@ -85,7 +85,8 @@ class ServiceController extends Controller
     public function getTaches($id)
     {
         $service = Service::findOrFail($id);
-        $taches = $service->taches()->with(['materiels', 'intervenants'])->get();
+        // Ne charger que les taches sans relations supplémentaires pour éviter les erreurs
+        $taches = $service->taches()->get();
 
         return response()->json($taches);
     }

@@ -26,7 +26,7 @@ class Tache extends Model
      */
     public function service()
     {
-        return $this->belongsTo(Service::class, 'idService', 'id');
+        return $this->belongsTo(Service::class, 'service_id', 'id');
     }
 
     /**
@@ -44,10 +44,10 @@ class Tache extends Model
     {
         return $this->belongsToMany(
             Materiel::class,
-            'tachemateriel',
-            'idTache',
-            'idMateriel'
-        )->withPivot('prixMateriel')
+            'tache_materiel',
+            'tache_id',
+            'materiel_id'
+        )->withPivot('prix_materiel')
             ->withTimestamps();
     }
 
@@ -58,10 +58,10 @@ class Tache extends Model
     {
         return $this->belongsToMany(
             Intervenant::class,
-            'intervenanttache',
-            'idTache',
-            'idIntervenant'
-        )->withPivot('prixTache', 'status')
+            'intervenant_tache',
+            'tache_id',
+            'intervenant_id'
+        )->withPivot('prix_tache', 'status')
             ->withTimestamps();
     }
 }

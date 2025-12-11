@@ -14,6 +14,7 @@ class ServiceController extends Controller
      */
     public function index()
     {
+        // $services = Service::with('taches')->get();
         $services = Service::with('taches.materiels')->get();
 
         // Format data for frontend
@@ -68,7 +69,10 @@ class ServiceController extends Controller
      */
     public function show($id)
     {
-        $service = Service::with(['taches', 'informations', 'justificatifs'])->findOrFail($id);
+        // Optimiser : charger seulement les colonnes nécessaires des taches
+        $service = Service::with(['taches:id,service_id,nom_tache,description,image_url'])
+                          ->select('id', 'nom_service', 'description')
+                          ->findOrFail($id);
 
         return response()->json($service);
     }
@@ -112,7 +116,8 @@ class ServiceController extends Controller
     public function getTaches($id)
     {
         $service = Service::findOrFail($id);
-        $taches = $service->taches()->with(['materiels', 'intervenants'])->get();
+        // Ne charger que les taches sans relations supplémentaires pour éviter les erreurs
+        $taches = $service->taches()->get();
 
         return response()->json($taches);
     }

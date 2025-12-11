@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Service\ServiceController;
 use App\Http\Controllers\Api\Intervention\TacheController;
 use App\Http\Controllers\Api\Client\ClientController;
 use App\Http\Controllers\Api\Intervenant\IntervenantController;
+use App\Http\Controllers\Api\StatsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -25,23 +26,34 @@ Route::get('/test', function () {
     return ['message' => 'API Laravel OK'];
 });
 
-// Routes publiques pour consultation
+// ======================
+// Routes Services (publiques pour consultation)
+// ======================
 Route::get('services', [ServiceController::class, 'index']);
+Route::get('services/{id}', [ServiceController::class, 'show']);
+Route::get('services/{id}/taches', [ServiceController::class, 'getTaches']);
 Route::get('intervenants/{id}/active-services-tasks', [IntervenantController::class, 'getActiveServicesAndTasks']);
 
-// TEMPORARY: Routes without authentication for testing (hardcoded intervenant ID=5)
-// TODO: Move these routes back inside auth:sanctum middleware when authentication is implemented
-// IMPORTANT: These routes must be defined BEFORE the apiResource routes to avoid route conflicts
+// ======================
+// Routes Intervenants (publiques pour consultation)
+// ======================
+Route::get('intervenants', [IntervenantController::class, 'index']);
+Route::get('intervenants/{id}', [IntervenantController::class, 'show']);
+Route::get('intervenants/me/taches', [IntervenantController::class, 'myTaches']);
+Route::put('intervenants/me/taches/{tacheId}', [IntervenantController::class, 'updateMyTache']);
+Route::post('intervenants/me/taches/{tacheId}/toggle-active', [IntervenantController::class, 'toggleActiveMyTache']);
+Route::delete('intervenants/me/taches/{tacheId}', [IntervenantController::class, 'deleteMyTache']);
+
+// ======================
+// Routes Statistiques (publiques pour consultation)
+// ======================
+Route::get('stats', [StatsController::class, 'index']);
 
 // Test route to verify no auth is required
 Route::get('intervenants/test', function () {
     return response()->json(['message' => 'Test route works without auth', 'intervenant_id' => 5]);
 });
 
-Route::get('intervenants/me/taches', [IntervenantController::class, 'myTaches']);
-Route::put('intervenants/me/taches/{tacheId}', [IntervenantController::class, 'updateMyTache']);
-Route::post('intervenants/me/taches/{tacheId}/toggle-active', [IntervenantController::class, 'toggleActiveMyTache']);
-Route::delete('intervenants/me/taches/{tacheId}', [IntervenantController::class, 'deleteMyTache']);
 
 // Routes protégées (nécessitent une authentification)
 Route::middleware('auth:sanctum')->group(function () {
@@ -65,11 +77,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // ======================
     // Routes Services (protégées)
     // ======================
-    Route::post('services', [ServiceController::class, 'store']);
-    Route::get('services/{id}', [ServiceController::class, 'show']);
-    Route::put('services/{id}', [ServiceController::class, 'update']);
-    Route::delete('services/{id}', [ServiceController::class, 'destroy']);
-    Route::get('services/{id}/taches', [ServiceController::class, 'getTaches']);
+    // Route::post('services', [ServiceController::class, 'store']);
+    // Route::get('services/{id}', [ServiceController::class, 'show']);
+    // Route::put('services/{id}', [ServiceController::class, 'update']);
+    // Route::delete('services/{id}', [ServiceController::class, 'destroy']);
+    // Route::get('services/{id}/taches', [ServiceController::class, 'getTaches']);
 
     // ======================
     // Routes Tâches
@@ -85,9 +97,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('clients/{id}/favorites/{intervenantId}', [ClientController::class, 'removeFavorite']);
 
     // ======================
-    // Routes Intervenants
+    // Routes Intervenants (modification - protégées)
     // ======================
-    Route::apiResource('intervenants', IntervenantController::class);
+    Route::post('intervenants', [IntervenantController::class, 'store']);
+    Route::put('intervenants/{id}', [IntervenantController::class, 'update']);
+    Route::delete('intervenants/{id}', [IntervenantController::class, 'destroy']);
     Route::get('intervenants/{id}/interventions', [IntervenantController::class, 'interventions']);
     Route::get('intervenants/{id}/disponibilites', [IntervenantController::class, 'disponibilites']);
     Route::get('intervenants/{id}/taches', [IntervenantController::class, 'taches']);

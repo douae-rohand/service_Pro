@@ -14,7 +14,12 @@ class IntervenantController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Intervenant::with(['utilisateur', 'admin.utilisateur', 'taches']);
+        // Optimiser le chargement : ne charger que les relations nécessaires
+        $query = Intervenant::with([
+            'utilisateur:id,nom,prenom,address',
+            'taches:id,nom_tache,service_id',
+            'taches.service:id,nom_service'
+        ]);
 
         // Filtrer les intervenants actifs uniquement si demandé
         if ($request->has('active') && $request->active == 'true') {
@@ -24,11 +29,27 @@ class IntervenantController extends Controller
         // Filtrer par tâche spécifique (intervenants pouvant effectuer une tâche)
         if ($request->has('tacheId')) {
             $query->whereHas('taches', function ($q) use ($request) {
-                $q->where('tache.id', $request->tacheId);
+                $q->where('id', $request->tacheId);
+            });
+        }
+        
+        // Filtrer par service si spécifié - optimisé
+        if ($request->has('serviceId')) {
+            $query->whereHas('taches', function ($q) use ($request) {
+                $q->where('service_id', $request->serviceId);
             });
         }
 
-        $intervenants = $query->get();
+        // Sélectionner uniquement les colonnes nécessaires
+        $intervenants = $query->select('intervenant.id', 'intervenant.ville', 'intervenant.bio', 'intervenant.is_active')
+                              ->get();
+
+        // Calculer la note moyenne et le nombre d'avis pour chaque intervenant
+        foreach ($intervenants as $intervenant) {
+            $ratingInfo = $intervenant->getRatingInfo();
+            $intervenant->average_rating = $ratingInfo['average_rating'];
+            $intervenant->review_count = $ratingInfo['review_count'];
+        }
 
         return response()->json($intervenants);
     }
@@ -69,6 +90,11 @@ class IntervenantController extends Controller
             'materiels',
             'clientsFavoris.utilisateur'
         ])->findOrFail($id);
+
+        // Calculer la note moyenne et le nombre d'avis
+        $ratingInfo = $intervenant->getRatingInfo();
+        $intervenant->average_rating = $ratingInfo['average_rating'];
+        $intervenant->review_count = $ratingInfo['review_count'];
 
         return response()->json($intervenant);
     }

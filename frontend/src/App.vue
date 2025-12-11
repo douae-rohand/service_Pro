@@ -38,7 +38,23 @@
     <!-- Dashboard Intervenant (géré par le Router) -->
     <router-view v-else />
 
-    <!-- Modals - Disponibles sur toutes les pages -->
+    <!-- Page de tous les intervenants
+    <AllIntervenantsPage
+      v-else-if="currentPage === 'all-intervenants'"
+      :service="selectedService"
+      @back="handleBackFromAllIntervenants"
+      @view-profile="handleViewProfile"
+    /> -->
+
+    <!-- Page de profil d'intervenant -->
+    <IntervenantProfile
+      v-if="currentPage === 'intervenant-profile'"
+      :intervenant-id="selectedIntervenantId"
+      :service="getServiceName(selectedService)"
+      @back="handleBackFromProfile"
+    />
+
+    <!-- Modals -->
     <LoginModal 
       :is-open="showLoginModal" 
       @close="showLoginModal = false"
@@ -63,6 +79,7 @@ import TestimonialsSection from './components/TestimonialsSection.vue'
 import Footer from './components/Footer.vue'
 import ServiceDetailPage from './components/ServiceDetailPage.vue'
 import AllIntervenantsPage from './components/AllIntervenantsPage.vue'
+import IntervenantProfile from './components/IntervenantProfile.vue'
 import LoginModal from './components/LoginModal.vue'
 import SignupModal from './components/SignupModal.vue'
 
@@ -76,6 +93,8 @@ const isDashboardRoute = computed(() => {
 // État pour gérer la navigation manuelle
 const currentPage = ref('home')
 const selectedService = ref(null)
+const selectedIntervenantId = ref(null)
+const previousPage = ref('home')
 
 // État pour les modals
 const showLoginModal = ref(false)
@@ -110,7 +129,25 @@ const handleBackFromAllIntervenants = () => {
 }
 
 const handleViewProfile = (intervenantId) => {
-  console.log('View profile:', intervenantId, 'for service:', selectedService.value)
+  console.log('View profile:', intervenantId)
+  selectedIntervenantId.value = intervenantId
+  previousPage.value = currentPage.value
+  currentPage.value = 'intervenant-profile'
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+// Retour du profil vers la page précédente
+const handleBackFromProfile = () => {
+  currentPage.value = previousPage.value
+  selectedIntervenantId.value = null
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+// Helper pour déterminer le nom du service pour le composant profile
+const getServiceName = (serviceId) => {
+  if (serviceId === 1) return 'jardinage'
+  if (serviceId === 2) return 'menage'
+  return 'menage' // default fallback
 }
 
 const handleTaskClick = (taskName) => {

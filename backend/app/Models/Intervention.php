@@ -69,7 +69,7 @@ class Intervention extends Model
      */
     public function evaluations()
     {
-        return $this->hasMany(Evaluation::class, 'interventionId', 'id');
+        return $this->hasMany(Evaluation::class, 'intervention_id', 'id');
     }
 
     /**

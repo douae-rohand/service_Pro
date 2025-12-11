@@ -150,4 +150,37 @@ class Intervenant extends Model
     {
         return $query->where('is_active', false);
     }
+
+    /**
+     * Get the average rating and review count for this intervenant.
+     * Calculate from evaluations where type_auteur is 'client'
+     */
+    public function getRatingInfo()
+    {
+        // Get all interventions for this intervenant
+        // Utiliser directement la colonne intervenant_id pour éviter les problèmes de relation
+        $interventionIds = \App\Models\Intervention::where('intervenant_id', $this->id)
+            ->pluck('id');
+        
+        if ($interventionIds->isEmpty()) {
+            return [
+                'average_rating' => 0,
+                'review_count' => 0
+            ];
+        }
+        
+        // Get all client evaluations for these interventions
+        // Utiliser les noms de colonnes réels de la base de données (snake_case)
+        $evaluations = \App\Models\Evaluation::whereIn('intervention_id', $interventionIds)
+            ->where('type_auteur', 'client')
+            ->get();
+        
+        $reviewCount = $evaluations->count();
+        $averageRating = $reviewCount > 0 ? round($evaluations->avg('note'), 1) : 0;
+        
+        return [
+            'average_rating' => $averageRating,
+            'review_count' => $reviewCount
+        ];
+    }
 }

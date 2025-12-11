@@ -37,7 +37,7 @@ class Intervention extends Model
      */
     public function client()
     {
-        return $this->belongsTo(Client::class, 'clientId', 'id');
+        return $this->belongsTo(Client::class, 'client_id', 'id');
     }
 
     /**
@@ -45,7 +45,7 @@ class Intervention extends Model
      */
     public function intervenant()
     {
-        return $this->belongsTo(Intervenant::class, 'intervenantId', 'id');
+        return $this->belongsTo(Intervenant::class, 'intervenant_id', 'id');
     }
 
     /**
@@ -53,7 +53,7 @@ class Intervention extends Model
      */
     public function tache()
     {
-        return $this->belongsTo(Tache::class, 'tacheId', 'id');
+        return $this->belongsTo(Tache::class, 'tache_id', 'id');
     }
 
     /**
@@ -69,7 +69,7 @@ class Intervention extends Model
      */
     public function evaluations()
     {
-        return $this->hasMany(Evaluation::class, 'interventionId', 'id');
+        return $this->hasMany(Evaluation::class, 'intervention_id', 'id');
     }
 
     /**

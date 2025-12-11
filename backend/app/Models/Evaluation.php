@@ -33,7 +33,7 @@ class Evaluation extends Model
      */
     public function intervention()
     {
-        return $this->belongsTo(Intervention::class, 'interventionId', 'id');
+        return $this->belongsTo(Intervention::class, 'intervention_id', 'id');
     }
 
     /**
@@ -41,6 +41,6 @@ class Evaluation extends Model
      */
     public function critaire()
     {
-        return $this->belongsTo(Critaire::class, 'critaireId', 'id');
+        return $this->belongsTo(Critaire::class, 'critaire_id', 'id');
     }
 }

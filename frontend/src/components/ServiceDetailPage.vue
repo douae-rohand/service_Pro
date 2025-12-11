@@ -366,8 +366,8 @@ export default {
           return {
             id: intervenant.id,
             name: `${utilisateur.nom || ''} ${utilisateur.prenom || ''}`.trim() || 'Intervenant',
-            rating: 4.5, // Valeur par défaut (peut être calculée depuis les évaluations)
-            reviewCount: 0, // Peut être calculé depuis les évaluations
+            rating: intervenant.average_rating || 0, // Note moyenne calculée depuis la base de données
+            reviewCount: intervenant.review_count || 0, // Nombre d'avis calculé depuis la base de données
             hourlyRate: hourlyRate,
             location: intervenant.ville || utilisateur.address || 'Non spécifiée',
             image: intervenant.image_url || utilisateur.photo || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=150&h=150&fit=crop',

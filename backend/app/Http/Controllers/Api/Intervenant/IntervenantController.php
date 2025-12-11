@@ -43,6 +43,13 @@ class IntervenantController extends Controller
         $intervenants = $query->select('intervenant.id', 'intervenant.ville', 'intervenant.bio', 'intervenant.is_active')
                               ->get();
 
+        // Calculer la note moyenne et le nombre d'avis pour chaque intervenant
+        foreach ($intervenants as $intervenant) {
+            $ratingInfo = $intervenant->getRatingInfo();
+            $intervenant->average_rating = $ratingInfo['average_rating'];
+            $intervenant->review_count = $ratingInfo['review_count'];
+        }
+
         return response()->json($intervenants);
     }
 
@@ -82,6 +89,11 @@ class IntervenantController extends Controller
             'materiels',
             'clientsFavoris.utilisateur'
         ])->findOrFail($id);
+
+        // Calculer la note moyenne et le nombre d'avis
+        $ratingInfo = $intervenant->getRatingInfo();
+        $intervenant->average_rating = $ratingInfo['average_rating'];
+        $intervenant->review_count = $ratingInfo['review_count'];
 
         return response()->json($intervenant);
     }

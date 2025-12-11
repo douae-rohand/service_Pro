@@ -96,20 +96,17 @@ class Intervenant extends Model
 
     /**
      * Get the services that this intervenant offers.
-     */
-    public function services()
-    {
-        return $this->belongsToMany(
-            Service::class,
-            'intervenant_service',
-            'intervenant_id',
-            'service_id'
-        )->withPivot('status')
-            ->withTimestamps();
-=======
-        )->withPivot('prix_tache', 'status', 'created_at', 'updated_at');
->>>>>>> 1bb69700cd637aa963780e26897a26562262c223
-    }
+     
+        *public function services()
+        *{
+            *return $this->belongsToMany(
+                *Service::class,
+                *'intervenant_service',
+                *'intervenant_id',
+                *'service_id'
+            *)->withPivot('prix_tache', 'status', 'created_at', 'updated_at');
+        *}
+    **/
 
     /**
      * Get the materiels owned by this intervenant.

@@ -1,11 +1,11 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\InterventionController;
-use App\Http\Controllers\Api\ServiceController;
+use App\Http\Controllers\Api\Auth\AuthController;
+use App\Http\Controllers\Api\Intervention\InterventionController;
+use App\Http\Controllers\Api\Service\ServiceController;
 use App\Http\Controllers\Api\TacheController;
-use App\Http\Controllers\Api\ClientController;
+use App\Http\Controllers\Api\Client\ClientController;
 use App\Http\Controllers\Api\Intervenant\IntervenantController;
 
 /*
@@ -72,7 +72,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // ======================
     // Routes Tâches
     // ======================
-    Route::apiResource('taches', TacheController::class);
+    //Route::apiResource('taches', TacheController::class);
 
     // ======================
     // Routes Clients

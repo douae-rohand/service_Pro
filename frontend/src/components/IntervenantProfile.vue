@@ -125,10 +125,7 @@
                     <span>{{ serviceItem.duration }}</span>
                   </div>
                 </div>
-                <div class="flex items-center justify-between">
-                  <div class="text-2xl" :style="{ color: buttonColor }">
-                    {{ serviceItem.price }}DH/h
-                  </div>
+                <div class="flex items-center justify-end">
                   <button
                     class="px-8 py-3 rounded-lg text-white transition-all hover:opacity-90"
                     :style="{ backgroundColor: buttonColor }"

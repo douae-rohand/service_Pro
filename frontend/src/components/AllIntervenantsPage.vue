@@ -111,23 +111,6 @@
               </div>
             </div>
 
-            <!-- Tarif horaire -->
-            <div class="mb-6">
-              <label class="block text-sm font-semibold mb-3">Tarif horaire</label>
-              <input
-                type="range"
-                min="10"
-                max="30"
-                :value="priceRange[1]"
-                @input="priceRange[1] = parseInt($event.target.value)"
-                class="w-full"
-                :style="{ accentColor: currentService.color }"
-              />
-              <div class="flex justify-between text-xs text-gray-600 mt-2">
-                <span>{{ priceRange[0] }}DH/h</span>
-                <span>{{ priceRange[1] }}DH/h</span>
-              </div>
-            </div>
 
             <!-- Note minimum -->
             <div class="mb-6">
@@ -175,8 +158,6 @@
             >
               <option value="pertinence">Trier par: Pertinence</option>
               <option value="rating">Note décroissante</option>
-              <option value="price-asc">Prix croissant</option>
-              <option value="price-desc">Prix décroissant</option>
             </select>
           </div>
 
@@ -242,16 +223,12 @@
                   </div>
                 </div>
 
-                <!-- Rating and price -->
-                <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
+                <!-- Rating -->
+                <div class="flex items-center mb-4 pb-4 border-b border-gray-200">
                   <div class="flex items-center gap-2">
                     <Star :size="16" class="fill-yellow-400 text-yellow-400" />
                     <span class="font-medium">{{ intervenant.rating }}</span>
                     <span class="text-gray-500 text-sm">({{ intervenant.reviewCount }} avis)</span>
-                  </div>
-                  <div class="flex items-center gap-1 font-bold" :style="{ color: currentService.color }">
-                    <Coins :size="18" />
-                    {{ intervenant.hourlyRate }}DH/h
                   </div>
                 </div>
 
@@ -287,7 +264,7 @@
 </template>
 
 <script>
-import { ArrowLeft, Star, Coins, MapPin, Search, Filter, SlidersHorizontal } from 'lucide-vue-next';
+import { ArrowLeft, Star, MapPin, Search, Filter, SlidersHorizontal } from 'lucide-vue-next';
 import intervenantService from '@/services/intervenantService';
 import serviceService from '@/services/serviceService';
 
@@ -296,7 +273,6 @@ export default {
   components: {
     ArrowLeft,
     Star,
-    Coins,
     MapPin,
     Search,
     Filter,

@@ -144,10 +144,6 @@
                   <MapPin :size="16" :style="{ color: currentService.color }" />
                   <span>{{ intervenant.location }}</span>
                 </div>
-                <div class="flex items-center gap-2 text-gray-700">
-                  <Coins :size="16" :style="{ color: currentService.color }" />
-                  <span>{{ intervenant.hourlyRate }}DH/heure</span>
-                </div>
               </div>
 
               <div class="mb-4">
@@ -206,7 +202,7 @@
 </template>
 
 <script>
-import { ArrowLeft, Star, Coins, MapPin, CheckCircle } from 'lucide-vue-next';
+import { ArrowLeft, Star, MapPin, CheckCircle } from 'lucide-vue-next';
 import serviceService from '@/services/serviceService';
 import intervenantService from '@/services/intervenantService';
 
@@ -215,7 +211,6 @@ export default {
   components: {
     ArrowLeft,
     Star,
-    Coins,
     MapPin,
     CheckCircle
   },

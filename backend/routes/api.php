@@ -23,6 +23,10 @@ Route::get('/test', function () {
     return ['message' => 'API Laravel OK'];
 });
 
+// Routes publiques pour consultation
+Route::get('services', [ServiceController::class, 'index']);
+Route::get('intervenants/{id}/active-services-tasks', [IntervenantController::class, 'getActiveServicesAndTasks']);
+
 // Routes protégées (nécessitent une authentification)
 Route::middleware('auth:sanctum')->group(function () {
 
@@ -43,9 +47,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('interventions/{id}/photos', [InterventionController::class, 'addPhoto']);
 
     // ======================
-    // Routes Services
+    // Routes Services (protégées)
     // ======================
-    Route::apiResource('services', ServiceController::class);
+    Route::post('services', [ServiceController::class, 'store']);
+    Route::get('services/{id}', [ServiceController::class, 'show']);
+    Route::put('services/{id}', [ServiceController::class, 'update']);
+    Route::delete('services/{id}', [ServiceController::class, 'destroy']);
     Route::get('services/{id}/taches', [ServiceController::class, 'getTaches']);
 
     // ======================

@@ -9,13 +9,40 @@ use Illuminate\Http\Request;
 class ServiceController extends Controller
 {
     /**
-     * Display a listing of services
+     * Display a listing of services with their tasks
+     * Formatted for frontend consumption
      */
     public function index()
     {
-        $services = Service::with(['taches', 'informations', 'justificatifs'])->get();
+        $services = Service::with('taches.materiels')->get();
 
-        return response()->json($services);
+        // Format data for frontend
+        $formattedServices = $services->map(function ($service) {
+            return [
+                'id' => $service->id,
+                'name' => $service->nom_service,
+                'description' => $service->description,
+                'tasks' => $service->taches->map(function ($tache) {
+                    return [
+                        'id' => $tache->id,
+                        'name' => $tache->nom_tache,
+                        'description' => $tache->description,
+                        'status' => $tache->status,
+                        'materials' => $tache->materiels->map(function ($materiel) {
+                            return [
+                                'id' => $materiel->id,
+                                'name' => $materiel->nom_materiel,
+                                'description' => $materiel->description,
+                            ];
+                        }),
+                    ];
+                }),
+            ];
+        });
+
+        return response()->json([
+            'services' => $formattedServices,
+        ]);
     }
 
     /**
@@ -24,7 +51,7 @@ class ServiceController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'nomService' => 'required|string|max:100',
+            'nom_service' => 'required|string|max:100',
             'description' => 'nullable|string',
         ]);
 
@@ -54,7 +81,7 @@ class ServiceController extends Controller
         $service = Service::findOrFail($id);
 
         $validated = $request->validate([
-            'nomService' => 'sometimes|string|max:100',
+            'nom_service' => 'sometimes|string|max:100',
             'description' => 'sometimes|string',
         ]);
 

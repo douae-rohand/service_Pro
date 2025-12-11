@@ -170,8 +170,22 @@
       </div>
     </div>
 
+    <!-- Loading State -->
+    <div v-if="isLoading" class="card">
+      <div class="empty-state">
+        <div class="loader"></div>
+        <p>Chargement des services...</p>
+      </div>
+    </div>
+
+    <!-- Error State -->
+    <div v-if="loadError && !isLoading" class="error-message">
+      <p>{{ loadError }}</p>
+      <button @click="fetchServices" class="retry-btn">Réessayer</button>
+    </div>
+
     <!-- Service Selection -->
-    <div class="card">
+    <div v-if="!isLoading && !loadError" class="card">
       <h2>Choisissez vos services</h2>
       <div class="services-grid">
         <div
@@ -243,7 +257,7 @@
                     type="number"
                     min="1"
                     step="0.5"
-                    :placeholder="String(task.baseRate)"
+                    placeholder="Ex: 25"
                   />
                   <span class="input-suffix">DH/h</span>
                 </div>
@@ -296,12 +310,23 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Check, FileText, X, Upload, AlertCircle, Trash2, Send } from 'lucide-vue-next'
+import axios from 'axios'
+
+const currentUser = ref({
+  id: 5,
+  nom: 'Tazi ',
+  prenom: 'Amina',
+})
 
 const showSuccessMessage = ref(false)
 const showActivationModal = ref(false)
 const currentService = ref(null)
+
+// Loading and error states
+const isLoading = ref(true)
+const loadError = ref(null)
 
 // File input refs
 const idCardInput = ref(null)
@@ -317,54 +342,121 @@ const activationForm = ref({
   additionalDocs: []
 })
 
-const services = [
-  { id: 'menage', name: 'Ménage', color: '#1A5FA3' },
-  { id: 'jardinage', name: 'Jardinage', color: '#92B08B' }
-]
+// Services data from API
+const services = ref([])
 
-const tasksByService = {
-  menage: [
-    { id: 'menage-1', name: 'Ménage résidentiel & régulier', baseRate: 20 },
-    { id: 'menage-2', name: 'Nettoyage en profondeur (Deep Cleaning)', baseRate: 24 },
-    { id: 'menage-3', name: 'Nettoyage spécial : déménagement & post-travaux', baseRate: 25 },
-    { id: 'menage-4', name: 'Lavage vitres & surfaces spécialisées', baseRate: 22 },
-    { id: 'menage-5', name: 'Nettoyage mobilier & textiles', baseRate: 23 },
-    { id: 'menage-6', name: 'Nettoyage professionnel (bureaux & commerces)', baseRate: 21 }
-  ],
-  jardinage: [
-    { id: 'jardinage-1', name: 'Tonte de pelouse', baseRate: 25 },
-    { id: 'jardinage-2', name: 'Taille de haies', baseRate: 28 },
-    { id: 'jardinage-3', name: 'Plantation de fleurs', baseRate: 26 },
-    { id: 'jardinage-4', name: 'Élagage d\'arbres', baseRate: 30 },
-    { id: 'jardinage-5', name: 'Désherbage', baseRate: 24 },
-    { id: 'jardinage-6', name: 'Entretien de potager', baseRate: 27 }
-  ]
+// Color mapping for services (based on service name or ID from DB)
+const serviceColors = {
+  'Ménage': '#1A5FA3',
+  'Jardinage': '#92B08B',
+  // Add more service colors as needed
 }
 
-const materialsByService = {
-  menage: [
-    'Aspirateur',
-    'Balai et serpillière',
-    'Produits de nettoyage',
-    'Chiffons et éponges',
-    'Seau',
-    'Nettoyeur vapeur'
-  ],
-  jardinage: [
-    'Tondeuse',
-    'Taille-haie',
-    'Râteau',
-    'Pelle et bêche',
-    'Arrosoir',
-    'Sécateur'
-  ]
+// Tasks by service (populated from API)
+const tasksByService = ref({})
+
+// Materials by service (populated from API)
+const materialsByService = ref({})
+
+// Fetch services from API
+const fetchServices = async () => {
+  try {
+    isLoading.value = true
+    loadError.value = null
+    
+    const response = await axios.get('http://localhost:8000/api/services')
+    const apiServices = response.data.services
+    
+    // Map services with colors
+    services.value = apiServices.map(service => ({
+      id: service.id,
+      name: service.name,
+      color: serviceColors[service.name] || '#92B08B', // Default color if not found
+      description: service.description
+    }))
+    
+    // Build tasksByService and materialsByService objects
+    tasksByService.value = {}
+    materialsByService.value = {}
+    
+    apiServices.forEach(service => {
+      tasksByService.value[service.id] = service.tasks || []
+      
+      // Collect all unique materials from all tasks in this service
+      const serviceMaterials = new Set()
+      if (service.tasks) {
+        service.tasks.forEach(task => {
+          if (task.materials) {
+            task.materials.forEach(material => {
+              serviceMaterials.add(material.name)
+            })
+          }
+        })
+      }
+      materialsByService.value[service.id] = Array.from(serviceMaterials)
+    })
+    
+    // Initialize service states
+    const initialStates = {}
+    apiServices.forEach(service => {
+      initialStates[service.id] = false
+    })
+    serviceStates.value = initialStates
+    
+    isLoading.value = false
+  } catch (error) {
+    console.error('Erreur lors du chargement des services:', error)
+    loadError.value = 'Impossible de charger les services. Veuillez réessayer.'
+    isLoading.value = false
+  }
 }
 
-const serviceStates = ref({
-  menage: false,
-  jardinage: false
+// Load intervenant's active services and tasks from DB
+const loadIntervenantActiveData = async (intervenantId) => {
+  try {
+    const response = await axios.get(`http://localhost:8000/api/intervenants/${intervenantId}/active-services-tasks`)
+    const data = response.data
+    
+    // Activate the services that are active in DB
+    if (data.services && data.services.length > 0) {
+      data.services.forEach(service => {
+        if (service.status === 'active' && serviceStates.value[service.id] !== undefined) {
+          serviceStates.value[service.id] = true
+        }
+      })
+    }
+    
+    // Activate the tasks that are active in DB
+    if (data.tasks && data.tasks.length > 0) {
+      data.tasks.forEach(task => {
+        if (task.status === 1 && task.id) {
+          taskStates.value[task.id] = true
+          // Set the price if available
+          if (task.price) {
+            taskPrices.value[task.id] = task.price
+          }
+        }
+      })
+    }
+    
+    console.log('Loaded active services:', data.services)
+    console.log('Loaded active tasks:', data.tasks)
+  } catch (error) {
+    console.error('Erreur lors du chargement des données de l\'intervenant:', error)
+  }
+}
+
+// Load services on component mount
+onMounted(async () => {
+  await fetchServices()
+  // Load active services and tasks for the test intervenant (id: 1)
+  // In production, use the actual logged-in intervenant ID
+  await loadIntervenantActiveData(currentUser.value.id)
 })
 
+
+
+const serviceStates = ref({})
 const taskStates = ref({})
 const taskPrices = ref({})
 const taskDescriptions = ref({})
@@ -381,7 +473,7 @@ const activeTasksCount = computed(() => {
 const toggleService = (serviceId, serviceName) => {
   // If activating the service, show the activation request modal
   if (!serviceStates.value[serviceId]) {
-    const service = services.find(s => s.id === serviceId)
+    const service = services.value.find(s => s.id === serviceId)
     if (service) {
       currentService.value = service
       showActivationModal.value = true
@@ -540,19 +632,19 @@ const toggleMaterial = (taskId, material) => {
 }
 
 const getServiceColor = (serviceId) => {
-  return services.find(s => s.id === serviceId)?.color || '#92B08B'
+  return services.value.find(s => s.id === serviceId)?.color || '#92B08B'
 }
 
 const getServiceName = (serviceId) => {
-  return services.find(s => s.id === serviceId)?.name || ''
+  return services.value.find(s => s.id === serviceId)?.name || ''
 }
 
 const getTasksByService = (serviceId) => {
-  return tasksByService[serviceId] || []
+  return tasksByService.value[serviceId] || []
 }
 
 const getMaterialsByService = (serviceId) => {
-  return materialsByService[serviceId] || []
+  return materialsByService.value[serviceId] || []
 }
 </script>
 
@@ -941,10 +1033,6 @@ const getMaterialsByService = (serviceId) => {
   transition: all 0.3s;
 }
 
-.service-active {
-  /* Dynamic styles applied inline */
-}
-
 .service-header {
   display: flex;
   align-items: center;
@@ -1116,5 +1204,50 @@ const getMaterialsByService = (serviceId) => {
   .modal-actions {
     flex-direction: column;
   }
+}
+
+/* Loader Animation */
+.loader {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--color-gray-200);
+  border-top-color: var(--color-primary-green);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto var(--spacing-4);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Error Message */
+.error-message {
+  background: #FEE2E2;
+  border-left: 4px solid #DC2626;
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-4);
+  margin-bottom: var(--spacing-6);
+  text-align: center;
+}
+
+.error-message p {
+  color: #991B1B;
+  margin: 0 0 var(--spacing-3) 0;
+}
+
+.retry-btn {
+  padding: var(--spacing-2) var(--spacing-4);
+  background-color: #DC2626;
+  color: var(--color-white);
+  border-radius: var(--radius-lg);
+  font-size: 0.875rem;
+  transition: background-color 0.2s;
+}
+
+.retry-btn:hover {
+  background-color: #B91C1C;
 }
 </style>

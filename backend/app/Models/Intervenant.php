@@ -74,10 +74,24 @@ class Intervenant extends Model
     {
         return $this->belongsToMany(
             Tache::class,
-            'intervenanttache',
-            'idIntervenant',
-            'idTache'
-        )->withPivot('prixTache', 'status')
+            'intervenant_tache',
+            'intervenant_id',
+            'tache_id'
+        )->withPivot('prix_tache', 'status')
+            ->withTimestamps();
+    }
+
+    /**
+     * Get the services that this intervenant offers.
+     */
+    public function services()
+    {
+        return $this->belongsToMany(
+            Service::class,
+            'intervenant_service',
+            'intervenant_id',
+            'service_id'
+        )->withPivot('status')
             ->withTimestamps();
     }
 
@@ -88,9 +102,9 @@ class Intervenant extends Model
     {
         return $this->belongsToMany(
             Materiel::class,
-            'intervenantmateriel',
-            'idIntervenant',
-            'idMateriel'
+            'intervenant_materiel',
+            'intervenant_id',
+            'materiel_id'
         )->withTimestamps();
     }
 

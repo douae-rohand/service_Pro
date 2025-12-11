@@ -41,7 +41,10 @@ class ServiceController extends Controller
      */
     public function show($id)
     {
-        $service = Service::with('taches')->findOrFail($id);
+        // Optimiser : charger seulement les colonnes nécessaires des taches
+        $service = Service::with(['taches:id,service_id,nom_tache,description,image_url'])
+                          ->select('id', 'nom_service', 'description')
+                          ->findOrFail($id);
 
         return response()->json($service);
     }

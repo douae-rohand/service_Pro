@@ -1,15 +1,7 @@
 <template>
   <div class="min-h-screen bg-gray-50">
-    <!-- Loading State -->
-    <div v-if="!currentService || loadingIntervenants" class="min-h-screen flex items-center justify-center">
-      <div class="text-center">
-        <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
-        <p class="mt-4 text-gray-600">{{ loadingIntervenants ? 'Chargement des intervenants...' : 'Chargement...' }}</p>
-      </div>
-    </div>
-
-    <!-- Content -->
-    <template v-else>
+    <!-- Content (affiché seulement quand les données sont chargées) -->
+    <div v-if="serviceData && currentService">
       <!-- Top Search Bar -->
       <div class="bg-white shadow-lg sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -61,11 +53,11 @@
             Rechercher
           </button>
         </div>
+        </div>
       </div>
-    </div>
 
-    <!-- Main Content with Sidebar -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <!-- Main Content with Sidebar -->
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div class="flex flex-col lg:flex-row gap-8">
         <!-- Left Sidebar - Filters -->
         <aside class="lg:w-80 flex-shrink-0">
@@ -275,9 +267,8 @@
             </div>
           </div>
 
-          <!-- No results -->
-          <div v-if="sortedIntervenants.length === 0" class="text-center py-16">
-            <div class="text-6xl mb-4">🔍</div>
+          <!-- No results (seulement après le chargement complet des données) -->
+          <div v-if="intervenantsLoaded && !loadingIntervenants && sortedIntervenants.length === 0" class="text-center py-16">
             <h3 class="text-2xl font-bold mb-2">Aucun intervenant trouvé</h3>
             <p class="text-gray-600 mb-6">Essayez de modifier vos critères de recherche</p>
             <button
@@ -290,8 +281,8 @@
           </div>
         </main>
       </div>
+      </div>
     </div>
-    </template>
   </div>
 </template>
 
@@ -332,218 +323,44 @@ export default {
       hoverBackButton: false,
       loading: false,
       loadingIntervenants: false,
+      intervenantsLoaded: false, // Indique si les intervenants ont été chargés au moins une fois
       serviceData: null,
       serviceTaches: [], // Les taches du service pour les filtres
       intervenantsFromApi: [],
-      // Mapping des IDs de service aux configurations
-      serviceIdMapping: {
-        1: 'jardinage',
-        2: 'menage',
+      // Configuration des couleurs par nom de service (données UI uniquement)
+      serviceColors: {
+        'Jardinage': '#92B08B',
+        'Ménage': '#4682B4',
       },
-      serviceInfo: {
-        jardinage: {
-          name: 'Jardiniers',
-          color: '#92B08B',
-          serviceTypes: ['Tonte de pelouse', 'Taille de haies', 'Plantation de fleurs', 'Élagage', 'Entretien potager'],
-          intervenants: [
-            {
-              id: 1,
-              name: 'Youssef Benali',
-              rating: 4.9,
-              reviewCount: 127,
-              hourlyRate: 25,
-              location: 'Tetouan Centre',
-              image: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&h=150&fit=crop',
-              verified: true,
-              specialties: ['Tonte de pelouse', 'Taille de haies', 'Plantation de fleurs'],
-              experience: '10 ans d\'expérience',
-              bringsMaterial: true,
-              ecoFriendly: true,
-            },
-            {
-              id: 2,
-              name: 'Hassan Alami',
-              rating: 4.8,
-              reviewCount: 156,
-              hourlyRate: 28,
-              location: 'Tetouan Medina',
-              image: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&h=150&fit=crop',
-              verified: true,
-              specialties: ['Élagage', 'Entretien potager'],
-              experience: '8 ans d\'expérience',
-              bringsMaterial: true,
-              ecoFriendly: false,
-            },
-            {
-              id: 3,
-              name: 'Omar El Amrani',
-              rating: 4.7,
-              reviewCount: 94,
-              hourlyRate: 26,
-              location: 'Tetouan Saniat Rmel',
-              image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop',
-              verified: true,
-              specialties: ['Tonte de pelouse', 'Taille de haies', 'Plantation de fleurs'],
-              experience: '6 ans d\'expérience',
-              bringsMaterial: false,
-              ecoFriendly: true,
-            },
-            {
-              id: 4,
-              name: 'Karim Berrada',
-              rating: 5.0,
-              reviewCount: 203,
-              hourlyRate: 30,
-              location: 'Tetouan Martil',
-              image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop',
-              verified: true,
-              specialties: ['Tonte de pelouse', 'Élagage', 'Plantation de fleurs'],
-              experience: '15 ans d\'expérience',
-              bringsMaterial: true,
-              ecoFriendly: true,
-            },
-            {
-              id: 5,
-              name: 'Mehdi Fahmi',
-              rating: 4.6,
-              reviewCount: 78,
-              hourlyRate: 24,
-              location: 'Tetouan M\'diq',
-              image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop',
-              verified: false,
-              specialties: ['Entretien potager', 'Plantation de fleurs'],
-              experience: '4 ans d\'expérience',
-              bringsMaterial: false,
-              ecoFriendly: true,
-            },
-            {
-              id: 6,
-              name: 'Amine Idrissi',
-              rating: 4.9,
-              reviewCount: 165,
-              hourlyRate: 27,
-              location: 'Tetouan Fnideq',
-              image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop',
-              verified: true,
-              specialties: ['Taille de haies', 'Élagage', 'Plantation de fleurs'],
-              experience: '9 ans d\'expérience',
-              bringsMaterial: true,
-              ecoFriendly: false,
-            },
-          ],
-        },
-        menage: {
-          name: 'Intervenants Ménage',
-          color: '#4682B4',
-          serviceTypes: ['Ménage résidentiel & régulier', 'Nettoyage en profondeur (Deep Cleaning)', 'Nettoyage spécial : déménagement & post-travaux', 'Lavage vitres & surfaces spécialisées', 'Nettoyage mobilier & textiles', 'Nettoyage professionnel (bureaux & commerces)'],
-          intervenants: [
-            {
-              id: 1,
-              name: 'Fatima Tazi',
-              rating: 5.0,
-              reviewCount: 89,
-              hourlyRate: 22,
-              location: 'Tetouan M\'diq',
-              image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop',
-              verified: true,
-              specialties: ['Ménage résidentiel & régulier', 'Nettoyage mobilier & textiles'],
-              experience: '5 ans d\'expérience',
-              bringsMaterial: true,
-              ecoFriendly: true,
-            },
-            {
-              id: 2,
-              name: 'Amina Chakir',
-              rating: 4.9,
-              reviewCount: 203,
-              hourlyRate: 24,
-              location: 'Tetouan Centre',
-              image: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=150&h=150&fit=crop',
-              verified: true,
-              specialties: ['Nettoyage en profondeur (Deep Cleaning)', 'Nettoyage professionnel (bureaux & commerces)'],
-              experience: '12 ans d\'expérience',
-              bringsMaterial: true,
-              ecoFriendly: false,
-            },
-            {
-              id: 3,
-              name: 'Salma Moussaoui',
-              rating: 5.0,
-              reviewCount: 145,
-              hourlyRate: 23,
-              location: 'Tetouan Medina',
-              image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop',
-              verified: true,
-              specialties: ['Nettoyage spécial : déménagement & post-travaux', 'Lavage vitres & surfaces spécialisées'],
-              experience: '6 ans d\'expérience',
-              bringsMaterial: false,
-              ecoFriendly: true,
-            },
-            {
-              id: 4,
-              name: 'Nadia Hassani',
-              rating: 4.8,
-              reviewCount: 112,
-              hourlyRate: 21,
-              location: 'Tetouan Martil',
-              image: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&h=150&fit=crop',
-              verified: true,
-              specialties: ['Ménage résidentiel & régulier', 'Nettoyage professionnel (bureaux & commerces)'],
-              experience: '4 ans d\'expérience',
-              bringsMaterial: true,
-              ecoFriendly: false,
-            },
-            {
-              id: 5,
-              name: 'Khadija Benali',
-              rating: 4.7,
-              reviewCount: 95,
-              hourlyRate: 22,
-              location: 'Tetouan Fnideq',
-              image: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&h=150&fit=crop',
-              verified: true,
-              specialties: ['Nettoyage mobilier & textiles', 'Lavage vitres & surfaces spécialisées'],
-              experience: '3 ans d\'expérience',
-              bringsMaterial: false,
-              ecoFriendly: false,
-            },
-            {
-              id: 6,
-              name: 'Leila Idrissi',
-              rating: 5.0,
-              reviewCount: 178,
-              hourlyRate: 25,
-              location: 'Tetouan Saniat Rmel',
-              image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop',
-              verified: true,
-              specialties: ['Nettoyage en profondeur (Deep Cleaning)', 'Nettoyage spécial : déménagement & post-travaux'],
-              experience: '10 ans d\'expérience',
-              bringsMaterial: true,
-              ecoFriendly: true,
-            },
-          ],
-        },
+      // Mapping des IDs aux couleurs et noms pour un affichage immédiat
+      serviceIdToColor: {
+        1: '#92B08B', // Jardinage
+        2: '#4682B4', // Ménage
       },
-      // Les villes seront extraites dynamiquement depuis les intervenants
+      serviceIdToName: {
+        1: 'Jardiniers',
+        2: 'Intervenants Ménage',
+      },
     };
   },
-  async mounted() {
-    await this.loadServiceInfo();
-    await this.loadIntervenants();
+  mounted() {
+    // Charger les données en parallèle pour un chargement plus rapide
+    // Ne pas utiliser await pour permettre l'affichage immédiat de la page
+    Promise.all([
+      this.loadServiceInfo(),
+      this.loadIntervenants(false)
+    ]).catch(error => {
+      console.error('Erreur lors du chargement des données:', error);
+    });
   },
   watch: {
     service() {
       this.loadServiceInfo();
-      this.loadIntervenants();
+      this.loadIntervenants(true); // Afficher le loading lors du changement de service
     }
   },
   computed: {
     currentService() {
-      // Si service est un nombre, utiliser le mapping, sinon utiliser directement
-      const serviceKey = typeof this.service === 'number' 
-        ? this.serviceIdMapping[this.service] 
-        : this.service;
-      
       // Utiliser les taches du service depuis l'API pour les types de service
       const serviceTypes = this.serviceTaches.length > 0
         ? this.serviceTaches.map(tache => tache.nom_tache).filter(Boolean)
@@ -552,25 +369,28 @@ export default {
       // Si on a des données du service depuis l'API, les utiliser
       if (this.serviceData) {
         const serviceName = this.serviceData.nom_service;
-        const config = this.serviceInfo[serviceKey] || {
-          name: serviceName,
-          color: '#6B7280',
-          serviceTypes: [],
-        };
+        const color = this.serviceColors[serviceName] || '#6B7280';
         
         return {
-          ...config,
-          name: config.name || serviceName,
-          serviceTypes: serviceTypes.length > 0 ? serviceTypes : (config.serviceTypes || []),
+          name: serviceName,
+          color: color,
+          serviceTypes: serviceTypes,
         };
       }
       
-      // Sinon utiliser les données statiques
-      return this.serviceInfo[serviceKey] || {
-        name: 'Service',
-        color: '#6B7280',
+      // Fallback par défaut pendant le chargement - utiliser l'ID pour déterminer immédiatement nom et couleur
+      let serviceName = 'Service';
+      let color = '#6B7280';
+      
+      if (typeof this.service === 'number') {
+        serviceName = this.serviceIdToName[this.service] || 'Service';
+        color = this.serviceIdToColor[this.service] || '#6B7280';
+      }
+      
+      return {
+        name: serviceName,
+        color: color, // Utiliser la couleur correcte dès le début
         serviceTypes: serviceTypes,
-        intervenants: [],
       };
     },
     
@@ -588,10 +408,8 @@ export default {
       return [...allCities, ...Array.from(uniqueCities).sort()];
     },
     filteredIntervenants() {
-      // Utiliser les intervenants de l'API si disponibles, sinon utiliser les données statiques
-      const intervenants = this.intervenantsFromApi.length > 0 
-        ? this.intervenantsFromApi 
-        : (this.currentService?.intervenants || []);
+      // Toujours utiliser les intervenants de l'API (même si vide, pour éviter d'afficher les données statiques)
+      const intervenants = this.intervenantsFromApi || [];
       
       if (!intervenants || intervenants.length === 0) {
         return [];
@@ -676,21 +494,24 @@ export default {
       // Charger les données du service depuis l'API si c'est un ID
       if (typeof this.service === 'number') {
         try {
+          // Un seul appel API - Laravel retourne le service avec ses taches incluses
           const response = await serviceService.getById(this.service);
           this.serviceData = response.data;
           
-          // Charger les taches du service pour les filtres
-          const tachesResponse = await serviceService.getTaches(this.service);
-          this.serviceTaches = tachesResponse.data || [];
+          // Les taches sont déjà incluses dans la réponse du backend Laravel
+          this.serviceTaches = response.data.taches || [];
         } catch (error) {
           console.error('Erreur lors du chargement des informations du service:', error);
         }
       }
     },
     
-    async loadIntervenants() {
+    async loadIntervenants(showLoading = true) {
       try {
-        this.loadingIntervenants = true;
+        // Afficher le loading seulement si explicitement demandé (pas au montage initial)
+        if (showLoading) {
+          this.loadingIntervenants = true;
+        }
         
         // Préparer les paramètres de requête
         const params = { active: 'true' };
@@ -734,7 +555,7 @@ export default {
             reviewCount: reviewCount,
             hourlyRate: hourlyRate,
             location: intervenant.ville || utilisateur.address || 'Non spécifiée',
-            image: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&h=150&fit=crop', // Image par défaut
+            image: intervenant.image_url || utilisateur.photo || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=150&h=150&fit=crop', // Image depuis la base de données ou générique
             verified: intervenant.is_active !== false,
             specialties: specialties, // Toutes les spécialités
             taches: taches, // Garder les taches originales pour le filtrage
@@ -744,11 +565,18 @@ export default {
           };
         });
         
+        // Marquer que les intervenants ont été chargés
+        this.intervenantsLoaded = true;
+        
       } catch (error) {
         console.error('Erreur lors du chargement des intervenants:', error);
         this.intervenantsFromApi = [];
+        // Marquer comme chargé même en cas d'erreur
+        this.intervenantsLoaded = true;
       } finally {
-        this.loadingIntervenants = false;
+        if (showLoading) {
+          this.loadingIntervenants = false;
+        }
       }
     },
     toggleServiceType(type) {

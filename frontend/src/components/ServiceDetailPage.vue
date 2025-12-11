@@ -1,34 +1,24 @@
 <template>
   <div class="min-h-screen bg-gray-50">
-    <!-- Loading State -->
-    <div v-if="loading" class="min-h-screen flex items-center justify-center">
-      <div class="text-center">
-        <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
-        <p class="mt-4 text-gray-600">Chargement du service...</p>
+    <!-- Error banner (si erreur et pas de données) -->
+    <div v-if="error && !serviceData" class="bg-red-50 border-l-4 border-red-500 p-4 mb-4">
+      <div class="flex">
+        <div class="flex-1">
+          <p class="text-red-700">{{ error }}</p>
+        </div>
+        <div>
+          <button
+            @click="loadServiceData"
+            class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm mr-2"
+          >
+            Réessayer
+          </button>
+        </div>
       </div>
     </div>
 
-    <!-- Error State -->
-    <div v-else-if="error" class="min-h-screen flex items-center justify-center">
-      <div class="text-center">
-        <p class="text-red-600 mb-4">{{ error }}</p>
-        <button
-          @click="loadServiceData"
-          class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          Réessayer
-        </button>
-        <button
-          @click="$emit('back')"
-          class="ml-4 px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-        >
-          Retour
-        </button>
-      </div>
-    </div>
-
-    <!-- Content -->
-    <template v-else-if="currentService">
+    <!-- Content (affiché seulement quand les données sont chargées) -->
+    <div v-if="serviceData && currentService">
       <!-- Header -->
       <div class="bg-white shadow-lg sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -100,7 +90,7 @@
             </div>
           </div>
         </div>
-        <div v-else class="text-center py-12">
+        <div v-else-if="serviceData && (!currentService.tasks || currentService.tasks.length === 0)" class="text-center py-12">
           <p class="text-gray-600">Aucun sous-service disponible pour le moment.</p>
         </div>
       </section>
@@ -210,8 +200,8 @@
           </button>
         </div>
       </section>
-      </div>
-    </template>
+    </div>
+    </div>
   </div>
 </template>
 
@@ -239,105 +229,108 @@ export default {
     return {
       hoverBackButton: false,
       hoverViewAll: false,
-      loading: true,
+      loading: false,
       error: null,
       serviceData: null,
       taches: [],
-      // Configuration par défaut pour les couleurs
-      serviceConfig: {
-        'Jardinage': {
-          color: '#92B08B',
-        },
-        'Ménage': {
-          color: '#4682B4',
-        },
+      // Configuration des couleurs par nom de service (données UI uniquement)
+      serviceColors: {
+        'Jardinage': '#92B08B',
+        'Ménage': '#4682B4',
       },
-      // Données d'intervenants par défaut (peut être chargé depuis l'API plus tard)
+      // Mapping des IDs aux couleurs pour un affichage immédiat
+      serviceIdToColor: {
+        1: '#92B08B', // Jardinage
+        2: '#4682B4', // Ménage
+      },
+      serviceIdToName: {
+        1: 'Jardinage',
+        2: 'Ménage',
+      },
       intervenants: [],
     };
   },
-  async mounted() {
-    await this.loadServiceData();
+  mounted() {
+    // Charger les données immédiatement en arrière-plan sans bloquer l'affichage
+    // Utiliser nextTick pour s'assurer que le DOM est rendu avant de charger
+    this.$nextTick(() => {
+      this.loadServiceData(false);
+    });
   },
   watch: {
     service() {
-      this.loadServiceData();
+      this.loadServiceData(true); // Afficher le loading lors du changement de service
     }
   },
   computed: {
     currentService() {
-      if (!this.serviceData) return null;
+      // Fallback par défaut pendant le chargement - la structure s'affiche immédiatement avec la bonne couleur
+      if (!this.serviceData) {
+        // Utiliser l'ID pour déterminer immédiatement le nom et la couleur
+        let serviceName = 'Service';
+        let color = '#6B7280';
+        
+        if (typeof this.service === 'number') {
+          serviceName = this.serviceIdToName[this.service] || 'Service';
+          color = this.serviceIdToColor[this.service] || '#6B7280';
+        }
+        
+        return {
+          name: serviceName,
+          color: color, // Utiliser la couleur correcte dès le début
+          tasks: [],
+          intervenants: [],
+        };
+      }
       
       const serviceName = this.serviceData.nom_service;
-      const config = this.serviceConfig[serviceName] || { color: '#6B7280' };
+      const color = this.serviceColors[serviceName] || '#6B7280';
+      
+      // Image par défaut générique si aucune image n'est fournie par la base de données
+      const defaultImage = 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=1080';
       
       return {
         id: this.serviceData.id,
         name: serviceName,
         description: this.serviceData.description || '',
-        color: config.color,
+        color: color,
         tasks: this.taches.map(tache => ({
           id: tache.id,
           name: tache.nom_tache,
           description: tache.description || '',
-          image: tache.image_url || this.getDefaultImageForTask(tache.nom_tache),
+          image: tache.image_url || defaultImage,
         })),
         intervenants: this.intervenants,
       };
     }
   },
   methods: {
-    async loadServiceData() {
+    async loadServiceData(showLoading = true) {
       try {
-        this.loading = true;
+        // Afficher le loading seulement si explicitement demandé (pas au montage initial)
+        if (showLoading) {
+          this.loading = true;
+        }
         this.error = null;
         
-        // Récupérer le service
-        const serviceId = typeof this.service === 'string' && isNaN(this.service) 
-          ? this.getServiceIdByName(this.service) 
-          : this.service;
+        // Récupérer le service (le backend Laravel retourne déjà les taches incluses)
+        const serviceId = this.service;
         
+        // Un seul appel API - Laravel retourne le service avec ses taches
         const serviceResponse = await serviceService.getById(serviceId);
         this.serviceData = serviceResponse.data;
         
-        // Récupérer les taches (sous-services)
-        const tachesResponse = await serviceService.getTaches(serviceId);
-        this.taches = tachesResponse.data;
+        // Les taches sont déjà incluses dans la réponse du backend Laravel
+        this.taches = serviceResponse.data.taches || [];
         
       } catch (err) {
         console.error('Erreur lors du chargement du service:', err);
         this.error = err.message || 'Impossible de charger les données du service. Veuillez réessayer.';
       } finally {
-        this.loading = false;
+        if (showLoading) {
+          this.loading = false;
+        }
       }
-    },
-    
-    // Helper pour obtenir un ID de service par nom (compatibilité avec l'ancien code)
-    getServiceIdByName(name) {
-      // Cette méthode pourrait faire un appel API si nécessaire
-      // Pour l'instant, on essaie de trouver dans la liste des services chargés
-      return name;
-    },
-    
-    // Helper pour obtenir une image par défaut si aucune image_url n'est fournie
-    getDefaultImageForTask(taskName) {
-      // Images par défaut basées sur le nom de la tâche
-      const defaultImages = {
-        'Tonte de pelouse': 'https://images.unsplash.com/photo-1723811898182-aff0c2eca53f?w=1080',
-        'Taille de haies': 'https://images.unsplash.com/photo-1558904541-efa843a96f01?w=1080',
-        'Plantation de fleurs': 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?w=1080',
-        'Élagage d\'arbres': 'https://images.unsplash.com/photo-1626828476637-5bd713ef9f22?w=1080',
-        'Désherbage': 'https://images.unsplash.com/photo-1706033844083-91d7a6fdab12?w=1080',
-        'Entretien de potager': 'https://images.unsplash.com/photo-1464226184884-fa280b87c399?w=1080',
-        'Ménage résidentiel & régulier': 'https://images.unsplash.com/photo-1758273238415-01ec03d9ef27?w=1080',
-        'Nettoyage en profondeur (Deep Cleaning)': 'https://images.unsplash.com/photo-1737372805905-be0b91ec86fb?w=1080',
-        'Nettoyage spécial : déménagement & post-travaux': 'https://images.unsplash.com/photo-1631304137068-16117132ee8b?w=1080',
-        'Lavage vitres & surfaces spécialisées': 'https://images.unsplash.com/photo-1761689502577-0013be84f1bf?w=1080',
-        'Nettoyage mobilier & textiles': 'https://images.unsplash.com/photo-1654511830326-63a577771a7e?w=1080',
-        'Nettoyage professionnel (bureaux & commerces)': 'https://images.unsplash.com/photo-1762235634143-6d350fe349e8?w=1080',
-      };
-      
-      return defaultImages[taskName] || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=1080';
     }
   }
 };

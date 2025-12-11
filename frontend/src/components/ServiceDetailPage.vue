@@ -340,7 +340,7 @@ export default {
         const intervenants = response.data || [];
         
         // Mapper les données de l'API vers le format attendu
-        this.intervenants = intervenants.slice(0, 3).map(intervenant => { // Limiter à 3 intervenants
+        const mappedIntervenants = intervenants.map(intervenant => {
           const utilisateur = intervenant.utilisateur || {};
           const taches = intervenant.taches || [];
           
@@ -370,6 +370,19 @@ export default {
             specialties: specialties,
           };
         });
+        
+        // Filtrer les intervenants : exclure ceux avec 0 avis ou note de 0
+        // Trier par note décroissante, puis prendre les 3 meilleurs
+        this.intervenants = mappedIntervenants
+          .filter(intervenant => intervenant.reviewCount > 0 && intervenant.rating > 0)
+          .sort((a, b) => {
+            // Trier par note décroissante, puis par nombre d'avis décroissant
+            if (b.rating !== a.rating) {
+              return b.rating - a.rating;
+            }
+            return b.reviewCount - a.reviewCount;
+          })
+          .slice(0, 3); // Limiter à 3 intervenants
       } catch (error) {
         console.error('Erreur lors du chargement des intervenants:', error);
         this.intervenants = [];

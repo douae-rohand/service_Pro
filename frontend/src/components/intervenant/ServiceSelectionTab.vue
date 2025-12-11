@@ -170,8 +170,14 @@
       </div>
     </div>
 
+    <!-- Authentication Error State -->
+    <div v-if="authError && !isLoadingUser" class="error-message">
+      <p>{{ authError }}</p>
+      <button @click="router.push('/')" class="retry-btn">Retour à l'accueil</button>
+    </div>
+
     <!-- Loading State -->
-    <div v-if="isLoading" class="card">
+    <div v-if="isLoading || isLoadingUser" class="card">
       <div class="empty-state">
         <div class="loader"></div>
         <p>Chargement des services...</p>
@@ -185,7 +191,7 @@
     </div>
 
     <!-- Service Selection -->
-    <div v-if="!isLoading && !loadError" class="card">
+    <div v-if="!isLoading && !loadError && !authError && currentUser" class="card">
       <h2>Choisissez vos services</h2>
       <div class="services-grid">
         <div
@@ -217,7 +223,7 @@
     </div>
 
     <!-- Task Selection for Active Services -->
-    <div v-for="(isActive, serviceId) in serviceStates" :key="serviceId">
+    <div v-if="currentUser" v-for="(isActive, serviceId) in serviceStates" :key="serviceId">
       <div v-if="isActive" class="card">
         <h2 :style="{ color: getServiceColor(serviceId) }">
           Sous-services pour {{ getServiceName(serviceId) }}
@@ -297,7 +303,7 @@
     </div>
 
     <!-- Empty State -->
-    <div v-if="activeServicesCount === 0" class="card">
+    <div v-if="currentUser && activeServicesCount === 0" class="card">
       <div class="empty-state">
         <div class="empty-icon">
           <FileText :size="28" />
@@ -312,13 +318,14 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { Check, FileText, X, Upload, AlertCircle, Trash2, Send } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
 import axios from 'axios'
+import authService from '@/services/authService'
 
-const currentUser = ref({
-  id: 5,
-  nom: 'Tazi ',
-  prenom: 'Amina',
-})
+const router = useRouter()
+const currentUser = ref(null)
+const isLoadingUser = ref(true)
+const authError = ref(null)
 
 const showSuccessMessage = ref(false)
 const showActivationModal = ref(false)
@@ -446,12 +453,67 @@ const loadIntervenantActiveData = async (intervenantId) => {
   }
 }
 
+// Load authenticated user and their data
+const loadAuthenticatedUser = async () => {
+  try {
+    isLoadingUser.value = true
+    authError.value = null
+
+    // Check if token exists
+    if (!authService.isAuthenticated()) {
+      authError.value = 'Vous devez être connecté pour accéder à cette page'
+      isLoadingUser.value = false
+      return
+    }
+
+    // Get current user from API
+    const response = await authService.getCurrentUser()
+    const user = response.data.user
+
+    // Check if user is an intervenant
+    if (!user.intervenant) {
+      authError.value = 'Cette page est réservée aux intervenants'
+      isLoadingUser.value = false
+      return
+    }
+
+    // Set current user
+    currentUser.value = {
+      id: user.id,
+      nom: user.nom,
+      prenom: user.prenom,
+      email: user.email,
+      intervenant: user.intervenant
+    }
+
+    isLoadingUser.value = false
+  } catch (error) {
+    console.error('Erreur lors du chargement de l\'utilisateur:', error)
+    
+    // Handle authentication errors
+    if (error.status === 401) {
+      authError.value = 'Session expirée. Veuillez vous reconnecter'
+      // Remove invalid token
+      authService.setAuthToken(null)
+    } else {
+      authError.value = 'Erreur lors du chargement de vos informations'
+    }
+    
+    isLoadingUser.value = false
+  }
+}
+
 // Load services on component mount
 onMounted(async () => {
-  await fetchServices()
-  // Load active services and tasks for the test intervenant (id: 1)
-  // In production, use the actual logged-in intervenant ID
-  await loadIntervenantActiveData(currentUser.value.id)
+  // Load authenticated user first
+  await loadAuthenticatedUser()
+  
+  // Only proceed if user is authenticated and is an intervenant
+  if (currentUser.value && currentUser.value.id) {
+    await fetchServices()
+    // Load active services and tasks for the authenticated intervenant
+    await loadIntervenantActiveData(currentUser.value.id)
+  }
 })
 
 

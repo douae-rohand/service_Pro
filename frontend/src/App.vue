@@ -1,38 +1,44 @@
-<!-- App.vue - Fichier principal mis à jour -->
+<!-- App.vue - Navigation hybride: Manuel pour home, Router pour dashboard -->
 <template>
   <div class="min-h-screen bg-gray-50">
-    <!-- Page d'accueil -->
-    <div v-if="currentPage === 'home'">
-      <Header 
-        @login-click="showLoginModal = true" 
-        @signup-click="showSignupModal = true" 
+    <!-- Pages Manuelles (Home, Services, etc.) -->
+    <div v-if="!isDashboardRoute">
+      <!-- Page d'accueil -->
+      <div v-if="currentPage === 'home'">
+        <Header 
+          @login-click="showLoginModal = true" 
+          @signup-click="showSignupModal = true" 
+        />
+        <HeroSection @search="handleSearch" />
+        <StatsSection />
+        <ServicesSection @service-click="handleServiceClick" />
+        <TestimonialsSection />
+        <Footer />
+      </div>
+
+      <!-- Page de détail du service -->
+      <ServiceDetailPage
+        v-else-if="currentPage === 'service-detail'"
+        :service="selectedService"
+        @back="handleBack"
+        @view-all-intervenants="handleViewAllIntervenants"
+        @view-profile="handleViewProfile"
+        @task-click="handleTaskClick"
       />
-      <HeroSection @search="handleSearch" />
-      <StatsSection />
-      <ServicesSection @service-click="handleServiceClick" />
-      <TestimonialsSection />
-      <Footer />
+
+      <!-- Page de tous les intervenants -->
+      <AllIntervenantsPage
+        v-else-if="currentPage === 'all-intervenants'"
+        :service="selectedService"
+        @back="handleBackFromAllIntervenants"
+        @view-profile="handleViewProfile"
+      />
     </div>
 
-    <!-- Page de détail du service -->
-    <ServiceDetailPage
-      v-else-if="currentPage === 'service-detail'"
-      :service="selectedService"
-      @back="handleBack"
-      @view-all-intervenants="handleViewAllIntervenants"
-      @view-profile="handleViewProfile"
-      @task-click="handleTaskClick"
-    />
+    <!-- Dashboard Intervenant (géré par le Router) -->
+    <router-view v-else />
 
-    <!-- Page de tous les intervenants -->
-    <AllIntervenantsPage
-      v-else-if="currentPage === 'all-intervenants'"
-      :service="selectedService"
-      @back="handleBackFromAllIntervenants"
-      @view-profile="handleViewProfile"
-    />
-
-    <!-- Modals -->
+    <!-- Modals - Disponibles sur toutes les pages -->
     <LoginModal 
       :is-open="showLoginModal" 
       @close="showLoginModal = false"
@@ -47,7 +53,8 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import Header from './components/Header.vue'
 import HeroSection from './components/HeroSection.vue'
 import StatsSection from './components/StatsSection.vue'
@@ -59,8 +66,15 @@ import AllIntervenantsPage from './components/AllIntervenantsPage.vue'
 import LoginModal from './components/LoginModal.vue'
 import SignupModal from './components/SignupModal.vue'
 
-// État pour gérer la navigation entre les pages
-const currentPage = ref('home') // Valeurs possibles: 'home', 'service-detail', 'all-intervenants'
+const route = useRoute()
+
+// Détecte si on est sur une route dashboard
+const isDashboardRoute = computed(() => {
+  return route.path.startsWith('/dashboard')
+})
+
+// État pour gérer la navigation manuelle
+const currentPage = ref('home')
 const selectedService = ref(null)
 
 // État pour les modals
@@ -69,10 +83,8 @@ const showSignupModal = ref(false)
 
 const handleSearch = () => {
   console.log('Search clicked')
-  // TODO: Implémenter la recherche
 }
 
-// Navigation depuis l'accueil vers la page de détail du service
 const handleServiceClick = (serviceId) => {
   console.log('Service clicked:', serviceId)
   selectedService.value = serviceId
@@ -80,41 +92,31 @@ const handleServiceClick = (serviceId) => {
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-// Retour de la page de détail du service vers l'accueil
 const handleBack = () => {
   selectedService.value = null
   currentPage.value = 'home'
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-// Navigation de la page de détail vers la page de tous les intervenants
 const handleViewAllIntervenants = () => {
   console.log('View all intervenants for:', selectedService.value)
   currentPage.value = 'all-intervenants'
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-// Retour de la page de tous les intervenants vers la page de détail du service
 const handleBackFromAllIntervenants = () => {
   currentPage.value = 'service-detail'
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-// Navigation vers le profil d'un intervenant (depuis n'importe quelle page)
 const handleViewProfile = (intervenantId) => {
   console.log('View profile:', intervenantId, 'for service:', selectedService.value)
-  // TODO: Implémenter la page de profil de l'intervenant
-  // currentPage.value = 'intervenant-profile'
 }
 
-// Navigation vers la page de réservation d'une tâche
 const handleTaskClick = (taskName) => {
   console.log('Task clicked:', taskName, 'for service:', selectedService.value)
-  // TODO: Implémenter la page de réservation
-  // currentPage.value = 'booking'
 }
 
-// Fonction pour basculer de login à signup
 const handleSwitchToSignup = () => {
   showLoginModal.value = false
   showSignupModal.value = true

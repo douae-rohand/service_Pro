@@ -4,16 +4,11 @@ namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\Utilisateur;
-<<<<<<< HEAD
 use App\Models\Client;
 use App\Models\Intervenant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
-=======
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
->>>>>>> SCRUM-39-Intervenant-frontend
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -23,7 +18,6 @@ class AuthController extends Controller
      */
     public function register(Request $request)
     {
-<<<<<<< HEAD
         try {
             // Nettoyer les données : convertir les chaînes vides en null
             $data = $request->all();
@@ -115,33 +109,6 @@ class AuthController extends Controller
                 'error' => config('app.debug') ? $e->getMessage() : 'Une erreur est survenue. Veuillez réessayer.',
             ], 500);
         }
-=======
-        $validated = $request->validate([
-            'nom' => 'required|string|max:100',
-            'prenom' => 'nullable|string|max:100',
-            'email' => 'required|string|email|max:150|unique:utilisateur',
-            'password' => 'required|string|min:8|confirmed',
-            'telephone' => 'nullable|string|max:20',
-            'address' => 'nullable|string',
-        ]);
-
-        $user = Utilisateur::create([
-            'nom' => $validated['nom'],
-            'prenom' => $validated['prenom'] ?? null,
-            'email' => $validated['email'],
-            'password' => $validated['password'],
-            'telephone' => $validated['telephone'] ?? null,
-            'address' => $validated['address'] ?? null,
-        ]);
-
-        $token = $user->createToken('auth-token')->plainTextToken;
-
-        return response()->json([
-            'message' => 'Utilisateur créé avec succès',
-            'user' => $user,
-            'token' => $token,
-        ], 201);
->>>>>>> SCRUM-39-Intervenant-frontend
     }
 
     /**
@@ -149,7 +116,6 @@ class AuthController extends Controller
      */
     public function login(Request $request)
     {
-<<<<<<< HEAD
         try {
             $request->validate([
                 'email' => 'required|email',
@@ -161,28 +127,16 @@ class AuthController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         }
-=======
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
-        ]);
->>>>>>> SCRUM-39-Intervenant-frontend
 
         $user = Utilisateur::where('email', $request->email)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
-<<<<<<< HEAD
             return response()->json([
                 'message' => 'Les identifiants sont incorrects.',
                 'errors' => [
                     'email' => ['Les identifiants sont incorrects.'],
                 ],
             ], 401);
-=======
-            throw ValidationException::withMessages([
-                'email' => ['Les identifiants sont incorrects.'],
-            ]);
->>>>>>> SCRUM-39-Intervenant-frontend
         }
 
         // Révoquer les anciens tokens
@@ -190,12 +144,9 @@ class AuthController extends Controller
 
         $token = $user->createToken('auth-token')->plainTextToken;
 
-<<<<<<< HEAD
         // Charger les relations
         $user->load(['client', 'intervenant', 'admin']);
 
-=======
->>>>>>> SCRUM-39-Intervenant-frontend
         return response()->json([
             'message' => 'Connexion réussie',
             'user' => $user,

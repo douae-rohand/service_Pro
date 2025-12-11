@@ -17,7 +17,7 @@ class IntervenantServiceSeeder extends Seeder
             [
                 'intervenant_id' => 5,
                 'service_id' => 1, // Jardinage
-                'status' => 'active',
+                'status' => 'demmande',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -41,7 +41,7 @@ class IntervenantServiceSeeder extends Seeder
             [
                 'intervenant_id' => 8,
                 'service_id' => 2, // Ménage
-                'status' => 'active',
+                'status' => 'refuse',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],

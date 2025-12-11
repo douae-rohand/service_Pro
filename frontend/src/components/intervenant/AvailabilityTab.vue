@@ -151,15 +151,14 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref } from 'vue'
 import { Plus, Trash2, Check, Calendar } from 'lucide-vue-next'
-import type { RegularAvailability, SpecialAvailability } from '@/types'
 
 const showSuccessMessage = ref(false)
 const showAddSpecial = ref(false)
 
-const regularAvailability = ref<RegularAvailability[]>([
+const regularAvailability = ref([
   { day: 'Lundi', available: true, startTime: '09:00', endTime: '17:00' },
   { day: 'Mardi', available: true, startTime: '09:00', endTime: '17:00' },
   { day: 'Mercredi', available: true, startTime: '09:00', endTime: '17:00' },
@@ -169,7 +168,7 @@ const regularAvailability = ref<RegularAvailability[]>([
   { day: 'Dimanche', available: false, startTime: '09:00', endTime: '17:00' }
 ])
 
-const specialAvailability = ref<SpecialAvailability[]>([
+const specialAvailability = ref([
   {
     id: 1,
     date: '2024-12-25',
@@ -194,7 +193,7 @@ const newSpecial = ref({
   reason: ''
 })
 
-const toggleDay = (index: number) => {
+const toggleDay = (index) => {
   regularAvailability.value[index].available = !regularAvailability.value[index].available
 }
 
@@ -208,7 +207,7 @@ const saveRegularAvailability = () => {
 const addSpecialAvailability = () => {
   if (!newSpecial.value.date) return
 
-  const newItem: SpecialAvailability = {
+  const newItem = {
     id: Date.now(),
     date: newSpecial.value.date,
     available: newSpecial.value.available,
@@ -231,14 +230,14 @@ const addSpecialAvailability = () => {
   showAddSpecial.value = false
 }
 
-const deleteSpecialAvailability = (id: number) => {
+const deleteSpecialAvailability = (id) => {
   const index = specialAvailability.value.findIndex(s => s.id === id)
   if (index > -1) {
     specialAvailability.value.splice(index, 1)
   }
 }
 
-const formatDate = (dateStr: string) => {
+const formatDate = (dateStr) => {
   const date = new Date(dateStr)
   return date.toLocaleDateString('fr-FR', {
     weekday: 'long',

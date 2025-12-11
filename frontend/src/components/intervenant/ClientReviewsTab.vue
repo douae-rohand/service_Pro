@@ -14,7 +14,7 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { MessageCircle } from 'lucide-vue-next'
 </script>
 

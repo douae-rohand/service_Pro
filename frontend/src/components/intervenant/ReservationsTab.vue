@@ -117,14 +117,13 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, computed } from 'vue'
 import { Check, X, Clock, MapPin, Calendar, MessageSquare, Coins } from 'lucide-vue-next'
-import type { Reservation } from '@/types'
 
-const selectedTab = ref<'pending' | 'accepted' | 'completed'>('pending')
+const selectedTab = ref('pending')
 
-const reservations = ref<Reservation[]>([
+const reservations = ref([
   {
     id: 1,
     clientName: 'Karim Alaoui',
@@ -190,12 +189,12 @@ const acceptedCount = computed(() => reservations.value.filter(r => r.status ===
 const completedCount = computed(() => reservations.value.filter(r => r.status === 'completed').length)
 
 const tabs = computed(() => [
-  { id: 'pending' as const, label: 'En Attente', color: '#E8793F', count: pendingCount.value },
-  { id: 'accepted' as const, label: 'Acceptées', color: '#92B08B', count: acceptedCount.value },
-  { id: 'completed' as const, label: 'Complétées', color: '#1A5FA3', count: completedCount.value }
+  { id: 'pending', label: 'En Attente', color: '#E8793F', count: pendingCount.value },
+  { id: 'accepted', label: 'Acceptées', color: '#92B08B', count: acceptedCount.value },
+  { id: 'completed', label: 'Complétées', color: '#1A5FA3', count: completedCount.value }
 ])
 
-const formatDate = (dateStr: string) => {
+const formatDate = (dateStr) => {
   const date = new Date(dateStr)
   return date.toLocaleDateString('fr-FR', {
     weekday: 'long',
@@ -204,19 +203,19 @@ const formatDate = (dateStr: string) => {
   })
 }
 
-const calculateTotal = (reservation: Reservation) => {
+const calculateTotal = (reservation) => {
   const hours = parseInt(reservation.duration)
   return reservation.hourlyRate * hours
 }
 
-const acceptReservation = (id: number) => {
+const acceptReservation = (id) => {
   const reservation = reservations.value.find(r => r.id === id)
   if (reservation) {
     reservation.status = 'accepted'
   }
 }
 
-const refuseReservation = (id: number) => {
+const refuseReservation = (id) => {
   if (confirm('Êtes-vous sûr de vouloir refuser cette réservation ?')) {
     const reservation = reservations.value.find(r => r.id === id)
     if (reservation) {

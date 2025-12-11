@@ -94,7 +94,7 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref } from 'vue'
 import { Edit2, Check, X, MapPin, Phone, Mail, Calendar } from 'lucide-vue-next'
 

@@ -91,11 +91,10 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Menu, X, User, LogOut, Briefcase, Calendar, Star, ClipboardList, History, MessageCircle } from 'lucide-vue-next'
-import type { DashboardTab } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -115,16 +114,16 @@ const intervenant = ref({
 })
 
 const tabs = [
-  { id: 'services' as DashboardTab, label: 'Mes Services', icon: Briefcase, color: '#92B08B' },
-  { id: 'myservices' as DashboardTab, label: 'Sous-services Actifs', icon: ClipboardList, color: '#1A5FA3' },
-  { id: 'reservations' as DashboardTab, label: 'Réservations', icon: Calendar, color: '#E8793F' },
-  { id: 'availability' as DashboardTab, label: 'Disponibilités', icon: Calendar, color: '#A5D4E6'},
-  { id: 'reviewclients' as DashboardTab, label: 'Évaluer Clients', icon: MessageCircle, color: '#FEE347' },
-  { id: 'reviewsstats' as DashboardTab, label: 'Mes Avis & Notes', icon: Star, color: '#E8793F' },
-  { id: 'history' as DashboardTab, label: 'Historique', icon: History, color: '#92B08B' }
+  { id: 'services', label: 'Mes Services', icon: Briefcase, color: '#92B08B' },
+  { id: 'myservices', label: 'Sous-services Actifs', icon: ClipboardList, color: '#1A5FA3' },
+  { id: 'reservations', label: 'Réservations', icon: Calendar, color: '#E8793F' },
+  { id: 'availability', label: 'Disponibilités', icon: Calendar, color: '#A5D4E6'},
+  { id: 'reviewclients', label: 'Évaluer Clients', icon: MessageCircle, color: '#FEE347' },
+  { id: 'reviewsstats', label: 'Mes Avis & Notes', icon: Star, color: '#E8793F' },
+  { id: 'history', label: 'Historique', icon: History, color: '#92B08B' }
 ]
 
-const isActiveTab = (tabId: string) => {
+const isActiveTab = (tabId) => {
   return route.name === tabId
 }
 

@@ -14,7 +14,7 @@ api.interceptors.request.use(
     // TODO: Remove this condition when authentication is implemented
     // Skip adding token for test routes (intervenants/me/taches) during development
     const isTestRoute = config.url && (
-      config.url.includes('intervenants/me/taches') || 
+      config.url.includes('intervenants/me/taches') ||
       config.url.includes('intervenants/test')
     );
     

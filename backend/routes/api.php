@@ -6,7 +6,7 @@ use App\Http\Controllers\Api\InterventionController;
 use App\Http\Controllers\Api\ServiceController;
 use App\Http\Controllers\Api\TacheController;
 use App\Http\Controllers\Api\ClientController;
-use App\Http\Controllers\Api\IntervenantController;
+use App\Http\Controllers\Api\Intervenant\IntervenantController;
 
 /*
 |--------------------------------------------------------------------------

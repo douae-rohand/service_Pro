@@ -147,16 +147,16 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, computed, onMounted } from 'vue'
 import { Edit2, Trash2, Coins } from 'lucide-vue-next'
 import intervenantTacheService from '@/services/intervenantTacheService'
 
-const services = ref<any[]>([])
+const services = ref([])
 const loading = ref(false)
-const error = ref<string | null>(null)
+const error = ref(null)
 
-const materialsByService: Record<string, string[]> = {
+const materialsByService = {
   menage: [
     'Aspirateur',
     'Balai et serpillière',
@@ -175,11 +175,11 @@ const materialsByService: Record<string, string[]> = {
   ]
 }
 
-const editingService = ref<number | null>(null)
+const editingService = ref(null)
 const editData = ref({
   description: '',
   hourlyRate: 0,
-  materials: [] as string[]
+  materials: []
 })
 
 const displayedServices = computed(() => {
@@ -195,10 +195,10 @@ const totalServices = computed(() => {
 })
 
 const totalCompletedJobs = computed(() => {
-  return services.value.reduce((sum, s) => sum +s.completedJobs, 0)
+  return services.value.reduce((sum, s) => sum + s.completedJobs, 0)
 })
 
-const getMaterials = (type: string) => {
+const getMaterials = (type) => {
   return materialsByService[type] || []
 }
 
@@ -208,7 +208,7 @@ const fetchServices = async () => {
   try {
     const response = await intervenantTacheService.getMyTaches()
     services.value = response.data
-  } catch (err: any) {
+  } catch (err) {
     error.value = err.response?.data?.message || 'Erreur lors du chargement des sous-services'
     console.error(err)
   } finally {
@@ -220,7 +220,7 @@ onMounted(() => {
   fetchServices()
 })
 
-const toggleActive = async (id: number) => {
+const toggleActive = async (id) => {
   try {
     await intervenantTacheService.toggleActive(id)
     // Refresh the service in the list
@@ -228,13 +228,13 @@ const toggleActive = async (id: number) => {
     if (service) {
       service.active = !service.active
     }
-  } catch (err: any) {
+  } catch (err) {
     alert(err.response?.data?.message || 'Erreur lors de la mise à jour')
     console.error(err)
   }
 }
 
-const startEdit = (service: any) => {
+const startEdit = (service) => {
   editingService.value = service.id
   editData.value = {
     description: service.description,
@@ -243,7 +243,7 @@ const startEdit = (service: any) => {
   }
 }
 
-const saveEdit = async (id: number) => {
+const saveEdit = async (id) => {
   try {
     await intervenantTacheService.updateMyTache(id, {
       description: editData.value.description,
@@ -259,13 +259,13 @@ const saveEdit = async (id: number) => {
       service.materials = [...editData.value.materials]
     }
     editingService.value = null
-  } catch (err: any) {
+  } catch (err) {
     alert(err.response?.data?.message || 'Erreur lors de la sauvegarde')
     console.error(err)
   }
 }
 
-const toggleEditMaterial = (material: string) => {
+const toggleEditMaterial = (material) => {
   const index = editData.value.materials.indexOf(material)
   if (index > -1) {
     editData.value.materials.splice(index, 1)
@@ -274,7 +274,7 @@ const toggleEditMaterial = (material: string) => {
   }
 }
 
-const deleteService = async (id: number) => {
+const deleteService = async (id) => {
   if (confirm('Êtes-vous sûr de vouloir supprimer définitivement ce sous-service ?')) {
     try {
       await intervenantTacheService.deleteTache(id)
@@ -283,7 +283,7 @@ const deleteService = async (id: number) => {
       if (index > -1) {
         services.value.splice(index, 1)
       }
-    } catch (err: any) {
+    } catch (err) {
       alert(err.response?.data?.message || 'Erreur lors de la suppression')
       console.error(err)
     }

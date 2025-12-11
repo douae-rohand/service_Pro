@@ -401,26 +401,10 @@ const handleSubmit = async () => {
       alert(`Inscription ${userType.value} réussie !`)
       //handleClose()
       //window.location.reload()
-      emit('signup-success', { email: formData.value.email }) 
-      handleClose()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-      
+      //emit('signup-success', { email: formData.value.email }) 
+      //handleClose()
+       handleClose()
+       emit('open-login')      
     }
   } catch (error) {
     console.error('Erreur d\'inscription:', error)

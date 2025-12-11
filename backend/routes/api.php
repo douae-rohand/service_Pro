@@ -77,11 +77,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // ======================
     // Routes Services (protégées)
     // ======================
-    Route::post('services', [ServiceController::class, 'store']);
-    Route::get('services/{id}', [ServiceController::class, 'show']);
-    Route::put('services/{id}', [ServiceController::class, 'update']);
-    Route::delete('services/{id}', [ServiceController::class, 'destroy']);
-    Route::get('services/{id}/taches', [ServiceController::class, 'getTaches']);
+    // Route::post('services', [ServiceController::class, 'store']);
+    // Route::get('services/{id}', [ServiceController::class, 'show']);
+    // Route::put('services/{id}', [ServiceController::class, 'update']);
+    // Route::delete('services/{id}', [ServiceController::class, 'destroy']);
+    // Route::get('services/{id}/taches', [ServiceController::class, 'getTaches']);
 
     // ======================
     // Routes Tâches

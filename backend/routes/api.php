@@ -42,7 +42,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('interventions', InterventionController::class);
     Route::get('interventions/filter/upcoming', [InterventionController::class, 'upcoming']);
     Route::get('interventions/filter/completed', [InterventionController::class, 'completed']);
+    Route::get('clients/{clientId}/interventions', [InterventionController::class, 'getClientInterventions']);
+    Route::get('clients/{clientId}/statistics', [InterventionController::class, 'getClientStatistics']);
+    Route::post('interventions/{id}/cancel', [InterventionController::class, 'cancelIntervention']);
     Route::post('interventions/{id}/photos', [InterventionController::class, 'addPhoto']);
+
+    // ======================
+    // Routes Evaluations
+    // ======================
+    Route::post('interventions/{interventionId}/evaluations', [\App\Http\Controllers\Api\Evaluation\EvaluationController::class, 'store']);
+    Route::get('interventions/{interventionId}/evaluations', [\App\Http\Controllers\Api\Evaluation\EvaluationController::class, 'show']);
 
     // ======================
     // Routes Services

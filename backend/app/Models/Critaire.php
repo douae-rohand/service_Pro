@@ -15,7 +15,7 @@ class Critaire extends Model
     const UPDATED_AT = 'updatedAt';
 
     protected $fillable = [
-        'nom',
+        'nom_critaire',
         'description',
     ];
 
@@ -24,6 +24,6 @@ class Critaire extends Model
      */
     public function evaluations()
     {
-        return $this->hasMany(Evaluation::class, 'critaireId', 'id');
+        return $this->hasMany(Evaluation::class, 'critaire_id', 'id');
     }
 }

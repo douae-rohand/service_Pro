@@ -9,15 +9,13 @@ class PhotoIntervention extends Model
 {
     use HasFactory;
 
-    protected $table = 'photointervention';
-
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
+    protected $table = 'photo_intervention';
 
     protected $fillable = [
-        'interventionId',
-        'url',
+        'intervention_id',
+        'photo_path',
         'description',
+        'phase_prise',
     ];
 
     /**
@@ -25,6 +23,6 @@ class PhotoIntervention extends Model
      */
     public function intervention()
     {
-        return $this->belongsTo(Intervention::class, 'interventionId', 'id');
+        return $this->belongsTo(Intervention::class, 'intervention_id', 'id');
     }
 }

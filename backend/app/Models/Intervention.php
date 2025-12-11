@@ -37,7 +37,7 @@ class Intervention extends Model
      */
     public function client()
     {
-        return $this->belongsTo(Client::class, 'clientId', 'id');
+        return $this->belongsTo(Client::class, 'client_id', 'id');
     }
 
     /**
@@ -45,7 +45,7 @@ class Intervention extends Model
      */
     public function intervenant()
     {
-        return $this->belongsTo(Intervenant::class, 'intervenantId', 'id');
+        return $this->belongsTo(Intervenant::class, 'intervenant_id', 'id');
     }
 
     /**
@@ -53,7 +53,7 @@ class Intervention extends Model
      */
     public function tache()
     {
-        return $this->belongsTo(Tache::class, 'tacheId', 'id');
+        return $this->belongsTo(Tache::class, 'tache_id', 'id');
     }
 
     /**
@@ -61,7 +61,7 @@ class Intervention extends Model
      */
     public function photos()
     {
-        return $this->hasMany(PhotoIntervention::class, 'interventionId', 'id');
+        return $this->hasMany(PhotoIntervention::class, 'intervention_id', 'id');
     }
 
     /**
@@ -69,7 +69,7 @@ class Intervention extends Model
      */
     public function evaluations()
     {
-        return $this->hasMany(Evaluation::class, 'interventionId', 'id');
+        return $this->hasMany(Evaluation::class, 'intervention_id', 'id');
     }
 
     /**
@@ -77,7 +77,7 @@ class Intervention extends Model
      */
     public function commentaires()
     {
-        return $this->hasMany(Commentaire::class, 'interventionId', 'id');
+        return $this->hasMany(Commentaire::class, 'intervention_id', 'id');
     }
 
     /**
@@ -85,7 +85,7 @@ class Intervention extends Model
      */
     public function facture()
     {
-        return $this->hasOne(Facture::class, 'interventionId', 'id');
+        return $this->hasOne(Facture::class, 'intervention_id', 'id');
     }
 
     /**
@@ -95,9 +95,9 @@ class Intervention extends Model
     {
         return $this->belongsToMany(
             Information::class,
-            'interventioninformation',
-            'idIntervention',
-            'idInformation'
+            'intervention_information',
+            'intervention_id',
+            'information_id'
         )->withPivot('information')
             ->withTimestamps();
     }
@@ -109,9 +109,9 @@ class Intervention extends Model
     {
         return $this->belongsToMany(
             Materiel::class,
-            'interventionmateriel',
-            'idIntervention',
-            'idMateriel'
+            'intervention_materiel',
+            'intervention_id',
+            'materiel_id'
         )->withTimestamps();
     }
 
@@ -128,8 +128,8 @@ class Intervention extends Model
      */
     public function scopeUpcoming(Builder $query): Builder
     {
-        return $query->where('dateIntervention', '>=', now()->toDateString())
-            ->orderBy('dateIntervention', 'asc');
+        return $query->where('date_intervention', '>=', now()->toDateString())
+            ->orderBy('date_intervention', 'asc');
     }
 
     /**

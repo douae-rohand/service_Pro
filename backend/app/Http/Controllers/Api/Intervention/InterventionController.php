@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Api\Intervention;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\InterventionResource;
 use App\Models\Intervention;
 use App\Models\PhotoIntervention;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class InterventionController extends Controller
 {
@@ -14,7 +16,17 @@ class InterventionController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Intervention::with(['client.utilisateur', 'intervenant.utilisateur', 'tache', 'photos']);
+        $query = Intervention::with([
+            'client.utilisateur',
+            'intervenant.utilisateur',
+            'tache.service',
+            'photos',
+            'evaluations.critaire',
+            'commentaires',
+            'facture',
+            'materiels',
+            'informations'
+        ]);
 
         // Filtrer par statut si fourni
         if ($request->has('status')) {
@@ -23,17 +35,18 @@ class InterventionController extends Controller
 
         // Filtrer par client si fourni
         if ($request->has('clientId')) {
-            $query->where('clientId', $request->clientId);
+            $query->where('client_id', $request->clientId);
         }
 
         // Filtrer par intervenant si fourni
         if ($request->has('intervenantId')) {
-            $query->where('intervenantId', $request->intervenantId);
+            $query->where('intervenant_id', $request->intervenantId);
         }
 
-        $interventions = $query->orderBy('dateIntervention', 'desc')->paginate(15);
+        $interventions = $query->orderBy('date_intervention', 'desc')->paginate(15);
 
-        return response()->json($interventions);
+        // Use resource to transform data
+        return InterventionResource::collection($interventions);
     }
 
     /**
@@ -76,7 +89,7 @@ class InterventionController extends Controller
             'informations'
         ])->findOrFail($id);
 
-        return response()->json($intervention);
+        return new InterventionResource($intervention);
     }
 
     /**
@@ -136,10 +149,141 @@ class InterventionController extends Controller
     {
         $interventions = Intervention::completed()
             ->with(['client.utilisateur', 'intervenant.utilisateur', 'tache'])
-            ->orderBy('dateIntervention', 'desc')
+            ->orderBy('date_intervention', 'desc')
             ->paginate(15);
 
         return response()->json($interventions);
+    }
+
+    /**
+     * Get client interventions with statistics
+     */
+    public function getClientInterventions(Request $request, $clientId)
+    {
+        try {
+            // Log for debugging
+            \Log::info('Fetching interventions for client_id: ' . $clientId);
+            
+            // First, check if any interventions exist for this client
+            $count = Intervention::where('client_id', $clientId)->count();
+            \Log::info('Total interventions found for client_id ' . $clientId . ': ' . $count);
+            
+            $interventions = Intervention::with([
+                'client.utilisateur',
+                'intervenant.utilisateur',
+                'tache.service',
+                'photos',
+                'evaluations.critaire',
+                'commentaires',
+                'facture',
+                'materiels',
+                'informations'
+            ])
+            ->where('client_id', $clientId)
+            ->orderBy('date_intervention', 'desc')
+            ->get();
+
+            \Log::info('Loaded ' . $interventions->count() . ' interventions with relationships for client_id: ' . $clientId);
+
+            // Return as array directly for easier frontend consumption
+            $data = InterventionResource::collection($interventions)->resolve();
+            
+            return response()->json([
+                'success' => true,
+                'data' => $data,
+                'count' => count($data)
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching client interventions: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la récupération des interventions',
+                'error' => config('app.debug') ? $e->getMessage() : 'Une erreur est survenue'
+            ], 500);
+        }
+    }
+
+    /**
+     * Get client statistics
+     */
+    public function getClientStatistics($clientId)
+    {
+        $interventions = Intervention::where('client_id', $clientId)->get();
+
+        $statusMap = [
+            'en_attente' => 'pending',
+            'en attente' => 'pending',
+            'acceptee' => 'accepted',
+            'acceptée' => 'accepted',
+            'acceptées' => 'accepted',
+            'en_cours' => 'in-progress',
+            'en cours' => 'in-progress',
+            'terminee' => 'completed',
+            'terminée' => 'completed',
+            'terminées' => 'completed',
+            'annulee' => 'cancelled',
+            'annulée' => 'cancelled',
+            'annulées' => 'cancelled',
+            'refusee' => 'rejected',
+            'refusée' => 'rejected',
+            'refusées' => 'rejected',
+            'planifiee' => 'accepted',
+            'planifiée' => 'accepted',
+        ];
+
+        $stats = [
+            'pending' => 0,
+            'accepted' => 0,
+            'inProgress' => 0,
+            'completed' => 0,
+            'cancelled' => 0,
+            'rejected' => 0,
+        ];
+
+        foreach ($interventions as $intervention) {
+            $status = strtolower($intervention->status ?? 'en_attente');
+            $mappedStatus = $statusMap[$status] ?? 'pending';
+            
+            if (isset($stats[$mappedStatus])) {
+                $stats[$mappedStatus]++;
+            }
+        }
+
+        return response()->json($stats);
+    }
+
+    /**
+     * Cancel an intervention
+     */
+    public function cancelIntervention($id)
+    {
+        $intervention = Intervention::findOrFail($id);
+
+        // Only allow cancellation if status is pending or accepted
+        $allowedStatuses = ['en_attente', 'en attente', 'acceptee', 'acceptée', 'acceptées', 'planifiee', 'planifiée'];
+        if (!in_array(strtolower($intervention->status ?? ''), $allowedStatuses)) {
+            return response()->json([
+                'message' => 'Cette intervention ne peut pas être annulée',
+                'error' => 'invalid_status'
+            ], 400);
+        }
+
+        $intervention->update(['status' => 'annulée']);
+
+        return response()->json([
+            'message' => 'Intervention annulée avec succès',
+            'intervention' => new InterventionResource($intervention->load([
+                'client.utilisateur',
+                'intervenant.utilisateur',
+                'tache.service',
+                'photos',
+                'evaluations.critaire',
+                'commentaires',
+                'facture',
+                'materiels',
+                'informations'
+            ]))
+        ]);
     }
 
     /**
@@ -158,9 +302,10 @@ class InterventionController extends Controller
         $path = $request->file('photo')->store('interventions', 'public');
 
         $photo = PhotoIntervention::create([
-            'interventionId' => $intervention->id,
-            'url' => $path,
+            'intervention_id' => $intervention->id,
+            'photo_path' => $path,
             'description' => $validated['description'] ?? null,
+            'phase_prise' => 'apres', // Default to 'apres' (after)
         ]);
 
         return response()->json([

@@ -32,11 +32,18 @@
       @view-profile="handleViewProfile"
     />
 
+    <!-- Client Dashboard -->
+    <Clientdashboard
+      v-else-if="currentPage === 'client-dashboard'"
+      @logout="handleLogout"
+    />
+
     <!-- Modals -->
     <LoginModal 
       :is-open="showLoginModal" 
       @close="showLoginModal = false"
       @signup-click="handleSwitchToSignup"
+      @login-success="handleLoginSuccess"
     />
     
     <SignupModal 
@@ -58,6 +65,7 @@ import ServiceDetailPage from './components/ServiceDetailPage.vue'
 import AllIntervenantsPage from './components/AllIntervenantsPage.vue'
 import LoginModal from './components/LoginModal.vue'
 import SignupModal from './components/SignupModal.vue'
+import Clientdashboard from './components/Clientdashboard.vue'
 
 // État pour gérer la navigation entre les pages
 const currentPage = ref('home') // Valeurs possibles: 'home', 'service-detail', 'all-intervenants'
@@ -118,6 +126,20 @@ const handleTaskClick = (taskName) => {
 const handleSwitchToSignup = () => {
   showLoginModal.value = false
   showSignupModal.value = true
+}
+
+// Handle successful login
+const handleLoginSuccess = (data) => {
+  showLoginModal.value = false
+  // Navigate to client dashboard
+  currentPage.value = 'client-dashboard'
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+// Handle logout
+const handleLogout = () => {
+  currentPage.value = 'home'
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 </script>
 

@@ -21,7 +21,8 @@
 </template>
 
 <script setup>
-import { h } from 'vue'
+import { h, ref, onMounted } from 'vue'
+import statsService from '@/services/statsService'
 
 const UsersIcon = () =>
   h('svg', { class: 'w-8 h-8', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
@@ -53,22 +54,68 @@ const BriefcaseIcon = () =>
     }),
   ])
 
-const stats = [
+// Statistiques réactives
+const stats = ref([
   {
     icon: UsersIcon,
-    number: '2,450+',
+    number: '0',
     label: 'Clients Satisfaits',
   },
   {
     icon: UserCheckIcon,
-    number: '850+',
+    number: '0',
     label: 'Intervenants Qualifiés',
   },
   {
     icon: BriefcaseIcon,
-    number: '12,000+',
+    number: '0',
     label: 'Services Complétés',
   },
-]
+])
+
+// Fonction pour formater les nombres avec virgules et le signe +
+const formatNumber = (num) => {
+  return num.toLocaleString('fr-FR') + '+'
+}
+
+// Charger les statistiques depuis l'API
+onMounted(async () => {
+  try {
+    const response = await statsService.getAll()
+    console.log('Réponse API stats:', response.data)
+    const data = response.data
+    
+    // Vérifier que les données sont présentes
+    if (!data) {
+      console.warn('Aucune donnée reçue de l\'API stats')
+      return
+    }
+    
+    // Mettre à jour les statistiques avec les données de l'API
+    stats.value = [
+      {
+        icon: UsersIcon,
+        number: formatNumber(data.satisfied_clients || 0),
+        label: 'Clients Satisfaits',
+      },
+      {
+        icon: UserCheckIcon,
+        number: formatNumber(data.qualified_intervenants || 0),
+        label: 'Intervenants Qualifiés',
+      },
+      {
+        icon: BriefcaseIcon,
+        number: formatNumber(data.completed_services || 0),
+        label: 'Services Complétés',
+      },
+    ]
+    
+    console.log('Statistiques mises à jour:', stats.value)
+  } catch (error) {
+    console.error('Erreur lors du chargement des statistiques:', error)
+    console.error('Détails de l\'erreur:', error.response || error.message)
+    // En cas d'erreur, garder les valeurs par défaut (0)
+  }
+})
 </script>
 

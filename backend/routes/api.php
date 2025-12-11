@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Service\ServiceController;
 use App\Http\Controllers\Api\Intervention\TacheController;
 use App\Http\Controllers\Api\Client\ClientController;
 use App\Http\Controllers\Api\Intervenant\IntervenantController;
+use App\Http\Controllers\Api\StatsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -37,6 +38,11 @@ Route::get('services/{id}/taches', [ServiceController::class, 'getTaches']);
 // ======================
 Route::get('intervenants', [IntervenantController::class, 'index']);
 Route::get('intervenants/{id}', [IntervenantController::class, 'show']);
+
+// ======================
+// Routes Statistiques (publiques pour consultation)
+// ======================
+Route::get('stats', [StatsController::class, 'index']);
 
 // Routes protégées (nécessitent une authentification)
 Route::middleware('auth:sanctum')->group(function () {

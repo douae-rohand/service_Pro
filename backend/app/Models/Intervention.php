@@ -96,9 +96,9 @@ class Intervention extends Model
         return $this->belongsToMany(
             Information::class,
             'interventioninformation',
-            'interventionId',
-            'informationId'
-        )->withPivot('valeur')
+            'idIntervention',
+            'idInformation'
+        )->withPivot('information')
             ->withTimestamps();
     }
 
@@ -110,8 +110,8 @@ class Intervention extends Model
         return $this->belongsToMany(
             Materiel::class,
             'interventionmateriel',
-            'interventionId',
-            'materielId'
+            'idIntervention',
+            'idMateriel'
         )->withTimestamps();
     }
 

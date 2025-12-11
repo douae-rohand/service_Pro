@@ -35,8 +35,8 @@ class Service extends Model
         return $this->belongsToMany(
             Information::class,
             'serviceinformation',
-            'serviceId',
-            'informationId'
+            'idService',
+            'idInformation'
         )->withTimestamps();
     }
 
@@ -48,8 +48,8 @@ class Service extends Model
         return $this->belongsToMany(
             Justificatif::class,
             'servicejustificatif',
-            'serviceId',
-            'justificatifId'
+            'idService',
+            'idJustificatif'
         )->withTimestamps();
     }
 }

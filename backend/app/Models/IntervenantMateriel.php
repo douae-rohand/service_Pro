@@ -15,24 +15,18 @@ class IntervenantMateriel extends Pivot
     const UPDATED_AT = 'updatedAt';
 
     protected $fillable = [
-        'intervenantId',
-        'materielId',
-        'quantite',
+        'idIntervenant',
+        'idMateriel',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'quantite' => 'integer',
-        ];
-    }
+
 
     /**
      * Get the intervenant that owns this record.
      */
     public function intervenant()
     {
-        return $this->belongsTo(Intervenant::class, 'intervenantId', 'id');
+        return $this->belongsTo(Intervenant::class, 'idIntervenant', 'id');
     }
 
     /**
@@ -40,6 +34,6 @@ class IntervenantMateriel extends Pivot
      */
     public function materiel()
     {
-        return $this->belongsTo(Materiel::class, 'materielId', 'id');
+        return $this->belongsTo(Materiel::class, 'idMateriel', 'id');
     }
 }

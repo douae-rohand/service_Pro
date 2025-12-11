@@ -15,15 +15,15 @@ class TacheMateriel extends Pivot
     const UPDATED_AT = 'updatedAt';
 
     protected $fillable = [
-        'tacheId',
-        'materielId',
-        'quantite',
+        'idTache',
+        'idMateriel',
+        'prixMateriel',
     ];
 
     protected function casts(): array
     {
         return [
-            'quantite' => 'integer',
+            'prixMateriel' => 'decimal:2',
         ];
     }
 
@@ -32,7 +32,7 @@ class TacheMateriel extends Pivot
      */
     public function tache()
     {
-        return $this->belongsTo(Tache::class, 'tacheId', 'id');
+        return $this->belongsTo(Tache::class, 'idTache', 'id');
     }
 
     /**
@@ -40,6 +40,6 @@ class TacheMateriel extends Pivot
      */
     public function materiel()
     {
-        return $this->belongsTo(Materiel::class, 'materielId', 'id');
+        return $this->belongsTo(Materiel::class, 'idMateriel', 'id');
     }
 }

@@ -6,10 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\Intervenant;
 use App\Models\Intervention;
-use App\Models\Service;
-use App\Models\Utilisateur;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class AdminController extends Controller
 {
@@ -43,9 +40,6 @@ class AdminController extends Controller
             ? round((($interventionsMois - $interventionsLastMonth) / $interventionsLastMonth) * 100) 
             : 0;
 
-        // Demandes en attente (intervenants non activés)
-        $demandesEnAttente = Intervenant::where('is_active', false)->count();
-
         // Calcul de la satisfaction depuis les évaluations des clients
         $evaluations = \App\Models\Evaluation::where('type_auteur', 'client')->get();
         $noteMoyenne = $evaluations->count() > 0 ? $evaluations->avg('note') : 0;
@@ -65,6 +59,9 @@ class AdminController extends Controller
         $heuresGrowth = $heuresLastMonth > 0 
             ? round((($heuresTotal - $heuresLastMonth) / $heuresLastMonth) * 100) 
             : 0;
+
+        // Demandes en attente (intervenants non activés)
+        $demandesEnAttente = Intervenant::where('is_active', false)->count();
 
         return response()->json([
             'totalClients' => $totalClients,
@@ -402,168 +399,4 @@ class AdminController extends Controller
         ]);
     }
 
-    /**
-     * Get pending intervenant applications
-     */
-    public function getDemandes()
-    {
-        $demandes = Intervenant::where('is_active', false)
-            ->with(['utilisateur', 'taches', 'services'])
-            ->get()
-            ->map(function($intervenant) {
-                // Vérifier si l'utilisateur existe
-                if (!$intervenant->utilisateur) {
-                    return null;
-                }
-                
-                // Déterminer le service principal depuis la relation intervenant_service
-                $servicePrincipal = $intervenant->services->first();
-                
-                return [
-                    'id' => $intervenant->id,
-                    'nom' => $intervenant->utilisateur->nom ?? '',
-                    'prenom' => $intervenant->utilisateur->prenom ?? '',
-                    'email' => $intervenant->utilisateur->email ?? '',
-                    'telephone' => $intervenant->utilisateur->telephone ?? '',
-                    'adresse' => $intervenant->address ?? '',
-                    'ville' => $intervenant->ville ?? '',
-                    'service' => $servicePrincipal ? $servicePrincipal->nom_service : 'Non spécifié',
-                    'experience' => '3 ans', // À ajouter au modèle
-                    'dateAttente' => $intervenant->created_at->diffForHumans(),
-                    'dateInscription' => $intervenant->created_at->format('d M Y'),
-                    'statut' => 'en_attente',
-                    'statusType' => 'independante',
-                    'specialites' => $intervenant->taches->pluck('nom_tache')->toArray(),
-                    'presentation' => $intervenant->bio ?? '',
-                    'photo' => $intervenant->utilisateur->url ?? ''
-                ];
-            })
-            ->filter(); // Filtrer les valeurs null
-
-        return response()->json($demandes->values()); // Reset les clés
-    }
-
-    /**
-     * Approve an intervenant application
-     */
-    public function approveDemande($id)
-    {
-        $intervenant = Intervenant::findOrFail($id);
-        $intervenant->is_active = true;
-        $intervenant->save();
-
-        return response()->json([
-            'message' => 'Demande approuvée avec succès',
-            'intervenant' => $intervenant
-        ]);
-    }
-
-    /**
-     * Reject an intervenant application
-     */
-    public function rejectDemande(Request $request, $id)
-    {
-        $intervenant = Intervenant::findOrFail($id);
-        
-        // Supprimer l'intervenant et l'utilisateur associé
-        $userId = $intervenant->id;
-        $intervenant->delete();
-        
-        $utilisateur = Utilisateur::find($userId);
-        if ($utilisateur) {
-            $utilisateur->delete();
-        }
-
-        return response()->json([
-            'message' => 'Demande rejetée'
-        ]);
-    }
-
-    /**
-     * Get all services with stats
-     */
-    public function getServices()
-    {
-        $services = Service::with('taches')->get()->map(function($service) {
-            // Compter les interventions pour ce service via les tâches
-            $tacheIds = $service->taches->pluck('id')->toArray();
-            $interventionsCount = 0;
-            if (!empty($tacheIds)) {
-                $interventionsCount = Intervention::whereIn('tache_id', $tacheIds)->count();
-            }
-
-            // Compter les intervenants pour ce service
-            $intervenantsCount = 0;
-            if (!empty($tacheIds)) {
-                $intervenantsCount = DB::table('intervenant_tache')
-                    ->whereIn('tache_id', $tacheIds)
-                    ->distinct('intervenant_id')
-                    ->count('intervenant_id');
-            }
-
-            return [
-                'id' => $service->id,
-                'nom' => $service->nom_service,
-                'description' => $service->description,
-                'icon' => strtolower($service->nom_service) === 'jardinage' ? '🌱' : '🧹',
-                'couleur' => strtolower($service->nom_service) === 'jardinage' ? '#92B08B' : '#1A5FA3',
-                'intervenants' => $intervenantsCount,
-                'missions' => $interventionsCount,
-                'note' => 4.7,
-                'actif' => true,
-                'taches' => $service->taches->map(function($tache) {
-                    return [
-                        'id' => $tache->id,
-                        'nom' => $tache->nom_tache,
-                        'description' => $tache->description
-                    ];
-                })
-            ];
-        });
-
-        return response()->json($services);
-    }
-
-    /**
-     * Get intervention history
-     */
-    public function getHistorique(Request $request)
-    {
-        $query = Intervention::with(['client.utilisateur', 'intervenant.utilisateur', 'tache.service']);
-
-        // Filtrer par statut
-        if ($request->has('status') && $request->status !== 'tous') {
-            $query->where('status', $request->status);
-        }
-
-        $query->with('facture', 'evaluations');
-
-        $historique = $query->orderBy('date_intervention', 'desc')
-            ->limit(100)
-            ->get()
-            ->map(function($intervention) {
-                // Note moyenne des évaluations
-                $evaluation = $intervention->evaluations->where('type_auteur', 'client')->first();
-
-                return [
-                    'id' => $intervention->id,
-                    'client' => $intervention->client && $intervention->client->utilisateur
-                        ? $intervention->client->utilisateur->prenom . ' ' . $intervention->client->utilisateur->nom
-                        : 'Client inconnu',
-                    'intervenant' => $intervention->intervenant && $intervention->intervenant->utilisateur 
-                        ? $intervention->intervenant->utilisateur->prenom . ' ' . $intervention->intervenant->utilisateur->nom 
-                        : 'Non assigné',
-                    'service' => $intervention->tache?->service?->nom_service ?? 'Non spécifié',
-                    'tache' => $intervention->tache?->nom_tache ?? 'Aucune tâche',
-                    'adresse' => $intervention->address,
-                    'date' => $intervention->date_intervention,
-                    'duree' => '2h',
-                    'montant' => $intervention->facture ? $intervention->facture->ttc : 0,
-                    'statut' => $intervention->status ?? 'en_attente',
-                    'note' => $evaluation ? $evaluation->note : null
-                ];
-            });
-
-        return response()->json($historique);
-    }
 }

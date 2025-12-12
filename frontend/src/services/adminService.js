@@ -28,7 +28,7 @@ const adminService = {
     },
 
     /**
-     * Récupérer les détails complets d'un client (avec feedbacks)
+     * Récupérer les détails complets d'un client
      */
     getClientDetails(id) {
         return api.get(`admin/clients/${id}`);
@@ -89,139 +89,6 @@ const adminService = {
      */
     getIntervenantTaches(id) {
         return api.get(`intervenants/${id}/taches`);
-    },
-
-    // ============== DEMANDES ==============
-    /**
-     * Récupérer les demandes d'inscription
-     */
-    getDemandes(params = {}) {
-        return api.get('admin/demandes', { params });
-    },
-
-    /**
-     * Approuver une demande
-     */
-    approveDemande(id) {
-        return api.post(`admin/demandes/${id}/approve`);
-    },
-
-    /**
-     * Rejeter une demande
-     */
-    rejectDemande(id, reason = '') {
-        return api.post(`admin/demandes/${id}/reject`, { reason });
-    },
-
-    // ============== SERVICES ==============
-    /**
-     * Récupérer tous les services
-     */
-    getServices() {
-        return api.get('admin/services');
-    },
-
-    /**
-     * Créer un nouveau service
-     */
-    createService(data) {
-        return api.post('services', data);
-    },
-
-    /**
-     * Mettre à jour un service
-     */
-    updateService(id, data) {
-        return api.put(`services/${id}`, data);
-    },
-
-    /**
-     * Activer/Désactiver un service
-     */
-    toggleServiceStatus(id) {
-        return api.post(`services/${id}/toggle-status`);
-    },
-
-    /**
-     * Récupérer les tâches d'un service
-     */
-    getServiceTaches(id) {
-        return api.get(`services/${id}/taches`);
-    },
-
-    // ============== TÂCHES ==============
-    /**
-     * Récupérer toutes les tâches
-     */
-    getTaches(params = {}) {
-        return api.get('taches', { params });
-    },
-
-    /**
-     * Créer une nouvelle tâche
-     */
-    createTache(data) {
-        return api.post('taches', data);
-    },
-
-    /**
-     * Mettre à jour une tâche
-     */
-    updateTache(id, data) {
-        return api.put(`taches/${id}`, data);
-    },
-
-    /**
-     * Supprimer une tâche
-     */
-    deleteTache(id) {
-        return api.delete(`taches/${id}`);
-    },
-
-    // ============== INTERVENTIONS ==============
-    /**
-     * Récupérer toutes les interventions
-     */
-    getInterventions(params = {}) {
-        return api.get('interventions', { params });
-    },
-
-    /**
-     * Récupérer une intervention par ID
-     */
-    getIntervention(id) {
-        return api.get(`interventions/${id}`);
-    },
-
-    // ============== RÉCLAMATIONS ==============
-    /**
-     * Récupérer les réclamations
-     */
-    getReclamations(params = {}) {
-        return api.get('admin/reclamations', { params });
-    },
-
-    /**
-     * Traiter une réclamation
-     */
-    handleReclamation(id, action, message = '') {
-        return api.post(`admin/reclamations/${id}/handle`, { action, message });
-    },
-
-    // ============== HISTORIQUE ==============
-    /**
-     * Récupérer l'historique des interventions
-     */
-    getHistorique(params = {}) {
-        return api.get('admin/historique', { params });
-    },
-
-    // ============== ÉVALUATIONS ==============
-    /**
-     * Récupérer les évaluations
-     */
-    getEvaluations(params = {}) {
-        return api.get('admin/evaluations', { params });
     }
 };
 

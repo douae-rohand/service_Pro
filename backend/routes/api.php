@@ -87,16 +87,5 @@ Route::middleware('auth:sanctum')->group(function () {
         // Intervenants Management
         Route::get('intervenants', [AdminController::class, 'getIntervenants']);
         Route::post('intervenants/{id}/toggle-status', [AdminController::class, 'toggleIntervenantStatus']);
-        
-        // Demandes (Pending Applications)
-        Route::get('demandes', [AdminController::class, 'getDemandes']);
-        Route::post('demandes/{id}/approve', [AdminController::class, 'approveDemande']);
-        Route::post('demandes/{id}/reject', [AdminController::class, 'rejectDemande']);
-        
-        // Services
-        Route::get('services', [AdminController::class, 'getServices']);
-        
-        // Historique
-        Route::get('historique', [AdminController::class, 'getHistorique']);
     });
 });

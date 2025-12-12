@@ -37,7 +37,7 @@
           <!-- Badge for pending items -->
           <div 
             v-if="nav.badge && nav.badge > 0"
-            class="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-xs text-white animate-pulse"
+            class="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-xs text-white font-bold"
             :style="{ backgroundColor: nav.badgeColor }"
           >
             {{ nav.badge }}
@@ -65,11 +65,11 @@ import {
   UserCheck, 
   Calendar, 
   Award, 
-  TrendingUp, 
-  FileText, 
-  Briefcase, 
-  AlertTriangle, 
-  History
+  TrendingUp,
+  ClipboardList,
+  Package,
+  History,
+  AlertCircle
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -149,7 +149,9 @@ const navigationItems = computed(() => [
     iconColor: '#92B08B',
     titleColor: '#92B08B',
     shadowColor: 'rgba(146, 176, 139, 0.2)',
-    shadowColorHover: 'rgba(146, 176, 139, 0.35)'
+    shadowColorHover: 'rgba(146, 176, 139, 0.35)',
+    badge: null,
+    badgeColor: null
   },
   {
     section: 'intervenants',
@@ -160,53 +162,61 @@ const navigationItems = computed(() => [
     iconColor: '#1A5FA3',
     titleColor: '#1A5FA3',
     shadowColor: 'rgba(26, 95, 163, 0.2)',
-    shadowColorHover: 'rgba(26, 95, 163, 0.35)'
+    shadowColorHover: 'rgba(26, 95, 163, 0.35)',
+    badge: null,
+    badgeColor: null
   },
   {
     section: 'demandes',
-    icon: FileText,
+    icon: ClipboardList,
     title: 'Demandes',
     description: 'Valider les intervenants',
-    bgColor: '#FFFBEA',
-    iconColor: '#FEE347',
-    titleColor: '#C4A23D',
-    shadowColor: 'rgba(254, 227, 71, 0.3)',
-    shadowColorHover: 'rgba(254, 227, 71, 0.45)',
+    bgColor: '#FFF3E0',
+    iconColor: '#FF9800',
+    titleColor: '#FF9800',
+    shadowColor: 'rgba(255, 152, 0, 0.2)',
+    shadowColorHover: 'rgba(255, 152, 0, 0.35)',
     badge: props.stats.demandesEnAttente,
-    badgeColor: '#D32F2F'
+    badgeColor: '#F44336'
   },
   {
     section: 'services',
-    icon: Briefcase,
+    icon: Package,
     title: 'Services',
     description: 'Gérer les services',
-    bgColor: '#E1F5FE',
-    iconColor: '#A5D4E6',
-    titleColor: '#A5D4E6',
-    shadowColor: 'rgba(165, 212, 230, 0.3)',
-    shadowColorHover: 'rgba(165, 212, 230, 0.45)'
-  },
-  {
-    section: 'reclamations',
-    icon: AlertTriangle,
-    title: 'Réclamations',
-    description: 'Traiter les signalements',
     bgColor: '#F3E5F5',
     iconColor: '#9C27B0',
     titleColor: '#9C27B0',
-    shadowColor: 'rgba(156, 39, 176, 0.25)',
-    shadowColorHover: 'rgba(156, 39, 176, 0.4)'
+    shadowColor: 'rgba(156, 39, 176, 0.2)',
+    shadowColorHover: 'rgba(156, 39, 176, 0.35)',
+    badge: null,
+    badgeColor: null
+  },
+  {
+    section: 'reclamations',
+    icon: AlertCircle,
+    title: 'Réclamations',
+    description: 'Traiter les signalements',
+    bgColor: '#FFEBEE',
+    iconColor: '#F44336',
+    titleColor: '#F44336',
+    shadowColor: 'rgba(244, 67, 54, 0.2)',
+    shadowColorHover: 'rgba(244, 67, 54, 0.35)',
+    badge: props.stats.reclamationsNouvelles,
+    badgeColor: '#FF9800'
   },
   {
     section: 'historique',
     icon: History,
     title: 'Historique',
-    description: "Consulter l'activité",
-    bgColor: '#FFF3E0',
-    iconColor: '#FF9800',
-    titleColor: '#FF9800',
-    shadowColor: 'rgba(255, 152, 0, 0.25)',
-    shadowColorHover: 'rgba(255, 152, 0, 0.4)'
+    description: 'Consulter l\'activité',
+    bgColor: '#E1F5FE',
+    iconColor: '#03A9F4',
+    titleColor: '#03A9F4',
+    shadowColor: 'rgba(3, 169, 244, 0.2)',
+    shadowColorHover: 'rgba(3, 169, 244, 0.35)',
+    badge: null,
+    badgeColor: null
   }
 ])
 </script>

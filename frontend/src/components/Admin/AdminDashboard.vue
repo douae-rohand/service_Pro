@@ -63,39 +63,27 @@
       <!-- Demandes Section -->
       <template v-if="activeSection === 'demandes'">
         <AdminDemandes
-          :demandes="demandes"
-          :loading="loading"
           @back="activeSection = 'overview'"
-          @approve="approveDemande"
-          @reject="rejectDemande"
         />
       </template>
 
       <!-- Services Section -->
       <template v-if="activeSection === 'services'">
         <AdminServices
-          :services="services"
-          :loading="loading"
           @back="activeSection = 'overview'"
-          @toggle-service="toggleService"
         />
       </template>
 
       <!-- Réclamations Section -->
       <template v-if="activeSection === 'reclamations'">
         <AdminReclamations
-          :reclamations="reclamations"
-          :loading="loading"
           @back="activeSection = 'overview'"
-          @handle="handleReclamation"
         />
       </template>
 
       <!-- Historique Section -->
       <template v-if="activeSection === 'historique'">
         <AdminHistorique
-          :historique="historique"
-          :loading="loading"
           @back="activeSection = 'overview'"
         />
       </template>
@@ -166,8 +154,8 @@ import AdminClients from './AdminClients.vue'
 import AdminIntervenants from './AdminIntervenants.vue'
 import AdminDemandes from './AdminDemandes.vue'
 import AdminServices from './AdminServices.vue'
-import AdminReclamations from './AdminReclamations.vue'
 import AdminHistorique from './AdminHistorique.vue'
+import AdminReclamations from './AdminReclamations.vue'
 import AdminDetailModal from './AdminDetailModal.vue'
 import AdminAllIntervenants from './AdminAllIntervenants.vue'
 import AdminAllClients from './AdminAllClients.vue'
@@ -210,10 +198,6 @@ const stats = ref({
 
 const clients = ref([])
 const intervenants = ref([])
-const demandes = ref([])
-const services = ref([])
-const reclamations = ref([])
-const historique = ref([])
 
 // Methods
 const loadStats = async () => {
@@ -266,57 +250,6 @@ const loadIntervenants = async () => {
   }
 }
 
-const loadDemandes = async () => {
-  try {
-    loading.value = true
-    const response = await adminService.getDemandes()
-    demandes.value = response.data || []
-  } catch (error) {
-    console.error('Erreur chargement demandes:', error)
-    demandes.value = []
-  } finally {
-    loading.value = false
-  }
-}
-
-const loadServices = async () => {
-  try {
-    loading.value = true
-    const response = await adminService.getServices()
-    services.value = response.data || []
-  } catch (error) {
-    console.error('Erreur chargement services:', error)
-    services.value = []
-  } finally {
-    loading.value = false
-  }
-}
-
-const loadReclamations = async () => {
-  try {
-    loading.value = true
-    // Les réclamations seront implémentées plus tard
-    reclamations.value = []
-  } catch (error) {
-    console.error('Erreur chargement réclamations:', error)
-    reclamations.value = []
-  } finally {
-    loading.value = false
-  }
-}
-
-const loadHistorique = async () => {
-  try {
-    loading.value = true
-    const response = await adminService.getHistorique()
-    historique.value = response.data || []
-  } catch (error) {
-    console.error('Erreur chargement historique:', error)
-    historique.value = []
-  } finally {
-    loading.value = false
-  }
-}
 
 // Actions
 const viewClient = async (client) => {
@@ -401,61 +334,6 @@ const suspendIntervenant = async (intervenantId) => {
   await handleSuspendIntervenant(intervenantId)
 }
 
-const approveDemande = async (demandeId) => {
-  if (confirm('Voulez-vous approuver cette demande ?')) {
-    try {
-      const response = await adminService.approveDemande(demandeId)
-      alert(response.data.message || 'Demande approuvée avec succès!')
-      await loadDemandes()
-      await loadIntervenants()
-      await loadStats()
-    } catch (error) {
-      console.error('Erreur approbation demande:', error)
-      alert('Erreur lors de l\'approbation de la demande')
-    }
-  }
-}
-
-const rejectDemande = async (demandeId) => {
-  if (confirm('Voulez-vous rejeter cette demande ?')) {
-    try {
-      const response = await adminService.rejectDemande(demandeId)
-      alert(response.data.message || 'Demande rejetée!')
-      await loadDemandes()
-      await loadStats()
-    } catch (error) {
-      console.error('Erreur rejet demande:', error)
-      alert('Erreur lors du rejet de la demande')
-    }
-  }
-}
-
-const toggleService = async (serviceId) => {
-  try {
-    const response = await adminService.toggleServiceStatus(serviceId)
-    alert(response.data.message)
-    await loadServices()
-  } catch (error) {
-    // Toggle local si l'API n'existe pas encore
-    const service = services.value.find(s => s.id === serviceId)
-    if (service) {
-      service.actif = !service.actif
-      alert(`Service ${service.nom} ${service.actif ? 'activé' : 'désactivé'} !`)
-    }
-  }
-}
-
-const handleReclamation = async (reclamationId, action) => {
-  try {
-    await adminService.handleReclamation(reclamationId, action)
-    alert(`Réclamation #${reclamationId} ${action} !`)
-    await loadReclamations()
-  } catch (error) {
-    console.error('Erreur traitement réclamation:', error)
-    alert(`Réclamation #${reclamationId} ${action} !`)
-  }
-}
-
 const handleModalAction = (action) => {
   console.log('Modal action:', action)
   showDetailModal.value = false
@@ -503,18 +381,6 @@ const handleNavigate = async (section) => {
       break
     case 'intervenants':
       await loadIntervenants()
-      break
-    case 'demandes':
-      await loadDemandes()
-      break
-    case 'services':
-      await loadServices()
-      break
-    case 'historique':
-      await loadHistorique()
-      break
-    case 'reclamations':
-      await loadReclamations()
       break
   }
 }

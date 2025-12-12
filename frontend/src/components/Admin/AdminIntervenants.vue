@@ -6,8 +6,7 @@
       class="flex items-center gap-2 mb-6 text-sm transition-colors hover:underline"
       style="color: #5B7C99"
     >
-      <ArrowLeft :size="16" />
-      Retour au tableau de bord
+    ← Retour au tableau de bord
     </button>
 
     <div class="mb-8">

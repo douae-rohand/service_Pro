@@ -16,8 +16,8 @@ class TacheController extends Controller
         $query = Tache::with(['service', 'materiels', 'intervenants']);
 
         // Filtrer par service si fourni
-        if ($request->has('serviceId')) {
-            $query->where('idService', $request->serviceId);
+        if ($request->has('service_id')) {
+            $query->where('service_id', $request->serviceId);
         }
 
         $taches = $query->get();
@@ -31,8 +31,8 @@ class TacheController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'idService' => 'required|exists:service,id',
-            'nomTache' => 'required|string|max:150',
+            'service_id' => 'required|exists:service,id',
+            'nom_tache' => 'required|string|max:150',
             'description' => 'nullable|string',
             'status' => 'nullable|string|max:50',
         ]);
@@ -63,8 +63,8 @@ class TacheController extends Controller
         $tache = Tache::findOrFail($id);
 
         $validated = $request->validate([
-            'idService' => 'sometimes|exists:service,id',
-            'nomTache' => 'sometimes|string|max:150',
+            'service_id' => 'sometimes|exists:service,id',
+            'nom_tache' => 'sometimes|string|max:150',
             'description' => 'sometimes|string',
             'status' => 'sometimes|string|max:50',
         ]);
@@ -87,6 +87,42 @@ class TacheController extends Controller
 
         return response()->json([
             'message' => 'Tâche supprimée avec succès',
+        ]);
+    }
+
+    /**
+     * Get intervenants for a specific tache
+     */
+    public function getIntervenants($id)
+    {
+        $tache = Tache::findOrFail($id);
+        $intervenants = $tache->intervenants()->with('utilisateur')->get();
+
+        // Add statistics to each intervenant
+        $intervenants->each(function ($intervenant) {
+            // Count completed interventions
+            $intervenant->missions_completees = $intervenant->interventions()
+                ->where('status', 'terminée')
+                ->count();
+            
+            // Calculate average rating from evaluations
+            $avgRating = $intervenant->interventions()
+                ->whereHas('evaluation')
+                ->with('evaluation')
+                ->get()
+                ->pluck('evaluation.note')
+                ->avg();
+            
+            $intervenant->note_moyenne = $avgRating ? round($avgRating, 1) : null;
+            
+            // Count total reviews
+            $intervenant->nombre_avis = $intervenant->interventions()
+                ->whereHas('evaluation')
+                ->count();
+        });
+
+        return response()->json([
+            'intervenants' => $intervenants
         ]);
     }
 }

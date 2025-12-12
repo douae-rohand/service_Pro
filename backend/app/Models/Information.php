@@ -26,9 +26,9 @@ class Information extends Model
     {
         return $this->belongsToMany(
             Service::class,
-            'serviceinformation',
-            'informationId',
-            'serviceId'
+            'service_information',
+            'information_id',
+            'service_id'
         )->withTimestamps();
     }
 
@@ -39,9 +39,9 @@ class Information extends Model
     {
         return $this->belongsToMany(
             Intervention::class,
-            'interventioninformation',
-            'informationId',
-            'interventionId'
+            'intervention_information',
+            'information_id',
+            'intervention_id'
         )->withPivot('valeur')
             ->withTimestamps();
     }

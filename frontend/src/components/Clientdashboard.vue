@@ -81,15 +81,7 @@
 
             <!-- Rechercher Services Tab -->
             <div v-if="activeTab === 'search'">
-              <div class="bg-white rounded-lg shadow-md p-6 text-center">
-                <Search :size="64" class="mx-auto mb-4 text-gray-400" />
-                <h3 class="text-xl font-bold mb-2" style="color: #2f4f4f">
-                  Rechercher des services
-                </h3>
-                <p class="text-gray-600 mb-4">
-                  Fonctionnalité de recherche à venir...
-                </p>
-              </div>
+              <SearchServices :client-id="currentUser.id" />
             </div>
 
             <!-- Trouver Intervenants Tab -->
@@ -182,6 +174,7 @@ import {
   AlertCircle
 } from 'lucide-vue-next';
 import EnhancedMyDemandsTab from '@/components/EnhancedMyDemandsTab.vue';
+import SearchServices from '@/components/SearchServices.vue';
 import ClientHeader from '@/components/client/ClientHeader.vue';
 import ClientSidebar from '@/components/client/ClientSidebar.vue';
 import { demandService } from '@/services/demandService';
@@ -195,6 +188,7 @@ export default {
     Heart,
     AlertCircle,
     EnhancedMyDemandsTab,
+    SearchServices,
     ClientHeader,
     ClientSidebar
   },

@@ -20,10 +20,7 @@ use App\Http\Controllers\Api\Intervenant\IntervenantController;
 Route::post('auth/register', [AuthController::class, 'register']);
 Route::post('auth/login', [AuthController::class, 'login']);
 
-// Route de test (à supprimer en production)
-Route::get('/test', function () {
-    return ['message' => 'API Laravel OK'];
-});
+
 
 // Routes protégées (nécessitent une authentification)
 Route::middleware('auth:sanctum')->group(function () {
@@ -58,12 +55,16 @@ Route::middleware('auth:sanctum')->group(function () {
     // Routes Services
     // ======================
     Route::apiResource('services', ServiceController::class);
+    Route::get('services/{id}/justificatifs', [ServiceController::class, 'getJustificatifs']);
+    Route::get('services/{id}/information', [ServiceController::class, 'getInformation']);
     Route::get('services/{id}/taches', [ServiceController::class, 'getTaches']);
 
     // ======================
     // Routes Tâches
     // ======================
     Route::apiResource('taches', TacheController::class);
+    Route::get('taches/{id}/intervenants', [TacheController::class, 'getIntervenants']);
+    Route::get('taches/{id}/materiels', [TacheController::class, 'getMateriels']);
 
     // ======================
     // Routes Clients

@@ -19,11 +19,18 @@ class Service extends Model
     ];
 
     /**
+     * Get All Services
+     */
+    public function getAllServices()
+    {
+        return self::all();
+    }
+    /**
      * Get the taches for this service.
      */
     public function taches()
     {
-        return $this->hasMany(Tache::class, 'idService', 'id');
+        return $this->hasMany(Tache::class, 'service_id', 'id');
     }
 
     /**
@@ -33,9 +40,9 @@ class Service extends Model
     {
         return $this->belongsToMany(
             Information::class,
-            'serviceinformation',
-            'idService',
-            'idInformation'
+            'service_information',
+            'service_id',
+            'information_id'
         )->withTimestamps();
     }
 
@@ -46,9 +53,9 @@ class Service extends Model
     {
         return $this->belongsToMany(
             Justificatif::class,
-            'servicejustificatif',
-            'idService',
-            'idJustificatif'
+            'service_justificatif',
+            'service_id',
+            'justificatif_id'
         )->withTimestamps();
     }
 }

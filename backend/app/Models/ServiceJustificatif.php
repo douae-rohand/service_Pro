@@ -14,8 +14,8 @@ class ServiceJustificatif extends Pivot
     
 
     protected $fillable = [
-        'idService',
-        'idJustificatif',
+        'service_id',
+        'justificatif_id',
     ];
 
     /**
@@ -23,7 +23,7 @@ class ServiceJustificatif extends Pivot
      */
     public function service()
     {
-        return $this->belongsTo(Service::class, 'idService', 'id');
+        return $this->belongsTo(Service::class, 'service_id', 'id');
     }
 
     /**
@@ -31,6 +31,6 @@ class ServiceJustificatif extends Pivot
      */
     public function justificatif()
     {
-        return $this->belongsTo(Justificatif::class, 'idJustificatif', 'id');
+        return $this->belongsTo(Justificatif::class, 'justificatif_id', 'id');
     }
 }

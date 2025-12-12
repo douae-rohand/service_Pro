@@ -26,9 +26,9 @@ class Justificatif extends Model
     {
         return $this->belongsToMany(
             Service::class,
-            'servicejustificatif',
-            'justificatifId',
-            'serviceId'
+            'service_justificatif',
+            'justificatif_id',
+            'service_id'
         )->withTimestamps();
     }
 }

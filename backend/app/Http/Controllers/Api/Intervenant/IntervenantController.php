@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Intervenant;
 
 use App\Http\Controllers\Controller;
 use App\Models\Intervenant;
+use App\Models\Intervention;
 use App\Models\Materiel;
 use Illuminate\Http\Request;
 
@@ -442,5 +443,174 @@ class IntervenantController extends Controller
             'services' => $activeServices,
             'tasks' => $activeTasks,
         ]);
+    }
+
+     /**
+     * select current intervenant's Reservation
+     */
+    public function myReservations(Request $request)
+    {
+        // Get the current authenticated intervenant
+        $intervenant = $request->user();
+        
+        if (!$intervenant) {
+            return response()->json(['message' => 'Intervenant non authentifié'], 401);
+        }
+        
+        // Get all interventions for this intervenant with relationships and materials
+        $interventions = Intervention::with([
+            'client.utilisateur',
+            'tache.service',
+            'tache.materiels',
+            'materiels' // Materials used in this specific intervention
+        ])
+        ->where('intervenant_id', $intervenant->id)
+        ->orderBy('date_intervention', 'desc')
+        ->get();
+        
+        // Format the data for frontend
+        $formattedInterventions = $interventions->map(function ($intervention) {
+            $client = $intervention->client;
+            $clientUser = $client ? $client->utilisateur : null;
+            $tache = $intervention->tache;
+            
+            // Get materials provided by client (from tache materiels)
+            $clientProvidedMaterials = [];
+            if ($tache && $tache->materiels) {
+                $clientProvidedMaterials = $tache->materiels->map(function ($materiel) {
+                    return [
+                        'id' => $materiel->id,
+                        'name' => $materiel->nom_materiel,
+                        'description' => $materiel->description,
+                        'provided_by' => 'client'
+                    ];
+                });
+            }
+            
+            // Get materials used by intervenant in this intervention
+            $intervenantMaterials = [];
+            if ($intervention->materiels) {
+                $intervenantMaterials = $intervention->materiels->map(function ($materiel) {
+                    return [
+                        'id' => $materiel->id,
+                        'name' => $materiel->nom_materiel,
+                        'description' => $materiel->description,
+                        'provided_by' => 'intervenant'
+                    ];
+                });
+            }
+            
+            // Combine all materials
+            $allMaterials = $clientProvidedMaterials->merge($intervenantMaterials);
+            
+            return [
+                'id' => $intervention->id,
+                'clientName' => $clientUser ? ($clientUser->nom . ' ' . $clientUser->prenom) : 'Client inconnu',
+                'clientImage' => $clientUser->photo ?? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop',
+                'service' => $tache && $tache->service ? $tache->service->nom_service : 'Service inconnu',
+                'task' => $tache ? $tache->nom_tache : 'Tâche inconnue',
+                'date' => date('Y-m-d', strtotime($intervention->date_intervention)),
+                'time' => date('H:i', strtotime($intervention->date_intervention)),
+                'duration' => '2 heures', // You might want to add this field to the intervention table
+                'hourlyRate' => 25, // You might want to calculate this from the tache pivot table
+                'location' => $intervention->address . ', ' . $intervention->ville,
+                'status' => $this->mapStatus($intervention->status),
+                'message' => null, // You might want to add a message field
+                'materials' => $allMaterials,
+                'clientProvidedMaterials' => $clientProvidedMaterials,
+                'intervenantMaterials' => $intervenantMaterials
+            ];
+        });
+        
+        // Calculate intervenant-specific statistics
+        $pendingCount = $interventions->where('status', 'en attend')->count();
+        $acceptedCount = $interventions->where('status', 'acceptee')->count();
+        $completedCount = $interventions->where('status', 'termine')->count();
+        $totalEarnings = $interventions
+            ->where('status', 'termine')
+            ->sum(function ($intervention) {
+                // Calculate based on duration and hourly rate (using default 2 hours and 25 DH/h)
+                return 2 * 25; // duration * hourlyRate
+            });
+        
+        return response()->json([
+            'reservations' => $formattedInterventions,
+            'statistics' => [
+                'pending' => $pendingCount,
+                'accepted' => $acceptedCount,
+                'completed' => $completedCount,
+                'total_earnings' => $totalEarnings,
+                'total_interventions' => $interventions->count(),
+                'completion_rate' => $interventions->count() > 0 
+                    ? round(($completedCount / $interventions->count()) * 100, 1) 
+                    : 0
+            ]
+        ]);
+    }
+    
+    /**
+     * Map database status to frontend status
+     */
+    private function mapStatus($status)
+    {
+        $statusMap = [
+            'en attend' => 'pending',
+            'acceptee' => 'accepted',
+            'termine' => 'completed',
+            'refuse' => 'refused',
+            'annulee' => 'cancelled'
+        ];
+        
+        return $statusMap[$status] ?? 'pending';
+    }
+    
+    /**
+     * Accept a reservation
+     */
+    public function acceptReservation(Request $request, $id)
+    {
+        $intervenant = $request->user();
+        
+        if (!$intervenant) {
+            return response()->json(['message' => 'Intervenant non authentifié'], 401);
+        }
+        
+        $intervention = Intervention::where('id', $id)
+            ->where('intervenant_id', $intervenant->id)
+            ->first();
+            
+        if (!$intervention) {
+            return response()->json(['message' => 'Réservation non trouvée'], 404);
+        }
+        
+        $intervention->status = 'acceptee';
+        $intervention->save();
+        
+        return response()->json(['message' => 'Réservation acceptée avec succès']);
+    }
+    
+    /**
+     * Refuse a reservation
+     */
+    public function refuseReservation(Request $request, $id)
+    {
+        $intervenant = $request->user();
+        
+        if (!$intervenant) {
+            return response()->json(['message' => 'Intervenant non authentifié'], 401);
+        }
+        
+        $intervention = Intervention::where('id', $id)
+            ->where('intervenant_id', $intervenant->id)
+            ->first();
+            
+        if (!$intervention) {
+            return response()->json(['message' => 'Réservation non trouvée'], 404);
+        }
+        
+        $intervention->status = 'refuse';
+        $intervention->save();
+        
+        return response()->json(['message' => 'Réservation refusée avec succès']);
     }
 }

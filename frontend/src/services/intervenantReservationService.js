@@ -15,14 +15,14 @@ const reservationService = {
    * Accepter une réservation
    */
   acceptReservation(reservationId) {
-    return api.post(`reservations/${reservationId}/accept`);
+    return api.post(`intervenants/me/reservations/${reservationId}/accept`);
   },
 
   /**
    * Refuser une réservation
    */
   refuseReservation(reservationId) {
-    return api.post(`reservations/${reservationId}/refuse`);
+    return api.post(`intervenants/me/reservations/${reservationId}/refuse`);
   },
 
   /**

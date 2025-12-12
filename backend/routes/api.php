@@ -112,4 +112,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // Route::put('intervenants/me/taches/{tacheId}', [IntervenantController::class, 'updateMyTache']);
     // Route::post('intervenants/me/taches/{tacheId}/toggle-active', [IntervenantController::class, 'toggleActiveMyTache']);
     // Route::delete('intervenants/me/taches/{tacheId}', [IntervenantController::class, 'deleteMyTache']);
+    
+    // Routes for current intervenant's reservations
+    Route::get('intervenants/me/reservations', [IntervenantController::class, 'myReservations']);
+    Route::post('intervenants/me/reservations/{id}/accept', [IntervenantController::class, 'acceptReservation']);
+    Route::post('intervenants/me/reservations/{id}/refuse', [IntervenantController::class, 'refuseReservation']);
+
 });

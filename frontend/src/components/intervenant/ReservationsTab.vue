@@ -84,6 +84,9 @@
                 <span v-else-if="selectedTab === 'completed'" class="status-badge status-completed">
                   Terminée
                 </span>
+                <span v-else-if="selectedTab === 'refused'" class="status-badge status-refused">
+                  Refusée
+                </span>
               </div>
 
               <!-- Details Grid -->
@@ -115,13 +118,46 @@
                   <p class="message-text">{{ reservation.message }}</p>
                 </div>
               </div>
+
+              <!-- Materials Section -->
+              <div v-if="reservation.materials && reservation.materials.length > 0" class="materials-section">
+                <div class="materials-header">
+                  <Package :size="18" />
+                  <p class="materials-title">Matériels nécessaires</p>
+                </div>
+                
+                <!-- Client Provided Materials -->
+                <div v-if="reservation.clientProvidedMaterials && reservation.clientProvidedMaterials.length > 0" class="materials-group">
+                  <p class="materials-subtitle">Fournis par le client :</p>
+                  <div class="materials-tags">
+                    <span v-for="material in reservation.clientProvidedMaterials" :key="material.id" class="material-tag client-tag">
+                      {{ material.name }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Intervenant Materials -->
+                <div v-if="reservation.intervenantMaterials && reservation.intervenantMaterials.length > 0" class="materials-group">
+                  <p class="materials-subtitle">Matériels à apporter :</p>
+                  <div class="materials-tags">
+                    <span v-for="material in reservation.intervenantMaterials" :key="material.id" class="material-tag intervenant-tag">
+                      {{ material.name }}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       <div v-if="filteredReservations.length === 0" class="empty-state">
-        <p>Aucune réservation {{ selectedTab === 'pending' ? 'en attente' : selectedTab === 'accepted' ? 'acceptée' : 'complétée' }}</p>
+        <p>Aucune réservation {{ 
+          selectedTab === 'pending' ? 'en attente' : 
+          selectedTab === 'accepted' ? 'acceptée' : 
+          selectedTab === 'completed' ? 'complétée' : 
+          'refusée' 
+        }}</p>
       </div>
     </div>
   </div>
@@ -129,7 +165,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Check, X, Clock, MapPin, Calendar, MessageSquare, Coins } from 'lucide-vue-next'
+import { Check, X, Clock, MapPin, Calendar, MessageSquare, Coins, Package } from 'lucide-vue-next'
 import reservationService from '@/services/intervenantReservationService'
 
 const selectedTab = ref('pending')
@@ -144,11 +180,13 @@ const filteredReservations = computed(() => {
 const pendingCount = computed(() => reservations.value.filter(r => r.status === 'pending').length)
 const acceptedCount = computed(() => reservations.value.filter(r => r.status === 'accepted').length)
 const completedCount = computed(() => reservations.value.filter(r => r.status === 'completed').length)
+const refusedCount = computed(() => reservations.value.filter(r => r.status === 'refused').length)
 
 const tabs = computed(() => [
   { id: 'pending', label: 'En Attente', color: '#E8793F', count: pendingCount.value },
   { id: 'accepted', label: 'Acceptées', color: '#92B08B', count: acceptedCount.value },
-  { id: 'completed', label: 'Complétées', color: '#1A5FA3', count: completedCount.value }
+  { id: 'completed', label: 'Complétées', color: '#4682B4', count: completedCount.value },
+  { id: 'refused', label: 'Refusées', color: '#EF4444', count: refusedCount.value },
 ])
 
 const formatDate = (dateStr) => {
@@ -170,7 +208,7 @@ const fetchReservations = async () => {
   error.value = null
   try {
     const response = await reservationService.getMyReservations()
-    reservations.value = response.data
+    reservations.value = response.data.reservations || []
   } catch (err) {
     error.value = err.message || 'Erreur lors du chargement des réservations'
     console.error(err)
@@ -182,10 +220,8 @@ const fetchReservations = async () => {
 const acceptReservation = async (id) => {
   try {
     await reservationService.acceptReservation(id)
-    const reservation = reservations.value.find(r => r.id === id)
-    if (reservation) {
-      reservation.status = 'accepted'
-    }
+    // Refresh the data to get updated status
+    await fetchReservations()
   } catch (err) {
     alert(err.message || 'Erreur lors de l\'acceptation de la réservation')
     console.error(err)
@@ -196,10 +232,8 @@ const refuseReservation = async (id) => {
   if (confirm('Êtes-vous sûr de vouloir refuser cette réservation ?')) {
     try {
       await reservationService.refuseReservation(id)
-      const reservation = reservations.value.find(r => r.id === id)
-      if (reservation) {
-        reservation.status = 'refused'
-      }
+      // Refresh the data to get updated status
+      await fetchReservations()
     } catch (err) {
       alert(err.message || 'Erreur lors du refus de la réservation')
       console.error(err)
@@ -398,6 +432,11 @@ onMounted(() => {
   color: #1E40AF;
 }
 
+.status-refused {
+  background-color: #FEE2E2;
+  color: #991B1B;
+}
+
 .details-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -464,6 +503,60 @@ onMounted(() => {
   text-align: center;
   padding: var(--spacing-12) var(--spacing-6);
   color: var(--color-gray-600);
+}
+
+.materials-section {
+  padding: var(--spacing-4);
+  background: var(--color-gray-50);
+  border-radius: var(--radius-lg);
+  margin-top: var(--spacing-4);
+}
+
+.materials-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-3);
+}
+
+.materials-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-gray-700);
+  margin: 0;
+}
+
+.materials-group {
+  margin-bottom: var(--spacing-3);
+}
+
+.materials-subtitle {
+  font-size: 0.75rem;
+  color: var(--color-gray-600);
+  margin: 0 0 var(--spacing-2) 0;
+}
+
+.materials-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+
+.material-tag {
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.client-tag {
+  background-color: #D1FAE5;
+  color: #065F46;
+}
+
+.intervenant-tag {
+  background-color: #DBEAFE;
+  color: #1E40AF;
 }
 
 .error-message {

@@ -92,9 +92,10 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Menu, X, User, LogOut, Briefcase, Calendar, Star, ClipboardList, History, MessageCircle } from 'lucide-vue-next'
+import authService from '@/services/authService'
 
 const route = useRoute()
 const router = useRouter()
@@ -102,15 +103,47 @@ const router = useRouter()
 const isSidebarOpen = ref(false)
 const showProfileMenu = ref(false)
 
-// Mock intervenant data
+// Dynamic intervenant data
 const intervenant = ref({
-  id: 1,
-  name: 'Amina Chakir',
-  email: 'amina.chakir@email.com',
-  phone: '+212 6 12 34 56 78',
-  profileImage: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=150&h=150&fit=crop',
-  location: 'Tetouan Centre',
-  memberSince: '2019'
+  id: null,
+  name: '',
+  email: '',
+  phone: '',
+  profileImage: '',
+  location: '',
+  memberSince: ''
+})
+
+const loading = ref(true)
+
+// Fetch current user data
+const fetchCurrentUser = async () => {
+  try {
+    const response = await authService.getCurrentUser()
+    const user = response.data.user
+    
+    if (user.intervenant) {
+      intervenant.value = {
+        id: user.intervenant.id,
+        name: `${user.prenom} ${user.nom}`,
+        email: user.email,
+        phone: user.telephone || '',
+        profileImage: user.url || 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=150&h=150&fit=crop',
+        location: user.address || 'Non spécifié',
+        memberSince: new Date(user.created_at).getFullYear().toString()
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching user data:', error)
+    // Redirect to login if authentication fails
+    router.push('/login')
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  fetchCurrentUser()
 })
 
 const tabs = [
@@ -132,9 +165,17 @@ const currentPageTitle = computed(() => {
   return currentTab?.label || 'Tableau de bord'
 })
 
-const handleLogout = () => {
-  // In real app, clear auth and redirect to login
-  alert('Déconnexion...')
+const handleLogout = async () => {
+  try {
+    await authService.logout()
+    authService.setAuthToken(null)
+    router.push('/login')
+  } catch (error) {
+    console.error('Logout error:', error)
+    // Even if logout fails, clear local auth and redirect
+    authService.setAuthToken(null)
+    router.push('/login')
+  }
   showProfileMenu.value = false
 }
 </script>

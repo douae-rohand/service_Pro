@@ -39,10 +39,6 @@ Route::get('intervenants/{id}/active-services-tasks', [IntervenantController::cl
 // ======================
 Route::get('intervenants', [IntervenantController::class, 'index']);
 Route::get('intervenants/{id}', [IntervenantController::class, 'show']);
-Route::get('intervenants/me/taches', [IntervenantController::class, 'myTaches']);
-Route::put('intervenants/me/taches/{tacheId}', [IntervenantController::class, 'updateMyTache']);
-Route::post('intervenants/me/taches/{tacheId}/toggle-active', [IntervenantController::class, 'toggleActiveMyTache']);
-Route::delete('intervenants/me/taches/{tacheId}', [IntervenantController::class, 'deleteMyTache']);
 
 // ======================
 // Routes Statistiques (publiques pour consultation)
@@ -65,6 +61,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('auth/user', [AuthController::class, 'user']);
     Route::put('auth/profile', [AuthController::class, 'updateProfile']);
     Route::post('auth/change-password', [AuthController::class, 'changePassword']);
+
+    // ======================
+    // Routes Intervenants (protégées - nécessitent authentification)
+    // ======================
+    Route::get('intervenants/me/taches', [IntervenantController::class, 'myTaches']);
+    Route::put('intervenants/me/taches/{tacheId}', [IntervenantController::class, 'updateMyTache']);
+    Route::post('intervenants/me/taches/{tacheId}/toggle-active', [IntervenantController::class, 'toggleActiveMyTache']);
+    Route::delete('intervenants/me/taches/{tacheId}', [IntervenantController::class, 'deleteMyTache']);
 
     // ======================
     // Routes Interventions

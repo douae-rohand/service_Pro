@@ -13,7 +13,7 @@
     <!-- Stats -->
     <div v-if="!loading" class="stats-grid">
       <div class="stat-card stat-green">
-        <p class="stat-label">Sous-services Act ifs</p>
+        <p class="stat-label">Sous-services Actifs</p>
         <p class="stat-value">{{ activeServices }}</p>
       </div>
       <div class="stat-card stat-blue">

@@ -254,7 +254,7 @@
             </div>
 
             <!-- Task Configuration (shown when active) -->
-            <div v-if="taskStates[task.id]" class="task-config">
+            <div v-if="taskStates[task.id] && taskFormVisible[task.id]" class="task-config">
               <div class="form-group">
                 <label>Votre tarif horaire <span class="required">*</span></label>
                 <div class="input-with-suffix">
@@ -270,15 +270,6 @@
               </div>
 
               <div class="form-group">
-                <label>Description de votre présentation</label>
-                <textarea
-                  v-model="taskDescriptions[task.id]"
-                  rows="3"
-                  placeholder="Décrivez votre expérience et ce que vous proposez pour ce sous-service..."
-                ></textarea>
-              </div>
-
-              <div class="form-group">
                 <label>Matériaux nécessaires</label>
                 <div class="materials-grid">
                   <label
@@ -288,13 +279,24 @@
                   >
                     <input
                       type="checkbox"
-                      :checked="taskMaterials[task.id]?.includes(material)"
-                      @change="toggleMaterial(task.id, material)"
+                      :value="material"
+                      v-model="taskMaterials[task.id]"
                       :style="{ accentColor: getServiceColor(serviceId) }"
                     />
                     <span>{{ material }}</span>
                   </label>
                 </div>
+              </div>
+              
+              <!-- Save Button -->
+              <div class="form-actions">
+                <button 
+                  @click="saveTaskConfig(task.id)"
+                  class="btn-save-task"
+                  :style="{ backgroundColor: getServiceColor(serviceId) }"
+                >
+                  Enregistrer
+                </button>
               </div>
             </div>
           </div>
@@ -321,6 +323,7 @@ import { Check, FileText, X, Upload, AlertCircle, Trash2, Send } from 'lucide-vu
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import authService from '@/services/authService'
+import intervenantTacheService from '@/services/intervenantTacheService'
 
 const router = useRouter()
 const currentUser = ref(null)
@@ -433,17 +436,47 @@ const loadIntervenantActiveData = async (intervenantId) => {
       })
     }
     
-    // Activate the tasks that are active in DB
+    // Initialize all tasks with their actual status from DB
     if (data.tasks && data.tasks.length > 0) {
+      console.log('Initializing tasks from DB:', data.tasks)
       data.tasks.forEach(task => {
-        if (task.status === 1 && task.id) {
-          taskStates.value[task.id] = true
-          // Set the price if available
-          if (task.price) {
-            taskPrices.value[task.id] = task.price
+        if (task.id) {
+          // Set the toggle state based on actual status from DB (handle both boolean and integer)
+          taskStates.value[task.id] = task.status === true || task.status === 1
+          console.log(`Task ${task.id}: status=${task.status}, taskStates=${taskStates.value[task.id]}`)
+          
+          // Update tasksByService to include the task with correct status
+          if (!tasksByService.value[task.service_id]) {
+            tasksByService.value[task.service_id] = []
+          }
+          
+          // Check if task already exists in the service array
+          const existingTaskIndex = tasksByService.value[task.service_id].findIndex(t => t.id === task.id)
+          if (existingTaskIndex >= 0) {
+            // Update existing task
+            tasksByService.value[task.service_id][existingTaskIndex] = task
+          } else {
+            // Add new task
+            tasksByService.value[task.service_id].push(task)
+          }
+          
+          // If task is active, handle price and form visibility
+          if (task.status === true || task.status === 1) {
+            // Set the price if available
+            if (task.price) {
+              taskPrices.value[task.id] = task.price
+              // Hide the form for already configured tasks
+              taskFormVisible.value[task.id] = false
+            } else {
+              // Show the form for active tasks without price
+              taskFormVisible.value[task.id] = true
+              taskMaterials.value[task.id] = []
+            }
           }
         }
       })
+      console.log('Final taskStates after initialization:', taskStates.value)
+      console.log('Updated tasksByService:', tasksByService.value)
     }
     
     console.log('Loaded active services:', data.services)
@@ -523,6 +556,7 @@ const taskStates = ref({})
 const taskPrices = ref({})
 const taskDescriptions = ref({})
 const taskMaterials = ref({})
+const taskFormVisible = ref({})
 
 const activeServicesCount = computed(() => {
   return Object.values(serviceStates.value).filter(Boolean).length
@@ -670,13 +704,66 @@ const submitActivationRequest = async () => {
   }
 }
 
-const toggleTask = (taskId) => {
-  taskStates.value[taskId] = !taskStates.value[taskId]
+const toggleTask = async (taskId) => {
+  try {
+    // Call API to toggle the status in database
+    const response = await intervenantTacheService.toggleActive(taskId)
+    console.log('Task toggle response:', response.data)
+    
+    // Update local state after successful API call
+    taskStates.value[taskId] = !taskStates.value[taskId]
+    
+    if (!taskStates.value[taskId]) {
+      // Désactiver : supprimer les données et masquer le formulaire
+      delete taskPrices.value[taskId]
+      delete taskDescriptions.value[taskId]
+      delete taskMaterials.value[taskId]
+      delete taskFormVisible.value[taskId]
+    } else {
+      // Activer : afficher le formulaire et initialiser les matériaux
+      taskFormVisible.value[taskId] = true
+      taskMaterials.value[taskId] = [] // Initialiser comme tableau vide
+    }
+  } catch (error) {
+    console.error('Error toggling task:', error)
+    // Revert the state if API call failed
+    taskStates.value[taskId] = !taskStates.value[taskId]
+    alert('Erreur lors de la modification du statut de la tâche')
+  }
+}
+
+// Save task configuration and hide form
+const saveTaskConfig = async (taskId) => {
+  if (!currentUser.value) return
   
-  if (!taskStates.value[taskId]) {
-    delete taskPrices.value[taskId]
-    delete taskDescriptions.value[taskId]
-    delete taskMaterials.value[taskId]
+  // Validate price is filled
+  if (!taskPrices.value[taskId] || taskPrices.value[taskId] <= 0) {
+    alert('Le tarif horaire est obligatoire')
+    return
+  }
+  
+  try {
+    console.log('Saving task config:', {
+      taskId: taskId,
+      hourlyRate: taskPrices.value[taskId],
+      materials: taskMaterials.value[taskId]
+    })
+    
+    // Send data to backend using the correct service
+    const response = await intervenantTacheService.updateMyTache(taskId, {
+      hourlyRate: taskPrices.value[taskId],
+      materials: taskMaterials.value[taskId] || []
+    })
+    
+    console.log('Save response:', response.data)
+    
+    // Hide the form but keep the task active
+    taskFormVisible.value[taskId] = false
+  } catch (error) {
+    console.error('Erreur complète:', error)
+    console.error('Response data:', error.response?.data)
+    console.error('Status:', error.response?.status)
+    alert(`Erreur lors de l'enregistrement: ${error.response?.data?.message || error.message}`)
   }
 }
 
@@ -1227,6 +1314,33 @@ const getMaterialsByService = (serviceId) => {
   width: 1rem;
   height: 1rem;
   cursor: pointer;
+}
+
+/* Task Form Actions */
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--spacing-4);
+  padding-top: var(--spacing-4);
+  border-top: 1px solid var(--color-gray-200);
+}
+
+.btn-save-task {
+  padding: var(--spacing-2) var(--spacing-6);
+  color: var(--color-white);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.btn-save-task:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .empty-state {

@@ -39,10 +39,11 @@ Route::get('intervenants/{id}/active-services-tasks', [IntervenantController::cl
 // ======================
 Route::get('intervenants', [IntervenantController::class, 'index']);
 Route::get('intervenants/{id}', [IntervenantController::class, 'show']);
-Route::get('intervenants/me/taches', [IntervenantController::class, 'myTaches']);
-Route::put('intervenants/me/taches/{tacheId}', [IntervenantController::class, 'updateMyTache']);
-Route::post('intervenants/me/taches/{tacheId}/toggle-active', [IntervenantController::class, 'toggleActiveMyTache']);
-Route::delete('intervenants/me/taches/{tacheId}', [IntervenantController::class, 'deleteMyTache']);
+Route::put('intervenants/{id}/taches/{tacheId}/configure', [IntervenantController::class, 'configureTask']);
+
+// Service activation
+Route::get('intervenants/{id}/services-with-activation', [IntervenantController::class, 'getServicesWithActivation']);
+Route::post('intervenants/{id}/services/{serviceId}/toggle', [IntervenantController::class, 'toggleService']);
 
 // ======================
 // Routes Statistiques (publiques pour consultation)
@@ -65,6 +66,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('auth/user', [AuthController::class, 'user']);
     Route::put('auth/profile', [AuthController::class, 'updateProfile']);
     Route::post('auth/change-password', [AuthController::class, 'changePassword']);
+
+    // ======================
+    // Routes Intervenants (protégées)
+    // ======================
+    Route::get('intervenants/me/taches', [IntervenantController::class, 'myTaches']);
+    Route::put('intervenants/me/taches/{tacheId}', [IntervenantController::class, 'updateMyTache']);
+    Route::post('intervenants/me/taches/{tacheId}/toggle-active', [IntervenantController::class, 'toggleActiveMyTache']);
+    Route::delete('intervenants/me/taches/{tacheId}', [IntervenantController::class, 'deleteMyTache']);
 
     // ======================
     // Routes Interventions
@@ -105,7 +114,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('intervenants/{id}/interventions', [IntervenantController::class, 'interventions']);
     Route::get('intervenants/{id}/disponibilites', [IntervenantController::class, 'disponibilites']);
     Route::get('intervenants/{id}/taches', [IntervenantController::class, 'taches']);
-    
+
     // Routes for current intervenant's taches
     // TODO: Uncomment these routes when authentication is implemented and remove the temporary routes above
     // Route::get('intervenants/me/taches', [IntervenantController::class, 'myTaches']);

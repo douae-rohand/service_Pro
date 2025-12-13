@@ -216,7 +216,7 @@ const props = defineProps({
   onSignupClick: Function,
 })
 
-const emit = defineEmits(['close', 'signup-click', 'login-success'])
+const emit = defineEmits(['close', 'signup-click'])
 
 const formData = ref({
   email: '',
@@ -246,9 +246,9 @@ const handleSubmit = async () => {
     
     if (response.data.token) {
       authService.setAuthToken(response.data.token)
-      // Emit event to parent to navigate to dashboard
-      emit('login-success', response.data)
+      alert('Connexion réussie !')
       handleClose()
+      window.location.reload()
     }
   } catch (error) {
     console.error('Erreur de connexion:', error)

@@ -64,7 +64,11 @@ class Intervenant extends Model
      */
     public function disponibilites()
     {
-        return $this->hasMany(Disponibilite::class, 'intervenantId', 'id');
+        return $this->hasMany(
+            Disponibilite::class,
+            'intervenant_id', // ✅ colonne réelle en BD
+            'id'
+        );
     }
 
     /**

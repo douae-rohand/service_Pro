@@ -34,6 +34,10 @@ class Disponibilite extends Model
      */
     public function intervenant()
     {
-        return $this->belongsTo(Intervenant::class, 'intervenantId', 'id');
+        return $this->belongsTo(
+            Intervenant::class,
+            'intervenant_id', // ✅ même colonne
+            'id'
+        );
     }
 }

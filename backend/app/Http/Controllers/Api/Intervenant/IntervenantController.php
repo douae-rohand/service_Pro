@@ -78,25 +78,29 @@ class IntervenantController extends Controller
     /**
      * Display the specified intervenant
      */
-    public function show($id)
-    {
-        $intervenant = Intervenant::with([
-            'utilisateur',
-            'admin.utilisateur',
-            'interventions',
-            'disponibilites',
-            'taches',
-            'materiels',
-            'clientsFavoris.utilisateur'
-        ])->findOrFail($id);
+        public function show($id)
+        {
+            $intervenant = Intervenant::with([
+                'utilisateur:id,nom,prenom,address',
+                'taches:id,nom_tache,service_id',
+                'taches.service:id,nom_service',
+                'interventions',
+                'disponibilites'
+            ])->find($id);
 
-        // Calculer la note moyenne et le nombre d'avis
-        $ratingInfo = $intervenant->getRatingInfo();
-        $intervenant->average_rating = $ratingInfo['average_rating'];
-        $intervenant->review_count = $ratingInfo['review_count'];
+            if (!$intervenant) {
+                return response()->json([
+                    'message' => 'Intervenant introuvable'
+                ], 404);
+            }
 
-        return response()->json($intervenant);
-    }
+            $ratingInfo = $intervenant->getRatingInfo();
+            $intervenant->average_rating = $ratingInfo['average_rating'];
+            $intervenant->review_count = $ratingInfo['review_count'];
+
+            return response()->json($intervenant);
+        }
+
 
     /**
      * Update the specified intervenant

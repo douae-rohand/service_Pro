@@ -234,7 +234,7 @@
 
                 <!-- Button -->
                 <button
-                  @click="$emit('view-profile', intervenant.id)"
+                  @click="viewProfile(intervenant)"
                   class="w-full py-2.5 rounded-lg text-white transition-all hover:opacity-90"
                   :style="{ backgroundColor: currentService.color }"
                 >
@@ -299,19 +299,17 @@ export default {
       hoverBackButton: false,
       loading: false,
       loadingIntervenants: false,
-      intervenantsLoaded: false, // Indique si les intervenants ont été chargés au moins une fois
+      intervenantsLoaded: false,
       serviceData: null,
-      serviceTaches: [], // Les taches du service pour les filtres
+      serviceTaches: [],
       intervenantsFromApi: [],
-      // Configuration des couleurs par nom de service (données UI uniquement)
       serviceColors: {
         'Jardinage': '#92B08B',
         'Ménage': '#4682B4',
       },
-      // Mapping des IDs aux couleurs et noms pour un affichage immédiat
       serviceIdToColor: {
-        1: '#92B08B', // Jardinage
-        2: '#4682B4', // Ménage
+        1: '#92B08B',
+        2: '#4682B4',
       },
       serviceIdToName: {
         1: 'Jardiniers',
@@ -320,8 +318,6 @@ export default {
     };
   },
   mounted() {
-    // Charger les données en parallèle pour un chargement plus rapide
-    // Ne pas utiliser await pour permettre l'affichage immédiat de la page
     Promise.all([
       this.loadServiceInfo(),
       this.loadIntervenants(false)
@@ -332,17 +328,15 @@ export default {
   watch: {
     service() {
       this.loadServiceInfo();
-      this.loadIntervenants(true); // Afficher le loading lors du changement de service
+      this.loadIntervenants(true);
     }
   },
   computed: {
     currentService() {
-      // Utiliser les taches du service depuis l'API pour les types de service
       const serviceTypes = this.serviceTaches.length > 0
         ? this.serviceTaches.map(tache => tache.nom_tache).filter(Boolean)
         : [];
       
-      // Si on a des données du service depuis l'API, les utiliser
       if (this.serviceData) {
         const serviceName = this.serviceData.nom_service;
         const color = this.serviceColors[serviceName] || '#6B7280';
@@ -354,7 +348,6 @@ export default {
         };
       }
       
-      // Fallback par défaut pendant le chargement - utiliser l'ID pour déterminer immédiatement nom et couleur
       let serviceName = 'Service';
       let color = '#6B7280';
       
@@ -365,12 +358,11 @@ export default {
       
       return {
         name: serviceName,
-        color: color, // Utiliser la couleur correcte dès le début
+        color: color,
         serviceTypes: serviceTypes,
       };
     },
     
-    // Extraire les villes depuis les intervenants chargés
     cities() {
       const allCities = ['Toutes les villes'];
       const uniqueCities = new Set();
@@ -384,7 +376,6 @@ export default {
       return [...allCities, ...Array.from(uniqueCities).sort()];
     },
     filteredIntervenants() {
-      // Toujours utiliser les intervenants de l'API (même si vide, pour éviter d'afficher les données statiques)
       const intervenants = this.intervenantsFromApi || [];
       
       if (!intervenants || intervenants.length === 0) {
@@ -392,7 +383,6 @@ export default {
       }
       
       return intervenants.filter((intervenant) => {
-        // Recherche par texte (nom ou ville)
         const searchText = this.citySearch.trim().toLowerCase();
         let matchesSearch = true;
         if (searchText) {
@@ -404,12 +394,10 @@ export default {
                          intervenantSpecialties.includes(searchText);
         }
         
-        // Filtre par ville (select de la sidebar)
         const matchesCity = this.selectedCity === 'all' || 
                           this.selectedCity === 'Toutes les villes' || 
                           intervenant.location === this.selectedCity;
         
-        // Filtre par type de service depuis la barre de recherche (si utilisé)
         let matchesServiceTypeFilter = true;
         if (this.serviceTypeFilter && this.serviceTypeFilter !== 'all') {
           const intervenantTacheNames = (intervenant.taches || []).map(t => 
@@ -423,7 +411,6 @@ export default {
           );
         }
         
-        // Filtre par type de service depuis la sidebar (checkboxes)
         let matchesServiceType = true;
         if (this.selectedServiceTypes.length > 0) {
           const intervenantTacheNames = (intervenant.taches || []).map(t => 
@@ -439,18 +426,15 @@ export default {
           });
         }
         
-        // Filtre par prix
         const matchesPrice = intervenant.hourlyRate >= this.priceRange[0] && 
                             intervenant.hourlyRate <= this.priceRange[1];
         
-        // Filtre par note
         let matchesRating = true;
         if (this.selectedRating === '5+') matchesRating = intervenant.rating >= 5.0;
         else if (this.selectedRating === '4.5+') matchesRating = intervenant.rating >= 4.5;
         else if (this.selectedRating === '4+') matchesRating = intervenant.rating >= 4.0;
         else if (this.selectedRating === '3.5+') matchesRating = intervenant.rating >= 3.5;
         
-        // Filtres supplémentaires
         const matchesMaterial = !this.bringsMaterial || intervenant.bringsMaterial;
         const matchesEco = !this.ecoProducts || intervenant.ecoFriendly;
         
@@ -467,14 +451,10 @@ export default {
   },
   methods: {
     async loadServiceInfo() {
-      // Charger les données du service depuis l'API si c'est un ID
       if (typeof this.service === 'number') {
         try {
-          // Un seul appel API - Laravel retourne le service avec ses taches incluses
           const response = await serviceService.getById(this.service);
           this.serviceData = response.data;
-          
-          // Les taches sont déjà incluses dans la réponse du backend Laravel
           this.serviceTaches = response.data.taches || [];
         } catch (error) {
           console.error('Erreur lors du chargement des informations du service:', error);
@@ -484,33 +464,26 @@ export default {
     
     async loadIntervenants(showLoading = true) {
       try {
-        // Afficher le loading seulement si explicitement demandé (pas au montage initial)
         if (showLoading) {
           this.loadingIntervenants = true;
         }
         
-        // Préparer les paramètres de requête
         const params = { active: 'true' };
         
-        // Si un service est spécifié, filtrer par serviceId côté backend
         if (typeof this.service === 'number') {
           params.serviceId = this.service;
         }
         
-        // Récupérer les intervenants depuis l'API
         const response = await intervenantService.getAll(params);
         const intervenants = response.data || [];
         
-        // Mapper les données de l'API vers le format attendu par le template
         this.intervenantsFromApi = intervenants.map(intervenant => {
           const utilisateur = intervenant.utilisateur || {};
           const taches = intervenant.taches || [];
           
-          // Extraire les spécialités depuis les taches
           const specialties = taches.map(tache => tache.nom_tache || tache.name || '').filter(Boolean);
           
-          // Calculer le tarif moyen depuis les pivots ou utiliser une valeur par défaut
-          let hourlyRate = 25; // Par défaut
+          let hourlyRate = 25;
           if (taches.length > 0) {
             const rates = taches
               .map(t => t.pivot?.prix_tache || t.pivot?.prixTache)
@@ -523,27 +496,27 @@ export default {
           return {
             id: intervenant.id,
             name: `${utilisateur.nom || ''} ${utilisateur.prenom || ''}`.trim() || 'Intervenant',
-            rating: intervenant.average_rating || 0, // Note moyenne calculée depuis la base de données
-            reviewCount: intervenant.review_count || 0, // Nombre d'avis calculé depuis la base de données
+            rating: intervenant.average_rating || 0,
+            reviewCount: intervenant.review_count || 0,
             hourlyRate: hourlyRate,
             location: intervenant.ville || utilisateur.address || 'Non spécifiée',
-            image: intervenant.image_url || utilisateur.photo || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=150&h=150&fit=crop', // Image depuis la base de données ou générique
+            image: intervenant.image_url || utilisateur.photo || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=150&h=150&fit=crop',
             verified: intervenant.is_active !== false,
-            specialties: specialties, // Toutes les spécialités
-            taches: taches, // Garder les taches originales pour le filtrage
+            specialties: specialties,
+            taches: taches,
             experience: intervenant.bio || `${Math.floor(Math.random() * 10) + 1} ans d'expérience`,
             bringsMaterial: (intervenant.materiels && intervenant.materiels.length > 0) || false,
-            ecoFriendly: Math.random() > 0.5, // Pour l'instant aléatoire
+            ecoFriendly: Math.random() > 0.5,
+            // Données complètes pour le profil
+            fullData: intervenant
           };
         });
         
-        // Marquer que les intervenants ont été chargés
         this.intervenantsLoaded = true;
         
       } catch (error) {
         console.error('Erreur lors du chargement des intervenants:', error);
         this.intervenantsFromApi = [];
-        // Marquer comme chargé même en cas d'erreur
         this.intervenantsLoaded = true;
       } finally {
         if (showLoading) {
@@ -551,6 +524,16 @@ export default {
         }
       }
     },
+    
+    // NOUVELLE MÉTHODE pour gérer le clic sur "Voir le profil"
+    viewProfile(intervenant) {
+      // Émettre l'événement avec toutes les données de l'intervenant
+      this.$emit('view-profile', {
+        id: intervenant.id,
+        data: intervenant
+      });
+    },
+    
     toggleServiceType(type) {
       if (this.selectedServiceTypes.includes(type)) {
         this.selectedServiceTypes = this.selectedServiceTypes.filter(t => t !== type);
@@ -559,8 +542,6 @@ export default {
       }
     },
     applySearch() {
-      // Appliquer les filtres de la barre de recherche
-      // Si citySearch contient quelque chose, mettre à jour selectedCity si correspond
       if (this.citySearch.trim()) {
         const searchText = this.citySearch.trim().toLowerCase();
         const matchingCity = this.cities.find(city => 
@@ -571,7 +552,6 @@ export default {
         }
       }
       
-      // Si serviceTypeFilter est sélectionné, l'ajouter aux selectedServiceTypes
       if (this.serviceTypeFilter && this.serviceTypeFilter !== 'all') {
         if (!this.selectedServiceTypes.includes(this.serviceTypeFilter)) {
           this.selectedServiceTypes.push(this.serviceTypeFilter);

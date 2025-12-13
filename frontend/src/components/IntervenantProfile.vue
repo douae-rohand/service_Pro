@@ -13,7 +13,28 @@
       </div>
     </div>
 
-    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Loading State -->
+    <div v-if="loading" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div class="text-center py-16">
+        <p class="text-gray-600">Chargement du profil...</p>
+      </div>
+    </div>
+
+    <!-- Error State -->
+    <div v-else-if="error" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div class="text-center py-16">
+        <p class="text-red-600 mb-4">{{ error }}</p>
+        <button
+          @click="$emit('back')"
+          class="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all"
+        >
+          Retour
+        </button>
+      </div>
+    </div>
+
+    <!-- Profile Content -->
+    <div v-else class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <!-- Profile Header Card -->
       <div class="bg-white rounded-2xl shadow-sm p-8 mb-6">
         <div class="flex items-start gap-6">
@@ -124,6 +145,9 @@
                     <ClockIcon :size="18" :style="{ color: primaryColor }" />
                     <span>{{ serviceItem.duration }}</span>
                   </div>
+                  <span class="text-lg font-bold" :style="{ color: primaryColor }">
+                    {{ serviceItem.price }}€/h
+                  </span>
                 </div>
                 <div class="flex items-center justify-end">
                   <button
@@ -329,7 +353,11 @@ export default {
   props: {
     intervenantId: {
       type: Number,
-      required: true
+      required: false
+    },
+    intervenantData: {
+      type: Object,
+      required: false
     },
     service: {
       type: String,
@@ -343,7 +371,7 @@ export default {
       selectedImage: null,
       activeTab: 'apropos',
       isFavorite: false,
-      loading: true,
+      loading: false,
       error: null,
       tabs: [
         { id: 'apropos', label: 'À propos' },
@@ -389,16 +417,70 @@ export default {
     }
   },
   async created() {
-    await this.fetchIntervenantData();
+    // Si les données sont déjà passées en prop, les utiliser directement
+    if (this.intervenantData) {
+      this.loadFromProvidedData();
+    } 
+    // Sinon, charger depuis l'API
+    else if (this.intervenantId) {
+      await this.fetchIntervenantData();
+    } else {
+      this.error = "Aucune donnée d'intervenant fournie.";
+    }
   },
   methods: {
+    // NOUVELLE MÉTHODE: Charger depuis les données fournies
+    loadFromProvidedData() {
+      const data = this.intervenantData;
+      
+      this.intervenant = {
+        id: data.id,
+        name: data.name,
+        profileImage: data.image,
+        rating: data.rating || 5.0,
+        reviewCount: data.reviewCount || 0,
+        location: data.location,
+        experience: data.experience,
+        verified: data.verified,
+        expert: true,
+        memberSince: 'Membre récent',
+        responseTime: '~2h',
+        completedJobs: 0,
+        bio: [data.experience, 'Professionnel expérimenté dans le domaine.'],
+        services: this.mapServices(data.taches || []),
+        reviews: [
+          {
+            id: 1,
+            clientName: 'Client satisfait',
+            date: new Date().toISOString(),
+            rating: 5,
+            comment: 'Excellente prestation ! Je recommande vivement.'
+          }
+        ],
+        photos: [
+          data.image,
+          'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=400&h=300&fit=crop',
+          'https://images.unsplash.com/photo-1585421514738-01798e348b17?w=400&h=300&fit=crop'
+        ],
+        availability: [
+          { day: 'Lundi', available: true, hours: '9h00 - 17h00' },
+          { day: 'Mardi', available: true, hours: '9h00 - 17h00' },
+          { day: 'Mercredi', available: true, hours: '9h00 - 17h00' },
+          { day: 'Jeudi', available: true, hours: '9h00 - 17h00' },
+          { day: 'Vendredi', available: true, hours: '9h00 - 17h00' },
+          { day: 'Samedi', available: true, hours: '9h00 - 17h00' },
+          { day: 'Dimanche', available: false, hours: '' }
+        ]
+      };
+    },
+    
+    // Méthode existante pour charger depuis l'API
     async fetchIntervenantData() {
       this.loading = true;
       try {
         const response = await intervenantService.getById(this.intervenantId);
         const data = response.data;
         
-        // Transform backend data to match UI component expectations
         this.intervenant = {
           id: data.id,
           name: data.utilisateur ? `${data.utilisateur.prenom || ''} ${data.utilisateur.nom || ''}`.trim() : 'Intervenant',
@@ -406,15 +488,15 @@ export default {
           rating: Number(data.average_rating) || 5.0,
           reviewCount: Number(data.review_count) || 0,
           location: data.ville || data.address || 'Localisation non spécifiée',
-          experience: '8 ans d\'expérience', // Placeholder as not in DB yet
+          experience: '8 ans d\'expérience',
           verified: !!data.is_active,
-          expert: true, // Placeholder
-           memberSince: data.created_at ? `Membre depuis ${new Date(data.created_at).getFullYear()}` : 'Membre récent',
-          responseTime: '~2h', // Placeholder
+          expert: true,
+          memberSince: data.created_at ? `Membre depuis ${new Date(data.created_at).getFullYear()}` : 'Membre récent',
+          responseTime: '~2h',
           completedJobs: data.interventions ? data.interventions.length : 0,
           bio: data.bio ? [data.bio] : ['Aucune biographie disponible.'],
           services: this.mapServices(data.taches),
-          reviews: this.mapReviews(data.interventions), // Using interventions as proxy for reviews if not separate
+          reviews: this.mapReviews(data.interventions),
           photos: data.interventions && data.interventions.flatMap(i => i.photos || []) || [
             'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=400&h=300&fit=crop',
             'https://images.unsplash.com/photo-1585421514738-01798e348b17?w=400&h=300&fit=crop'
@@ -428,24 +510,21 @@ export default {
         this.loading = false;
       }
     },
+    
     mapServices(taches) {
       if (!taches || !Array.isArray(taches)) return [];
       
-      // Group tasks by service or just list them
-      // Assuming tasks have a 'service' relation
       return taches.map(t => ({
         id: t.id,
         name: t.nom_tache || t.service?.nom_service || 'Service',
         description: t.description || 'Description du service...',
-        duration: '2-3 heures recommandées', // Placeholder
-        price: t.pivot?.prix_tache || t.prix || 25 // Placeholder if price not in DB
+        duration: '2-3 heures recommandées',
+        price: t.pivot?.prix_tache || t.prix || 25
       }));
     },
+    
     mapReviews(interventions) {
       if (!interventions) return [];
-      // Filter interventions that have evaluations/comments
-      // Note: Backend might need to include 'evaluations' relation
-      // using mock data for now if evaluations not loaded
       return [
         {
           id: 1,
@@ -456,6 +535,7 @@ export default {
         }
       ]; 
     },
+    
     mapAvailability(disponibilites) {
       if (!disponibilites) return [
           { day: 'Lundi', available: true, hours: '9h00 - 17h00' },
@@ -473,6 +553,7 @@ export default {
         hours: `${this.formatTime(d.dateDebut)} - ${this.formatTime(d.dateFin)}`
       }));
     },
+    
     formatDate(dateString) {
       if (!dateString) return '';
       const date = new Date(dateString);
@@ -482,9 +563,11 @@ export default {
         year: 'numeric'
       });
     },
+    
     getDayName(dateString) {
       return new Date(dateString).toLocaleDateString('fr-FR', { weekday: 'long' });
     },
+    
     formatTime(dateString) {
       return new Date(dateString).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
     }

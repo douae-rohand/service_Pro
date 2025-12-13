@@ -19,7 +19,7 @@
       :service="selectedService"
       @back="handleBack"
       @view-all-intervenants="handleViewAllIntervenants"
-      @view-profile="handleViewProfile"
+      @view-profile="handleViewProfileFromDetail"
       @task-click="handleTaskClick"
     />
 
@@ -28,14 +28,15 @@
       v-else-if="currentPage === 'all-intervenants'"
       :service="selectedService"
       @back="handleBackFromAllIntervenants"
-      @view-profile="handleViewProfile"
+      @view-profile="handleViewProfileFromList"
     />
 
-    <!-- Page de profil d'intervenant -->
+    <!-- Profil de l'intervenant -->
     <IntervenantProfile
       v-else-if="currentPage === 'intervenant-profile'"
+      :intervenant-data="selectedIntervenantData"
       :intervenant-id="selectedIntervenantId"
-      :service="getServiceName(selectedService)"
+      :service="serviceType"
       @back="handleBackFromProfile"
     />
 
@@ -54,7 +55,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import Header from './components/Header.vue'
 import HeroSection from './components/HeroSection.vue'
 import StatsSection from './components/StatsSection.vue'
@@ -63,26 +64,47 @@ import TestimonialsSection from './components/TestimonialsSection.vue'
 import Footer from './components/Footer.vue'
 import ServiceDetailPage from './components/ServiceDetailPage.vue'
 import AllIntervenantsPage from './components/AllIntervenantsPage.vue'
-import IntervenantProfile from './components/IntervenantProfile.vue'
+import IntervenantProfile from './components/IntervenantProfile.vue' // ✅ CORRIGÉ
 import LoginModal from './components/LoginModal.vue'
 import SignupModal from './components/SignupModal.vue'
 
-// État pour gérer la navigation entre les pages
-const currentPage = ref('home') // Valeurs possibles: 'home', 'service-detail', 'all-intervenants', 'intervenant-profile'
-const selectedService = ref(null)
-const selectedIntervenantId = ref(null)
-const previousPage = ref('home')
+// ============================================
+// ÉTAT DE NAVIGATION
+// ============================================
+const currentPage = ref('home') // 'home', 'service-detail', 'all-intervenants', 'intervenant-profile'
+const previousPage = ref('home') // Pour savoir d'où on vient lors du retour
 
-// État pour les modals
+// ============================================
+// ÉTAT DES DONNÉES
+// ============================================
+const selectedService = ref(null) // ID du service sélectionné (1 = Jardinage, 2 = Ménage)
+const selectedIntervenantData = ref(null) // Données complètes de l'intervenant sélectionné
+const selectedIntervenantId = ref(null) // ID de l'intervenant (pour fallback API)
+
+// ============================================
+// ÉTAT DES MODALS
+// ============================================
 const showLoginModal = ref(false)
 const showSignupModal = ref(false)
 
+// ============================================
+// COMPUTED - TYPE DE SERVICE
+// ============================================
+// Convertit l'ID du service en type (pour les couleurs du profil)
+const serviceType = computed(() => {
+  if (selectedService.value === 1) return 'jardinage'
+  if (selectedService.value === 2) return 'menage'
+  return 'menage' // fallback par défaut
+})
+
+// ============================================
+// NAVIGATION - PAGE D'ACCUEIL
+// ============================================
 const handleSearch = () => {
   console.log('Search clicked')
   // TODO: Implémenter la recherche
 }
 
-// Navigation depuis l'accueil vers la page de détail du service
 const handleServiceClick = (serviceId) => {
   console.log('Service clicked:', serviceId)
   selectedService.value = serviceId
@@ -90,57 +112,83 @@ const handleServiceClick = (serviceId) => {
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-// Retour de la page de détail du service vers l'accueil
 const handleBack = () => {
+  // Retour vers l'accueil depuis la page de détail
   selectedService.value = null
+  selectedIntervenantData.value = null
+  selectedIntervenantId.value = null
   currentPage.value = 'home'
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-// Navigation de la page de détail vers la page de tous les intervenants
+// ============================================
+// NAVIGATION - PAGE DE DÉTAIL DU SERVICE
+// ============================================
 const handleViewAllIntervenants = () => {
-  console.log('View all intervenants for:', selectedService.value)
+  console.log('View all intervenants for service:', selectedService.value)
+  previousPage.value = 'service-detail' // Sauvegarder la page actuelle
   currentPage.value = 'all-intervenants'
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-// Retour de la page de tous les intervenants vers la page de détail du service
-const handleBackFromAllIntervenants = () => {
-  currentPage.value = 'service-detail'
-  window.scrollTo({ top: 0, behavior: 'smooth' })
-}
-
-// Navigation vers le profil d'un intervenant (depuis n'importe quelle page)
-const handleViewProfile = (intervenantId) => {
-  console.log('View profile:', intervenantId)
+const handleViewProfileFromDetail = (intervenantId) => {
+  console.log('View profile from detail page:', intervenantId)
+  
+  // Depuis la page de détail, on n'a pas les données complètes
+  // donc on passe l'ID et le composant fera un appel API
+  selectedIntervenantData.value = null // Forcer le chargement API
   selectedIntervenantId.value = intervenantId
-  previousPage.value = currentPage.value
+  previousPage.value = 'service-detail'
   currentPage.value = 'intervenant-profile'
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-// Retour du profil vers la page précédente
+const handleTaskClick = (taskName) => {
+  console.log('Task clicked:', taskName, 'for service:', selectedService.value)
+  // TODO: Implémenter la page de réservation
+}
+
+// ============================================
+// NAVIGATION - PAGE DE TOUS LES INTERVENANTS
+// ============================================
+const handleBackFromAllIntervenants = () => {
+  // Retour vers la page de détail du service
+  selectedIntervenantData.value = null
+  selectedIntervenantId.value = null
+  currentPage.value = 'service-detail'
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+const handleViewProfileFromList = (payload) => {
+  console.log('View profile from list:', payload)
+  
+  // IMPORTANT: Stocker toutes les données de l'intervenant
+  // payload contient { id: number, data: object }
+  selectedIntervenantData.value = payload.data
+  selectedIntervenantId.value = payload.id
+  
+  // Sauvegarder d'où on vient
+  previousPage.value = 'all-intervenants'
+  
+  // Naviguer vers le profil
+  currentPage.value = 'intervenant-profile'
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+// ============================================
+// NAVIGATION - PAGE DE PROFIL
+// ============================================
 const handleBackFromProfile = () => {
+  // Retourner à la page précédente (soit detail, soit all-intervenants)
   currentPage.value = previousPage.value
+  selectedIntervenantData.value = null
   selectedIntervenantId.value = null
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-// Helper pour déterminer le nom du service pour le composant profile
-const getServiceName = (serviceId) => {
-  if (serviceId === 1) return 'jardinage'
-  if (serviceId === 2) return 'menage'
-  return 'menage' // default fallback
-}
-
-// Navigation vers la page de réservation d'une tâche
-const handleTaskClick = (taskName) => {
-  console.log('Task clicked:', taskName, 'for service:', selectedService.value)
-  // TODO: Implémenter la page de réservation
-  // currentPage.value = 'booking'
-}
-
-// Fonction pour basculer de login à signup
+// ============================================
+// MODALS
+// ============================================
 const handleSwitchToSignup = () => {
   showLoginModal.value = false
   showSignupModal.value = true

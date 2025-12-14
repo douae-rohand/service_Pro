@@ -304,7 +304,6 @@ export default {
       serviceTypeFilter: 'all',
       selectedCity: 'all',
       selectedServiceTypes: [],
-      priceRange: [10, 30],
       selectedRating: 'all',
       bringsMaterial: false,
       ecoProducts: false,
@@ -364,7 +363,7 @@ export default {
       let serviceName = 'Service';
       let color = '#6B7280';
       
-      if (typeof this.service === 'number') {
+      if (this.service) {
         serviceName = this.serviceIdToName[this.service] || 'Service';
         color = this.serviceIdToColor[this.service] || '#6B7280';
       }
@@ -439,9 +438,6 @@ export default {
           });
         }
         
-        const matchesPrice = intervenant.hourlyRate >= this.priceRange[0] && 
-                            intervenant.hourlyRate <= this.priceRange[1];
-        
         let matchesRating = true;
         if (this.selectedRating !== 'all' && typeof this.selectedRating === 'number') {
           matchesRating = intervenant.rating >= this.selectedRating;
@@ -450,7 +446,7 @@ export default {
         const matchesMaterial = !this.bringsMaterial || intervenant.bringsMaterial;
         const matchesEco = !this.ecoProducts || intervenant.ecoFriendly;
         
-        return matchesSearch && matchesCity && matchesServiceTypeFilter && matchesServiceType && matchesPrice && matchesRating && matchesMaterial && matchesEco;
+        return matchesSearch && matchesCity && matchesServiceTypeFilter && matchesServiceType && matchesRating && matchesMaterial && matchesEco;
       });
     },
     sortedIntervenants() {
@@ -462,7 +458,7 @@ export default {
   },
   methods: {
     async loadServiceInfo() {
-      if (typeof this.service === 'number') {
+      if (this.service) { // Check souple (string ou number)
         try {
           const response = await serviceService.getById(this.service);
           this.serviceData = response.data;
@@ -475,14 +471,9 @@ export default {
     
     async loadIntervenants(showLoading = false) {
       try {
-        // Suppression du loading state visible
-        // if (showLoading) {
-        //   this.loadingIntervenants = true;
-        // }
-        
         const params = { active: 'true' };
         
-        if (typeof this.service === 'number') {
+        if (this.service) { // Check souple
           params.serviceId = this.service;
         }
         
@@ -509,7 +500,7 @@ export default {
           const userServices = intervenant.services || [];
           let realExperience = 'Pas';
           
-          if (typeof this.service === 'number') {
+          if (this.service) { // Check souple
             const currentServiceInfo = userServices.find(s => s.id == this.service);
             realExperience = currentServiceInfo?.pivot?.experience || realExperience;
           }
@@ -584,7 +575,6 @@ export default {
       this.selectedServiceTypes = [];
       this.serviceTypeFilter = 'all';
       this.citySearch = '';
-      this.priceRange = [10, 30];
       this.selectedRating = 'all';
       this.bringsMaterial = false;
       this.ecoProducts = false;

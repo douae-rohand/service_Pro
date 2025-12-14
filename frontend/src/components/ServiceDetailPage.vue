@@ -121,6 +121,7 @@
                 />
                 <div class="flex-1">
                   <h3 class="text-lg">{{ intervenant.name }}</h3>
+                  <p class="text-sm text-gray-600 font-medium">{{ intervenant.experience }} d'éxperience</p>
                   
                   <div class="flex items-center gap-2 mt-2">
                     <Star :size="16" class="fill-yellow-400 text-yellow-400" />
@@ -349,6 +350,12 @@ export default {
             }
           }
           
+          // Trouver l'expérience pour ce service spécifique
+          const userServices = intervenant.services || [];
+          // this.service est l'ID du service actuel
+          const currentServiceInfo = userServices.find(s => s.id == serviceId);
+          const realExperience = currentServiceInfo?.pivot?.experience || 'Expérience confirmée';
+
           return {
             id: intervenant.id,
             name: `${utilisateur.nom || ''} ${utilisateur.prenom || ''}`.trim() || 'Intervenant',
@@ -359,6 +366,7 @@ export default {
             image: intervenant.image_url || utilisateur.photo || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=150&h=150&fit=crop',
             verified: intervenant.is_active !== false,
             specialties: specialties,
+            experience: realExperience, // Ajout de l'expérience réelle
           };
         });
         

@@ -201,7 +201,7 @@
               <div class="p-6">
                 <div class="mb-3">
                   <h3 class="text-xl font-bold mb-1">{{ intervenant.name }}</h3>
-                  <p class="text-sm text-gray-600">{{ intervenant.experience }}</p>
+                  <p class="text-sm text-gray-600">{{ intervenant.experience }} d'éxperience</p>
                 </div>
 
                 <!-- Specialties (Sous-services) -->
@@ -505,6 +505,15 @@ export default {
             }
           }
           
+          // Trouver l'expérience pour ce service spécifique
+          const userServices = intervenant.services || [];
+          let realExperience = 'Pas';
+          
+          if (typeof this.service === 'number') {
+            const currentServiceInfo = userServices.find(s => s.id == this.service);
+            realExperience = currentServiceInfo?.pivot?.experience || realExperience;
+          }
+          
           return {
             id: intervenant.id,
             name: `${utilisateur.nom || ''} ${utilisateur.prenom || ''}`.trim() || 'Intervenant',
@@ -516,7 +525,7 @@ export default {
             verified: intervenant.is_active !== false,
             specialties: specialties,
             taches: taches,
-            experience: intervenant.bio || `${Math.floor(Math.random() * 10) + 1} ans d'expérience`,
+            experience: realExperience,
             bringsMaterial: (intervenant.materiels && intervenant.materiels.length > 0) || false,
             ecoFriendly: Math.random() > 0.5,
             // Données complètes pour le profil

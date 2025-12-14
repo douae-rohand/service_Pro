@@ -81,7 +81,8 @@
                 </div>
                 <div class="flex items-center gap-2 text-gray-700 text-sm">
                   <Clock :size="16" :style="{ color: currentService.color }" />
-                  <span>{{ intervenant.taskPrice }}DH/h</span>
+                  <span v-if="intervenant.taskPrice">{{ intervenant.taskPrice }} DH/h</span>
+                  <span v-else class="text-sm font-medium">Sur devis</span>
                 </div>
                 <!-- Availability -->
                 <div class="flex items-center gap-2">
@@ -373,7 +374,9 @@ export default {
           
           // Trouver la tâche spécifique et son prix
           const currentTask = taches.find(t => t.id == this.taskId);
-          const taskPrice = currentTask?.pivot?.prix_tache || currentTask?.pivot?.prixTache || 25;
+          // Récupérer le prix depuis la table pivot (prix_tache)
+          // Si pas de prix défini en base, on laisse null pour afficher "Sur devis"
+          const taskPrice = currentTask?.pivot?.prix_tache || currentTask?.pivot?.prixTache;
           
           // Autres spécialités (exclure la tâche actuelle)
           const otherSpecialties = taches

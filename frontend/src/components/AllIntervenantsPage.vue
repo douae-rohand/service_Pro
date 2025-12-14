@@ -175,7 +175,8 @@
               class="px-4 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none cursor-pointer"
             >
               <option value="pertinence">Trier par: Pertinence</option>
-              <option value="rating">Note décroissante</option>
+              <option value="rating-desc">Note décroissante</option>
+              <option value="rating-asc">Note croissante</option>
             </select>
           </div>
 
@@ -460,9 +461,8 @@ export default {
     },
     sortedIntervenants() {
       const sorted = [...this.filteredIntervenants];
-      if (this.sortBy === 'rating') return sorted.sort((a, b) => b.rating - a.rating);
-      if (this.sortBy === 'price-asc') return sorted.sort((a, b) => a.hourlyRate - b.hourlyRate);
-      if (this.sortBy === 'price-desc') return sorted.sort((a, b) => b.hourlyRate - a.hourlyRate);
+      if (this.sortBy === 'rating-desc' || this.sortBy === 'rating') return sorted.sort((a, b) => b.rating - a.rating);
+      if (this.sortBy === 'rating-asc') return sorted.sort((a, b) => a.rating - b.rating);
       return sorted;
     }
   },

@@ -109,6 +109,17 @@ const serviceType = computed(() => {
 // ============================================
 // NAVIGATION - PAGE D'ACCUEIL
 // ============================================
+const handleNavigateHome = () => {
+  console.log("Navigating to home");
+  selectedService.value = null;
+  selectedTaskId.value = null;
+  selectedIntervenantData.value = null;
+  selectedIntervenantId.value = null;
+  currentPage.value = "home";
+  previousPage.value = "home";
+  window.scrollTo({ top: 0, behavior: "smooth" });
+};
+
 const handleSearch = () => {
   console.log("Search clicked");
   // TODO: Implémenter la recherche

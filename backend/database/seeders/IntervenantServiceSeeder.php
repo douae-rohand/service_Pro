@@ -17,6 +17,7 @@ class IntervenantServiceSeeder extends Seeder
             [
                 'intervenant_id' => 5,
                 'service_id' => 1, // Jardinage
+                'experience' => '5 ans',
                 'status' => 'active',
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -25,6 +26,7 @@ class IntervenantServiceSeeder extends Seeder
             [
                 'intervenant_id' => 6,
                 'service_id' => 1, // Jardinage
+                'experience' => '3 ans',
                 'status' => 'active',
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -33,6 +35,7 @@ class IntervenantServiceSeeder extends Seeder
             [
                 'intervenant_id' => 7,
                 'service_id' => 2, // Ménage
+                'experience' => '2 ans',
                 'status' => 'active',
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -41,6 +44,7 @@ class IntervenantServiceSeeder extends Seeder
             [
                 'intervenant_id' => 8,
                 'service_id' => 2, // Ménage
+                'experience' => '7 ans',
                 'status' => 'active',
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -49,6 +53,7 @@ class IntervenantServiceSeeder extends Seeder
             [
                 'intervenant_id' => 5,
                 'service_id' => 2, // Ménage
+                'experience' => '2 ans',
                 'status' => 'active',
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -57,6 +62,7 @@ class IntervenantServiceSeeder extends Seeder
             [
                 'intervenant_id' => 6,
                 'service_id' => 2, // Ménage
+                'experience' => '1 an',
                 'status' => 'desactive',
                 'created_at' => now(),
                 'updated_at' => now(),

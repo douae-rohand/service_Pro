@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('intervenant_service', function (Blueprint $table) {
             $table->integer('intervenant_id')->index('intervenant_id');
             $table->integer('service_id')->index('service_id');
+            $table->string('experience', 100)->nullable();
             $table->enum('status', ['active', 'desactive'])->default('active');
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrentOnUpdate()->useCurrent();

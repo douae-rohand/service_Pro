@@ -13,15 +13,8 @@
       </div>
     </div>
 
-    <!-- Loading State -->
-    <div v-if="loading" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div class="text-center py-16">
-        <p class="text-gray-600">Chargement du profil...</p>
-      </div>
-    </div>
-
     <!-- Error State -->
-    <div v-else-if="error" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div v-if="error" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div class="text-center py-16">
         <p class="text-red-600 mb-4">{{ error }}</p>
         <button
@@ -34,7 +27,7 @@
     </div>
 
     <!-- Profile Content -->
-    <div v-else class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div v-if="!error" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <!-- Profile Header Card -->
       <div class="bg-white rounded-2xl shadow-sm p-8 mb-6">
         <div class="flex items-start gap-6">
@@ -476,7 +469,7 @@ export default {
     
     // Méthode existante pour charger depuis l'API
     async fetchIntervenantData() {
-      this.loading = true;
+      // this.loading = true; // Désactivé pour affichage immédiat
       try {
         const response = await intervenantService.getById(this.intervenantId);
         const data = response.data;

@@ -1,15 +1,7 @@
 <template>
   <div class="min-h-screen bg-gray-50">
-    <!-- Loading State -->
-    <div v-if="loading" class="flex items-center justify-center min-h-screen">
-      <div class="text-center">
-        <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2" :style="{ borderColor: currentService.color }"></div>
-        <p class="mt-4 text-gray-600">Chargement des intervenants...</p>
-      </div>
-    </div>
-
-    <!-- Content (affiché seulement quand les données sont chargées) -->
-    <div v-else-if="taskData && currentService">
+    <!-- Content (affiché immédiatement) -->
+    <div v-if="!error">
       <!-- Header -->
       <div class="bg-white shadow-lg sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -23,13 +15,18 @@
             >
               <ArrowLeft :size="20" />
             </button>
-            <div>
+            <div v-if="taskData">
               <h1 class="text-4xl font-bold" :style="{ color: currentService.color }">
                 {{ taskData.nom_tache }}
               </h1>
               <p class="text-gray-600 mt-2">
                 {{ sortedIntervenants.length }} intervenant{{ sortedIntervenants.length > 1 ? 's' : '' }} disponible{{ sortedIntervenants.length > 1 ? 's' : '' }} pour cette tâche
               </p>
+            </div>
+             <!-- Skeleton Loader pour le titre si pas encore chargé -->
+            <div v-else class="animate-pulse w-full">
+              <div class="h-8 bg-gray-200 rounded w-1/3 mb-2"></div>
+              <div class="h-4 bg-gray-200 rounded w-1/4"></div>
             </div>
           </div>
         </div>
@@ -57,21 +54,12 @@
                     :style="{ borderColor: currentService.color }"
                     @error="handleImageError"
                   />
-                  <!-- Verified Badge -->
-                  <div
-                    v-if="intervenant.verified"
-                    class="absolute -top-1 -left-1 px-2 py-0.5 rounded-full text-xs font-medium text-white flex items-center gap-1"
-                    :style="{ backgroundColor: currentService.color }"
-                  >
-                    <CheckCircle :size="12" />
-                    Vérifié
-                  </div>
                 </div>
 
                 <!-- Name and Info -->
                 <div class="flex-1">
                   <h3 class="text-xl font-bold mb-1">{{ intervenant.name }}</h3>
-                  <p class="text-sm text-gray-600 mb-2">{{ intervenant.experience }}</p>
+                  <p class="text-sm text-gray-600 mb-2">{{ intervenant.experience }} d'éxperience</p>
                   
                   <!-- Rating -->
                   <div class="flex items-center gap-2 mb-2">
@@ -165,7 +153,7 @@
     </div>
 
     <!-- Error State -->
-    <div v-else-if="error" class="flex items-center justify-center min-h-screen">
+    <div v-if="error" class="flex items-center justify-center min-h-screen">
       <div class="text-center">
         <div class="text-6xl mb-4">⚠️</div>
         <h3 class="text-2xl font-bold mb-2 text-red-600">Erreur</h3>
@@ -404,6 +392,11 @@ export default {
             }
           }
           
+          // Trouver l'expérience pour ce service spécifique
+          const userServices = intervenant.services || [];
+          const currentServiceInfo = userServices.find(s => s.id == this.serviceId);
+          const realExperience = currentServiceInfo?.pivot?.experience || 'Expérience confirmée';
+
           return {
             id: intervenant.id,
             name: `${utilisateur.nom || ''} ${utilisateur.prenom || ''}`.trim() || 'Intervenant',
@@ -415,10 +408,13 @@ export default {
             image: intervenant.image_url || utilisateur.photo || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=150&h=150&fit=crop',
             verified: intervenant.is_active !== false,
             otherSpecialties: otherSpecialties,
-            experience: `${Math.floor(Math.random() * 10) + 1} ans d'expérience`,
+            experience: realExperience,
             description: intervenant.bio || 'Professionnel expérimenté et fiable',
             // Données complètes pour le profil
-            fullData: intervenant
+            fullData: {
+              ...intervenant,
+              experience: realExperience // Passer l'expérience correcte au profil
+            }
           };
         });
         

@@ -16,7 +16,6 @@ return new class extends Migration
             $table->text('address')->nullable();
             $table->string('ville', 100)->nullable();
             $table->text('bio')->nullable();
-            $table->string('experience', 100)->nullable();
             $table->boolean('is_active')->nullable()->default(true);
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrentOnUpdate()->useCurrent();

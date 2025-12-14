@@ -121,16 +121,7 @@
                 />
                 <div class="flex-1">
                   <h3 class="text-lg">{{ intervenant.name }}</h3>
-                  <span
-                    v-if="intervenant.verified"
-                    class="text-xs px-2 py-1 rounded-full inline-block mt-1"
-                    :style="{
-                      backgroundColor: currentService.color,
-                      color: 'white',
-                    }"
-                  >
-                    ✓ Vérifié
-                  </span>
+                  
                   <div class="flex items-center gap-2 mt-2">
                     <Star :size="16" class="fill-yellow-400 text-yellow-400" />
                     <span>{{ intervenant.rating }}</span>

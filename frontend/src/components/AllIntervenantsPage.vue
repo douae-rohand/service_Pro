@@ -194,13 +194,7 @@
                   :alt="intervenant.name"
                   class="w-full h-full object-cover"
                 />
-                <div
-                  v-if="intervenant.verified"
-                  class="absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-medium text-white"
-                  :style="{ backgroundColor: currentService.color }"
-                >
-                  ✓ Vérifié
-                </div>
+                
               </div>
 
               <!-- Content -->
@@ -479,11 +473,12 @@ export default {
       }
     },
     
-    async loadIntervenants(showLoading = true) {
+    async loadIntervenants(showLoading = false) {
       try {
-        if (showLoading) {
-          this.loadingIntervenants = true;
-        }
+        // Suppression du loading state visible
+        // if (showLoading) {
+        //   this.loadingIntervenants = true;
+        // }
         
         const params = { active: 'true' };
         

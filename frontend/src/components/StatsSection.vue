@@ -74,6 +74,28 @@ const stats = ref([
   },
 ])
 
+// Fonction pour l'animation de comptage
+const animateValue = (obj, start, end, duration) => {
+  let startTimestamp = null;
+  const step = (timestamp) => {
+    if (!startTimestamp) startTimestamp = timestamp;
+    const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+    
+    // Easing function (easeOutExpo)
+    const easedProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+    
+    const current = Math.floor(easedProgress * (end - start) + start);
+    obj.number = formatNumber(current);
+    
+    if (progress < 1) {
+      window.requestAnimationFrame(step);
+    } else {
+       obj.number = formatNumber(end); // Assurer la valeur finale exacte
+    }
+  };
+  window.requestAnimationFrame(step);
+}
+
 // Fonction pour formater les nombres avec virgules et le signe +
 const formatNumber = (num) => {
   return num.toLocaleString('fr-FR') + '+'
@@ -83,39 +105,31 @@ const formatNumber = (num) => {
 onMounted(async () => {
   try {
     const response = await statsService.getAll()
-    console.log('Réponse API stats:', response.data)
     const data = response.data
     
-    // Vérifier que les données sont présentes
-    if (!data) {
-      console.warn('Aucune donnée reçue de l\'API stats')
-      return
-    }
-    
-    // Mettre à jour les statistiques avec les données de l'API
-    stats.value = [
-      {
-        icon: UsersIcon,
-        number: formatNumber(data.satisfied_clients || 0),
-        label: 'Clients Satisfaits',
-      },
-      {
-        icon: UserCheckIcon,
-        number: formatNumber(data.qualified_intervenants || 0),
-        label: 'Intervenants Qualifiés',
-      },
-      {
-        icon: BriefcaseIcon,
-        number: formatNumber(data.completed_services || 0),
-        label: 'Services Complétés',
-      },
-    ]
-    
-    console.log('Statistiques mises à jour:', stats.value)
+    if (!data) return
+
+    // Préparer les données cibles
+    const targets = [
+      data.satisfied_clients || 0,
+      data.qualified_intervenants || 0,
+      data.completed_services || 0
+    ];
+
+    // Mettre à jour les labels (on garde '0+' au début)
+    stats.value[0].number = '0+';
+    stats.value[1].number = '0+';
+    stats.value[2].number = '0+';
+
+    // Lancer les animations
+    targets.forEach((target, index) => {
+      // Créer un objet réactif temporaire pour l'animation ou manipuler directement l'objet stat
+      // Ici on modifie directement la propriété .number de l'objet dans le tableau réactif
+      animateValue(stats.value[index], 0, target, 2000); // 2 secondes de durée
+    });
+
   } catch (error) {
-    console.error('Erreur lors du chargement des statistiques:', error)
-    console.error('Détails de l\'erreur:', error.response || error.message)
-    // En cas d'erreur, garder les valeurs par défaut (0)
+    console.error('Erreur stats:', error)
   }
 })
 </script>

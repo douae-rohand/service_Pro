@@ -44,6 +44,11 @@ Route::get('intervenants/{id}', [IntervenantController::class, 'show']);
 // ======================
 Route::get('stats', [StatsController::class, 'index']);
 
+// ======================
+// Routes Témoignages (publiques pour consultation)
+// ======================
+Route::get('testimonials', [\App\Http\Controllers\Api\CommentaireController::class, 'landingTestimonials']);
+
 // Routes protégées (nécessitent une authentification)
 Route::middleware('auth:sanctum')->group(function () {
 

@@ -11,7 +11,7 @@
       <StatsSection />
       <ServicesSection @service-click="handleServiceClick" />
       <TestimonialsSection />
-      <Footer />
+      <Footer @navigate-home="handleNavigateHome" />
     </div>
 
     <!-- Page de détail du service -->

@@ -36,7 +36,7 @@
               <h1 class="text-5xl" :style="{ color: currentService.color }">
                 Service de {{ currentService.name }}
               </h1>
-              <p class="text-gray-700 mt-2 text-lg">
+              <p class="text-gray-700 mt-2 text-lg ">
                 Découvrez toutes nos tâches et nos meilleurs intervenants
               </p>
             </div>

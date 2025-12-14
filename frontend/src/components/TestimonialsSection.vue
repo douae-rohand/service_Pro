@@ -12,7 +12,7 @@
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
       <div class="text-center mb-16">
-        <h2 class="text-4xl mt-4 mb-4">Ce Que Nos Clients Disent de Nous</h2>
+        <h2 class="text-4xl font-bold mt-4 mb-4">Ce Que Nos Clients Disent de Nous</h2>
         <p class="text-gray-600 max-w-2xl mx-auto">
           Découvrez les avis de nos clients satisfaits sur la qualité de nos intervenants.
         </p>
@@ -60,29 +60,50 @@
 </template>
 
 <script setup>
-const testimonials = [
-  {
-    name: 'Meryem Benali',
-    role: 'Cliente depuis 2 ans',
-    initial: 'M',
-    rating: 5,
-    text: "Service exceptionnel ! J'ai trouvé un jardinier formidable en quelques minutes. Mon jardin n'a jamais été aussi beau. Je recommande vivement cette plateforme.",
-  },
-  {
-    name: 'Karim Alaoui',
-    role: 'Client satisfait',
-    initial: 'K',
-    rating: 5,
-    text: "Excellente expérience ! Les intervenants sont professionnels et ponctuels. Le système de réservation est très simple. Parfait pour quelqu'un qui travaille beaucoup.",
-  },
-  {
-    name: 'Samira Idrissi',
-    role: 'Cliente régulière',
-    initial: 'S',
-    rating: 5,
-    text: "Je fais appel à leurs services de ménage toutes les semaines. C'est toujours impeccable et les tarifs sont très corrects. Une vraie aide au quotidien !",
-  },
-]
+import { ref, onMounted } from 'vue';
+import testimonialService from '@/services/testimonialService';
+
+const testimonials = ref([]);
+const loading = ref(true);
+const error = ref(null);
+
+onMounted(async () => {
+  try {
+    const response = await testimonialService.getTestimonials();
+    testimonials.value = response.data;
+  } catch (err) {
+    console.error('Erreur lors du chargement des témoignages:', err);
+    error.value = "Impossible de charger les témoignages.";
+    // Fallback aux données statiques en cas d'erreur ou si la BD est vide
+    if (testimonials.value.length === 0) {
+      testimonials.value = [
+        {
+          name: 'Meryem Benali',
+          role: 'Cliente depuis 2 ans',
+          initial: 'M',
+          rating: 5,
+          text: "Service exceptionnel ! J'ai trouvé un jardinier formidable en quelques minutes. Mon jardin n'a jamais été aussi beau. Je recommande vivement cette plateforme.",
+        },
+        {
+          name: 'Karim Alaoui',
+          role: 'Client satisfait',
+          initial: 'K',
+          rating: 5,
+          text: "Excellente expérience ! Les intervenants sont professionnels et ponctuels. Le système de réservation est très simple. Parfait pour quelqu'un qui travaille beaucoup.",
+        },
+        {
+          name: 'Samira Idrissi',
+          role: 'Cliente régulière',
+          initial: 'S',
+          rating: 5,
+          text: "Je fais appel à leurs services de ménage toutes les semaines. C'est toujours impeccable et les tarifs sont très corrects. Une vraie aide au quotidien !",
+        }
+      ];
+    }
+  } finally {
+    loading.value = false;
+  }
+});
 </script>
 
 <style scoped>

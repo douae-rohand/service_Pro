@@ -2,7 +2,7 @@
   <section id="services" class="py-20 bg-white">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="text-center mb-16">
-        <h2 class="text-4xl mt-4 mb-4">Découvrez Nos Services Professionnels</h2>
+        <h2 class="text-4xl font-bold mt-4 mb-4">Découvrez Nos Services Professionnels</h2>
         <p class="text-gray-600 max-w-2xl mx-auto">
           Nous vous mettons en relation avec des intervenants qualifiés et vérifiés pour tous vos besoins.
         </p>

@@ -47,6 +47,13 @@ const interventionService = {
   },
 
   /**
+   * Annuler une intervention
+   */
+  cancel(id) {
+    return api.post(`interventions/${id}/cancel`);
+  },
+
+  /**
    * Récupérer les interventions à venir
    */
   getUpcoming() {

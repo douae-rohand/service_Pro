@@ -9,6 +9,7 @@ use App\Models\Intervenant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -188,13 +189,57 @@ class AuthController extends Controller
             'telephone' => 'sometimes|string|max:20',
             'address' => 'sometimes|string',
             'url' => 'sometimes|string',
+            'ville' => 'sometimes|string|max:100', // For client location
         ]);
 
         $user->update($validated);
 
+        // Update client ville if user is a client
+        if ($user->client && isset($validated['ville'])) {
+            $user->client->update(['ville' => $validated['ville']]);
+        }
+
         return response()->json([
             'message' => 'Profil mis à jour avec succès',
-            'user' => $user,
+            'user' => $user->load(['client', 'intervenant']),
+        ]);
+    }
+
+    /**
+     * Update user avatar
+     */
+    public function updateAvatar(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'avatar' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+        ]);
+
+        // Delete old avatar if exists
+        if ($user->url) {
+            // Extract filename from URL
+            $filename = basename(parse_url($user->url, PHP_URL_PATH));
+            $oldPath = 'avatars/' . $filename;
+            
+            if (Storage::disk('public')->exists($oldPath)) {
+                Storage::disk('public')->delete($oldPath);
+            }
+        }
+
+        // Store the image
+        $path = $request->file('avatar')->store('avatars', 'public');
+
+        // Generate API URL for the stored image (bypasses CORS issues)
+        $filename = basename($path);
+        $url = url('api/images/avatars/' . $filename);
+
+        // Update user URL
+        $user->update(['url' => $url]);
+
+        return response()->json([
+            'message' => 'Photo de profil mise à jour avec succès',
+            'url' => $url,
         ]);
     }
 

@@ -47,6 +47,20 @@ const authService = {
     },
 
     /**
+     * Mettre à jour la photo de profil
+     */
+    updateAvatar(file) {
+        const formData = new FormData();
+        formData.append('avatar', file);
+        
+        return api.post('auth/profile/avatar', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+    },
+
+    /**
      * Définir le token d'authentification
      */
     setAuthToken(token) {

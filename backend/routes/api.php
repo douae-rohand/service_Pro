@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Intervention\InterventionController;
 use App\Http\Controllers\Api\Service\ServiceController;
 use App\Http\Controllers\Api\Intervention\TacheController;
 use App\Http\Controllers\Api\Client\ClientController;
+use App\Http\Controllers\Api\Client\ClientProfileController;
 use App\Http\Controllers\Api\Intervenant\IntervenantController;
 
 /*
@@ -31,6 +32,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('auth/logout', [AuthController::class, 'logout']);
     Route::get('auth/user', [AuthController::class, 'user']);
     Route::put('auth/profile', [AuthController::class, 'updateProfile']);
+    Route::post('auth/profile/avatar', [AuthController::class, 'updateAvatar']);
     Route::post('auth/change-password', [AuthController::class, 'changePassword']);
 
     // ======================
@@ -73,6 +75,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('clients/{id}/favorites', [ClientController::class, 'getFavorites']);
     Route::post('clients/{id}/favorites', [ClientController::class, 'addFavorite']);
     Route::delete('clients/{id}/favorites/{intervenantId}', [ClientController::class, 'removeFavorite']);
+    
+    // ======================
+    // Routes Client Profile
+    // ======================
+    Route::get('clients/{id}/profile/statistics', [ClientProfileController::class, 'getStatistics']);
+    Route::get('clients/{id}/profile/history', [ClientProfileController::class, 'getHistory']);
+    Route::get('clients/{id}/profile/evaluations', [ClientProfileController::class, 'getEvaluations']);
 
     Route::get('intervenants/search', [IntervenantController::class, 'search']);
     // ======================
@@ -85,3 +94,40 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('intervenants/{id}/services', [IntervenantController::class, 'services']);
     
 });
+
+
+use App\Http\Controllers\Api\ImageController;
+
+/*
+|--------------------------------------------------------------------------
+| API Routes - Image Serving
+|--------------------------------------------------------------------------
+|
+| Add these routes to your existing routes/api.php file
+|
+*/
+
+// Public image routes (no authentication required)
+Route::get('images/avatars/{path}', [ImageController::class, 'show'])
+    ->where('path', '.*')
+    ->name('api.images.avatars');
+
+Route::get('storage/{path}', [ImageController::class, 'showStorage'])
+    ->where('path', '.*')
+    ->name('api.storage');
+
+// Authentication routes
+Route::prefix('auth')->group(function () {
+    Route::post('register', [AuthController::class, 'register']);
+    Route::post('login', [AuthController::class, 'login']);
+    
+    // Protected routes
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('logout', [AuthController::class, 'logout']);
+        Route::get('user', [AuthController::class, 'user']);
+        Route::put('profile', [AuthController::class, 'updateProfile']);
+        Route::post('profile/avatar', [AuthController::class, 'updateAvatar']);
+        Route::post('change-password', [AuthController::class, 'changePassword']);
+    });
+});
+

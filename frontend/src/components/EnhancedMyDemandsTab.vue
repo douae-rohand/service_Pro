@@ -186,20 +186,11 @@
           <div class="flex gap-2">
             <button
               @click="viewDemandDetails(demand)"
-              class="flex-1 px-4 py-2 border-2 rounded-lg transition-all hover:shadow-md font-bold"
+              class="w-full px-4 py-2 border-2 rounded-lg transition-all hover:shadow-md font-bold"
               style="border-color: #1a5fa3; color: #1a5fa3"
             >
               <Eye :size="16" class="inline mr-2" />
               Voir détails
-            </button>
-            <button
-              v-if="demand.status === 'pending'"
-              @click="cancelDemand(demand.id)"
-              class="flex-1 px-4 py-2 rounded-lg text-white transition-all hover:shadow-md font-bold"
-              style="background-color: #e8793f"
-            >
-              <XCircle :size="16" class="inline mr-2" />
-              Annuler
             </button>
           </div>
         </div>
@@ -245,7 +236,6 @@ import {
   User,
   MessageCircle,
   CheckCircle,
-  XCircle,
   AlertCircle,
   FileText,
   Star,
@@ -265,7 +255,6 @@ export default {
     User,
     MessageCircle,
     CheckCircle,
-    XCircle,
     AlertCircle,
     FileText,
     Star,
@@ -455,25 +444,6 @@ export default {
         alert(errorMessage);
       }
     },
-    async cancelDemand(demandId) {
-      if (!confirm('Êtes-vous sûr de vouloir annuler cette demande ?')) {
-        return;
-      }
-
-      try {
-        // Call API to cancel intervention
-        await api.post(`interventions/${demandId}/cancel`);
-        
-        // Reload demands to get updated data
-        await this.loadDemands();
-
-        alert('Demande annulée avec succès.');
-      } catch (error) {
-        console.error('Error cancelling demand:', error);
-        const errorMessage = error.response?.data?.message || error.message || 'Erreur lors de l\'annulation de la demande. Veuillez réessayer.';
-        alert(errorMessage);
-      }
-    }
   }
 };
 </script>

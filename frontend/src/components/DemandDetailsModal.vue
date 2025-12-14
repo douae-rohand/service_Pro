@@ -108,35 +108,36 @@
           </div>
 
           <!-- Photos -->
-          <div v-if="demand.photos && demand.photos.length > 0" class="bg-gray-50 rounded-xl p-6">
+          <div v-if="demand.photos && demand.photos.length > 0" class="bg-white rounded-xl p-6 border-2 border-gray-200">
             <h3 class="font-bold text-lg mb-4 flex items-center gap-2" style="color: #2f4f4f">
               <Camera :size="20" style="color: #1a5fa3" />
               Photos du site ({{ demand.photos.length }})
             </h3>
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div class="grid grid-cols-2 gap-4">
               <div
                 v-for="(photo, index) in demand.photos"
                 :key="index"
-                class="relative group cursor-pointer"
+                class="relative cursor-pointer bg-black rounded-lg overflow-hidden group"
                 @click="selectedPhoto = photo"
               >
                 <img
                   :src="photo"
                   :alt="`Photo ${index + 1}`"
-                  class="w-full h-32 object-cover rounded-lg border-2 border-gray-200 hover:border-blue-400 transition-all"
+                  class="w-full h-48 object-cover"
+                  @error="handleImageError"
                 />
                 <div
-                  class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all rounded-lg flex items-center justify-center"
+                  class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2"
                 >
-                  <ZoomIn
-                    :size="24"
-                    class="text-white opacity-0 group-hover:opacity-100 transition-all"
-                  />
+                  <span class="text-white text-sm font-medium">Photo {{ index + 1 }}</span>
                 </div>
                 <div
-                  class="absolute bottom-2 left-2 px-2 py-1 bg-black bg-opacity-60 text-white text-xs rounded"
+                  class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center"
                 >
-                  Photo {{ index + 1 }}
+                  <ZoomIn
+                    :size="32"
+                    class="text-white opacity-0 group-hover:opacity-100 transition-all"
+                  />
                 </div>
               </div>
             </div>
@@ -258,18 +259,18 @@
           <!-- My Rating -->
           <div
             v-if="demand.status === 'completed' && demand.rating"
-            class="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-6"
+            class="bg-white rounded-xl p-6"
           >
-            <h3 class="font-bold text-xl mb-4 flex items-center gap-2" style="color: #2f4f4f">
+            <h3 class="font-bold text-xl mb-6 flex items-center gap-2" style="color: #2f4f4f">
               <Star :size="24" fill="#FEE347" color="#FEE347" />
               Mon évaluation
             </h3>
 
-            <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
               <div
                 v-for="(score, criteria) in demand.rating.criteriaRatings"
                 :key="criteria"
-                class="bg-white rounded-lg p-3 text-center border-2"
+                class="bg-yellow-50 rounded-lg p-3 text-center border-2"
                 style="border-color: #fee347"
               >
                 <div class="flex items-center justify-center gap-1 mb-1">
@@ -280,7 +281,7 @@
               </div>
             </div>
 
-            <div class="bg-white rounded-lg p-4 border-2" style="border-color: #fee347">
+            <div class="bg-yellow-50 rounded-lg p-4 border-2" style="border-color: #fee347">
               <div class="flex items-center justify-between mb-2">
                 <span class="font-bold">Note globale</span>
                 <div class="flex items-center gap-2">
@@ -296,50 +297,49 @@
             </div>
           </div>
 
-          <!-- Intervenant's Ratings (if completed and not yet rated) -->
+          <!-- Intervenant's Ratings (always show if completed) -->
           <div
             v-if="
               demand.status === 'completed' &&
-              !demand.rating &&
               demand.intervenant.averageRating
             "
-            class="bg-gray-50 rounded-xl p-6"
+            class="bg-white rounded-xl p-6"
           >
-            <h3 class="font-bold text-xl mb-4 flex items-center gap-2" style="color: #2f4f4f">
+            <h3 class="font-bold text-xl mb-6 flex items-center gap-2" style="color: #2f4f4f">
               <Star :size="24" fill="#FEE347" color="#FEE347" />
               Évaluations de {{ demand.intervenant.name }}
             </h3>
-            <div class="flex items-center gap-4 mb-4">
-              <div class="text-center">
-                <div class="text-5xl font-bold" style="color: #fee347">
+            <div class="flex items-start gap-8">
+              <div class="text-center flex-shrink-0">
+                <div class="text-7xl font-bold mb-3" style="color: #fee347">
                   {{ demand.intervenant.averageRating }}
                 </div>
-                <div class="flex items-center justify-center gap-1 mt-1">
+                <div class="flex items-center justify-center gap-1 mb-3">
                   <Star
                     v-for="star in 5"
                     :key="star"
-                    :size="16"
-                    :fill="star <= demand.intervenant.averageRating ? '#FEE347' : 'none'"
+                    :size="24"
+                    :fill="star <= Math.floor(demand.intervenant.averageRating) ? '#FEE347' : (star === Math.ceil(demand.intervenant.averageRating) && demand.intervenant.averageRating % 1 >= 0.5 ? '#FEE347' : 'none')"
                     color="#FEE347"
                   />
                 </div>
-                <p class="text-sm text-gray-600 mt-1">
-                  {{ demand.intervenant.totalReviews }} avis
+                <p class="text-sm text-gray-600">
+                  {{ demand.intervenant.totalReviews || 0 }} avis
                 </p>
               </div>
-              <div class="flex-1 space-y-2">
-                <div v-for="rating in [5, 4, 3, 2, 1]" :key="rating" class="flex items-center gap-2">
-                  <span class="text-sm w-12">{{ rating }} ★</span>
-                  <div class="flex-1 bg-gray-200 rounded-full h-2">
+              <div class="flex-1 space-y-2.5">
+                <div v-for="rating in [5, 4, 3, 2, 1]" :key="rating" class="flex items-center gap-3">
+                  <span class="text-sm font-medium w-8" style="color: #2f4f4f">{{ rating }}★</span>
+                  <div class="flex-1 bg-gray-200 rounded-full h-2.5 relative overflow-hidden">
                     <div
-                      class="h-2 rounded-full"
+                      class="h-2.5 rounded-full transition-all"
                       :style="{
                         width: `${getPercentage(rating)}%`,
                         backgroundColor: '#FEE347'
                       }"
                     />
                   </div>
-                  <span class="text-sm text-gray-600 w-12 text-right">
+                  <span class="text-sm font-medium text-gray-600 w-10 text-right">
                     {{ Math.round(getPercentage(rating)) }}%
                   </span>
                 </div>
@@ -448,7 +448,8 @@ export default {
   emits: ['close', 'open-rating'],
   data() {
     return {
-      selectedPhoto: null
+      selectedPhoto: null,
+      imageErrors: {}
     };
   },
   methods: {
@@ -490,13 +491,23 @@ export default {
       return this.demand.invoice.laborCost + this.demand.invoice.materialsCost;
     },
     getPercentage(rating) {
-      if (!this.demand.intervenant.ratingDistribution) return 0;
+      if (!this.demand.intervenant.ratingDistribution || !this.demand.intervenant.totalReviews || this.demand.intervenant.totalReviews === 0) {
+        return 0;
+      }
       const count = this.demand.intervenant.ratingDistribution[rating] || 0;
       return (count / this.demand.intervenant.totalReviews) * 100;
     },
     openRatingModal() {
       // Emit event to parent to open rating modal
       this.$emit('open-rating');
+    },
+    handleImageError(event) {
+      // Handle broken image URLs
+      const img = event.target;
+      if (!this.imageErrors[img.src]) {
+        this.imageErrors[img.src] = true;
+        img.src = 'https://via.placeholder.com/400x300?text=Image+non+disponible';
+      }
     }
   }
 };

@@ -93,9 +93,11 @@ class InterventionResource extends JsonResource
             $totalNotes = $intervenantEvaluations->sum('note');
             $averageRating = round($totalNotes / $totalReviews, 1);
 
-            // Calculate rating distribution
+            // Calculate rating distribution (count evaluations by note value)
             for ($i = 1; $i <= 5; $i++) {
-                $ratingDistribution[$i] = $intervenantEvaluations->where('note', $i)->count();
+                $ratingDistribution[$i] = $intervenantEvaluations->filter(function($eval) use ($i) {
+                    return (int)$eval->note === $i;
+                })->count();
             }
         }
 

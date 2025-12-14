@@ -101,47 +101,18 @@
 
             <!-- Mon Profil Tab -->
             <div v-if="activeTab === 'profile'">
-              <div class="bg-white rounded-lg shadow-md p-6">
-                <h3 class="text-xl font-bold mb-4" style="color: #2f4f4f">Mon Profil</h3>
-                <div class="space-y-4">
-                  <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-2">Nom complet</label>
-                    <input
-                      v-model="currentUser.name"
-                      type="text"
-                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      disabled
-                    />
-                  </div>
-                  <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-2">Email</label>
-                    <input
-                      v-model="currentUser.email"
-                      type="email"
-                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      disabled
-                    />
-                  </div>
-                  <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-2">Téléphone</label>
-                    <input
-                      v-model="currentUser.phone"
-                      type="tel"
-                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      disabled
-                    />
-                  </div>
-                  <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-2">Quartier</label>
-                    <input
-                      v-model="currentUser.quartier"
-                      type="text"
-                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      disabled
-                    />
-                  </div>
-                </div>
-              </div>
+              <ClientProfile
+                :client-id="currentUser.id"
+                :user="{
+                  name: currentUser.name,
+                  email: currentUser.email,
+                  phone: currentUser.phone,
+                  location: currentUser.quartier,
+                  avatar: currentUser.avatar,
+                  memberSince: memberSince
+                }"
+                @profile-updated="handleProfileUpdate"
+              />
             </div>
           </div>
         </div>
@@ -165,6 +136,7 @@ import { demandService } from '@/services/demandService';
 import authService from '@/services/authService';
 import TrouverIntervenantsTab from '@/components/TrouverIntervenantsTab.vue';
 import MyFavoritesTab from '@/components/MyFavoritesTab.vue';
+import ClientProfile from '@/components/ClientProfile.vue';
 
 export default {
   name: 'ClientDashboard',
@@ -178,7 +150,8 @@ export default {
     ClientHeader,
     ClientSidebar,
     TrouverIntervenantsTab,
-    MyFavoritesTab
+    MyFavoritesTab,
+    ClientProfile
   },
   emits: ['logout'],
   data() {
@@ -199,7 +172,8 @@ export default {
         accepted: 0,
         inProgress: 0,
         completed: 0
-      }
+      },
+      memberSince: '2023'
     };
   },
   mounted() {
@@ -220,6 +194,12 @@ export default {
         
         // Update current user data from API
         if (user) {
+          // Extract member since year from created_at
+          if (user.created_at) {
+            const createdDate = new Date(user.created_at);
+            this.memberSince = createdDate.getFullYear().toString();
+          }
+          
           // Check if user is a client
           if (user.client) {
             this.currentUser = {
@@ -284,6 +264,10 @@ export default {
       this.$emit('logout');
       // Or use window.location if needed
       window.location.href = '/';
+    },
+    async handleProfileUpdate() {
+      // Reload user data to get updated avatar
+      await this.loadUserData();
     }
   }
 };

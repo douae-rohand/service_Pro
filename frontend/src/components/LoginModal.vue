@@ -26,14 +26,13 @@
             <div class="text-center text-white p-6 relative z-10">
               <div class="mb-6 inline-block">
                 <div class="p-5 rounded-3xl bg-white/20 backdrop-blur-lg shadow-xl border border-white/30">
-                  <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="1.5"
-                      d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
-                    />
-                  </svg>
+                  <a 
+            href="#" 
+            @click.prevent="handleLogoClick"
+            class="transition-transform hover:scale-105 duration-300"
+          >
+            <img src="../assets/logo.png" alt="Logo" class="h-16 w-auto" />
+          </a>
                 </div>
               </div>
             </div>

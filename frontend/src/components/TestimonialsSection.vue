@@ -22,16 +22,17 @@
         <div
           v-for="(testimonial, index) in testimonials"
           :key="index"
-          class="bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-shadow"
+          class="bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-500 transform hover:-translate-y-2 animate-fade-in-up-testimonial"
+          :style="{ animationDelay: `${index * 0.2}s` }"
         >
           <div class="flex items-center gap-4 mb-6">
             <div
-              class="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-2xl"
+              class="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-2xl font-bold transform transition-all duration-500 hover:scale-110 hover:rotate-12"
             >
               {{ testimonial.initial }}
             </div>
             <div>
-              <h4>{{ testimonial.name }}</h4>
+              <h4 class="font-bold">{{ testimonial.name }}</h4>
               <p class="text-sm text-gray-500">{{ testimonial.role }}</p>
             </div>
           </div>
@@ -40,7 +41,8 @@
             <svg
               v-for="i in testimonial.rating"
               :key="i"
-              class="w-5 h-5 fill-yellow-400 text-yellow-400"
+              class="w-5 h-5 fill-yellow-400 text-yellow-400 transform transition-all duration-300 hover:scale-125"
+              :style="{ animationDelay: `${i * 0.1}s` }"
               fill="currentColor"
               viewBox="0 0 20 20"
             >
@@ -50,7 +52,7 @@
             </svg>
           </div>
 
-          <p class="text-gray-600 leading-relaxed">{{ testimonial.text }}</p>
+          <p class="text-gray-600 leading-relaxed italic transform transition-all duration-300 hover:scale-105">{{ testimonial.text }}</p>
         </div>
       </div>
     </div>
@@ -82,4 +84,21 @@ const testimonials = [
   },
 ]
 </script>
+
+<style scoped>
+@keyframes fadeInUpTestimonial {
+  from {
+    opacity: 0;
+    transform: translateY(50px) rotateX(10deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotateX(0deg);
+  }
+}
+
+.animate-fade-in-up-testimonial {
+  animation: fadeInUpTestimonial 0.8s ease-out both;
+}
+</style>
 

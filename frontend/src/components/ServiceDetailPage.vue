@@ -82,7 +82,7 @@
               <button 
                 class="w-full py-3 rounded-lg text-white transition-all hover:opacity-90 flex items-center justify-center gap-2"
                 :style="{ backgroundColor: currentService.color }"
-                @click="$emit('task-click', task.name)"
+                @click="$emit('task-click', { taskId: task.id, taskName: task.name })"
               >
                 <CheckCircle :size="18" />
                 Réserver

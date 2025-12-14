@@ -31,6 +31,15 @@
       @view-profile="handleViewProfileFromList"
     />
 
+    <!-- Page des intervenants pour un sous-service spécifique -->
+    <TaskIntervenantsPage
+      v-else-if="currentPage === 'task-intervenants'"
+      :task-id="selectedTaskId"
+      :service-id="selectedService"
+      @back="handleBackFromTaskIntervenants"
+      @view-profile="handleViewProfileFromTask"
+    />
+
     <!-- Profil de l'intervenant -->
     <IntervenantProfile
       v-else-if="currentPage === 'intervenant-profile'"
@@ -64,6 +73,7 @@ import TestimonialsSection from './components/TestimonialsSection.vue'
 import Footer from './components/Footer.vue'
 import ServiceDetailPage from './components/ServiceDetailPage.vue'
 import AllIntervenantsPage from './components/AllIntervenantsPage.vue'
+import TaskIntervenantsPage from './components/TaskIntervenantsPage.vue'
 import IntervenantProfile from './components/IntervenantProfile.vue' // ✅ CORRIGÉ
 import LoginModal from './components/LoginModal.vue'
 import SignupModal from './components/SignupModal.vue'
@@ -71,13 +81,14 @@ import SignupModal from './components/SignupModal.vue'
 // ============================================
 // ÉTAT DE NAVIGATION
 // ============================================
-const currentPage = ref('home') // 'home', 'service-detail', 'all-intervenants', 'intervenant-profile'
+const currentPage = ref('home') // 'home', 'service-detail', 'all-intervenants', 'task-intervenants', 'intervenant-profile'
 const previousPage = ref('home') // Pour savoir d'où on vient lors du retour
 
 // ============================================
 // ÉTAT DES DONNÉES
 // ============================================
 const selectedService = ref(null) // ID du service sélectionné (1 = Jardinage, 2 = Ménage)
+const selectedTaskId = ref(null) // ID de la tâche/sous-service sélectionné
 const selectedIntervenantData = ref(null) // Données complètes de l'intervenant sélectionné
 const selectedIntervenantId = ref(null) // ID de l'intervenant (pour fallback API)
 
@@ -115,6 +126,7 @@ const handleServiceClick = (serviceId) => {
 const handleBack = () => {
   // Retour vers l'accueil depuis la page de détail
   selectedService.value = null
+  selectedTaskId.value = null
   selectedIntervenantData.value = null
   selectedIntervenantId.value = null
   currentPage.value = 'home'
@@ -143,9 +155,13 @@ const handleViewProfileFromDetail = (intervenantId) => {
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-const handleTaskClick = (taskName) => {
-  console.log('Task clicked:', taskName, 'for service:', selectedService.value)
-  // TODO: Implémenter la page de réservation
+const handleTaskClick = (taskData) => {
+  console.log('Task clicked:', taskData, 'for service:', selectedService.value)
+  // taskData contient { taskId, taskName }
+  selectedTaskId.value = taskData.taskId
+  previousPage.value = 'service-detail'
+  currentPage.value = 'task-intervenants'
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 // ============================================
@@ -156,6 +172,34 @@ const handleBackFromAllIntervenants = () => {
   selectedIntervenantData.value = null
   selectedIntervenantId.value = null
   currentPage.value = 'service-detail'
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+// ============================================
+// NAVIGATION - PAGE DES INTERVENANTS DU SOUS-SERVICE
+// ============================================
+const handleBackFromTaskIntervenants = () => {
+  // Retour vers la page de détail du service
+  selectedTaskId.value = null
+  selectedIntervenantData.value = null
+  selectedIntervenantId.value = null
+  currentPage.value = 'service-detail'
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+const handleViewProfileFromTask = (payload) => {
+  console.log('View profile from task page:', payload)
+  
+  // IMPORTANT: Stocker toutes les données de l'intervenant
+  // payload contient { id: number, data: object }
+  selectedIntervenantData.value = payload.data
+  selectedIntervenantId.value = payload.id
+  
+  // Sauvegarder d'où on vient
+  previousPage.value = 'task-intervenants'
+  
+  // Naviguer vers le profil
+  currentPage.value = 'intervenant-profile'
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
@@ -179,10 +223,11 @@ const handleViewProfileFromList = (payload) => {
 // NAVIGATION - PAGE DE PROFIL
 // ============================================
 const handleBackFromProfile = () => {
-  // Retourner à la page précédente (soit detail, soit all-intervenants)
+  // Retourner à la page précédente (soit detail, soit all-intervenants, soit task-intervenants)
   currentPage.value = previousPage.value
   selectedIntervenantData.value = null
   selectedIntervenantId.value = null
+  // Ne pas réinitialiser selectedTaskId car on peut vouloir revenir à la page task-intervenants
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 

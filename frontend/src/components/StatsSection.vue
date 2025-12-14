@@ -5,15 +5,16 @@
         <div
           v-for="(stat, index) in stats"
           :key="index"
-          class="text-center text-white"
+          class="text-center text-white transform transition-all duration-500 hover:scale-110 animate-fade-in-up-stat"
+          :style="{ animationDelay: `${index * 0.2}s` }"
         >
           <div class="flex justify-center mb-4">
-            <div class="bg-white/20 p-4 rounded-full">
+            <div class="bg-white/20 p-4 rounded-full transform transition-all duration-500 hover:rotate-360 hover:bg-white/30">
               <component :is="stat.icon" class="w-8 h-8" />
             </div>
           </div>
-          <div class="text-4xl mb-2">{{ stat.number }}</div>
-          <div class="text-blue-100">{{ stat.label }}</div>
+          <div class="text-4xl mb-2 font-bold animate-count-up">{{ stat.number }}</div>
+          <div class="text-blue-100 font-medium">{{ stat.label }}</div>
         </div>
       </div>
     </div>
@@ -118,4 +119,36 @@ onMounted(async () => {
   }
 })
 </script>
+
+<style scoped>
+@keyframes fadeInUpStat {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes countUp {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in-up-stat {
+  animation: fadeInUpStat 0.8s ease-out both;
+}
+
+.animate-count-up {
+  animation: countUp 1s ease-out;
+}
+</style>
 

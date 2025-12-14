@@ -1,10 +1,10 @@
 <template>
-  <header class="bg-white shadow-sm sticky top-0 z-50">
+  <header class="bg-white shadow-sm sticky top-0 z-50 animate-slide-down">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex justify-between items-center py-4">
         <div class="flex items-center">
-          <div class="text-white px-3 py-2 rounded" style="background-color: #92B08B">
-            <span>ServicePro</span>
+          <div class="text-white px-3 py-2 rounded transform transition-all duration-300 hover:scale-110 hover:rotate-2" style="background-color: #92B08B">
+            <span class="font-bold">ServicePro</span>
           </div>
         </div>
 
@@ -284,4 +284,21 @@ const handleDropdownLeave = (e) => {
   e.currentTarget.style.backgroundColor = ''
 }
 </script>
+
+<style scoped>
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-down {
+  animation: slideDown 0.5s ease-out;
+}
+</style>
 

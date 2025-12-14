@@ -28,28 +28,35 @@
       <!-- Services grid -->
       <div v-else class="grid md:grid-cols-2 gap-8">
         <div
-          v-for="service in services"
+          v-for="(service, index) in services"
           :key="service.id"
-          class="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all"
+          class="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 animate-fade-in-up-card"
+          :style="{ animationDelay: `${index * 0.2}s` }"
         >
-          <div class="flex justify-center items-center p-8 bg-gradient-to-br from-gray-50 to-white">
-            <img :src="service.image" :alt="service.name" class="w-64 h-64 object-contain" />
+          <div class="flex justify-center items-center p-8 bg-gradient-to-br from-gray-50 to-white overflow-hidden">
+            <img 
+              :src="service.image" 
+              :alt="service.name" 
+              class="w-64 h-64 object-contain transform transition-transform duration-500 hover:scale-110 hover:rotate-3" 
+            />
           </div>
 
           <div class="p-8 text-center">
-            <h3 class="text-3xl mb-4" :style="{ color: service.color }">{{ service.name }}</h3>
-            <p class="text-gray-600 mb-6">{{ service.description }}</p>
+            <h3 class="text-3xl mb-4 font-bold transform transition-all duration-300 hover:scale-105" :style="{ color: service.color }">
+              {{ service.name }}
+            </h3>
+            <p class="text-gray-600 mb-6 leading-relaxed">{{ service.description }}</p>
 
             <button
               @click="handleServiceClick(service.id)"
-              class="inline-flex items-center gap-2 text-white px-8 py-4 rounded-xl transition-all transform hover:scale-105 group"
+              class="inline-flex items-center gap-2 text-white px-8 py-4 rounded-xl transition-all duration-300 transform hover:scale-110 hover:shadow-xl group relative overflow-hidden"
               :style="{ backgroundColor: service.color }"
               @mouseenter="handleButtonHover($event)"
               @mouseleave="handleButtonLeave($event)"
             >
-              Découvrir les sous-services
+              <span class="relative z-10">Découvrir les sous-services</span>
               <svg
-                class="w-5 h-5 group-hover:translate-x-1 transition-transform"
+                class="w-5 h-5 group-hover:translate-x-2 transition-transform duration-300 relative z-10"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -61,6 +68,7 @@
                   d="M9 5l7 7-7 7"
                 />
               </svg>
+              <span class="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-300"></span>
             </button>
           </div>
         </div>
@@ -144,3 +152,20 @@ const handleButtonLeave = (e) => {
   e.currentTarget.style.opacity = '1'
 }
 </script>
+
+<style scoped>
+@keyframes fadeInUpCard {
+  from {
+    opacity: 0;
+    transform: translateY(50px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-fade-in-up-card {
+  animation: fadeInUpCard 0.8s ease-out both;
+}
+</style>

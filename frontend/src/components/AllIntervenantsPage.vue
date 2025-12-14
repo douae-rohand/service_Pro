@@ -114,22 +114,40 @@
 
             <!-- Note minimum -->
             <div class="mb-6">
-              <label class="block text-sm font-semibold mb-3">Note</label>
+              <label class="block text-sm font-semibold mb-3">Note minimum</label>
               <div class="space-y-2">
                 <label
-                  v-for="rating in ['5+', '4.5+', '4+', '3.5+']"
-                  :key="rating"
+                  v-for="rating in [
+                    { value: 'all', label: 'Toutes les notes', stars: null },
+                    { value: 5, label: '5 étoiles', stars: 5 },
+                    { value: 4, label: '4 étoiles et plus', stars: 4 },
+                    { value: 3, label: '3 étoiles et plus', stars: 3 },
+                    { value: 2, label: '2 étoiles et plus', stars: 2 },
+                    { value: 1, label: '1 étoile et plus', stars: 1 },
+                    { value: 0, label: '0 étoile et plus', stars: 0 }
+                  ]"
+                  :key="rating.value"
                   class="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
                 >
                   <input
                     type="radio"
                     name="rating"
-                    :value="rating"
+                    :value="rating.value"
                     v-model="selectedRating"
                     class="w-4 h-4 cursor-pointer"
                     :style="{ accentColor: currentService.color }"
                   />
-                  <span class="text-sm">{{ rating }}</span>
+                  <span class="text-sm flex items-center gap-1">
+                    {{ rating.label }}
+                    <span v-if="rating.stars !== null" class="flex">
+                      <Star 
+                        v-for="i in 5" 
+                        :key="i" 
+                        :size="12" 
+                        :class="i <= rating.stars ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'"
+                      />
+                    </span>
+                  </span>
                 </label>
               </div>
             </div>
@@ -430,10 +448,9 @@ export default {
                             intervenant.hourlyRate <= this.priceRange[1];
         
         let matchesRating = true;
-        if (this.selectedRating === '5+') matchesRating = intervenant.rating >= 5.0;
-        else if (this.selectedRating === '4.5+') matchesRating = intervenant.rating >= 4.5;
-        else if (this.selectedRating === '4+') matchesRating = intervenant.rating >= 4.0;
-        else if (this.selectedRating === '3.5+') matchesRating = intervenant.rating >= 3.5;
+        if (this.selectedRating !== 'all' && typeof this.selectedRating === 'number') {
+          matchesRating = intervenant.rating >= this.selectedRating;
+        }
         
         const matchesMaterial = !this.bringsMaterial || intervenant.bringsMaterial;
         const matchesEco = !this.ecoProducts || intervenant.ecoFriendly;

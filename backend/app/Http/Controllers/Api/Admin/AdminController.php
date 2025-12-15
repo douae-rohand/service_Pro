@@ -2528,9 +2528,11 @@ class AdminController extends Controller
         if ($request->has('statut') && $request->statut !== '' && $request->statut !== 'all') {
             // Map frontend status to database status
             $statusMap = [
-                'terminé' => 'terminee',
-                'en_cours' => 'en_cours',
-                'planifié' => 'planifiee'
+                'terminé' => 'termine',
+                'acceptée' => 'acceptee',
+                'refusée' => 'refuse',
+                'en attente' => 'en attend',
+                'en_attente' => 'en attend'
             ];
             $dbStatus = $statusMap[$request->statut] ?? $request->statut;
             $query->where('status', $dbStatus);
@@ -2580,9 +2582,10 @@ class AdminController extends Controller
 
             // Format status for frontend
             $statusMap = [
-                'terminee' => 'terminé',
-                'en_cours' => 'en_cours',
-                'planifiee' => 'planifié'
+                'termine' => 'terminé',
+                'acceptee' => 'acceptée',
+                'refuse' => 'refusée',
+                'en attend' => 'en attente'
             ];
             $statut = $statusMap[$intervention->status] ?? $intervention->status;
 
@@ -2631,9 +2634,11 @@ class AdminController extends Controller
         // Apply same filters as getHistorique
         if ($request->has('statut') && $request->statut !== '' && $request->statut !== 'all') {
             $statusMap = [
-                'terminé' => 'terminee',
-                'en_cours' => 'en_cours',
-                'planifié' => 'planifiee'
+                'terminé' => 'termine',
+                'acceptée' => 'acceptee',
+                'refusée' => 'refuse',
+                'en attente' => 'en attend',
+                'en_attente' => 'en attend'
             ];
             $dbStatus = $statusMap[$request->statut] ?? $request->statut;
             $query->where('status', $dbStatus);
@@ -2706,9 +2711,10 @@ class AdminController extends Controller
                 }
 
                 $statusMap = [
-                    'terminee' => 'terminé',
-                    'en_cours' => 'en_cours',
-                    'planifiee' => 'planifié'
+                    'termine' => 'terminé',
+                    'acceptee' => 'acceptée',
+                    'refuse' => 'refusée',
+                    'en attend' => 'en attente'
                 ];
                 $statut = $statusMap[$intervention->status] ?? $intervention->status;
 
@@ -2759,9 +2765,11 @@ class AdminController extends Controller
         // Apply same filters as getHistorique
         if ($request->has('statut') && $request->statut !== '' && $request->statut !== 'all') {
             $statusMap = [
-                'terminé' => 'terminee',
-                'en_cours' => 'en_cours',
-                'planifié' => 'planifiee'
+                'terminé' => 'termine',
+                'acceptée' => 'acceptee',
+                'refusée' => 'refuse',
+                'en attente' => 'en attend',
+                'en_attente' => 'en attend'
             ];
             $dbStatus = $statusMap[$request->statut] ?? $request->statut;
             $query->where('status', $dbStatus);
@@ -2806,9 +2814,10 @@ class AdminController extends Controller
             }
 
             $statusMap = [
-                'terminee' => 'terminé',
-                'en_cours' => 'en_cours',
-                'planifiee' => 'planifié'
+                'termine' => 'terminé',
+                'acceptee' => 'acceptée',
+                'refuse' => 'refusée',
+                'en attend' => 'en attente'
             ];
             $statut = $statusMap[$intervention->status] ?? $intervention->status;
 

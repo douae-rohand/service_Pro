@@ -83,12 +83,16 @@
             background-color: #4CAF50;
             color: white;
         }
-        .badge-en-cours {
-            background-color: #FF9800;
+        .badge-acceptee {
+            background-color: #2196F3;
             color: white;
         }
-        .badge-planifie {
-            background-color: #2196F3;
+        .badge-refusee {
+            background-color: #F44336;
+            color: white;
+        }
+        .badge-en-attente {
+            background-color: #FF9800;
             color: white;
         }
         .montant {

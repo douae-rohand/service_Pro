@@ -39,9 +39,9 @@
             <option
               v-for="service in allServices"
               :key="service.id"
-              :value="service.nom"
+              :value="service.nom_service || service.nom"
             >
-              {{ service.nom }} ({{ getServiceCount(service.nom) }})
+              {{ service.nom_service || service.nom }} ({{ getServiceCount(service.nom_service || service.nom) }})
             </option>
           </select>
         </div>
@@ -67,8 +67,13 @@
       </div>
     </div>
 
+    <!-- Loading State (minimal) -->
+    <div v-if="loading" class="text-center py-4">
+      <div class="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+    </div>
+
     <!-- Intervenants Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <div 
         v-for="intervenant in paginatedIntervenants" 
         :key="intervenant.id"
@@ -113,8 +118,8 @@
                 <span 
                   v-for="service in intervenant.allServices"
                   :key="service"
-                  class="px-2 py-0.5 rounded text-xs font-medium text-white"
-                  :style="{ backgroundColor: service === 'Jardinage' ? '#92B08B' : '#5B7C99' }"
+                  class="px-2 py-0.5 rounded text-xs font-medium"
+                  :style="getServiceBadgeColors(service, allServices.find(s => (s.nom_service || s.nom) === service)?.id, allServices)"
                 >
                   {{ service }}
                 </span>
@@ -273,6 +278,9 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { ArrowLeft, Search, User, Check, Star, Mail, Phone, UserCheck } from 'lucide-vue-next'
 import adminService from '@/services/adminService'
+import { useServiceColor } from '@/composables/useServiceColor'
+
+const { getServiceColor: getServiceColorUtil, getServiceBadgeColors } = useServiceColor()
 
 const props = defineProps({
   intervenants: {
@@ -430,7 +438,8 @@ watch([searchTerm, filterService, filterStatus], () => {
 const loadServices = async () => {
   try {
     const response = await adminService.getServices()
-    allServices.value = response.data || []
+    // Handle paginated response structure (new) or direct array (old for compatibility)
+    allServices.value = response.data?.data || response.data || []
   } catch (error) {
     console.error('Erreur chargement services:', error)
     allServices.value = []
@@ -443,22 +452,14 @@ const getServiceColor = (intervenant) => {
   // Si l'intervenant a des services, utiliser le premier pour la couleur
   if (intervenant.allServices && intervenant.allServices.length > 0) {
     const firstService = intervenant.allServices[0]
-    // Utiliser la couleur du service depuis allServices si disponible
-    const serviceData = allServices.value.find(s => s.nom === firstService)
-    if (serviceData && serviceData.couleur) {
-      return serviceData.couleur
-    }
-    // Fallback aux couleurs hardcodées
-    return firstService === 'Jardinage' ? '#92B08B' : '#5B7C99'
+    const serviceData = allServices.value.find(s => (s.nom_service || s.nom) === firstService)
+    return getServiceColorUtil(firstService, serviceData?.id, allServices.value)
   }
   
   // Si l'intervenant a un service principal (ancien format)
   if (intervenant.service && intervenant.service !== 'Aucun service') {
-    const serviceData = allServices.value.find(s => s.nom === intervenant.service)
-    if (serviceData && serviceData.couleur) {
-      return serviceData.couleur
-    }
-    return intervenant.service === 'Jardinage' ? '#92B08B' : '#5B7C99'
+    const serviceData = allServices.value.find(s => (s.nom_service || s.nom) === intervenant.service)
+    return getServiceColorUtil(intervenant.service, serviceData?.id, allServices.value)
   }
   
   // Par défaut pour les intervenants sans services : couleur neutre

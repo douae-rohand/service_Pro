@@ -110,6 +110,14 @@ class Intervenant extends Model
     }
 
     /**
+     * Get the disponibilites for this intervenant.
+     */
+    public function disponibilites()
+    {
+        return $this->hasMany(Disponibilite::class, 'intervenant_id', 'id');
+    }
+
+    /**
      * Get all photos from interventions performed by this intervenant.
      */
     public function photosInterventions()

@@ -27,9 +27,15 @@
     </header>
 
     <div class="max-w-7xl mx-auto px-8 py-8">
+      <!-- Loading State (minimal) -->
+      <div v-if="loading && activeSection === 'overview'" class="text-center py-4">
+        <div class="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+      </div>
+
       <!-- Overview Section -->
         <template v-if="activeSection === 'overview'">
           <AdminOverview 
+            v-if="!loading"
             :stats="stats" 
             :loading="loading"
             @navigate="handleNavigate" 
@@ -71,6 +77,7 @@
       <template v-if="activeSection === 'services'">
         <AdminServices
           @back="activeSection = 'overview'"
+          @demandes-updated="handleDemandesUpdated"
         />
       </template>
 
@@ -216,7 +223,8 @@ const loadClients = async () => {
   try {
     loading.value = true
     const response = await adminService.getClients()
-    clients.value = response.data || []
+    // Handle paginated response structure (new) or direct array (old for compatibility)
+    clients.value = response.data?.data || response.data || []
   } catch (error) {
     console.error('Erreur chargement clients:', error)
     clients.value = []
@@ -229,7 +237,8 @@ const loadIntervenants = async () => {
   try {
     loading.value = true
     const response = await adminService.getIntervenants()
-    intervenants.value = response.data || []
+    // Handle paginated response structure (new) or direct array (old for compatibility)
+    intervenants.value = response.data?.data || response.data || []
   } catch (error) {
     console.error('Erreur chargement intervenants:', error)
     intervenants.value = []
@@ -380,6 +389,16 @@ const handleLogoutHover = (e) => {
 const handleLogoutLeave = (e) => {
   e.currentTarget.style.backgroundColor = '#FF6B6B'
   e.currentTarget.style.transform = 'scale(1)'
+}
+
+// Handler pour rafraîchir les demandes après désactivation/réactivation d'un service
+const handleDemandesUpdated = async () => {
+  // Rafraîchir les stats pour mettre à jour le nombre de demandes en attente
+  await loadStats()
+  
+  // Si la section demandes est active, on peut aussi émettre un événement pour la rafraîchir
+  // Mais AdminDemandes se rafraîchit déjà automatiquement via loadDemandes()
+  // donc pas besoin de faire quelque chose de spécial ici
 }
 
 // Navigation handler - Charger les données appropriées lors du changement de section

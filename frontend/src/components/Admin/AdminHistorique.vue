@@ -80,9 +80,9 @@
             <option
               v-for="service in allServices"
               :key="service.id"
-              :value="service.nom"
+              :value="service.nom_service || service.nom"
             >
-              {{ service.nom }}
+              {{ service.nom_service || service.nom }}
             </option>
           </select>
         </div>
@@ -134,10 +134,7 @@
               <td class="py-3 px-4 text-sm">
                 <span
                   class="px-2.5 py-1 rounded-full text-xs font-medium"
-                  :style="{
-                    backgroundColor: item.service === 'Jardinage' ? '#E8F5E9' : '#E3F2FD',
-                    color: item.service === 'Jardinage' ? '#2E7D32' : '#1565C0'
-                  }"
+                  :style="getServiceBadgeColors(item.service, item.service_id, allServices)"
                 >
                   {{ item.service }}
                 </span>
@@ -259,9 +256,11 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { History, Download, Star } from 'lucide-vue-next'
 import adminService from '@/services/adminService'
 import { useNotifications } from '@/composables/useNotifications'
+import { useServiceColor } from '@/composables/useServiceColor'
 
 const emit = defineEmits(['back'])
 const { success, error } = useNotifications()
+const { getServiceBadgeColors } = useServiceColor()
 
 const historique = ref([])
 const loading = ref(false)
@@ -542,7 +541,8 @@ const formatStatus = (status) => {
 const loadServices = async () => {
   try {
     const response = await adminService.getServices()
-    allServices.value = response.data || []
+    // Handle paginated response structure (new) or direct array (old for compatibility)
+    allServices.value = response.data?.data || response.data || []
   } catch (error) {
     console.error('Erreur chargement services:', error)
     allServices.value = []

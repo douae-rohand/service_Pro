@@ -1,7 +1,12 @@
 <template>
   <div>
+    <!-- Loading State (minimal) -->
+    <div v-if="loading" class="text-center py-4">
+      <div class="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+    </div>
+
     <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-5 gap-5 mb-8">
+    <div v-else class="grid grid-cols-1 md:grid-cols-5 gap-5 mb-8">
       <div 
         v-for="stat in statsCards" 
         :key="stat.key"
@@ -22,7 +27,7 @@
     </div>
 
     <!-- Navigation rapide -->
-    <div class="mb-8">
+    <div v-if="!loading" class="mb-8">
       <h3 class="text-xl mb-5" style="color: #2F4F4F">Navigation rapide</h3>
       <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-5">
         <button

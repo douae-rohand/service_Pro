@@ -264,8 +264,12 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { X, Mail, Phone, MapPin, Star, Clock } from 'lucide-vue-next'
+import adminService from '@/services/adminService'
+import { useServiceColor } from '@/composables/useServiceColor'
+
+const { getServiceColor: getServiceColorUtil } = useServiceColor()
 
 const props = defineProps({
   show: {
@@ -286,6 +290,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'toggle-status'])
 
 const activeTab = ref('apropos')
+const allServices = ref([])
 
 const tabs = computed(() => {
   if (props.type === 'intervenant') {
@@ -303,9 +308,22 @@ const tabs = computed(() => {
   }
 })
 
+const loadServices = async () => {
+  try {
+    const response = await adminService.getServices()
+    // Handle paginated response structure (new) or direct array (old for compatibility)
+    allServices.value = response.data?.data || response.data || []
+  } catch (error) {
+    console.error('Erreur chargement services:', error)
+    allServices.value = []
+  }
+}
+
 const getServiceColor = (service) => {
   if (!service) return '#5B7C99'
-  return service === 'Jardinage' ? '#92B08B' : '#1A5FA3'
+  // Trouver le service dans la liste chargée pour obtenir son ID
+  const serviceData = allServices.value.find(s => (s.nom_service || s.nom) === service)
+  return getServiceColorUtil(service, serviceData?.id, allServices.value)
 }
 
 const formatDate = (dateString) => {
@@ -335,6 +353,10 @@ watch(() => props.show, (newVal) => {
   if (newVal) {
     activeTab.value = 'apropos'
   }
+})
+
+onMounted(async () => {
+  await loadServices()
 })
 </script>
 

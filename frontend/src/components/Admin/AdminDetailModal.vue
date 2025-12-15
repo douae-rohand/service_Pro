@@ -125,7 +125,7 @@
                   <p v-else class="text-xs text-gray-400 italic">Aucune description</p>
                 </div>
               <div class="text-right">
-                <p class="font-bold" :style="{ color: data.service === 'Jardinage' ? '#92B08B' : '#1A5FA3' }">
+                <p class="font-bold" :style="{ color: getServiceColor(data.service) }">
                   {{ tache.tarif }}DH/h
                 </p>
                 <p v-if="tache.duree" class="text-xs text-gray-500">{{ tache.duree }}</p>
@@ -168,8 +168,13 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { X, Star } from 'lucide-vue-next'
+import adminService from '@/services/adminService'
+import { useServiceColor } from '@/composables/useServiceColor'
+
+const { getServiceColor: getServiceColorUtil } = useServiceColor()
+const allServices = ref([])
 
 const props = defineProps({
   type: {
@@ -198,16 +203,44 @@ const subtitle = computed(() => {
   return ''
 })
 
+const loadServices = async () => {
+  try {
+    const response = await adminService.getServices()
+    // Handle paginated response structure (new) or direct array (old for compatibility)
+    allServices.value = response.data?.data || response.data || []
+  } catch (error) {
+    console.error('Erreur chargement services:', error)
+    allServices.value = []
+  }
+}
+
+const getServiceColor = (service) => {
+  if (!service) return '#5B7C99'
+  const serviceData = allServices.value.find(s => (s.nom_service || s.nom) === service)
+  return getServiceColorUtil(service, serviceData?.id, allServices.value)
+}
+
 const headerGradient = computed(() => {
   if (props.type === 'client') {
     return 'linear-gradient(135deg, #92B08B 0%, #6B8E63 100%)'
   } else if (props.type === 'intervenant') {
-    return props.data.service === 'Jardinage'
-      ? 'linear-gradient(135deg, #92B08B 0%, #6B8E63 100%)'
-      : 'linear-gradient(135deg, #1A5FA3 0%, #134B82 100%)'
+    const serviceColor = getServiceColor(props.data.service)
+    // Créer un dégradé basé sur la couleur du service
+    // Assombrir la couleur de 20% pour le dégradé
+    const darkerColor = serviceColor ? adjustColorBrightness(serviceColor, -20) : '#134B82'
+    return `linear-gradient(135deg, ${serviceColor} 0%, ${darkerColor} 100%)`
   }
   return 'linear-gradient(135deg, #5B7C99 0%, #3D5A73 100%)'
 })
+
+// Fonction pour assombrir une couleur hexadécimale
+const adjustColorBrightness = (hex, percent) => {
+  const num = parseInt(hex.replace('#', ''), 16)
+  const r = Math.max(0, Math.min(255, (num >> 16) + percent))
+  const g = Math.max(0, Math.min(255, ((num >> 8) & 0x00FF) + percent))
+  const b = Math.max(0, Math.min(255, (num & 0x0000FF) + percent))
+  return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)
+}
 
 const avatarUrl = computed(() => {
   if (props.type === 'client') {
@@ -239,6 +272,10 @@ const formatDate = (dateString) => {
     year: 'numeric' 
   })
 }
+
+onMounted(async () => {
+  await loadServices()
+})
 </script>
 
 <style scoped>

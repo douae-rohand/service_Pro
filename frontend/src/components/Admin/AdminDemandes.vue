@@ -36,9 +36,9 @@
           <option
             v-for="service in allServices"
             :key="service.id"
-            :value="service.nom"
+            :value="service.nom_service || service.nom"
           >
-            {{ service.nom }} ({{ getServiceCount(service.nom) }})
+            {{ service.nom_service || service.nom }} ({{ getServiceCount(service.nom_service || service.nom) }})
           </option>
         </select>
       </div>
@@ -73,10 +73,7 @@
                   <!-- Afficher UN SEUL service (car chaque carte représente une demande pour un service) -->
                   <span
                     class="px-2 py-0.5 rounded-full text-xs font-medium"
-                    :style="{
-                      backgroundColor: demande.service === 'Jardinage' ? '#E8F5E9' : '#E3F2FD',
-                      color: demande.service === 'Jardinage' ? '#92B08B' : '#1A5FA3'
-                    }"
+                    :style="getServiceBadgeColors(demande.service, demande.service_id, allServices)"
                   >
                     {{ demande.service }}
                   </span>
@@ -322,10 +319,7 @@
                 <div class="flex flex-wrap gap-2">
                   <span
                     class="px-2 py-1 rounded-full text-xs font-medium"
-                    :style="{
-                      backgroundColor: selectedDemande.service === 'Jardinage' ? '#E8F5E9' : '#E3F2FD',
-                      color: selectedDemande.service === 'Jardinage' ? '#92B08B' : '#1A5FA3'
-                    }"
+                    :style="getServiceBadgeColors(selectedDemande.service, selectedDemande.service_id, allServices)"
                   >
                     {{ selectedDemande.service }}
                   </span>
@@ -430,8 +424,10 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { User, CheckCircle, XCircle, Eye, UserCheck, X, Download, FileText } from 'lucide-vue-next'
 import adminService from '@/services/adminService'
 import { useNotifications } from '@/composables/useNotifications'
+import { useServiceColor } from '@/composables/useServiceColor'
 
 const { success, error, info, confirm: confirmDialog } = useNotifications()
+const { getServiceBadgeColors } = useServiceColor()
 
 const props = defineProps({
   loading: Boolean
@@ -540,7 +536,8 @@ watch([searchTerm, filterService], () => {
 const loadServices = async () => {
   try {
     const response = await adminService.getServices()
-    allServices.value = response.data || []
+    // Handle paginated response structure (new) or direct array (old for compatibility)
+    allServices.value = response.data?.data || response.data || []
   } catch (error) {
     console.error('Erreur chargement services:', error)
     allServices.value = []

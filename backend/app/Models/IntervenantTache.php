@@ -9,32 +9,25 @@ class IntervenantTache extends Pivot
 {
     use HasFactory;
 
-    protected $table = 'intervenanttache';
-
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
-
+    protected $table = 'intervenant_tache';
     protected $fillable = [
-        'idIntervenant',
-        'idTache',
-        'prixTache',
+        'intervenant_id',
+        'tache_id',
+        'prix_tache',
         'status',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'prixTache' => 'decimal:2',
-            'status' => 'boolean',
-        ];
-    }
+    protected $casts = [
+        'prix_tache' => 'decimal:2',
+        'status' => 'boolean',
+    ];
 
     /**
      * Get the intervenant that owns this record.
      */
     public function intervenant()
     {
-        return $this->belongsTo(Intervenant::class, 'idIntervenant', 'id');
+        return $this->belongsTo(Intervenant::class, 'intervenant_id', 'id');
     }
 
     /**
@@ -42,6 +35,6 @@ class IntervenantTache extends Pivot
      */
     public function tache()
     {
-        return $this->belongsTo(Tache::class, 'idTache', 'id');
+        return $this->belongsTo(Tache::class, 'tache_id', 'id');
     }
 }

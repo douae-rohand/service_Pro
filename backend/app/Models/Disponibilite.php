@@ -9,34 +9,30 @@ class Disponibilite extends Model
 {
     use HasFactory;
 
-    protected $table = 'partitiontable';
-    protected $primaryKey = 'idPartition';
-
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
+    protected $table = 'disponibilite';
+    protected $primaryKey = 'id';
+    public $timestamps = false;
 
     protected $fillable = [
-        'idIntervenant',
-        'jour',
-        'status',
-        'heureDepart',
-        'heureFin',
+        'type',
+        'heure_debut',
+        'heure_fin',
+        'date_specific',
+        'jours_semaine',
+        'intervenant_id',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'jour' => 'date',
-            'heureDepart' => 'datetime:H:i',
-            'heureFin' => 'datetime:H:i',
-        ];
-    }
+    protected $casts = [
+        'heure_debut' => 'datetime:H:i',
+        'heure_fin' => 'datetime:H:i',
+        'date_specific' => 'date',
+    ];
 
     /**
      * Get the intervenant that owns this disponibilite.
      */
     public function intervenant()
     {
-        return $this->belongsTo(Intervenant::class, 'idIntervenant', 'idIntervenant');
+        return $this->belongsTo(Intervenant::class, 'intervenant_id', 'id');
     }
 }

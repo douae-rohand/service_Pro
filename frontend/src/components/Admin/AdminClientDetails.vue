@@ -119,8 +119,8 @@
                       Pour {{ feedback.intervenantNom }}
                     </span>
                     <span 
-                      class="px-1.5 py-0.5 rounded text-xs font-medium text-white"
-                      :style="{ backgroundColor: feedback.service === 'Jardinage' ? '#5EAD5F' : '#5B7C99' }"
+                      class="px-1.5 py-0.5 rounded text-xs font-medium"
+                      :style="getServiceBadgeColors(feedback.service, feedback.service_id, allServices)"
                     >
                       {{ feedback.service }}
                     </span>
@@ -240,8 +240,12 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { X, Mail, Phone, MapPin, Calendar, Star, AlertCircle, CheckCircle } from 'lucide-vue-next'
+import adminService from '@/services/adminService'
+import { useServiceColor } from '@/composables/useServiceColor'
+
+const { getServiceBadgeColors } = useServiceColor()
 
 const props = defineProps({
   isOpen: {
@@ -256,6 +260,8 @@ const props = defineProps({
 })
 
 defineEmits(['close', 'suspend', 'activate'])
+
+const allServices = ref([])
 
 // Pagination pour les feedbacks
 const currentPage = ref(1)
@@ -285,6 +291,17 @@ const getInitials = (prenom, nom) => {
   const p = prenom ? prenom.charAt(0).toUpperCase() : ''
   const n = nom ? nom.charAt(0).toUpperCase() : ''
   return p + n
+}
+
+const loadServices = async () => {
+  try {
+    const response = await adminService.getServices()
+    // Handle paginated response structure (new) or direct array (old for compatibility)
+    allServices.value = response.data?.data || response.data || []
+  } catch (error) {
+    console.error('Erreur chargement services:', error)
+    allServices.value = []
+  }
 }
 
 const formatDateFull = (dateString) => {
@@ -329,6 +346,10 @@ const formatDateShort = (dateString) => {
 }
 
 /* Support pour Firefox */
+onMounted(async () => {
+  await loadServices()
+})
+
 .feedbacks-scrollable {
   scrollbar-width: thin;
   scrollbar-color: #5B7C99 #F9FAFB;

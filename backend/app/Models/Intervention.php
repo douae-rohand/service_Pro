@@ -19,6 +19,7 @@ class Intervention extends Model
         'ville',
         'status',
         'date_intervention',
+        'duration_hours',  
         'client_id',
         'intervenant_id',
         'tache_id',
@@ -27,7 +28,8 @@ class Intervention extends Model
     protected function casts(): array
     {
         return [
-            'date_intervention' => 'date',
+            'date_intervention' => 'datetime',
+            'duration_hours' => 'decimal:2',
         ];
     }
 
@@ -127,7 +129,7 @@ class Intervention extends Model
      */
     public function scopeUpcoming(Builder $query): Builder
     {
-        return $query->where('date_intervention', '>=', now()->toDateString())
+        return $query->where('date_intervention', '>=', now())
             ->orderBy('date_intervention', 'asc');
     }
 

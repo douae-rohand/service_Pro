@@ -561,20 +561,31 @@ export default {
         location: this.user.location
       };
     },
-    async saveProfile() {
+      async saveProfile() {
       try {
-        await authService.updateProfile({
-          nom: this.profileForm.name.split(' ')[0] || '',
-          prenom: this.profileForm.name.split(' ').slice(1).join(' ') || '',
-          email: this.profileForm.email,
-          telephone: this.profileForm.phone,
-          ville: this.profileForm.location
-        });
+        // Ensure all values are strings
+        const profileData = {
+          nom: String(this.profileForm.name.split(' ')[0] || ''),
+          prenom: String(this.profileForm.name.split(' ').slice(1).join(' ') || ''),
+          email: String(this.profileForm.email || ''),
+          telephone: String(this.profileForm.phone || ''),
+          ville: String(this.profileForm.location || '') // This is the fix
+        };
+        
+        console.log('📤 Sending profile data:', profileData); // Debug log
+        
+        await authService.updateProfile(profileData);
         this.isEditing = false;
         this.$emit('profile-updated');
       } catch (error) {
         console.error('Error saving profile:', error);
-        alert('Erreur lors de la sauvegarde');
+        
+        // Show more detailed error message
+        if (error.response?.data?.errors?.ville) {
+          alert(`Erreur ville: ${error.response.data.errors.ville[0]}`);
+        } else {
+          alert('Erreur lors de la sauvegarde');
+        }
       }
     },
     async handleAvatarChange(event) {

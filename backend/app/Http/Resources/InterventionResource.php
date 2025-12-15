@@ -39,6 +39,9 @@ class InterventionResource extends JsonResource
         $status = strtolower($this->status ?? 'en_attente');
         $mappedStatus = $statusMap[$status] ?? $status;
 
+        // Parse date_intervention as datetime
+        $dateTime = $this->date_intervention ? \Carbon\Carbon::parse($this->date_intervention) : null;
+        
         // Get client evaluations
         $clientEvaluations = $this->evaluations->where('type_auteur', 'client');
         $rating = null;
@@ -101,13 +104,19 @@ class InterventionResource extends JsonResource
             }
         }
 
+        // Calculate end time from duration_hours
+        $endTime = null;
+        if ($dateTime && $this->duration_hours) {
+            $endTime = $dateTime->copy()->addHours((float)$this->duration_hours);
+        }
+
         // Transform invoice
         $invoice = null;
         if ($this->facture) {
             $invoice = [
                 'date' => $this->facture->created_at?->format('Y-m-d'),
-                'actualDuration' => '2 heures', // TODO: Calculate from actual data if available
-                'laborCost' => $this->facture->ttc ?? 0, // TODO: Separate labor and materials
+                'actualDuration' => $this->duration_hours ? number_format($this->duration_hours, 1) . ' heures' : 'N/A',
+                'laborCost' => $this->facture->ttc ?? 0,
                 'materialsProvided' => [], // TODO: Extract from intervention_materiel with costs
                 'materialsCost' => 0, // TODO: Calculate from materials
                 'paymentDate' => $this->facture->created_at?->format('Y-m-d')
@@ -118,7 +127,7 @@ class InterventionResource extends JsonResource
         $materials = [];
         if ($this->materiels) {
             foreach ($this->materiels as $materiel) {
-                $materials[$materiel->nom_materiel] = true; // All materials in intervention are available
+                $materials[$materiel->nom_materiel] = true;
             }
         }
 
@@ -144,7 +153,7 @@ class InterventionResource extends JsonResource
             $intervenantTache = \App\Models\IntervenantTache::where('tache_id', $this->tache_id)
                 ->where('intervenant_id', $this->intervenant_id)
                 ->first();
-            $estimatedCost = $intervenantTache ? (float)($intervenantTache->prix_tache ?? 0) : 0;
+            $estimatedCost = $intervenantTache ? (float)($intervenantTache->prix_tache ?? 0) * (float)($this->duration_hours ?? 1) : 0;
         }
 
         // Get description from intervention_information or tache
@@ -161,7 +170,7 @@ class InterventionResource extends JsonResource
 
         return [
             'id' => $this->id,
-            'service' => $this->tache->service->nom_service ?? ($this->tache->service_id ? 'N/A' : 'N/A'),
+            'service' => $this->tache->service->nom_service ?? 'N/A',
             'task' => $this->tache->nom_tache ?? 'N/A',
             'intervenant' => [
                 'id' => $this->intervenant->id ?? null,
@@ -172,17 +181,20 @@ class InterventionResource extends JsonResource
                 'totalReviews' => $totalReviews,
                 'ratingDistribution' => $ratingDistribution,
             ],
-            'date' => $this->date_intervention ? (\Carbon\Carbon::parse($this->date_intervention)->format('Y-m-d')) : null,
-            'time' => '09:00', // TODO: Add time field to database if needed
+            'date' => $dateTime ? $dateTime->format('Y-m-d') : null,
+            'time' => $dateTime ? $dateTime->format('H:i') : null, // ← CHANGÉ: Heure réelle depuis datetime
+            'end_time' => $endTime ? $endTime->format('H:i') : null, // ← NOUVEAU: Heure de fin calculée
+            'date_intervention' => $dateTime ? $dateTime->toDateTimeString() : null,
+            'duration_hours' => $this->duration_hours,
             'status' => $mappedStatus,
             'address' => $this->address ?? '',
             'quartier' => $this->ville ?? '',
             'estimatedCost' => $estimatedCost,
             'finalCost' => $this->facture->ttc ?? null,
-            'duration' => null, // TODO: Calculate or store duration
+            'duration' => $this->duration_hours ? number_format($this->duration_hours, 1) . ' heures' : null,
             'description' => $description,
-            'createdAt' => $this->created_at?->format('Y-m-d'),
-            'completedAt' => $mappedStatus === 'completed' ? ($this->updated_at?->format('Y-m-d')) : null,
+            'createdAt' => $this->created_at?->format('Y-m-d H:i:s'),
+            'completedAt' => $mappedStatus === 'completed' ? ($this->updated_at?->format('Y-m-d H:i:s')) : null,
             'intervenantResponse' => $intervenantResponse,
             'rating' => $rating,
             'invoice' => $invoice,
@@ -191,4 +203,3 @@ class InterventionResource extends JsonResource
         ];
     }
 }
-

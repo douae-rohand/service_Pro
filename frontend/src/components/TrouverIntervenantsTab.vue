@@ -1,5 +1,6 @@
 <template>
   <div class="min-h-screen bg-gray-50">
+    <div v-if="currentView === 'list'">
     <!-- Top Search Bar -->
     <div class="bg-white shadow-lg sticky top-0 z-50">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -105,29 +106,7 @@
               </div>
             </div>
 
-            <!-- Tarif horaire -->
-            <div class="mb-6">
-              <label class="block text-sm font-semibold mb-3">Tarif horaire (DH/h)</label>
-              <div class="flex gap-2">
-                <input
-                  type="number"
-                  v-model.number="priceRange[0]"
-                  @change="applyFilters"
-                  placeholder="Min"
-                  class="w-1/2 px-3 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none"
-                  min="0"
-                />
-                <input
-                  type="number"
-                  v-model.number="priceRange[1]"
-                  @change="applyFilters"
-                  placeholder="Max"
-                  class="w-1/2 px-3 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none"
-                  min="0"
-                />
-              </div>
-            </div>
-
+          
             <!-- Disponibilité -->
             <div class="mb-6">
               <label class="block text-sm font-semibold mb-3">Disponibilité</label>
@@ -283,10 +262,7 @@
                       <span class="font-medium">{{ getIntervenantRating(intervenant) }}</span>
                       <span class="text-gray-500 text-sm">({{ getReviewCount(intervenant) }} avis)</span>
                     </div>
-                    <div class="flex items-center gap-1 font-bold" style="color: #1a5fa3">
-                      <Coins :size="18" />
-                      {{ getIntervenantPrice(intervenant) }} DH/h
-                    </div>
+                    
                   </div>
 
                   <!-- Buttons -->
@@ -372,6 +348,17 @@
         </main>
       </div>
     </div>
+  </div>
+
+    <!-- Profile View -->
+    <div v-else-if="currentView === 'profile'" class="py-6">
+      <IntervenantProfile 
+        :intervenantId="selectedIntervenantId"
+        :clientId="clientId"
+        @back="backToList"
+        @book="(iv) => {}" 
+      />
+    </div>
 
     <!-- Success Toast -->
     <div v-if="showToast" class="fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in">
@@ -396,6 +383,7 @@ import {
 import intervenantService from '@/services/intervenantService';
 import serviceService from '@/services/serviceService';
 import favoriteService from '@/services/favoriteService';
+import IntervenantProfile from './IntervenantProfile.vue';
 
 export default {
   name: 'TrouverIntervenantsTab',
@@ -409,7 +397,8 @@ export default {
     AlertCircle,
     Briefcase,
     Heart,
-    Phone
+    Phone,
+    IntervenantProfile
   },
   props: {
     clientId: {
@@ -419,6 +408,8 @@ export default {
   },
   data() {
     return {
+      currentView: 'list', // 'list' | 'profile'
+      selectedIntervenantId: null,
       loading: false,
       error: null,
       searchQuery: '',
@@ -543,6 +534,11 @@ export default {
     await this.loadInitialData();
   },
   methods: {
+    backToList() {
+      this.currentView = 'list';
+      this.selectedIntervenantId = null;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
     async loadInitialData() {
       this.loading = true;
       this.error = null;
@@ -763,11 +759,26 @@ export default {
     
     async addToFavorites(intervenant) {
       try {
-        await favoriteService.addFavorite(this.clientId, intervenant.id);
-        this.showToastMessage(`${this.getIntervenantName(intervenant)} ajouté aux favoris !`);
+        // Déterminer le service ID (requis par le backend)
+        let serviceId = null;
+        if (this.selectedServices.length > 0) {
+            serviceId = this.selectedServices[0];
+        } else {
+            const services = this.getIntervenantServices(intervenant);
+            if (services.length > 0) serviceId = services[0].id;
+        }
+
+        if (!serviceId) {
+             this.showToastMessage('Impossible d\'ajouter: aucun service détecté pour cet intervenant.', 'error');
+             return;
+        }
+
+        await favoriteService.toggleFavorite(this.clientId, intervenant.id, serviceId);
+        // Note: l'API retourne le nouveau statut. On pourrait mettre à jour l'UI ici si on stockait le statut.
+        this.showToastMessage(`Favoris mis à jour pour ${this.getIntervenantName(intervenant)} !`);
       } catch (error) {
         console.error('Error adding to favorites:', error);
-        this.showToastMessage('Erreur lors de l\'ajout aux favoris', 'error');
+        this.showToastMessage('Erreur lors de la mise à jour des favoris', 'error');
       }
     },
     
@@ -790,8 +801,10 @@ export default {
     },
     
     viewIntervenantProfile(intervenantId) {
-      // Naviguer vers le profil de l'intervenant
-      this.$router.push(`/intervenant/${intervenantId}`);
+      // Naviguer vers le profil de l'intervenant en interne
+      this.selectedIntervenantId = intervenantId;
+      this.currentView = 'profile';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     },
     
     showToastMessage(message, type = 'success') {

@@ -67,14 +67,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('taches', TacheController::class);
     Route::get('taches/{id}/intervenants', [TacheController::class, 'getIntervenants']);
     Route::get('taches/{id}/materiels', [TacheController::class, 'getMateriels']);
+    Route::get('taches/{id}/contraintes', [TacheController::class, 'getContraintes']);
 
     // ======================
     // Routes Clients
     // ======================
     Route::apiResource('clients', ClientController::class);
-    Route::get('clients/{id}/favorites', [ClientController::class, 'getFavorites']);
-    Route::post('clients/{id}/favorites', [ClientController::class, 'addFavorite']);
-    Route::delete('clients/{id}/favorites/{intervenantId}', [ClientController::class, 'removeFavorite']);
+    
+    // Favorites Routes (New)
+    Route::get('clients/{id}/favorites', [\App\Http\Controllers\Api\Client\FavorisController::class, 'index']);
+    Route::post('clients/{id}/favorites', [\App\Http\Controllers\Api\Client\FavorisController::class, 'toggle']);
+    Route::get('clients/{id}/favorites/check', [\App\Http\Controllers\Api\Client\FavorisController::class, 'checkStatus']);
     
     // ======================
     // Routes Client Profile
@@ -92,6 +95,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('intervenants/{id}/disponibilites', [IntervenantController::class, 'disponibilites']);
     Route::get('intervenants/{id}/taches', [IntervenantController::class, 'taches']);
     Route::get('intervenants/{id}/services', [IntervenantController::class, 'services']);
+    Route::get('intervenants/{id}/evaluations', [IntervenantController::class, 'evaluations']);
     
 });
 

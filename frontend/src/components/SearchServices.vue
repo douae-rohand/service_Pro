@@ -82,11 +82,7 @@
               </div>
               
               <div class="flex items-center justify-between mt-4">
-                <span class="px-4 py-1.5 bg-blue-700 text-white text-sm font-bold rounded-lg shadow-sm">
-                  <!-- Mock price if missing, or range -->
-                  {{ formatPrice(task.baseRate) }} DH/h
-                </span>
-                <span class="text-xs text-gray-400 font-medium">1-2 heures</span>
+              
               </div>
             </div>
           </div>
@@ -123,54 +119,93 @@
         <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
 
-      <div v-else-if="intervenants.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        <div v-for="iv in intervenants" :key="iv.id" class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col items-center p-6 text-center">
+      <div v-if="intervenants.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div 
+          v-for="iv in intervenants" 
+          :key="iv.id" 
+          @click="viewProfile(iv)"
+          class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col items-center p-6 text-center relative cursor-pointer group"
+        >
+          <!-- Badges -->
+          <div class="absolute top-4 left-4 flex flex-col gap-2 z-10">
+             <span v-if="iv.is_active" class="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded-full shadow-sm">
+               ✓ Vérifié
+             </span>
+             <span v-if="iv.note_moyenne >= 4.5" class="bg-yellow-400 text-white text-xs font-bold px-2 py-1 rounded-full shadow-sm">
+               ⭐ Top
+             </span>
+          </div>
+
+          <!-- Favorite Button -->
+          <button 
+            @click.stop="toggleFavorite(iv, $event)"
+            class="absolute top-4 right-4 p-2 rounded-full bg-white shadow-sm hover:shadow text-gray-400 hover:text-red-500 transition-all z-10"
+            :class="{ 'text-red-500 fill-current': iv.is_favorite }"
+          >
+            <Heart :fill="iv.is_favorite ? 'currentColor' : 'none'" size="20" />
+          </button>
           
           <!-- Avatar -->
           <div class="relative mb-4">
-            <div class="w-24 h-24 rounded-full p-1 bg-gradient-to-tr from-green-400 to-blue-500">
+            <div class="w-28 h-28 rounded-full p-1 bg-gradient-to-tr from-green-400 to-blue-500">
               <img 
                 :src="iv.utilisateur?.url || defaultAvatar" 
                 class="w-full h-full rounded-full object-cover border-4 border-white"
                 alt="Avatar"
               />
             </div>
+            <!-- Online Indicator (Simulated) -->
+            <div class="absolute bottom-2 right-2 w-5 h-5 bg-green-500 border-4 border-white rounded-full"></div>
           </div>
 
           <!-- Info -->
-          <h3 class="text-xl font-bold text-gray-800">{{ iv.utilisateur?.nom }} {{ iv.utilisateur?.prenom }}</h3>
+          <h3 class="text-xl font-bold text-gray-800 mb-1">{{ iv.utilisateur?.nom }} {{ iv.utilisateur?.prenom }}</h3>
+          <p class="text-sm text-gray-500 line-clamp-2 px-2 mb-3 h-10">{{ iv.bio || 'Professionnel expérimenté à votre service.' }}</p>
           
-          <div class="flex items-center gap-1 my-2 text-yellow-500 font-medium">
-            <span>⭐ {{ iv.note_moyenne || 'N/A' }}</span>
-            <span class="text-gray-400 text-sm font-normal">({{ iv.nombre_avis || 0 }} avis)</span>
+          <div class="flex items-center gap-1 mb-4 text-yellow-500 font-medium bg-yellow-50 px-3 py-1 rounded-full">
+            <span>⭐ {{ iv.note_moyenne }}</span>
+            <span class="text-gray-400 text-sm font-normal">({{ iv.nombre_avis }} avis)</span>
           </div>
           
-          <div class="flex items-center gap-2 text-gray-500 text-sm mb-6">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-            {{ iv.ville || iv.address || 'Non spécifié' }}
+          <!-- Details Grid -->
+          <div class="w-full grid grid-cols-2 gap-y-3 gap-x-2 text-sm text-gray-600 mb-6 px-4">
+            <div class="flex items-center gap-2">
+              <MapPin :size="16" class="text-blue-500" />
+              <span class="truncate">{{ iv.ville }}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <Briefcase :size="16" class="text-blue-500" />
+              <span>{{ getExperienceLabel(iv) }}</span>
+            </div>
+            <div v-if="iv.utilisateur?.telephone" class="flex items-center gap-2 col-span-2 justify-center">
+              <Phone :size="16" class="text-green-500" />
+              <span>{{ iv.utilisateur.telephone }}</span>
+            </div>
           </div>
 
         
-         <!-- Dans SearchServices.vue - Modifiez la section du bouton -->
-        <div class="w-full flex justify-between items-center border-t border-gray-100 pt-4 mb-6 text-sm">
-          <div class="flex flex-col items-start">
-            <span class="text-gray-400">Missions complétées:</span>
-            <span class="font-bold text-gray-700">{{ iv.missions_completees || 0 }}</span>
+         <!-- Stats Footer -->
+        <div class="w-full flex justify-between items-center border-t border-gray-100 pt-4 mb-4 text-sm px-2">
+          <div class="flex flex-col items-start bg-gray-50 px-3 py-2 rounded-lg">
+            <span class="text-xs text-gray-400 uppercase font-bold">Missions</span>
+            <span class="font-bold text-gray-700">{{ iv.missions_completees }} complétées</span>
           </div>
           <div class="flex flex-col items-end">
-            <span class="text-gray-400">Tarif:</span>
-            <span class="bg-blue-800 text-white px-3 py-1 rounded-md font-bold text-xs">
-              {{ iv.pivot?.prix_tache || 'N/A' }} DH/h
+            <span class="text-xs text-gray-400 uppercase font-bold mb-1">Tarif horaire</span>
+            <span class="bg-blue-600 text-white px-3 py-1 rounded-lg font-bold text-sm shadow-sm">
+              {{ iv.tarif }}
+              <span v-if="iv.tarif !== 'Sur devis'" class="text-xs ml-0.5">DH/h</span>
             </span>
           </div>
         </div>
 
-      <!-- Action Button - MODIFIÉ -->
+      <!-- Action Button -->
       <button 
         @click.stop="openBookingModal(iv)"
-        class="w-full py-3 bg-green-600 bg-opacity-90 hover:bg-opacity-100 text-white font-semibold rounded-xl transition-all shadow-md transform active:scale-95"
+        class="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold rounded-xl transition-all shadow-md hover:shadow-lg transform active:scale-95 flex items-center justify-center gap-2"
       >
-        Demander ce service
+        <span>Demander ce service</span>
+        <ArrowRight :size="18" />
       </button>
         </div>
       </div>
@@ -180,6 +215,16 @@
         <button @click="backToServices" class="mt-4 text-blue-600 hover:underline">Rechercher une autre tâche</button>
       </div>
 
+    </div>
+    
+    <!-- VIEW 3: PROFILE -->
+    <div v-else-if="currentView === 'profile'">
+      <IntervenantProfile 
+        :intervenantId="viewingIntervenantId"
+        :clientId="clientId"
+        @back="closeProfile"
+        @book="chooseIntervenant"
+      />
     </div>
 
     <!-- MODAL -->
@@ -198,6 +243,8 @@
       v-if="selectedIntervenantForBooking"
       :intervenant="selectedIntervenantForBooking"
       :client-id="clientId"
+      :preselected-service="selectedService"
+      :preselected-task="selectedTask"
       @close="closeBookingModal"
       @success="onBookingSuccess"
     />
@@ -213,11 +260,18 @@ import ImprovedServiceRequestModal from './ImprovedServiceRequestModal.vue'
 const BookingModal = defineAsyncComponent(() =>
   import('./BookingModal.vue')
 )
+import api from '@/services/api';
+const IntervenantProfile = defineAsyncComponent(() =>
+  import('./IntervenantProfile.vue')
+)
+
+import { Heart, MapPin, Briefcase, Phone, ArrowRight } from 'lucide-vue-next';
 
 const props = defineProps({ clientId: { type: Number, required: true } })
 
 // State
-const currentView = ref('services') // 'services' | 'intervenants'
+const currentView = ref('services') // 'services' | 'intervenants' | 'profile'
+const viewingIntervenantId = ref(null)
 const services = ref([])
 const loadingServices = ref(false)
 const searchQuery = ref('')
@@ -241,27 +295,36 @@ function formatPrice(price) {
   return price ? Math.round(price) : '80-120'
 }
 
+function getExperienceLabel(iv) {
+  if (iv.utilisateur?.created_at) {
+    const startDate = new Date(iv.utilisateur.created_at);
+    const years = new Date().getFullYear() - startDate.getFullYear();
+    if (years > 0) return `${years} an${years > 1 ? 's' : ''} exp.`;
+  }
+  return 'Nouveau';
+}
+
 function setCategory(cat) {
   selectedCategory.value = cat
 }
 
-function openBookingModal(intervenant) {
-  // Ajoutez les données manquantes pour le modal
-  selectedIntervenantForBooking.value = {
-    ...intervenant,
-    id: intervenant.id,
-    // Formatage pour le modal Booking
-    name: `${intervenant.utilisateur?.prenom || ''} ${intervenant.utilisateur?.nom || ''}`.trim(),
-    image: intervenant.utilisateur?.url || defaultAvatar,
-    averageRating: intervenant.note_moyenne || 4.5,
-    hourlyRate: intervenant.pivot?.prix_tache || 25,
-    // Données supplémentaires utiles
-    ville: intervenant.ville,
-    bio: intervenant.bio
-  };
-  
-  showBookingModal.value = true;
-}
+  function openBookingModal(intervenant) {
+    // Ajoutez les données manquantes pour le modal
+    selectedIntervenantForBooking.value = {
+      ...intervenant,
+      id: intervenant.id,
+      // Formatage pour le modal Booking
+      name: `${intervenant.utilisateur?.prenom || ''} ${intervenant.utilisateur?.nom || ''}`.trim(),
+      image: intervenant.utilisateur?.url || defaultAvatar,
+      averageRating: intervenant.note_moyenne || 4.5,
+      hourlyRate: intervenant.pivot?.prix_tache || 25,
+      // Données supplémentaires utiles
+      ville: intervenant.ville,
+      bio: intervenant.bio
+    };
+    
+    showBookingModal.value = true;
+  }
 
 function closeBookingModal() {
   selectedIntervenantForBooking.value = null;
@@ -369,7 +432,10 @@ async function fetchIntervenantsForTask(taskId) {
         nombre_avis: iv.review_count || iv.nombre_avis || 12,
         missions_completees: iv.interventions_count || iv.missions_completees || 0,
         ville: iv.ville || iv.utilisateur?.ville || 'Non spécifié',
-        tarif: iv.pivot?.prix_tache || 'N/A'
+        // Use top-level mapped field first, then fallback to pivot
+        tarif: (iv.tarif_tache || iv.pivot?.prix_tache) 
+          ? Math.round(Number(iv.tarif_tache || iv.pivot.prix_tache)) 
+          : 'Sur devis'
       };
     });
     
@@ -414,8 +480,46 @@ function backToServices() {
   selectedTask.value = null
 }
 
+
+
+async function toggleFavorite(iv, event) {
+  if (event) event.stopPropagation();
+  
+  try {
+    // We need service ID. We are in context of 'selectedTask' which belongs to 'selectedService'
+    const serviceId = selectedService.value?.id;
+    if (!serviceId) return;
+
+    // Optimistic update (adding a temporary property to the list item)
+    iv.is_favorite = !iv.is_favorite;
+
+    const res = await api.post(`clients/${props.clientId}/favorites`, {
+      intervenant_id: iv.id,
+      service_id: serviceId
+    });
+    
+    if (res.data.is_favorite !== undefined) {
+      iv.is_favorite = res.data.is_favorite;
+    }
+  } catch (error) {
+    console.error('Error toggling favorite:', error);
+    iv.is_favorite = !iv.is_favorite; // Revert
+  }
+}
+
 function chooseIntervenant(iv) {
   openBookingModal(iv); // Utilisez la nouvelle fonction
+}
+
+function viewProfile(iv) {
+  viewingIntervenantId.value = iv.id;
+  currentView.value = 'profile';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function closeProfile() {
+  viewingIntervenantId.value = null;
+  currentView.value = 'intervenants';
 }
 
 function onRequestSubmitted() {

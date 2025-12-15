@@ -29,6 +29,11 @@ class Tache extends Model
         return $this->belongsTo(Service::class, 'service_id', 'id');
     }
 
+    public function contraintes()
+    {
+        return $this->hasMany(Contrainte::class, 'tache_id', 'id');
+    }
+
     /**
      * Get the interventions for this tache.
      */

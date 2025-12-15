@@ -40,13 +40,13 @@
     <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
       <div
         v-for="favorite in favorites"
-        :key="favorite.id"
+        :key="`${favorite.id}-${favorite.service_id}`"
         class="bg-white rounded-lg shadow-md p-6 border-2 hover:shadow-lg transition-all relative"
         style="border-color: #92b08b"
       >
         <!-- Favorite Icon -->
         <button
-          @click="removeFavorite(favorite.id)"
+          @click="removeFavorite(favorite)"
           class="absolute top-4 right-4 text-orange-500 hover:text-red-500 transition-colors"
         >
           <Heart :size="24" :fill="'currentColor'" />
@@ -196,7 +196,22 @@ export default {
       this.error = null;
       try {
         const response = await favoriteService.getFavorites(this.clientId);
-        this.favorites = response.data.data || [];
+        const rawFavorites = response.data.data || [];
+        
+        // Map backend data to frontend expected format
+        this.favorites = rawFavorites.map(fav => ({
+          ...fav,
+          name: `${fav.prenom} ${fav.nom}`,
+          image: fav.photo_url || 'https://via.placeholder.com/150',
+          services: [fav.nom_service], // Since backend returns one row per service
+          location: fav.ville || fav.adresse || 'Maroc', // Fallback
+          // Default values for missing backend data
+          averageRating: fav.note_globale || 'N/A',
+          totalReviews: fav.nombre_avis || 0,
+          servicesWithClient: 1,
+          totalMissions: fav.nombre_interventions || 0,
+          hourlyRate: fav.tarif_horaire || null
+        }));
       } catch (error) {
         console.error('Error loading favorites:', error);
         this.error = error.response?.data?.message || 'Erreur lors du chargement des favoris';
@@ -204,13 +219,13 @@ export default {
         this.loading = false;
       }
     },
-    async removeFavorite(intervenantId) {
-      if (!confirm('Êtes-vous sûr de vouloir retirer cet intervenant de vos favoris ?')) {
+    async removeFavorite(favorite) {
+      if (!confirm(`Êtes-vous sûr de vouloir retirer ${favorite.name} de vos favoris pour le service ${favorite.nom_service} ?`)) {
         return;
       }
 
       try {
-        await favoriteService.removeFavorite(this.clientId, intervenantId);
+        await favoriteService.removeFavorite(this.clientId, favorite.id, favorite.service_id);
         await this.loadFavorites();
       } catch (error) {
         console.error('Error removing favorite:', error);

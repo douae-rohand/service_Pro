@@ -29,6 +29,10 @@ const bookingService = {
     });
   },
 
+  getTaskContraintes(tacheId) {
+    return api.get(`taches/${tacheId}/contraintes`);
+  },
+
   /**
    * Créer une intervention (réservation)
    */

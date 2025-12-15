@@ -55,6 +55,12 @@ class TacheController extends Controller
         return response()->json($tache);
     }
 
+    public function getContraintes($id)
+    {
+        $tache = Tache::with('contraintes')->findOrFail($id);
+        return response()->json($tache->contraintes);
+    }
+
     /**
      * Update the specified tache
      */
@@ -90,6 +96,26 @@ class TacheController extends Controller
         ]);
     }
 
+    public function getMateriels($id)
+    {
+        try {
+            $tache = Tache::findOrFail($id);
+            // Utilisez la relation belongsToMany sans parenthèses get()
+            $materiels = $tache->materiels;
+            
+            return response()->json([
+                'status' => 'success',
+                'data' => $materiels
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Erreur lors de la récupération des matériaux',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     /**
      * Get intervenants for a specific tache
      */
@@ -100,7 +126,11 @@ class TacheController extends Controller
             
             // ⭐ CORRECTION CRUCIALE : Retirez ".evaluation" des relations
             $tache = Tache::with([
-                'intervenants.utilisateur',
+                'intervenants' => function($query) {
+                    $query->with('utilisateur')
+                          ->withAvg('evaluations', 'note')
+                          ->withCount('evaluations');
+                },
                 'intervenants.taches.service'
                 // ⬇️ RETIREZ COMPLÈTEMENT CETTE LIGNE SI ELLE EXISTE ⬇️
                 // 'intervenants.interventions.evaluation' ← ❌ CAUSE DE L'ERREUR
@@ -112,10 +142,18 @@ class TacheController extends Controller
             
             // Ajoutez des données calculées pour le frontend
             $intervenants->transform(function ($intervenant) {
-                // Si votre backend ne calcule pas encore ces valeurs
-                $intervenant->note_moyenne = $intervenant->average_rating ?? 4.5;
-                $intervenant->nombre_avis = $intervenant->review_count ?? 12;
+                // Use real aggregates if available, fallback to defaults
+                // 'evaluations_avg_note' is automatically added by withAvg
+                // 'evaluations_count' is automatically added by withCount
+                
+                $realRating = $intervenant->evaluations_avg_note ? round($intervenant->evaluations_avg_note, 1) : null;
+                $realCount = $intervenant->evaluations_count;
+
+                $intervenant->note_moyenne = $realRating ?? $intervenant->average_rating ?? 4.5;
+                $intervenant->nombre_avis = $realCount ?? $intervenant->review_count ?? 12;
                 $intervenant->missions_completees = $intervenant->interventions_count ?? 0;
+                // Expose pivot price at top level
+                $intervenant->tarif_tache = $intervenant->pivot->prix_tache ?? null;
                 
                 return $intervenant;
             });

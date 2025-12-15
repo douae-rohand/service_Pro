@@ -134,4 +134,18 @@ class Intervenant extends Model
     {
         return $query->where('is_active', false);
     }
+    /**
+     * Get all evaluations for this intervenant through their interventions.
+     */
+    public function evaluations()
+    {
+        return $this->hasManyThrough(
+            Evaluation::class,
+            Intervention::class,
+            'intervenant_id', // Foreign key on intervention table
+            'intervention_id', // Foreign key on evaluation table
+            'id', // Local key on intervenant table
+            'id' // Local key on intervention table
+        );
+    }
 }

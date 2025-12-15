@@ -4,7 +4,12 @@ namespace App\Http\Controllers\Api\Intervenant;
 
 use App\Http\Controllers\Controller;
 use App\Models\Intervenant;
+use App\Models\Disponibilite;
+use App\Models\Tache;
+use App\Models\Intervention;
+
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class IntervenantController extends Controller
 {
@@ -125,15 +130,53 @@ class IntervenantController extends Controller
     /**
      * Get disponibilites for a specific intervenant
      */
-    public function disponibilites($id)
-    {
-        $intervenant = Intervenant::findOrFail($id);
-        $disponibilites = $intervenant->disponibilites()
-            ->orderBy('dateDebut', 'asc')
-            ->get();
-
-        return response()->json($disponibilites);
-    }
+        public function disponibilites($id, Request $request)
+        {
+            try {
+                Log::info('Fetching disponibilites for intervenant: ' . $id . ', date: ' . ($request->date ?? 'no date'));
+                
+                // ✅ CORRECT: Utilisez le bon namespace App\Models\Disponibilite
+                $query = Disponibilite::where('intervenant_id', $id);
+                
+                if ($request->has('date') && $request->date) {
+                    $date = $request->date;
+                    $dayOfWeek = strtolower(\Carbon\Carbon::parse($date)->locale('fr_FR')->isoFormat('dddd'));
+                    
+                    // Récupérer les disponibilités pour cette date
+                    $query->where(function($q) use ($date, $dayOfWeek) {
+                        // Régulières: jour de la semaine correspond
+                        $q->where('type', 'reguliere')
+                        ->where('jours_semaine', $dayOfWeek);
+                    })->orWhere(function($q) use ($date) {
+                        // Ponctuelles: date spécifique correspond
+                        $q->where('type', 'ponctuelle')
+                        ->where('date_specific', $date);
+                    });
+                }
+                
+                // Tri explicite par type et heure de début
+                $disponibilites = $query->orderBy('type')
+                    ->orderBy('heure_debut')
+                    ->get();
+                
+                Log::info('Found ' . $disponibilites->count() . ' disponibilites for intervenant ' . $id);
+                
+                return response()->json([
+                    'status' => 'success',
+                    'data' => $disponibilites
+                ]);
+                
+            } catch (\Exception $e) {
+                Log::error('Error fetching disponibilites: ' . $e->getMessage());
+                Log::error('Stack trace: ' . $e->getTraceAsString());
+                
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Erreur lors de la récupération des disponibilités',
+                    'error' => config('app.debug') ? $e->getMessage() : 'Une erreur est survenue'
+                ], 500);
+            }
+        }
 
     /**
      * Get taches that this intervenant can perform
@@ -151,10 +194,12 @@ class IntervenantController extends Controller
 
 
         // Dans IntervenantController.php
-   public function search(Request $request)
+    public function search(Request $request)
 {
     try {
-        $query = Intervenant::with(['utilisateur', 'taches.service', 'interventions']);
+        $query = Intervenant::with(['utilisateur', 'taches.service', 'interventions'])
+                    ->withAvg('evaluations', 'note')
+                    ->withCount('evaluations');
         
         // Filter by city
         if ($request->has('ville') && $request->ville != 'all') {
@@ -203,9 +248,11 @@ class IntervenantController extends Controller
         
         // Transformation simplifiée
         $intervenants->getCollection()->transform(function ($intervenant) {
-            // Pour l'instant, utilisez des valeurs par défaut
-            $intervenant->average_rating = 4.0; // Valeur par défaut
-            $intervenant->review_count = 0;     // À implémenter plus tard
+            $realRating = $intervenant->evaluations_avg_note ? round($intervenant->evaluations_avg_note, 1) : null;
+            $realCount = $intervenant->evaluations_count;
+
+            $intervenant->average_rating = $realRating ?? 4.0;
+            $intervenant->review_count = $realCount ?? 0;
             
             return $intervenant;
         });
@@ -261,6 +308,72 @@ class IntervenantController extends Controller
 
         return response()->json([
             'data' => $servicesData->values() // Re-index array
+        ]);
+    }
+
+    /**
+     * Get evaluations (reviews) for a specific intervenant
+     */
+    public function evaluations($id)
+    {
+        $intervenant = Intervenant::findOrFail($id);
+        
+        // Get interventions with client comments or evaluations
+        $interventions = \App\Models\Intervention::where('intervenant_id', $id)
+            ->where('status', 'terminée')
+            ->whereHas('evaluations', function($q) {
+                $q->where('type_auteur', 'client');
+            })
+            ->with([
+                'client.utilisateur',
+                'tache.service',
+                'evaluations' => function($q) {
+                    $q->where('type_auteur', 'client');
+                },
+                'commentaires' => function($q) {
+                    $q->where('type_auteur', 'client');
+                }
+            ])
+            ->orderBy('date_intervention', 'desc')
+            ->get();
+
+        $reviews = $interventions->map(function($intervention) {
+            $evals = $intervention->evaluations;
+            $avgRating = $evals->count() > 0 ? round($evals->avg('note'), 1) : 0;
+            $comment = $intervention->commentaires->first()->commentaire ?? null;
+            
+            // Skip if no rating (should be covered by whereHas query but safe check)
+            if ($evals->count() === 0) return null;
+
+            return [
+                'id' => $intervention->id, // Use intervention ID as review ID unique reference
+                'rating' => $avgRating,
+                'comment' => $comment,
+                'date' => $intervention->date_intervention->format('Y-m-d'),
+                'client_name' => $intervention->client->utilisateur->prenom . ' ' . substr($intervention->client->utilisateur->nom, 0, 1) . '.',
+                'client_avatar' => $intervention->client->utilisateur->url,
+                'service_name' => $intervention->tache->service->nom_service ?? 'Service',
+                'task_name' => $intervention->tache->nom_tache ?? '',
+            ];
+        })->filter()->values(); // Remove nulls and reindex
+
+        $avgTotal = $reviews->count() > 0 ? round($reviews->avg('rating'), 1) : 0;
+
+        $stats = [
+            'total_reviews' => $reviews->count(),
+            'average_rating' => $avgTotal,
+            'rating_distribution' => [
+                5 => $reviews->where('rating', '>=', 4.5)->count(),
+                4 => $reviews->where('rating', '>=', 3.5)->where('rating', '<', 4.5)->count(),
+                3 => $reviews->where('rating', '>=', 2.5)->where('rating', '<', 3.5)->count(),
+                2 => $reviews->where('rating', '>=', 1.5)->where('rating', '<', 2.5)->count(),
+                1 => $reviews->where('rating', '<', 1.5)->count(),
+            ]
+        ];
+
+        return response()->json([
+            'stats' => $stats,
+            'data' => $reviews
         ]);
     }
 }

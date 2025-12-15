@@ -29,54 +29,8 @@
           <!-- Content -->
           <div v-else>
             <!-- Accueil Tab -->
-            <div v-if="activeTab === 'home'" class="space-y-6">
-              <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-2xl font-bold mb-4" style="color: #2f4f4f">
-                  Bienvenue, {{ currentUser.name }} !
-                </h2>
-                <p class="text-gray-600 mb-6">
-                  Gérez vos demandes de services et suivez leur progression en temps réel.
-                </p>
-
-                <!-- Quick Stats -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div
-                    class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border-2"
-                    style="border-color: #1a5fa3"
-                  >
-                    <p class="text-sm text-gray-600 mb-1">En attente</p>
-                    <p class="text-3xl font-bold" style="color: #1a5fa3">
-                      {{ stats.pending }}
-                    </p>
-                  </div>
-                  <div
-                    class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border-2"
-                    style="border-color: #92b08b"
-                  >
-                    <p class="text-sm text-gray-600 mb-1">Acceptées</p>
-                    <p class="text-3xl font-bold" style="color: #92b08b">
-                      {{ stats.accepted }}
-                    </p>
-                  </div>
-                  <div
-                    class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 border-2 border-purple-300"
-                  >
-                    <p class="text-sm text-gray-600 mb-1">En cours</p>
-                    <p class="text-3xl font-bold text-purple-600">
-                      {{ stats.inProgress }}
-                    </p>
-                  </div>
-                  <div
-                    class="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg p-4 border-2"
-                    style="border-color: #fee347"
-                  >
-                    <p class="text-sm text-gray-600 mb-1">Terminées</p>
-                    <p class="text-3xl font-bold" style="color: #e8793f">
-                      {{ stats.completed }}
-                    </p>
-                  </div>
-                </div>
-              </div>
+            <div v-if="activeTab === 'home'">
+              <PageAcceuil :current-user="currentUser" :stats="stats" />
             </div>
 
             <!-- Rechercher Services Tab -->
@@ -137,6 +91,7 @@ import authService from '@/services/authService';
 import TrouverIntervenantsTab from '@/components/TrouverIntervenantsTab.vue';
 import MyFavoritesTab from '@/components/MyFavoritesTab.vue';
 import ClientProfile from '@/components/ClientProfile.vue';
+import PageAcceuil from '@/components/PageAcceuil.vue';
 
 export default {
   name: 'ClientDashboard',
@@ -151,7 +106,8 @@ export default {
     ClientSidebar,
     TrouverIntervenantsTab,
     MyFavoritesTab,
-    ClientProfile
+    ClientProfile,
+    PageAcceuil
   },
   emits: ['logout'],
   data() {

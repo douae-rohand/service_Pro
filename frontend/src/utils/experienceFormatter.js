@@ -31,17 +31,23 @@ export const formatExperience = (value) => {
   
   if (isNaN(num)) return value; // Return original if not a number
   
-  // If less than 1 year, display in months
-  if (num < 1 && num > 0) {
-    const months = Math.round(num * 12);
+  // Convert decimal to years and months
+  const years = Math.floor(num);
+  const decimalPart = num - years;
+  const months = Math.round(decimalPart * 12);
+  
+  // Case: Only months (e.g. 0.5 -> 6 mois)
+  if (years === 0) {
     return `${months} mois`;
   }
   
-  // If >= 1 year
-  // Number() handles removing trailing zeros automatically e.g. "2.5", "2"
-  // French grammar: >= 2 is plural, < 2 is singular? 
-  // Usage varies for 1.5, but "1.5 ans" is clearer. "1 an" for exactly 1.
-  const unit = (num >= 2 || (num > 1 && num % 1 !== 0)) ? "ans" : "an";
+  // Case: Years and months (e.g. 2.5 -> 2 ans et 6 mois)
+  if (months > 0) {
+    const yearUnit = years >= 2 ? "ans" : "an";
+    return `${years} ${yearUnit} et ${months} mois`;
+  }
   
-  return `${Number(num)} ${unit}`;
+  // Case: Exact years (e.g. 2.0 -> 2 ans)
+  const unit = years >= 2 ? "ans" : "an";
+  return `${years} ${unit}`;
 };

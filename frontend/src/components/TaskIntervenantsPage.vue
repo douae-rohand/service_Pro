@@ -37,7 +37,7 @@
         <!-- Intervenants Grid -->
         <div class="grid md:grid-cols-2 gap-6">
           <div
-            v-for="intervenant in sortedIntervenants"
+            v-for="intervenant in paginatedIntervenants"
             :key="intervenant.id"
             class="bg-white rounded-xl shadow-md hover:shadow-xl transition-all overflow-hidden"
           >
@@ -137,6 +137,41 @@
           </div>
         </div>
 
+
+
+          <!-- Pagination Controls -->
+          <div v-if="totalPages > 1" class="flex justify-center mt-12 gap-2">
+            <button
+              @click="currentPage > 1 && (currentPage--)"
+              :disabled="currentPage === 1"
+              class="px-4 py-2 rounded-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+            >
+              Précédent
+            </button>
+            
+            <button
+              v-for="page in totalPages"
+              :key="page"
+              @click="currentPage = page"
+              class="w-10 h-10 rounded-lg border transition-colors flex items-center justify-center font-medium"
+              :style="{
+                backgroundColor: currentPage === page ? currentService.color : 'transparent',
+                borderColor: currentPage === page ? currentService.color : '#D1D5DB',
+                color: currentPage === page ? 'white' : '#374151'
+              }"
+            >
+              {{ page }}
+            </button>
+            
+            <button
+              @click="currentPage < totalPages && (currentPage++)"
+              :disabled="currentPage === totalPages"
+              class="px-4 py-2 rounded-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+            >
+              Suivant
+            </button>
+          </div>
+
         <!-- No results -->
         <div v-if="intervenantsLoaded && !loading && sortedIntervenants.length === 0" class="text-center py-16">
           <div class="text-6xl mb-4">🔍</div>
@@ -221,6 +256,8 @@ export default {
         1: 'Jardinage',
         2: 'Ménage',
       },
+      currentPage: 1,
+      itemsPerPage: 4,
     };
   },
   mounted() {
@@ -293,6 +330,14 @@ export default {
       if (this.sortBy === 'price-asc') return sorted.sort((a, b) => (a.taskPrice || 0) - (b.taskPrice || 0));
       if (this.sortBy === 'price-desc') return sorted.sort((a, b) => (b.taskPrice || 0) - (a.taskPrice || 0));
       return sorted;
+    },
+    totalPages() {
+      return Math.ceil(this.sortedIntervenants.length / this.itemsPerPage);
+    },
+    paginatedIntervenants() {
+      const start = (this.currentPage - 1) * this.itemsPerPage;
+      const end = start + this.itemsPerPage;
+      return this.sortedIntervenants.slice(start, end);
     }
   },
   methods: {

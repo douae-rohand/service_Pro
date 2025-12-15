@@ -2,22 +2,28 @@
   <div class="min-h-screen bg-gray-50">
     <!-- Content (affiché seulement quand les données sont chargées) -->
     <div v-if="serviceData && currentService">
-      <!-- Top Search Bar -->
-      <div class="bg-white shadow-lg sticky top-0 z-50">
+      <!-- Header -->
+      <div class="bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50 transition-all duration-300">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div class="flex items-center gap-4 mb-6">
             <button
               @click="$emit('back')"
               @mouseenter="hoverBackButton = true"
               @mouseleave="hoverBackButton = false"
-              class="flex items-center gap-2 text-gray-600 hover:text-white transition-all px-4 py-2 rounded-lg"
-              :style="{ backgroundColor: hoverBackButton ? currentService.color : 'transparent' }"
+              class="flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 hover:scale-110 shadow-sm"
+              :style="{ 
+                backgroundColor: hoverBackButton ? currentService.color : 'white',
+                color: hoverBackButton ? 'white' : '#4B5563',
+                border: `1px solid ${hoverBackButton ? currentService.color : '#E5E7EB'}`
+              }"
             >
               <ArrowLeft :size="20" />
             </button>
-            <h1 class="text-4xl font-bold" :style="{ color: currentService.color }">
-              Tous nos {{ currentService.name }}
-            </h1>
+            <div>
+              <h1 class="text-3xl md:text-4xl font-bold tracking-tight" :style="{ color: currentService.color }">
+                Tous nos {{ currentService.name }}
+              </h1>
+            </div>
           </div>
 
         <!-- Search inputs -->
@@ -61,7 +67,7 @@
       <div class="flex flex-col lg:flex-row gap-8">
         <!-- Left Sidebar - Filters -->
         <aside class="lg:w-80 flex-shrink-0">
-          <div class="bg-white rounded-2xl shadow-lg p-6 sticky top-32">
+          <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sticky top-32">
             <!-- Header -->
             <div class="flex items-center justify-between mb-6">
               <h3 class="text-xl font-bold flex items-center gap-2">
@@ -79,7 +85,7 @@
 
             <!-- Ville -->
             <div class="mb-6">
-              <label class="block text-sm font-semibold mb-2">Ville</label>
+              <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Ville</label>
               <select
                 v-model="selectedCity"
                 class="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none cursor-pointer"
@@ -92,8 +98,8 @@
 
             <!-- Type de service -->
             <div class="mb-6">
-              <label class="block text-sm font-semibold mb-3">Type de service</label>
-              <div class="space-y-2 max-h-48 overflow-y-auto">
+              <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Type de service</label>
+              <div class="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
                 <label
                   v-for="type in (currentService.serviceTypes || [])"
                   :key="type"
@@ -114,22 +120,40 @@
 
             <!-- Note minimum -->
             <div class="mb-6">
-              <label class="block text-sm font-semibold mb-3">Note</label>
+              <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Note minimum</label>
               <div class="space-y-2">
                 <label
-                  v-for="rating in ['5+', '4.5+', '4+', '3.5+']"
-                  :key="rating"
+                  v-for="rating in [
+                    { value: 'all', label: 'Toutes les notes', stars: null },
+                    { value: 5, label: '5 étoiles', stars: 5 },
+                    { value: 4, label: '4 étoiles et plus', stars: 4 },
+                    { value: 3, label: '3 étoiles et plus', stars: 3 },
+                    { value: 2, label: '2 étoiles et plus', stars: 2 },
+                    { value: 1, label: '1 étoile et plus', stars: 1 },
+                    { value: 0, label: '0 étoile et plus', stars: 0 }
+                  ]"
+                  :key="rating.value"
                   class="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
                 >
                   <input
                     type="radio"
                     name="rating"
-                    :value="rating"
+                    :value="rating.value"
                     v-model="selectedRating"
                     class="w-4 h-4 cursor-pointer"
                     :style="{ accentColor: currentService.color }"
                   />
-                  <span class="text-sm">{{ rating }}</span>
+                  <span class="text-sm flex items-center gap-1">
+                    {{ rating.label }}
+                    <span v-if="rating.stars !== null" class="flex">
+                      <Star 
+                        v-for="i in 5" 
+                        :key="i" 
+                        :size="12" 
+                        :class="i <= rating.stars ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'"
+                      />
+                    </span>
+                  </span>
                 </label>
               </div>
             </div>
@@ -146,102 +170,147 @@
 
         <!-- Right Content - Results -->
         <main class="flex-1">
-          <!-- Results header -->
+          <!-- Results header with counter and sorting -->
           <div class="flex items-center justify-between mb-6">
-            <p class="text-gray-600">
-              <span class="font-bold text-gray-900">{{ sortedIntervenants.length }}</span>
-              intervenant{{ sortedIntervenants.length > 1 ? 's' : '' }} trouvé{{ sortedIntervenants.length > 1 ? 's' : '' }}
-            </p>
-            <select
-              v-model="sortBy"
-              class="px-4 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none cursor-pointer"
-            >
-              <option value="pertinence">Trier par: Pertinence</option>
-              <option value="rating">Note décroissante</option>
-            </select>
+            <!-- Counter -->
+            <div class="flex items-center gap-2">
+              <span class="inline-flex items-center justify-center bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded-full">
+                {{ sortedIntervenants.length }}
+              </span>
+              <p class="text-gray-500 font-medium text-sm">
+                intervenant{{ sortedIntervenants.length > 1 ? 's' : '' }} disponible{{ sortedIntervenants.length > 1 ? 's' : '' }}
+              </p>
+            </div>
+            
+            <!-- Sorting Dropdown -->
+            <div class="group relative flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300">
+              <span class="text-gray-400 font-medium text-xs uppercase tracking-wide">Trier</span>
+              <select
+                v-model="sortBy"
+                class="bg-transparent border-none font-bold text-gray-700 text-sm focus:ring-0 cursor-pointer outline-none pl-0 pr-6 appearance-none"
+                style="background-image: none;"
+              >
+                <option value="pertinence">Pertinence</option>
+                <option value="rating-desc">Note (Meilleure)</option>
+                <option value="rating-asc">Note (Croissante)</option>
+              </select>
+              <div class="absolute right-3 pointer-events-none text-gray-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+              </div>
+            </div>
           </div>
 
           <!-- Intervenants Grid -->
           <div class="grid md:grid-cols-2 gap-6">
             <div
-              v-for="intervenant in sortedIntervenants"
+              v-for="intervenant in paginatedIntervenants"
               :key="intervenant.id"
-              class="bg-white rounded-xl shadow-md hover:shadow-xl transition-all overflow-hidden"
+              class="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden flex flex-col"
             >
-              <!-- Image with badges -->
-              <div class="relative h-48">
-                <img
-                  :src="intervenant.image"
-                  :alt="intervenant.name"
-                  class="w-full h-full object-cover"
-                />
-                <div
-                  v-if="intervenant.verified"
-                  class="absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-medium text-white"
-                  :style="{ backgroundColor: currentService.color }"
-                >
-                  ✓ Vérifié
-                </div>
-              </div>
+              <div class="p-8 flex-1 flex flex-col">
+                <!-- Top Section: Image & Main Info -->
+                <div class="flex gap-6 mb-6">
+                  <div class="relative">
+                    <div class="w-24 h-24 rounded-2xl overflow-hidden shadow-lg border-2" :style="{ borderColor: currentService.color + '40' }">
+                      <img
+                        :src="intervenant.image"
+                        :alt="intervenant.name"
+                        class="w-full h-full object-cover transform transition-transform duration-500 group-hover:scale-110"
+                        @error="handleImageError"
+                      />
+                    </div>
+                  </div>
 
-              <!-- Content -->
-              <div class="p-6">
-                <div class="mb-3">
-                  <h3 class="text-xl font-bold mb-1">{{ intervenant.name }}</h3>
-                  <p class="text-sm text-gray-600">{{ intervenant.experience }}</p>
-                </div>
-
-                <!-- Specialties (Sous-services) -->
-                <div class="mb-4">
-                  <p class="text-xs text-gray-500 mb-2 font-semibold">Sous-services :</p>
-                  <div class="flex flex-wrap gap-2">
-                    <span
-                      v-for="(specialty, index) in (intervenant.specialties || []).slice(0, 4)"
-                      :key="index"
-                      class="text-xs px-2 py-1 rounded-md"
-                      :style="{
-                        backgroundColor: currentService.color + '20',
-                        color: currentService.color
-                      }"
-                    >
-                      {{ specialty }}
-                    </span>
-                    <span
-                      v-if="intervenant.specialties && intervenant.specialties.length > 4"
-                      class="text-xs px-2 py-1 rounded-md text-gray-500"
-                    >
-                      +{{ intervenant.specialties.length - 4 }} autres
-                    </span>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex justify-between items-start">
+                      <h3 class="text-xl font-bold text-gray-900 truncate pr-2">{{ intervenant.name }}</h3>
+                      <div class="flex flex-col items-end gap-1">
+                        <div class="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-lg border border-yellow-100">
+                           <Star :size="14" class="fill-yellow-400 text-yellow-400" />
+                           <span class="font-bold text-gray-800 text-sm">{{ intervenant.rating }}</span>
+                        </div>
+                        <span class="text-gray-500 text-xs">{{ intervenant.reviewCount }} avis</span>
+                      </div>
+                    </div>
+                    
+                    <p class="text-sm text-gray-500 font-medium mt-1 mb-3">{{ formatExperience(intervenant.experience) }} d'expérience</p>
+                    
+                    <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gray-50 text-gray-600 border border-gray-100">
+                      <MapPin :size="12" />
+                      {{ intervenant.location }}
+                    </div>
                   </div>
                 </div>
 
-                <!-- Icons -->
-                <div class="space-y-2 mb-4">
-                  <div class="flex items-center gap-2 text-gray-700 text-sm">
-                    <MapPin :size="16" :style="{ color: currentService.color }" />
-                    <span>{{ intervenant.location }}</span>
-                  </div>
+                <!-- Specialties -->
+                <div class="mb-6 space-y-3">
+                   <div class="flex flex-wrap gap-2">
+                      <span 
+                        v-for="(specialty, index) in (intervenant.specialties || []).slice(0, 5)"
+                        :key="index"
+                        class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors"
+                        :style="{ 
+                          backgroundColor: (serviceIdToColor[specialty.serviceId] || currentService.color) + '10', 
+                          color: serviceIdToColor[specialty.serviceId] || currentService.color 
+                        }"
+                      >
+                        {{ specialty.name }}
+                      </span>
+                      <span v-if="(intervenant.specialties || []).length > 5" class="px-2 py-1 rounded-md text-xs font-medium bg-gray-50 text-gray-400">
+                        +{{ (intervenant.specialties || []).length - 5 }}
+                      </span>
+                   </div>
                 </div>
+                
+                <div class="h-px bg-gray-100 w-full mb-6"></div>
 
-                <!-- Rating -->
-                <div class="flex items-center mb-4 pb-4 border-b border-gray-200">
-                  <div class="flex items-center gap-2">
-                    <Star :size="16" class="fill-yellow-400 text-yellow-400" />
-                    <span class="font-medium">{{ intervenant.rating }}</span>
-                    <span class="text-gray-500 text-sm">({{ intervenant.reviewCount }} avis)</span>
-                  </div>
+                <!-- Actions -->
+                <div class="mt-auto">
+                  <button
+                    @click="viewProfile(intervenant)"
+                    class="w-full h-12 flex items-center justify-center rounded-xl transition-all duration-300 hover:opacity-90 font-bold text-sm text-white"
+                    :style="{ 
+                      backgroundColor: currentService.color
+                    }"
+                  >
+                    Voir le profil
+                  </button>
                 </div>
-
-                <!-- Button -->
-                <button
-                  @click="viewProfile(intervenant)"
-                  class="w-full py-2.5 rounded-lg text-white transition-all hover:opacity-90"
-                  :style="{ backgroundColor: currentService.color }"
-                >
-                  Voir le profil
-                </button>
               </div>
             </div>
+          </div>
+
+          <!-- Pagination Controls -->
+          <div v-if="totalPages > 1" class="flex justify-center mt-12 gap-2">
+            <button
+              @click="currentPage > 1 && (currentPage--)"
+              :disabled="currentPage === 1"
+              class="px-4 py-2 rounded-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+            >
+              Précédent
+            </button>
+            
+            <button
+              v-for="page in totalPages"
+              :key="page"
+              @click="currentPage = page"
+              class="w-10 h-10 rounded-lg border transition-colors flex items-center justify-center font-medium"
+              :style="{
+                backgroundColor: currentPage === page ? currentService.color : 'transparent',
+                borderColor: currentPage === page ? currentService.color : '#D1D5DB',
+                color: currentPage === page ? 'white' : '#374151'
+              }"
+            >
+              {{ page }}
+            </button>
+            
+            <button
+              @click="currentPage < totalPages && (currentPage++)"
+              :disabled="currentPage === totalPages"
+              class="px-4 py-2 rounded-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+            >
+              Suivant
+            </button>
           </div>
 
           <!-- No results (seulement après le chargement complet des données) -->
@@ -264,9 +333,10 @@
 </template>
 
 <script>
-import { ArrowLeft, Star, MapPin, Search, Filter, SlidersHorizontal } from 'lucide-vue-next';
+import { ArrowLeft, Star, MapPin, Search, Filter, SlidersHorizontal, CheckCircle } from 'lucide-vue-next';
 import intervenantService from '@/services/intervenantService';
 import serviceService from '@/services/serviceService';
+import { formatExperience } from '@/utils/experienceFormatter';
 
 export default {
   name: 'AllIntervenantsPage',
@@ -276,7 +346,8 @@ export default {
     MapPin,
     Search,
     Filter,
-    SlidersHorizontal
+    SlidersHorizontal,
+    CheckCircle
   },
   props: {
     service: {
@@ -291,7 +362,6 @@ export default {
       serviceTypeFilter: 'all',
       selectedCity: 'all',
       selectedServiceTypes: [],
-      priceRange: [10, 30],
       selectedRating: 'all',
       bringsMaterial: false,
       ecoProducts: false,
@@ -315,6 +385,8 @@ export default {
         1: 'Jardiniers',
         2: 'Intervenants Ménage',
       },
+      currentPage: 1,
+      itemsPerPage: 4,
     };
   },
   mounted() {
@@ -351,7 +423,7 @@ export default {
       let serviceName = 'Service';
       let color = '#6B7280';
       
-      if (typeof this.service === 'number') {
+      if (this.service) {
         serviceName = this.serviceIdToName[this.service] || 'Service';
         color = this.serviceIdToColor[this.service] || '#6B7280';
       }
@@ -426,32 +498,35 @@ export default {
           });
         }
         
-        const matchesPrice = intervenant.hourlyRate >= this.priceRange[0] && 
-                            intervenant.hourlyRate <= this.priceRange[1];
-        
         let matchesRating = true;
-        if (this.selectedRating === '5+') matchesRating = intervenant.rating >= 5.0;
-        else if (this.selectedRating === '4.5+') matchesRating = intervenant.rating >= 4.5;
-        else if (this.selectedRating === '4+') matchesRating = intervenant.rating >= 4.0;
-        else if (this.selectedRating === '3.5+') matchesRating = intervenant.rating >= 3.5;
+        if (this.selectedRating !== 'all' && typeof this.selectedRating === 'number') {
+          matchesRating = intervenant.rating >= this.selectedRating;
+        }
         
         const matchesMaterial = !this.bringsMaterial || intervenant.bringsMaterial;
         const matchesEco = !this.ecoProducts || intervenant.ecoFriendly;
         
-        return matchesSearch && matchesCity && matchesServiceTypeFilter && matchesServiceType && matchesPrice && matchesRating && matchesMaterial && matchesEco;
+        return matchesSearch && matchesCity && matchesServiceTypeFilter && matchesServiceType && matchesRating && matchesMaterial && matchesEco;
       });
     },
     sortedIntervenants() {
       const sorted = [...this.filteredIntervenants];
-      if (this.sortBy === 'rating') return sorted.sort((a, b) => b.rating - a.rating);
-      if (this.sortBy === 'price-asc') return sorted.sort((a, b) => a.hourlyRate - b.hourlyRate);
-      if (this.sortBy === 'price-desc') return sorted.sort((a, b) => b.hourlyRate - a.hourlyRate);
+      if (this.sortBy === 'rating-desc' || this.sortBy === 'rating') return sorted.sort((a, b) => b.rating - a.rating);
+      if (this.sortBy === 'rating-asc') return sorted.sort((a, b) => a.rating - b.rating);
       return sorted;
+    },
+    totalPages() {
+      return Math.ceil(this.sortedIntervenants.length / this.itemsPerPage);
+    },
+    paginatedIntervenants() {
+      const start = (this.currentPage - 1) * this.itemsPerPage;
+      const end = start + this.itemsPerPage;
+      return this.sortedIntervenants.slice(start, end);
     }
   },
   methods: {
     async loadServiceInfo() {
-      if (typeof this.service === 'number') {
+      if (this.service) { // Check souple (string ou number)
         try {
           const response = await serviceService.getById(this.service);
           this.serviceData = response.data;
@@ -462,15 +537,11 @@ export default {
       }
     },
     
-    async loadIntervenants(showLoading = true) {
+    async loadIntervenants(showLoading = false) {
       try {
-        if (showLoading) {
-          this.loadingIntervenants = true;
-        }
-        
         const params = { active: 'true' };
         
-        if (typeof this.service === 'number') {
+        if (this.service) { // Check souple
           params.serviceId = this.service;
         }
         
@@ -481,7 +552,10 @@ export default {
           const utilisateur = intervenant.utilisateur || {};
           const taches = intervenant.taches || [];
           
-          const specialties = taches.map(tache => tache.nom_tache || tache.name || '').filter(Boolean);
+          const specialties = taches.map(tache => ({
+            name: tache.nom_tache || tache.name || '',
+            serviceId: tache.service_id
+          })).filter(s => s.name);
           
           let hourlyRate = 25;
           if (taches.length > 0) {
@@ -491,6 +565,15 @@ export default {
             if (rates.length > 0) {
               hourlyRate = Math.round(rates.reduce((a, b) => a + b, 0) / rates.length);
             }
+          }
+          
+          // Trouver l'expérience pour ce service spécifique
+          const userServices = intervenant.services || [];
+          let realExperience = 'Pas';
+          
+          if (this.service) { // Check souple
+            const currentServiceInfo = userServices.find(s => s.id == this.service);
+            realExperience = currentServiceInfo?.pivot?.experience || realExperience;
           }
           
           return {
@@ -504,7 +587,7 @@ export default {
             verified: intervenant.is_active !== false,
             specialties: specialties,
             taches: taches,
-            experience: intervenant.bio || `${Math.floor(Math.random() * 10) + 1} ans d'expérience`,
+            experience: realExperience,
             bringsMaterial: (intervenant.materiels && intervenant.materiels.length > 0) || false,
             ecoFriendly: Math.random() > 0.5,
             // Données complètes pour le profil
@@ -563,11 +646,31 @@ export default {
       this.selectedServiceTypes = [];
       this.serviceTypeFilter = 'all';
       this.citySearch = '';
-      this.priceRange = [10, 30];
       this.selectedRating = 'all';
       this.bringsMaterial = false;
       this.ecoProducts = false;
-    }
+      this.currentPage = 1; // Reset to first page
+    },
+    handleImageError(event) {
+      event.target.src = 'https://via.placeholder.com/150?text=Image+non+disponible';
+    },
+    formatExperience
   }
 };
 </script>
+
+<style scoped>
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+</style>

@@ -17,7 +17,8 @@ class IntervenantController extends Controller
         $query = Intervenant::with([
             'utilisateur:id,nom,prenom,address',
             'taches:id,nom_tache,service_id',
-            'taches.service:id,nom_service'
+            'taches.service:id,nom_service',
+            'services'
         ]);
 
         // Filtrer les intervenants actifs uniquement si demandé
@@ -39,15 +40,31 @@ class IntervenantController extends Controller
             });
         }
 
-        // Sélectionner uniquement les colonnes nécessaires
-        $intervenants = $query->select('intervenant.id', 'intervenant.ville', 'intervenant.bio', 'intervenant.is_active')
-                              ->get();
+        // Optimisation : Eager loading des interventions et leurs évaluations pour éviter le N+1
+        $query->with(['interventions.evaluations' => function ($q) {
+            $q->where('type_auteur', 'client');
+        }]);
 
-        // Calculer la note moyenne et le nombre d'avis pour chaque intervenant
+        // Sélectionner uniquement les colonnes nécessaires
+        // Assurez-vous d'inclure les champs nécessaires pour les relations
+        $intervenants = $query->get();
+
+        // Calculer la note moyenne et le nombre d'avis en mémoire pour éviter les requêtes SQL en boucle
         foreach ($intervenants as $intervenant) {
-            $ratingInfo = $intervenant->getRatingInfo();
-            $intervenant->average_rating = $ratingInfo['average_rating'];
-            $intervenant->review_count = $ratingInfo['review_count'];
+            // Récupérer toutes les notes des évaluations clients de cet intervenant via ses interventions
+            // On utilise flatMap pour récupérer toutes les évaluations de toutes les interventions
+            $evaluations = $intervenant->interventions->flatMap(function ($intervention) {
+                return $intervention->evaluations;
+            });
+            
+            $count = $evaluations->count();
+            $avg = $count > 0 ? $evaluations->avg('note') : 0;
+            
+            $intervenant->average_rating = round($avg, 1);
+            $intervenant->review_count = $count;
+            
+            // Nettoyer la relation pour ne pas renvoyer de données inutiles en JSON
+            unset($intervenant->interventions);
         }
 
         return response()->json($intervenants);
@@ -84,6 +101,7 @@ class IntervenantController extends Controller
                 'utilisateur:id,nom,prenom,address',
                 'taches:id,nom_tache,service_id',
                 'taches.service:id,nom_service',
+                'services',
                 'interventions',
                 'disponibilites'
             ])->find($id);

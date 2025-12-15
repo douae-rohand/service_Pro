@@ -13,15 +13,8 @@
       </div>
     </div>
 
-    <!-- Loading State -->
-    <div v-if="loading" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div class="text-center py-16">
-        <p class="text-gray-600">Chargement du profil...</p>
-      </div>
-    </div>
-
     <!-- Error State -->
-    <div v-else-if="error" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div v-if="error" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div class="text-center py-16">
         <p class="text-red-600 mb-4">{{ error }}</p>
         <button
@@ -34,7 +27,7 @@
     </div>
 
     <!-- Profile Content -->
-    <div v-else class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div v-if="!error" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <!-- Profile Header Card -->
       <div class="bg-white rounded-2xl shadow-sm p-8 mb-6">
         <div class="flex items-start gap-6">
@@ -63,7 +56,7 @@
                 <span>{{ intervenant.location }}</span>
               </div>
               <span>•</span>
-              <span>{{ intervenant.experience }}</span>
+              <span>{{ formatExperience(intervenant.experience) }} d'expérience</span>
             </div>
             
             <!-- Rating -->
@@ -336,6 +329,7 @@ import {
 } from 'lucide-vue-next';
 import ImageWithFallback from './figma/ImageWithFallback.vue';
 import intervenantService from '../services/intervenantService';
+import { formatExperience } from '@/utils/experienceFormatter';
 
 export default {
   name: 'IntervenantProfilePage',
@@ -476,7 +470,7 @@ export default {
     
     // Méthode existante pour charger depuis l'API
     async fetchIntervenantData() {
-      this.loading = true;
+      // this.loading = true; // Désactivé pour affichage immédiat
       try {
         const response = await intervenantService.getById(this.intervenantId);
         const data = response.data;
@@ -488,7 +482,7 @@ export default {
           rating: Number(data.average_rating) || 5.0,
           reviewCount: Number(data.review_count) || 0,
           location: data.ville || data.address || 'Localisation non spécifiée',
-          experience: '8 ans d\'expérience',
+          experience: this.getExperienceForService(data) || 'N/A',
           verified: !!data.is_active,
           expert: true,
           memberSince: data.created_at ? `Membre depuis ${new Date(data.created_at).getFullYear()}` : 'Membre récent',
@@ -570,7 +564,30 @@ export default {
     
     formatTime(dateString) {
       return new Date(dateString).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-    }
+    },
+    getExperienceForService(data) {
+      if (!data || !data.services) return null;
+      // Find service matching current context (jardinage/menage)
+      // This requires the service names to be normalized or checked broadly
+      // For now we check if any service name contains our prop
+      // Or we just take the max experience?
+      // Let's try to match by name or return the first with experience
+      
+      const targetService = this.service ? this.service.toLowerCase() : '';
+      
+      const found = data.services.find(s => 
+        (s.nom_service || s.name || '').toLowerCase().includes(targetService)
+      );
+      
+      if (found && found.pivot && found.pivot.experience) {
+        return found.pivot.experience;
+      }
+      
+      // Fallback: take first non-null experience
+      const anyExp = data.services.find(s => s.pivot && s.pivot.experience);
+      return anyExp ? anyExp.pivot.experience : null;
+    },
+    formatExperience
   }
 };
 </script>

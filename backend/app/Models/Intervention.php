@@ -60,6 +60,9 @@ class Intervention extends Model
     /**
      * Get the photos for this intervention.
      */
+    /**
+     * Get the photos for this intervention.
+     */
     public function photos()
     {
         return $this->hasMany(PhotoIntervention::class, 'intervention_id', 'id');
@@ -112,8 +115,20 @@ class Intervention extends Model
             'intervention_information',
             'intervention_id',
             'information_id'
-        )->withPivot('information')
-         ->withTimestamps();
+        )->withPivot('information', 'created_at', 'updated_at');
+    }
+
+    /**
+     * Get the materiels used in this intervention.
+     */
+    public function materiels()
+    {
+        return $this->belongsToMany(
+            Materiel::class,
+            'intervention_materiel',
+            'intervention_id',
+            'materiel_id'
+        )->withPivot('created_at', 'updated_at');
     }
 
     /**
@@ -129,7 +144,7 @@ class Intervention extends Model
      */
     public function scopeUpcoming(Builder $query): Builder
     {
-        return $query->where('date_intervention', '>=', now())
+        return $query->where('date_intervention', '>=', now()->toDateString())
             ->orderBy('date_intervention', 'asc');
     }
 

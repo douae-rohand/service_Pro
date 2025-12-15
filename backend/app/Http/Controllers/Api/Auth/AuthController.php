@@ -11,6 +11,11 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use Laravel\Socialite\Facades\Socialite;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
+use Carbon\Carbon;
+use App\Mail\ResetPasswordCode;
 
 class AuthController extends Controller
 {
@@ -179,19 +184,69 @@ class AuthController extends Controller
     public function updateProfile(Request $request)
     {
         $user = $request->user();
+        
+        // Debug logging
+        \Log::info('Update profile request received', [
+            'user_id' => $user->id,
+            'request_data' => $request->all(),
+            'has_file' => $request->hasFile('profile_photo'),
+            'files' => $request->allFiles(),
+        ]);
 
+        // Validate all fields including optional file
         $validated = $request->validate([
             'nom' => 'sometimes|string|max:100',
             'prenom' => 'sometimes|string|max:100',
             'telephone' => 'sometimes|string|max:20',
-            'photoPath' => 'sometimes|string',
+            'address' => 'sometimes|string',
+            'url' => 'sometimes|string',
+            'bio' => 'sometimes|string',
+            'profile_photo' => 'sometimes|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
         ]);
 
-        $user->update($validated);
+        \Log::info('Validation passed', ['validated' => $validated]);
+
+        // Handle profile photo upload
+        if ($request->hasFile('profile_photo')) {
+            $file = $request->file('profile_photo');
+            
+            \Log::info('Processing profile photo', [
+                'original_name' => $file->getClientOriginalName(),
+                'size' => $file->getSize(),
+                'mime_type' => $file->getMimeType()
+            ]);
+            
+            // Generate unique filename
+            $filename = time() . '_' . $file->getClientOriginalName();
+            
+            // Store file in public/storage/profiles directory
+            $path = $file->storeAs('profiles', $filename, 'public');
+            
+            // Store just the filename, not the full path
+            $validated['profile_photo'] = 'profiles/' . $filename;
+            
+            \Log::info('Profile photo uploaded', ['path' => $validated['profile_photo']]);
+        }
+
+        // Update intervenant bio if provided
+        if (isset($validated['bio']) && $user->intervenant) {
+            $user->intervenant->update(['bio' => $validated['bio']]);
+            unset($validated['bio']); // Remove from user update
+            \Log::info('Bio updated for intervenant');
+        }
+
+        // Remove bio from validated data since it's handled separately
+        unset($validated['bio']);
+
+        // Update user with validated data
+        if (!empty($validated)) {
+            $user->update($validated);
+            \Log::info('User updated', ['validated_data' => $validated]);
+        }
 
         return response()->json([
             'message' => 'Profil mis à jour avec succès',
-            'user' => $user,
+            'user' => $user->load(['client', 'intervenant', 'admin']),
         ]);
     }
 
@@ -220,5 +275,160 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Mot de passe changé avec succès',
         ]);
+    }
+
+    /**
+     * Redirect to Google
+     */
+   public function redirectToGoogle()
+{
+    return Socialite::driver('google')
+        ->with([
+            'redirect_uri' => config('services.google.redirect'),
+        ])
+        ->redirect();
+}
+
+
+    /**
+     * Handle Google Callback
+     */
+    public function handleGoogleCallback()
+    {
+        try {
+            $googleUser = \Laravel\Socialite\Facades\Socialite::driver('google')->stateless()->user();
+            
+            $user = Utilisateur::where('email', $googleUser->getEmail())->first();
+
+            if (!$user) {
+                // Créer un nouvel utilisateur
+                $user = Utilisateur::create([
+                    'nom' => $googleUser->getName() ?? 'User',
+                    'prenom' => '',
+                    'email' => $googleUser->getEmail(),
+                    'password' => Hash::make(uniqid()), // Mot de passe aléatoire
+                    'google_id' => $googleUser->getId(),
+                    'avatar' => $googleUser->getAvatar(),
+                ]);
+
+                // Créer automatiquement un client pour le nouvel utilisateur
+                Client::create([
+                    'id' => $user->id,
+                    'is_active' => true,
+                    'admin_id' => 1,
+                ]);
+            } else {
+                // Mettre à jour l'utilisateur existant
+                $user->update([
+                    'google_id' => $googleUser->getId(),
+                    'avatar' => $googleUser->getAvatar(),
+                ]);
+            }
+
+            // Générer le token
+            $token = $user->createToken('auth-token')->plainTextToken;
+
+            // Rediriger vers le frontend avec le token
+            return redirect('http://localhost:5173/?token=' . $token);
+
+        } catch (\Exception $e) {
+            return redirect('http://localhost:5173/?error=auth_failed');
+        }
+    }
+
+    /**
+     * Send password reset code
+     */
+    public function forgotPassword(Request $request)
+    {
+        $request->validate(['email' => 'required|email']);
+        
+        $user = Utilisateur::where('email', $request->email)->first();
+        if (!$user) {
+            return response()->json(['message' => 'Aucun utilisateur trouvé avec cet email.'], 404);
+        }
+
+        // Generate 6-digit code
+        $code = str_pad(mt_rand(0, 999999), 6, '0', STR_PAD_LEFT);
+
+        // Delete existing valid reset tokens
+        DB::table('password_reset_tokens')->where('email', $request->email)->delete();
+
+        // Store new code
+        DB::table('password_reset_tokens')->insert([
+            'email' => $request->email,
+            'token' => Hash::make($code),
+            'created_at' => now(),
+        ]);
+
+        // Send email
+        try {
+            \Illuminate\Support\Facades\Mail::to($request->email)->send(new \App\Mail\ResetPasswordCode($code));
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Erreur lors de l\'envoi de l\'email.'], 500);
+        }
+
+        return response()->json(['message' => 'Code de vérification envoyé.']);
+    }
+
+    /**
+     * Verify reset code
+     */
+    public function verifyCode(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'code' => 'required|string|size:6',
+        ]);
+
+        $resetEntry = DB::table('password_reset_tokens')
+            ->where('email', $request->email)
+            ->first();
+
+        // Check if token exists and is valid (e.g., < 15 mins)
+        if (!$resetEntry || !Hash::check($request->code, $resetEntry->token)) {
+            return response()->json(['message' => 'Code invalide.'], 400);
+        }
+
+        if (now()->diffInMinutes($resetEntry->created_at) > 15) {
+            return response()->json(['message' => 'Code expiré.'], 400);
+        }
+
+        return response()->json(['message' => 'Code valide.']);
+    }
+
+    /**
+     * Reset password
+     */
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'code' => 'required|string|size:6',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $resetEntry = DB::table('password_reset_tokens')
+            ->where('email', $request->email)
+            ->first();
+
+        if (!$resetEntry || !Hash::check($request->code, $resetEntry->token)) {
+            return response()->json(['message' => 'Code invalide.'], 400);
+        }
+
+        if (now()->diffInMinutes($resetEntry->created_at) > 15) {
+            return response()->json(['message' => 'Code expiré.'], 400);
+        }
+
+        // Update password
+        $user = Utilisateur::where('email', $request->email)->first();
+        if ($user) {
+            $user->update(['password' => $request->password]);
+        }
+
+        // Delete token
+        DB::table('password_reset_tokens')->where('email', $request->email)->delete();
+
+        return response()->json(['message' => 'Mot de passe réinitialisé avec succès.']);
     }
 }

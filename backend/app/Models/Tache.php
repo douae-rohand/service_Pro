@@ -49,8 +49,7 @@ class Tache extends Model
             'tache_materiel',
             'tache_id',
             'materiel_id'
-        )->withPivot('prix_materiel')
-            ->withTimestamps();
+        )->withPivot('created_at', 'updated_at');
     }
 
     /**
@@ -63,7 +62,6 @@ class Tache extends Model
             'intervenant_tache',
             'tache_id',
             'intervenant_id'
-        )->withPivot('prix_tache')
-            ->withTimestamps();
+        )->withPivot('prix_tache', 'status', 'created_at', 'updated_at');
     }
 }

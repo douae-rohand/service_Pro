@@ -10,6 +10,10 @@ class IntervenantTache extends Pivot
     use HasFactory;
 
     protected $table = 'intervenant_tache';
+
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = 'updated_at';
+
     protected $fillable = [
         'intervenant_id',
         'tache_id',
@@ -17,10 +21,13 @@ class IntervenantTache extends Pivot
         'status',
     ];
 
-    protected $casts = [
-        'prix_tache' => 'decimal:2',
-        'status' => 'boolean',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'prix_tache' => 'decimal:2',
+            'status' => 'boolean',
+        ];
+    }
 
     /**
      * Get the intervenant that owns this record.

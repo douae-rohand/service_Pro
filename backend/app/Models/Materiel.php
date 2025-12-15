@@ -11,13 +11,19 @@ class Materiel extends Model
 
     protected $table = 'materiel';
 
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
-
     protected $fillable = [
-        'nom',
+        'nom_materiel',
         'description',
+        'service_id',
     ];
+
+    /**
+     * Get the service that owns this materiel.
+     */
+    public function service()
+    {
+        return $this->belongsTo(Service::class, 'service_id');
+    }
 
     /**
      * Get the taches that require this materiel.
@@ -26,11 +32,10 @@ class Materiel extends Model
     {
         return $this->belongsToMany(
             Tache::class,
-            'tachemateriel',
-            'materielId',
-            'tacheId'
-        )->withPivot('quantite')
-            ->withTimestamps();
+            'tache_materiel',
+            'materiel_id',
+            'tache_id'
+        )->withTimestamps();
     }
 
     /**
@@ -40,9 +45,9 @@ class Materiel extends Model
     {
         return $this->belongsToMany(
             Intervenant::class,
-            'intervenantmateriel',
-            'materielId',
-            'intervenantId'
+            'intervenant_materiel',
+            'materiel_id',
+            'intervenant_id'
         )->withTimestamps();
     }
 
@@ -53,9 +58,9 @@ class Materiel extends Model
     {
         return $this->belongsToMany(
             Intervention::class,
-            'interventionmateriel',
-            'materielId',
-            'interventionId'
+            'intervention_materiel',
+            'materiel_id',
+            'intervention_id'
         )->withTimestamps();
     }
 }

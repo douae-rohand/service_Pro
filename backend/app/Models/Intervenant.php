@@ -37,6 +37,7 @@ class Intervenant extends Model
     public function interventions()
     {
         return $this->hasMany(Intervention::class, 'intervenant_id', 'id');
+        return $this->hasMany(Intervention::class, 'intervenant_id', 'id');
     }
 
     /**
@@ -51,6 +52,7 @@ class Intervenant extends Model
             'service_id'
         )->withPivot('status', 'experience', 'presentation')
          ->withTimestamps();
+        return $this->hasMany(Disponibilite::class, 'intervenant_id', 'id');
     }
 
     /**
@@ -63,9 +65,37 @@ class Intervenant extends Model
             'intervenant_tache',
             'intervenant_id',
             'tache_id'
-        )->withPivot('prix_tache')
-         ->withTimestamps();
+        )->withPivot('prix_tache', 'status')
+            ->withTimestamps();
     }
+
+    /**
+     * Get the services that this intervenant offers.
+     */
+    public function services()
+    {
+        return $this->belongsToMany(
+            Service::class,
+            'intervenant_service',
+            'intervenant_id',
+            'service_id'
+        )->withPivot('status', 'presentation', 'experience')
+            ->withTimestamps();
+    }
+
+    /**
+     * Get the services that this intervenant offers.
+     
+        *public function services()
+        *{
+            *return $this->belongsToMany(
+                *Service::class,
+                *'intervenant_service',
+                *'intervenant_id',
+                *'service_id'
+            *)->withPivot('prix_tache', 'status', 'created_at', 'updated_at');
+        *}
+    **/
 
     /**
      * Get the materiels owned by this intervenant.
@@ -90,7 +120,7 @@ class Intervenant extends Model
             'favorise',
             'intervenant_id',
             'client_id'
-        )->withTimestamps();
+        )->withPivot('created_at', 'updated_at');
     }
 
     /**
@@ -146,5 +176,38 @@ class Intervenant extends Model
     public function scopeInactive(Builder $query): Builder
     {
         return $query->where('is_active', false);
+    }
+
+    /**
+     * Get the average rating and review count for this intervenant.
+     * Calculate from evaluations where type_auteur is 'client'
+     */
+    public function getRatingInfo()
+    {
+        // Get all interventions for this intervenant
+        // Utiliser directement la colonne intervenant_id pour éviter les problèmes de relation
+        $interventionIds = \App\Models\Intervention::where('intervenant_id', $this->id)
+            ->pluck('id');
+        
+        if ($interventionIds->isEmpty()) {
+            return [
+                'average_rating' => 0,
+                'review_count' => 0
+            ];
+        }
+        
+        // Get all client evaluations for these interventions
+        // Utiliser les noms de colonnes réels de la base de données (snake_case)
+        $evaluations = \App\Models\Evaluation::whereIn('intervention_id', $interventionIds)
+            ->where('type_auteur', 'client')
+            ->get();
+        
+        $reviewCount = $evaluations->count();
+        $averageRating = $reviewCount > 0 ? round($evaluations->avg('note'), 1) : 0;
+        
+        return [
+            'average_rating' => $averageRating,
+            'review_count' => $reviewCount
+        ];
     }
 }

@@ -10,8 +10,9 @@ class Disponibilite extends Model
     use HasFactory;
 
     protected $table = 'disponibilite';
-    protected $primaryKey = 'id';
-    public $timestamps = false;
+
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = 'updated_at';
 
     protected $fillable = [
         'type',
@@ -22,17 +23,24 @@ class Disponibilite extends Model
         'intervenant_id',
     ];
 
-    protected $casts = [
-        'heure_debut' => 'datetime:H:i',
-        'heure_fin' => 'datetime:H:i',
-        'date_specific' => 'date',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'heure_debut' => 'datetime:H:i:s',
+            'heure_fin' => 'datetime:H:i:s',
+            'date_specific' => 'date',
+        ];
+    }
 
     /**
      * Get the intervenant that owns this disponibilite.
      */
     public function intervenant()
     {
-        return $this->belongsTo(Intervenant::class, 'intervenant_id', 'id');
+        return $this->belongsTo(
+            Intervenant::class,
+            'intervenant_id', // ✅ même colonne
+            'id'
+        );
     }
 }

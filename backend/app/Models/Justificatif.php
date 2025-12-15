@@ -22,6 +22,11 @@ class Justificatif extends Model
      */
     public function intervenant()
     {
-        return $this->belongsTo(Intervenant::class, 'intervenant_id', 'id');
+        return $this->belongsToMany(
+            Service::class,
+            'service_justificatif',
+            'justificatif_id',
+            'service_id'
+        )->withPivot('created_at', 'updated_at');
     }
 }

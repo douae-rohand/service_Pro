@@ -47,6 +47,27 @@ class Client extends Model
     }
 
     /**
+     * Get the interventions for this client.
+     */
+    public function interventions()
+    {
+        return $this->hasMany(Intervention::class, 'clientId', 'id');
+    }
+
+    /**
+     * Get the intervenants favorited by this client.
+     */
+    public function intervenantsFavoris()
+    {
+        return $this->belongsToMany(
+            Intervenant::class,
+            'favorise',
+            'client_id',
+            'intervenant_id'
+        )->withPivot('created_at', 'updated_at');
+    }
+
+    /**
      * Scope a query to only include active clients.
      */
     public function scopeActive(Builder $query): Builder

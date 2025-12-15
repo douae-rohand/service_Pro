@@ -215,6 +215,41 @@
                 />
               </div>
 
+              <!-- Adresse / Ville uniquement pour Intervenant -->
+              <template v-if="userType === 'intervenant'">
+                <div class="grid md:grid-cols-2 gap-3">
+                  <div class="relative">
+                    <label class="block text-xs font-medium mb-1.5 text-gray-700">
+                      Adresse <span class="text-red-500">*</span>
+                    </label>
+                    <input
+                      v-model="formData.adresse"
+                      type="text"
+                      required
+                      class="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-xl focus:outline-none transition-all bg-white shadow-sm"
+                      @focus="handleInputFocus($event)"
+                      @blur="handleInputBlur($event)"
+                      placeholder="Adresse"
+                    />
+                  </div>
+
+                  <div class="relative">
+                    <label class="block text-xs font-medium mb-1.5 text-gray-700">
+                      Ville <span class="text-red-500">*</span>
+                    </label>
+                    <input
+                      v-model="formData.ville"
+                      type="text"
+                      required
+                      class="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-xl focus:outline-none transition-all bg-white shadow-sm"
+                      @focus="handleInputFocus($event)"
+                      @blur="handleInputBlur($event)"
+                      placeholder="Ville"
+                    />
+                  </div>
+                </div>
+              </template>
+
               <div class="grid md:grid-cols-2 gap-3">
                 <div class="relative">
                   <label class="block text-xs font-medium mb-1.5 text-gray-700">
@@ -245,122 +280,6 @@
                   />
                 </div>
               </div>
-
-              <!-- Intervenant Specific Fields -->
-              <template v-if="userType === 'intervenant'">
-                <div 
-                  class="border-t-2 pt-3 mt-3 rounded-lg p-3" 
-                  style="border-color: #F3E293; background: linear-gradient(135deg, #F9FAFB 0%, #F3F9F1 100%)"
-                >
-                  <h3 class="mb-3 flex items-center gap-2 font-bold text-sm" style="color: #92B08B">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                      />
-                    </svg>
-                    Informations Pro
-                  </h3>
-
-                  <div class="space-y-3">
-                    <div class="relative">
-                      <label class="block text-xs font-medium mb-1.5 text-gray-700">
-                        Adresse <span class="text-red-500">*</span>
-                      </label>
-                      <input
-                        v-model="formData.adresse"
-                        type="text"
-                        required
-                        class="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-xl focus:outline-none transition-all bg-white shadow-sm"
-                        @focus="handleInputFocus($event)"
-                        @blur="handleInputBlur($event)"
-                        placeholder="Adresse"
-                      />
-                    </div>
-
-                    <div class="grid md:grid-cols-2 gap-3">
-                      <div class="relative">
-                        <label class="block text-xs font-medium mb-1.5 text-gray-700">
-                          Ville <span class="text-red-500">*</span>
-                        </label>
-                        <input
-                          v-model="formData.ville"
-                          type="text"
-                          required
-                          class="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-xl focus:outline-none transition-all bg-white shadow-sm"
-                          @focus="handleInputFocus($event)"
-                          @blur="handleInputBlur($event)"
-                          placeholder="Ville"
-                        />
-                      </div>
-                      <div class="relative">
-                        <label class="block text-xs font-medium mb-1.5 text-gray-700">
-                          Code postal <span class="text-red-500">*</span>
-                        </label>
-                        <input
-                          v-model="formData.codePostal"
-                          type="text"
-                          required
-                          class="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-xl focus:outline-none transition-all bg-white shadow-sm"
-                          @focus="handleInputFocus($event)"
-                          @blur="handleInputBlur($event)"
-                          placeholder="Code"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label class="block text-xs font-medium mb-1.5 text-gray-700">
-                        Service <span class="text-red-500">*</span>
-                      </label>
-                      <select
-                        v-model="formData.service"
-                        required
-                        class="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-xl focus:outline-none transition-all bg-white shadow-sm"
-                        @focus="handleInputFocus($event)"
-                        @blur="handleInputBlur($event)"
-                      >
-                        <option value="">Sélectionner</option>
-                        <option value="jardinage">Jardinage</option>
-                        <option value="menage">Ménage</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label class="block text-xs font-medium mb-1.5 text-gray-700">
-                        Expérience (ans) <span class="text-red-500">*</span>
-                      </label>
-                      <input
-                        v-model.number="formData.experience"
-                        type="number"
-                        required
-                        min="0"
-                        class="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-xl focus:outline-none transition-all bg-white shadow-sm"
-                        @focus="handleInputFocus($event)"
-                        @blur="handleInputBlur($event)"
-                        placeholder="Ex: 5"
-                      />
-                    </div>
-
-                    <div>
-                      <label class="block text-xs font-medium mb-1.5 text-gray-700">
-                        Compétences <span class="text-red-500">*</span>
-                      </label>
-                      <textarea
-                        v-model="formData.description"
-                        required
-                        rows="3"
-                        class="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-xl focus:outline-none transition-all bg-white shadow-sm resize-none"
-                        @focus="handleInputFocus($event)"
-                        @blur="handleInputBlur($event)"
-                        placeholder="Décrivez vos compétences..."
-                      ></textarea>
-                    </div>
-                  </div>
-                </div>
-              </template>
 
               <!-- Terms and Submit -->
               <div class="border-t-2 pt-3 mt-3" style="border-color: #F3E293">
@@ -417,6 +336,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import authService from '@/services/authService'
+import { useRouter } from 'vue-router'
 
 const props = defineProps({
   isOpen: Boolean,
@@ -425,6 +345,7 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 
 const userType = ref('client')
+const router = useRouter()
 
 const formData = ref({
   nom: '',
@@ -435,10 +356,6 @@ const formData = ref({
   confirmPassword: '',
   adresse: '',
   ville: '',
-  codePostal: '',
-  service: '',
-  experience: '',
-  description: '',
   acceptTerms: false,
 })
 
@@ -473,23 +390,28 @@ const handleSubmit = async () => {
       confirmPassword: formData.value.confirmPassword,
       type: userType.value,
     }
-
+    // Ajouter adresse/ville seulement pour intervenant
     if (userType.value === 'intervenant') {
       registrationData.adresse = cleanValue(formData.value.adresse)
       registrationData.ville = cleanValue(formData.value.ville)
-      registrationData.codePostal = cleanValue(formData.value.codePostal)
-      registrationData.service = cleanValue(formData.value.service)
-      registrationData.experience = cleanValue(formData.value.experience)
-      registrationData.description = cleanValue(formData.value.description)
     }
 
     const response = await authService.register(registrationData)
     
     if (response.data.token) {
       authService.setAuthToken(response.data.token)
-      alert(`Inscription ${userType.value} réussie !`)
-      handleClose()
-      window.location.reload()
+      // alert(`Inscription ${userType.value} réussie !`)
+      //handleClose()
+      //window.location.reload()
+      // Redirection selon le type
+      emit('signup-success', { email: formData.value.email }) 
+      handleClose()      
+      if (userType.value === 'intervenant') {
+        router.push('/dashboard')
+      } else if (userType.value === 'client') {
+        alert('Connexion réussie !')
+        window.location.reload()
+      } 
     }
   } catch (error) {
     console.error('Erreur d\'inscription:', error)

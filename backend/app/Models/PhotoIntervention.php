@@ -11,10 +11,13 @@ class PhotoIntervention extends Model
 
     protected $table = 'photo_intervention';
 
+    const CREATED_AT = 'createdAt';
+    const UPDATED_AT = 'updatedAt';
+
     protected $fillable = [
         'intervention_id',
-        'photo_path',
-        'phase_prise',
+        'photo_path', // changed from url to match migration
+        'phase_prise', 
         'description',
     ];
 

@@ -14,12 +14,23 @@ class Service extends Model
 
     const CREATED_AT = 'created_at';
     const UPDATED_AT = 'updated_at';
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = 'updated_at';
 
     protected $fillable = [
+        'nom_service',
         'nom_service',
         'description',
         'status',
     ];
+
+    /**
+     * Get the materiels for this service.
+     */
+    public function materiels()
+    {
+        return $this->hasMany(Materiel::class, 'service_id', 'id');
+    }
 
     /**
      * Get the taches for this service.
@@ -39,7 +50,7 @@ class Service extends Model
             'service_information',
             'service_id',
             'information_id'
-        )->withTimestamps();
+        )->withPivot('created_at', 'updated_at');
     }
 
     /**
@@ -52,7 +63,7 @@ class Service extends Model
             'service_justificatif',
             'service_id',
             'justificatif_id'
-        )->withTimestamps();
+        )->withPivot('created_at', 'updated_at');
     }
 
     /**

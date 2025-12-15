@@ -14,9 +14,9 @@ return new class extends Migration
         Schema::create('intervenant_service', function (Blueprint $table) {
             $table->integer('intervenant_id')->index('intervenant_id');
             $table->integer('service_id')->index('service_id');
-            $table->enum('status', ['active', 'desactive','demande','refuse'])->default('demande');
+            $table->enum('status', ['active', 'desactive','demmande','refuse','archive'])->default('demmande');
             $table->text('presentation')->nullable();
-            $table->decimal('experience', 5, 2)->nullable();
+            $table->decimal('experience', 5, 2)->nullable(); // 5 digits total, 2 decimal places
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrentOnUpdate()->useCurrent();
             $table->primary(['intervenant_id', 'service_id']);

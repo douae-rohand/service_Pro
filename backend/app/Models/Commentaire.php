@@ -12,8 +12,8 @@ class Commentaire extends Model
     protected $table = 'commentaire';
     protected $primaryKey = 'id';
 
-    const CREATED_AT = 'created_at';
-    const UPDATED_AT = 'updated_at';
+    // La migration utilise created_at et updated_at par défaut, donc pas besoin de redéfinir les constantes si on suit la convention Laravel
+    // Si la migration a explicitement créé created_at et updated_at, Eloquent les gérera automatiquement.
 
     protected $fillable = [
         'commentaire',

@@ -20,8 +20,8 @@ class DatabaseSeeder extends Seeder
             UtilisateurSeeder::class,
             CritaireSeeder::class,
             InformationSeeder::class,
-            MaterielSeeder::class,
             ServiceSeeder::class,
+            MaterielSeeder::class,
         ]);
 
         // User type tables (depend on utilisateur)
@@ -47,6 +47,7 @@ class DatabaseSeeder extends Seeder
             ServiceJustificatifSeeder::class,
             TacheMaterielSeeder::class,
             FavoriseSeeder::class,
+            //DemoDataSeeder::class,
         ]);
 
         // Intervention and related data

@@ -26,14 +26,13 @@
             <div class="text-center text-white p-6 relative z-10">
               <div class="mb-6 inline-block">
                 <div class="p-5 rounded-3xl bg-white/20 backdrop-blur-lg shadow-xl border border-white/30">
-                  <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="1.5"
-                      d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
-                    />
-                  </svg>
+                  <a 
+            href="#" 
+            @click.prevent="handleLogoClick"
+            class="transition-transform hover:scale-105 duration-300"
+          >
+            <img src="../assets/logo.png" alt="Logo" class="h-16 w-auto" />
+          </a>
                 </div>
               </div>
             </div>
@@ -80,29 +79,18 @@
               <p class="text-sm text-gray-600">Connectez-vous pour continuer</p>
             </div>
 
-            <form @submit.prevent="handleSubmit" class="space-y-4">
+            <!-- Login Form -->
+            <form v-if="view === 'login'" @submit.prevent="handleSubmit" class="space-y-4">
               <!-- Email Field -->
               <div class="relative group">
                 <label class="block text-xs font-medium mb-1.5 flex items-center gap-1.5 text-gray-700">
-                  <div class="p-1 rounded-lg shadow-sm" style="background: linear-gradient(135deg, #E8F5E9 0%, #F3F9F1 100%)">
-                    <svg class="w-3 h-3" style="color: #92B08B" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                      />
-                    </svg>
-                  </div>
-                  Adresse email <span class="text-red-500">*</span>
+                  Email <span class="text-red-500">*</span>
                 </label>
                 <input
                   v-model="formData.email"
                   type="email"
                   required
-                  class="w-full px-4 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none transition-all bg-white shadow-sm"
-                  @focus="handleInputFocus($event)"
-                  @blur="handleInputBlur($event)"
+                  class="w-full px-4 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none transition-all focus:border-[#92B08B]"
                   placeholder="votre.email@exemple.com"
                 />
               </div>
@@ -110,58 +98,26 @@
               <!-- Password Field -->
               <div class="relative group">
                 <label class="block text-xs font-medium mb-1.5 flex items-center gap-1.5 text-gray-700">
-                  <div class="p-1 rounded-lg shadow-sm" style="background: linear-gradient(135deg, #E8F5E9 0%, #F3F9F1 100%)">
-                    <svg class="w-3 h-3" style="color: #92B08B" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                      />
-                    </svg>
-                  </div>
                   Mot de passe <span class="text-red-500">*</span>
                 </label>
                 <input
                   v-model="formData.password"
                   type="password"
                   required
-                  class="w-full px-4 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none transition-all bg-white shadow-sm"
-                  @focus="handleInputFocus($event)"
-                  @blur="handleInputBlur($event)"
+                  class="w-full px-4 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none transition-all focus:border-[#92B08B]"
                   placeholder="••••••••"
                 />
               </div>
 
-              <!-- Remember Me & Forgot Password -->
               <div class="flex items-center justify-between">
                 <label class="flex items-center gap-2 cursor-pointer group">
-                  <div class="relative">
-                    <input
-                      v-model="formData.rememberMe"
-                      type="checkbox"
-                      class="w-4 h-4 rounded-md cursor-pointer appearance-none border-2 border-gray-300 checked:border-transparent transition-all"
-                      style="accent-color: #92B08B"
-                    />
-                    <svg 
-                      v-if="formData.rememberMe"
-                      class="w-4 h-4 absolute top-0 left-0 pointer-events-none"
-                      style="color: #92B08B"
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
-                    >
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                  <span class="text-xs text-gray-600 group-hover:text-gray-900 transition-colors">
-                    Se souvenir
-                  </span>
+                  <input v-model="formData.rememberMe" type="checkbox" class="accent-[#92B08B]" />
+                  <span class="text-xs text-gray-600">Se souvenir</span>
                 </label>
                 <button 
                   type="button" 
-                  class="text-xs font-medium hover:underline transition-all"
-                  style="color: #4682B4"
+                  @click="view = 'forgot-email'"
+                  class="text-xs font-medium text-[#4682B4] hover:underline"
                 >
                   Mot de passe oublié ?
                 </button>
@@ -185,6 +141,24 @@
                 <div class="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity"></div>
               </button>
 
+              <div class="relative flex items-center gap-4 py-2">
+                <div class="flex-grow border-t border-gray-200"></div>
+                <span class="text-xs text-gray-400 font-medium">OU</span>
+                <div class="flex-grow border-t border-gray-200"></div>
+              </div>
+
+              <!-- Google Login Button -->
+              <button
+                type="button"
+                @click="handleGoogleLogin"
+                class="w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-gray-200 rounded-xl hover:bg-gray-50 transition-all group"
+              >
+                <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5 h-5" alt="Google logo" />
+                <span class="text-sm font-medium text-gray-700 group-hover:text-gray-900">
+                  Continuer avec Google
+                </span>
+              </button>
+
               <!-- Signup Link -->
               <div class="text-center pt-2">
                 <p class="text-xs text-gray-600">
@@ -200,6 +174,92 @@
                 </p>
               </div>
             </form>
+
+            <!-- Forgot Password - Step 1: Email -->
+            <form v-else-if="view === 'forgot-email'" @submit.prevent="handleSendCode" class="space-y-4">
+               <div>
+                  <h3 class="text-lg font-bold text-gray-800 mb-2">Réinitialisation</h3>
+                  <p class="text-xs text-gray-600 mb-4">Entrez votre email pour recevoir le code.</p>
+               </div>
+               <div class="relative group">
+                <label class="block text-xs font-medium mb-1.5 text-gray-700">Email</label>
+                <input
+                  v-model="resetData.email"
+                  type="email"
+                  required
+                  class="w-full px-4 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none transition-all focus:border-[#92B08B]"
+                  placeholder="votre.email@exemple.com"
+                />
+              </div>
+              <button
+                type="submit"
+                class="w-full text-white py-3 text-sm rounded-xl transition-all hover:scale-[1.02] shadow-lg"
+                style="background: linear-gradient(135deg, #92B08B 0%, #B8D99C 50%, #F3E293 100%);"
+              >
+                Envoyer le code
+              </button>
+              <button type="button" @click="view = 'login'" class="w-full text-xs text-gray-500 hover:text-gray-800">Retour</button>
+            </form>
+
+            <!-- Forgot Password - Step 2: Code -->
+            <form v-else-if="view === 'forgot-code'" @submit.prevent="handleVerifyCode" class="space-y-4">
+               <div>
+                  <h3 class="text-lg font-bold text-gray-800 mb-2">Vérification</h3>
+                  <p class="text-xs text-gray-600 mb-4">Entrez le code à 6 chiffres envoyé à {{ resetData.email }}.</p>
+               </div>
+               <div class="relative group">
+                <label class="block text-xs font-medium mb-1.5 text-gray-700">Code</label>
+                <input
+                  v-model="resetData.code"
+                  type="text"
+                  required
+                  maxlength="6"
+                  class="w-full px-4 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none transition-all focus:border-[#92B08B] tracking-widest text-center text-lg"
+                  placeholder="000000"
+                />
+              </div>
+              <button
+                type="submit"
+                class="w-full text-white py-3 text-sm rounded-xl transition-all hover:scale-[1.02] shadow-lg"
+                style="background: linear-gradient(135deg, #92B08B 0%, #B8D99C 50%, #F3E293 100%);"
+              >
+                Vérifier
+              </button>
+              <button type="button" @click="view = 'forgot-email'" class="w-full text-xs text-gray-500 hover:text-gray-800">Retour</button>
+            </form>
+
+            <!-- Forgot Password - Step 3: New Password -->
+            <form v-else-if="view === 'forgot-password'" @submit.prevent="handleResetPassword" class="space-y-4">
+               <div>
+                  <h3 class="text-lg font-bold text-gray-800 mb-2">Nouveau mot de passe</h3>
+                  <p class="text-xs text-gray-600 mb-4">Choisissez un nouveau mot de passe sécurisé.</p>
+               </div>
+               <div class="relative group">
+                <label class="block text-xs font-medium mb-1.5 text-gray-700">Nouveau mot de passe</label>
+                <input
+                  v-model="resetData.password"
+                  type="password"
+                  required
+                  class="w-full px-4 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none transition-all focus:border-[#92B08B]"
+                />
+              </div>
+               <div class="relative group">
+                <label class="block text-xs font-medium mb-1.5 text-gray-700">Confirmer le mot de passe</label>
+                <input
+                  v-model="resetData.confirmPassword"
+                  type="password"
+                  required
+                  class="w-full px-4 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none transition-all focus:border-[#92B08B]"
+                />
+              </div>
+              <button
+                type="submit"
+                class="w-full text-white py-3 text-sm rounded-xl transition-all hover:scale-[1.02] shadow-lg"
+                style="background: linear-gradient(135deg, #92B08B 0%, #B8D99C 50%, #F3E293 100%);"
+              >
+                Réinitialiser
+              </button>
+            </form>
           </div>
         </div>
       </div>
@@ -209,6 +269,7 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import authService from '@/services/authService'
 
 const props = defineProps({
@@ -217,6 +278,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'signup-click', 'admin-login'])
+const router = useRouter()
+const view = ref('login') // 'login', 'forgot-email', 'forgot-code', 'forgot-password'
 
 const formData = ref({
   email: '',
@@ -224,10 +287,22 @@ const formData = ref({
   rememberMe: false,
 })
 
+const resetData = ref({
+  email: '',
+  code: '',
+  password: '',
+  confirmPassword: ''
+})
+
 const isLoading = ref(false)
 
 const handleClose = () => {
   emit('close')
+  // Reset view after closing
+  setTimeout(() => {
+     view.value = 'login'
+     resetData.value = { email: '', code: '', password: '', confirmPassword: '' }
+  }, 300)
 }
 
 const handleSignupClick = () => {
@@ -237,6 +312,10 @@ const handleSignupClick = () => {
   } else {
     emit('signup-click')
   }
+}
+
+const handleGoogleLogin = () => {
+  window.location.href = 'http://localhost:8000/api/auth/google/redirect'
 }
 
 const handleSubmit = async () => {
@@ -251,16 +330,22 @@ const handleSubmit = async () => {
     
     if (response.data.token) {
       authService.setAuthToken(response.data.token)
+      
+      // Récupérer les données utilisateur
       const user = response.data.user
       
-      // Vérifier si c'est un admin
-      if (user.admin) {
-        emit('admin-login', user)
-        handleClose()
+      handleClose()
+      
+      // Redirection selon le type
+      if (user.intervenant) {
+        router.push('/dashboard')
+      } else if (user.client) {
+        alert('Connexion réussie !')
+        window.location.reload()
+      } else if (user.admin) {
+        alert('Connexion admin réussie !')
       } else {
         alert('Connexion réussie !')
-        handleClose()
-        window.location.reload()
       }
     }
   } catch (error) {
@@ -272,16 +357,42 @@ const handleSubmit = async () => {
   }
 }
 
-const handleInputFocus = (e) => {
-  e.currentTarget.style.borderColor = '#92B08B'
-  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(146, 176, 139, 0.15)'
-  e.currentTarget.style.transform = 'translateY(-1px)'
+// Forgot Password Flow
+const handleSendCode = async () => {
+  try {
+    await authService.forgotPassword(resetData.value.email)
+    view.value = 'forgot-code'
+  } catch (error) {
+    alert(error.response?.data?.message || 'Erreur lors de l\'envoi du code.')
+  }
 }
 
-const handleInputBlur = (e) => {
-  e.currentTarget.style.borderColor = '#E5E7EB'
-  e.currentTarget.style.boxShadow = 'none'
-  e.currentTarget.style.transform = 'translateY(0)'
+const handleVerifyCode = async () => {
+  try {
+    await authService.verifyCode(resetData.value.email, resetData.value.code)
+    view.value = 'forgot-password'
+  } catch (error) {
+    alert(error.response?.data?.message || 'Code invalide.')
+  }
+}
+
+const handleResetPassword = async () => {
+  if (resetData.value.password !== resetData.value.confirmPassword) {
+    alert('Les mots de passe ne correspondent pas.')
+    return
+  }
+  try {
+    await authService.resetPassword({
+      email: resetData.value.email,
+      code: resetData.value.code,
+      password: resetData.value.password,
+      password_confirmation: resetData.value.confirmPassword
+    })
+    alert('Mot de passe réinitialisé avec succès ! Vous pouvez maintenant vous connecter.')
+    view.value = 'login'
+  } catch (error) {
+    alert(error.response?.data?.message || 'Erreur lors de la réinitialisation.')
+  }
 }
 </script>
 

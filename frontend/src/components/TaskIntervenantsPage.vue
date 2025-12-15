@@ -3,46 +3,59 @@
     <!-- Content (affiché immédiatement) -->
     <div v-if="!error">
       <!-- Header -->
-      <div class="bg-white shadow-lg sticky top-0 z-50">
+      <div class="bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50 transition-all duration-300">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div class="flex items-center gap-4">
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div class="flex items-center gap-5">
               <button
                 @click="$emit('back')"
                 @mouseenter="hoverBackButton = true"
                 @mouseleave="hoverBackButton = false"
-                class="flex items-center gap-2 text-gray-600 hover:text-white transition-all px-4 py-2 rounded-lg"
-                :style="{ backgroundColor: hoverBackButton ? currentService.color : 'transparent' }"
+                class="flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 hover:scale-110 shadow-sm"
+                :style="{ 
+                  backgroundColor: hoverBackButton ? currentService.color : 'white',
+                  color: hoverBackButton ? 'white' : '#4B5563',
+                  border: `1px solid ${hoverBackButton ? currentService.color : '#E5E7EB'}`
+                }"
               >
                 <ArrowLeft :size="20" />
               </button>
               <div v-if="taskData">
-                <h1 class="text-4xl font-bold" :style="{ color: currentService.color }">
+                <h1 class="text-3xl md:text-4xl font-bold tracking-tight" :style="{ color: currentService.color }">
                   {{ taskData.nom_tache }}
                 </h1>
-                <p class="text-gray-600 mt-2">
-                  {{ sortedIntervenants.length }} intervenant{{ sortedIntervenants.length > 1 ? 's' : '' }} disponible{{ sortedIntervenants.length > 1 ? 's' : '' }} pour cette tâche
-                </p>
+                <div class="flex items-center gap-2 mt-2">
+                  <span class="inline-flex items-center justify-center bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded-full">
+                    {{ sortedIntervenants.length }}
+                  </span>
+                  <p class="text-gray-500 font-medium">
+                    intervenant{{ sortedIntervenants.length > 1 ? 's' : '' }} disponible{{ sortedIntervenants.length > 1 ? 's' : '' }}
+                  </p>
+                </div>
               </div>
-               <!-- Skeleton Loader pour le titre si pas encore chargé -->
+               <!-- Skeleton Loader -->
               <div v-else class="animate-pulse w-full">
-                <div class="h-8 bg-gray-200 rounded w-64 mb-2"></div>
-                <div class="h-4 bg-gray-200 rounded w-48"></div>
+                <div class="h-8 bg-gray-200 rounded-lg w-64 mb-2"></div>
+                <div class="h-4 bg-gray-200 rounded-lg w-48"></div>
               </div>
             </div>
 
             <!-- Sorting Dropdown -->
-            <div class="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-lg border border-gray-200">
-              <span class="text-gray-600 font-medium">Trier par :</span>
+            <div class="group relative flex items-center gap-3 bg-white px-5 py-2.5 rounded-full border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300">
+              <span class="text-gray-400 font-medium text-sm uppercase tracking-wide">Trier par</span>
               <select
                 v-model="sortBy"
-                class="bg-transparent border-none font-semibold focus:ring-0 cursor-pointer text-gray-800 outline-none"
+                class="bg-transparent border-none font-bold text-gray-700 text-sm focus:ring-0 cursor-pointer outline-none pl-0 pr-8 appearance-none"
+                style="background-image: none;"
               >
                 <option value="pertinence">Pertinence</option>
-                <option value="rating">Note (Décroissant)</option>
+                <option value="rating">Note (Meilleure)</option>
                 <option value="price-asc">Prix (Croissant)</option>
                 <option value="price-desc">Prix (Décroissant)</option>
               </select>
+              <div class="absolute right-4 pointer-events-none text-gray-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+              </div>
             </div>
           </div>
         </div>
@@ -51,97 +64,104 @@
       <!-- Main Content -->
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <!-- Intervenants Grid -->
-        <div class="grid md:grid-cols-2 gap-6">
+        <div class="grid md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-8">
           <div
             v-for="intervenant in paginatedIntervenants"
             :key="intervenant.id"
-            class="bg-white rounded-xl shadow-md hover:shadow-xl transition-all overflow-hidden"
+            class="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden flex flex-col"
           >
-            <!-- Content -->
-            <div class="p-6">
-              <!-- Profile Header -->
-              <div class="flex items-start gap-4 mb-4">
-                <!-- Profile Picture -->
-                <div class="relative flex-shrink-0">
-                  <img
-                    :src="intervenant.image"
-                    :alt="intervenant.name"
-                    class="w-20 h-20 rounded-full object-cover border-2"
-                    :style="{ borderColor: currentService.color }"
-                    @error="handleImageError"
-                  />
-                </div>
-
-                <!-- Name and Info -->
-                <div class="flex-1">
-                  <h3 class="text-xl font-bold mb-1">{{ intervenant.name }}</h3>
-                  <p class="text-sm text-gray-600 mb-2">{{ formatExperience(intervenant.experience) }} d'expérience</p>
-                  
-                  <!-- Rating -->
-                  <div class="flex items-center gap-2 mb-2">
-                    <Star :size="16" class="fill-yellow-400 text-yellow-400" />
-                    <span class="font-semibold">{{ intervenant.rating }}</span>
-                    <span class="text-gray-500 text-sm">({{ intervenant.reviewCount }} avis)</span>
+            <div class="p-8 flex-1 flex flex-col">
+              <!-- Top Section: Image & Main Info -->
+              <div class="flex gap-6 mb-6">
+                <div class="relative">
+                  <div class="w-24 h-24 rounded-2xl overflow-hidden shadow-lg border-2" :style="{ borderColor: currentService.color + '40' }">
+                    <img
+                      :src="intervenant.image"
+                      :alt="intervenant.name"
+                      class="w-full h-full object-cover transform transition-transform duration-500 group-hover:scale-110"
+                      @error="handleImageError"
+                    />
                   </div>
+                  <div class="absolute -bottom-2 -right-2 bg-white rounded-full p-1.5 shadow-md">
+                     <CheckCircle :size="16" class="text-blue-500 fill-blue-50" v-if="intervenant.verified" />
+                  </div>
+                </div>
 
-                  <!-- Description -->
-                  <p class="text-sm text-gray-700 mb-3">{{ intervenant.description || 'Professionnel expérimenté' }}</p>
+                <div class="flex-1 min-w-0">
+                  <div class="flex justify-between items-start">
+                    <h3 class="text-xl font-bold text-gray-900 truncate pr-2">{{ intervenant.name }}</h3>
+                    <div class="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-lg border border-yellow-100">
+                       <Star :size="14" class="fill-yellow-400 text-yellow-400" />
+                       <span class="font-bold text-gray-800 text-sm">{{ intervenant.rating }}</span>
+                    </div>
+                  </div>
+                  
+                  <p class="text-sm text-gray-500 font-medium mt-1 mb-3">{{ formatExperience(intervenant.experience) }} d'expérience</p>
+                  
+                  <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gray-50 text-gray-600 border border-gray-100">
+                    <MapPin :size="12" />
+                    {{ intervenant.location }}
+                  </div>
                 </div>
               </div>
 
-              <!-- Location and Price -->
-              <div class="space-y-2 mb-4">
-                <div class="flex items-center gap-2 text-gray-700 text-sm">
-                  <MapPin :size="16" :style="{ color: currentService.color }" />
-                  <span>{{ intervenant.location }}</span>
-                </div>
-                <div class="flex items-center gap-2 text-gray-700 text-sm">
-                  <Clock :size="16" :style="{ color: currentService.color }" />
-                  <span v-if="intervenant.taskPrice">{{ intervenant.taskPrice }} DH/h</span>
-                  <span v-else class="text-sm font-medium">Sur devis</span>
-                </div>
-              </div>
+              <!-- Badges & Availability -->
+              <div class="mb-6 space-y-3">
+                 <div class="flex flex-wrap gap-2">
+                    <span 
+                      v-for="(specialty, index) in (intervenant.otherSpecialties || []).slice(0, 3)"
+                      :key="index"
+                      class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors"
+                      :style="{ 
+                        backgroundColor: currentService.color + '10', 
+                        color: currentService.color 
+                      }"
+                    >
+                      {{ specialty }}
+                    </span>
+                    <span v-if="(intervenant.otherSpecialties || []).length > 3" class="px-2 py-1 rounded-md text-xs font-medium bg-gray-50 text-gray-400">
+                      +{{ (intervenant.otherSpecialties || []).length - 3 }}
+                    </span>
+                 </div>
 
-              <!-- Other Specialties -->
-              <div class="mb-4">
-                <p class="text-xs text-gray-500 mb-2 font-semibold">Autres spécialités :</p>
-                <div class="flex flex-wrap gap-2">
-                  <span
-                    v-for="(specialty, index) in (intervenant.otherSpecialties || []).slice(0, 2)"
-                    :key="index"
-                    class="text-xs px-3 py-1 rounded-full"
-                    :style="{
-                      backgroundColor: currentService.color + '20',
+
+              </div>
+              
+              <div class="h-px bg-gray-100 w-full mb-6"></div>
+
+              <!-- Price & Actions -->
+              <div class="flex items-end justify-between gap-4 mt-auto">
+                <div>
+                   <p class="text-xs text-gray-400 uppercase font-semibold tracking-wider mb-1">Tarif horaire</p>
+                   <div class="flex items-baseline gap-1">
+                      <span class="text-2xl font-bold text-gray-900" v-if="intervenant.taskPrice">{{ intervenant.taskPrice }}</span>
+                      <span class="text-2xl font-bold text-gray-900" v-else>--</span>
+                      <span class="text-sm text-gray-500 font-medium" v-if="intervenant.taskPrice">DH/h</span>
+                      <span class="text-sm text-gray-500 font-medium" v-else>Sur devis</span>
+                   </div>
+                </div>
+
+                <div class="flex gap-2 w-1/2">
+                   <button
+                    @click="viewProfile(intervenant)"
+                    class="flex-1 h-12 flex items-center justify-center rounded-xl border-2 transition-all duration-300 hover:bg-gray-50 font-bold text-sm"
+                    :style="{ 
+                      borderColor: currentService.color + '40',
                       color: currentService.color
                     }"
                   >
-                    {{ specialty }}
-                  </span>
+                    Profil
+                  </button>
+                  <button
+                    @click="handleReserve(intervenant)"
+                    class="flex-1 h-12 flex items-center justify-center rounded-xl text-white transition-all duration-300 shadow-lg shadow-gray-200 hover:shadow-xl hover:-translate-y-0.5 font-bold text-sm gap-2"
+                    :style="{ backgroundColor: currentService.color }"
+                  >
+                    Réserver
+                  </button>
                 </div>
               </div>
 
-              <!-- Action Buttons -->
-              <div class="flex gap-3 mt-6">
-                <button
-                  @click="viewProfile(intervenant)"
-                  class="flex-1 py-2.5 rounded-lg border-2 transition-all hover:opacity-90 font-medium"
-                  :style="{ 
-                    borderColor: currentService.color,
-                    color: currentService.color,
-                    backgroundColor: 'white'
-                  }"
-                >
-                  Voir le profil
-                </button>
-                <button
-                  @click="handleReserve(intervenant)"
-                  class="flex-1 py-2.5 rounded-lg text-white transition-all hover:opacity-90 font-medium flex items-center justify-center gap-2"
-                  :style="{ backgroundColor: currentService.color }"
-                >
-                  <Calendar :size="18" />
-                  Réserver
-                </button>
-              </div>
             </div>
           </div>
         </div>

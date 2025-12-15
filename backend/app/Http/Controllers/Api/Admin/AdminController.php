@@ -20,6 +20,7 @@ use App\Mail\ServiceRequestApproved;
 use App\Mail\ServiceRequestRejected;
 use App\Mail\ReclamationReply;
 use App\Mail\ReclamationConcerned;
+use App\Mail\ReclamationResolved;
 use App\Mail\ServiceDeactivated;
 use App\Mail\ServiceActivated;
 
@@ -2463,6 +2464,8 @@ class AdminController extends Controller
             // - 'resolu' : Réclamation résolue avec succès (statut final)
             // 
             // Note: Seuls les statuts 'en_cours', 'en_attente' et 'resolu' sont disponibles
+            $newStatus = $validated['statut'] ?? $reclamation->statut;
+            
             if (isset($validated['statut'])) {
                 $reclamation->statut = $validated['statut'];
             }
@@ -2470,6 +2473,86 @@ class AdminController extends Controller
                 $reclamation->notes_admin = $validated['notes'];
             }
             $reclamation->save();
+            
+            // Envoyer automatiquement un email si le statut est changé à "resolu"
+            if ($newStatus === 'resolu' && $oldStatus !== 'resolu') {
+                try {
+                    // Récupérer le nom de signale_par pour l'email
+                    $signaleParName = 'N/A';
+                    $concernantName = null;
+                    
+                    // Récupérer le nom de signale_par
+                    if ($reclamation->signale_par_id) {
+                        if ($reclamation->signale_par_type === 'Client') {
+                            $signaleParTemp = Client::with('utilisateur')->find($reclamation->signale_par_id);
+                            if ($signaleParTemp && $signaleParTemp->utilisateur) {
+                                $signaleParName = $signaleParTemp->utilisateur->prenom . ' ' . $signaleParTemp->utilisateur->nom;
+                            }
+                        } elseif ($reclamation->signale_par_type === 'Intervenant') {
+                            $signaleParTemp = Intervenant::with('utilisateur')->find($reclamation->signale_par_id);
+                            if ($signaleParTemp && $signaleParTemp->utilisateur) {
+                                $signaleParName = $signaleParTemp->utilisateur->prenom . ' ' . $signaleParTemp->utilisateur->nom;
+                            }
+                        }
+                    }
+                    
+                    // Récupérer le nom de concernant pour l'affichage dans l'email
+                    if ($reclamation->concernant_id) {
+                        if ($reclamation->concernant_type === 'Client') {
+                            $concernantTemp = Client::with('utilisateur')->find($reclamation->concernant_id);
+                            if ($concernantTemp && $concernantTemp->utilisateur) {
+                                $concernantName = $concernantTemp->utilisateur->prenom . ' ' . $concernantTemp->utilisateur->nom;
+                            }
+                        } elseif ($reclamation->concernant_type === 'Intervenant') {
+                            $concernantTemp = Intervenant::with('utilisateur')->find($reclamation->concernant_id);
+                            if ($concernantTemp && $concernantTemp->utilisateur) {
+                                $concernantName = $concernantTemp->utilisateur->prenom . ' ' . $concernantTemp->utilisateur->nom;
+                            }
+                        }
+                    }
+                    
+                    // Envoyer l'email uniquement à signale_par (la personne qui a signalé la réclamation)
+                    if ($reclamation->signale_par_id) {
+                        if ($reclamation->signale_par_type === 'Client') {
+                            $signalePar = Client::with('utilisateur')->find($reclamation->signale_par_id);
+                            if ($signalePar && $signalePar->utilisateur && $signalePar->utilisateur->email) {
+                                Mail::to($signalePar->utilisateur->email)->send(
+                                    new ReclamationResolved(
+                                        $reclamation,
+                                        $signalePar->utilisateur,
+                                        'Client',
+                                        $reclamation->notes_admin,
+                                        $reclamation->raison,
+                                        $signaleParName,
+                                        $concernantName
+                                    )
+                                );
+                                Log::info("Email de résolution envoyé au signale_par (Client) ID {$reclamation->signale_par_id}");
+                            }
+                        } elseif ($reclamation->signale_par_type === 'Intervenant') {
+                            $signalePar = Intervenant::with('utilisateur')->find($reclamation->signale_par_id);
+                            if ($signalePar && $signalePar->utilisateur && $signalePar->utilisateur->email) {
+                                Mail::to($signalePar->utilisateur->email)->send(
+                                    new ReclamationResolved(
+                                        $reclamation,
+                                        $signalePar->utilisateur,
+                                        'Intervenant',
+                                        $reclamation->notes_admin,
+                                        $reclamation->raison,
+                                        $signaleParName,
+                                        $concernantName
+                                    )
+                                );
+                                Log::info("Email de résolution envoyé au signale_par (Intervenant) ID {$reclamation->signale_par_id}");
+                            }
+                        }
+                    }
+                } catch (\Exception $e) {
+                    Log::error("Erreur lors de l'envoi de l'email de résolution pour la réclamation ID {$reclamation->id}: " . $e->getMessage());
+                    // Ne pas faire échouer la requête si l'email échoue
+                }
+            }
+            
             $message = 'Réclamation marquée avec succès.';
         } elseif ($validated['action'] === 'archive') {
             // Action: Archiver

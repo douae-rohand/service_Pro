@@ -76,6 +76,22 @@ class Utilisateur extends Authenticatable
     }
 
     /**
+     * Get all of the reclamations that are reported by this user.
+     */
+    public function reportedReclamations()
+    {
+        return $this->morphMany(Reclamation::class, 'signale_par');
+    }
+
+    /**
+     * Get all of the reclamations that are concerning this user.
+     */
+    public function concernedReclamations()
+    {
+        return $this->morphMany(Reclamation::class, 'concernant');
+    }
+
+    /**
      * Get the user's full name.
      */
     public function getFullNameAttribute()

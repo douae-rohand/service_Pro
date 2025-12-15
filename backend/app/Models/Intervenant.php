@@ -49,7 +49,8 @@ class Intervenant extends Model
             'intervenant_service',
             'intervenant_id',
             'service_id'
-        )->withTimestamps();
+        )->withPivot('status', 'experience', 'presentation')
+         ->withTimestamps();
     }
 
     /**
@@ -98,6 +99,29 @@ class Intervenant extends Model
     public function admin()
     {
         return $this->belongsTo(Admin::class, 'admin_id', 'id');
+    }
+
+    /**
+     * Get the justificatifs for this intervenant.
+     */
+    public function justificatifs()
+    {
+        return $this->hasMany(Justificatif::class, 'intervenant_id', 'id');
+    }
+
+    /**
+     * Get all photos from interventions performed by this intervenant.
+     */
+    public function photosInterventions()
+    {
+        return $this->hasManyThrough(
+            PhotoIntervention::class,
+            Intervention::class,
+            'intervenant_id', // Foreign key on interventions table
+            'intervention_id', // Foreign key on photo_intervention table
+            'id', // Local key on intervenants table
+            'id' // Local key on interventions table
+        );
     }
 
     /**

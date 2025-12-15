@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('intervenant_materiel', function (Blueprint $table) {
             $table->integer('materiel_id');
             $table->integer('intervenant_id')->index('intervenant_id');
+            $table->decimal('prix_materiel', 10, 2)->nullable();
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrentOnUpdate()->useCurrent();
             $table->primary(['materiel_id', 'intervenant_id']);

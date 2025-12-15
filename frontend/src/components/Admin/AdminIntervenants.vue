@@ -3,126 +3,124 @@
     <!-- Back Button -->
     <button
       @click="$emit('back')"
-      class="flex items-center gap-2 mb-6 text-sm transition-colors hover:underline"
+      class="flex items-center gap-2 mb-4 text-xs transition-colors hover:underline"
       style="color: #5B7C99"
     >
     ← Retour au tableau de bord
     </button>
 
-    <div class="mb-8">
-      <h2 class="text-3xl font-medium mb-6" style="color: #2F4F4F">Gestion des Intervenants</h2>
+    <div class="mb-4">
+      <h2 class="text-xl font-semibold mb-4" style="color: #2F4F4F">Gestion des Intervenants</h2>
       
-      <!-- Search Bar -->
-      <div class="mb-6">
-        <div class="relative">
-          <Search :size="18" class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+      <!-- Search Bar and Filters on same line -->
+      <div class="flex gap-2 flex-wrap items-center">
+        <!-- Search Bar -->
+        <div class="flex-1 min-w-64 relative">
+          <Search :size="16" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           <input
             type="text"
             placeholder="Rechercher par nom, prénom ou email..."
             v-model="searchTerm"
-            class="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-gray-300 text-sm"
+            class="w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-gray-300 text-xs"
             style="background-color: #FAFAFA"
           />
         </div>
-      </div>
 
-      <!-- Filters -->
-      <div class="flex gap-3 flex-wrap">
-        <!-- Service Filters -->
-        <button
-          v-for="filter in serviceFilters"
-          :key="filter.value"
-          @click="filterService = filter.value"
-          class="px-4 py-2 rounded-lg text-sm font-medium transition-all"
-          :class="filterService === filter.value ? 'shadow-sm' : ''"
-          :style="{ 
-            backgroundColor: filterService === filter.value ? filter.activeColor : '#FFFFFF',
-            color: filterService === filter.value ? '#FFFFFF' : '#2F4F4F',
-            border: `1px solid ${filterService === filter.value ? filter.activeColor : '#E5E7EB'}`
-          }"
-        >
-          {{ filter.label }} ({{ filter.count }})
-        </button>
+        <!-- Service Filter Dropdown -->
+        <div class="flex items-center gap-2">
+          <label class="text-xs font-medium text-gray-600 whitespace-nowrap">Service:</label>
+          <select
+            v-model="filterService"
+            @change="currentPage = 1"
+            class="px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+            style="border-color: #3B82F6"
+          >
+            <option value="tous">Tous les services ({{ props.intervenants.length }})</option>
+            <option
+              v-for="service in allServices"
+              :key="service.id"
+              :value="service.nom"
+            >
+              {{ service.nom }} ({{ getServiceCount(service.nom) }})
+            </option>
+          </select>
+        </div>
 
-        <!-- Status Filters -->
-        <button
-          v-for="filter in statusFilters"
-          :key="filter.value"
-          @click="filterStatus = filter.value"
-          class="px-4 py-2 rounded-lg text-sm font-medium transition-all"
-          :class="filterStatus === filter.value ? 'shadow-sm' : ''"
-          :style="{ 
-            backgroundColor: filterStatus === filter.value ? filter.activeColor : '#FFFFFF',
-            color: filterStatus === filter.value ? '#FFFFFF' : '#2F4F4F',
-            border: `1px solid ${filterStatus === filter.value ? filter.activeColor : '#E5E7EB'}`
-          }"
-        >
-          {{ filter.label }} ({{ filter.count }})
-        </button>
+        <!-- Status Filter Dropdown -->
+        <div class="flex items-center gap-2">
+          <label class="text-xs font-medium text-gray-600 whitespace-nowrap">Statut:</label>
+          <select
+            v-model="filterStatus"
+            @change="currentPage = 1"
+            class="px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+            style="border-color: #3B82F6"
+          >
+            <option
+              v-for="filter in statusFilters"
+              :key="filter.value"
+              :value="filter.value"
+            >
+              {{ filter.label }} ({{ filter.count }})
+            </option>
+          </select>
+        </div>
       </div>
     </div>
 
     <!-- Intervenants Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <div 
-        v-for="intervenant in filteredIntervenants" 
+        v-for="intervenant in paginatedIntervenants" 
         :key="intervenant.id"
-        class="bg-white rounded-2xl p-6 border transition-all hover:shadow-lg"
+        class="bg-white rounded-xl p-4 border transition-all hover:shadow-md"
         :style="{ 
           borderColor: getServiceColor(intervenant),
           borderWidth: '2px'
         }"
       >
         <!-- Header -->
-        <div class="flex items-start justify-between mb-5">
-          <div class="flex items-center gap-4">
+        <div class="flex items-start justify-between mb-3">
+          <div class="flex items-center gap-3">
             <!-- Profile Photo Placeholder -->
             <div class="relative">
               <div 
-                class="w-16 h-16 rounded-full flex items-center justify-center text-2xl text-gray-400 border-4"
+                class="w-12 h-12 rounded-full flex items-center justify-center text-xl text-gray-400 border-3"
                 :style="{ 
                   backgroundColor: '#E5E7EB',
-                  borderColor: getServiceColor(intervenant)
+                  borderColor: getServiceColor(intervenant),
+                  borderWidth: '3px'
                 }"
               >
-                <!-- Placeholder for profile image - Replace this div with <img> when adding real photos -->
-                <User :size="32" />
+                <User :size="24" />
               </div>
               <!-- Status Badge -->
               <div 
-                class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-4 border-white flex items-center justify-center"
-                :style="{ backgroundColor: intervenant.statut === 'actif' ? '#4CAF50' : '#94A3B8' }"
+                class="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full border-3 border-white flex items-center justify-center"
+                :style="{ backgroundColor: intervenant.statut === 'actif' ? '#4CAF50' : '#94A3B8', borderWidth: '3px' }"
               >
-                <Check v-if="intervenant.statut === 'actif'" :size="12" color="white" />
+                <Check v-if="intervenant.statut === 'actif'" :size="10" color="white" />
               </div>
             </div>
 
             <!-- Name and Service -->
             <div>
-              <h3 class="text-lg font-medium mb-1" style="color: #2F4F4F">
+              <h3 class="text-base font-semibold mb-1" style="color: #2F4F4F">
                 {{ intervenant.prenom }} {{ intervenant.nom }}
               </h3>
-              <div class="flex items-center gap-2 flex-wrap">
-                <!-- Display all services if available, otherwise just the main service -->
-                <template v-if="intervenant.allServices && intervenant.allServices.length > 0">
-                  <span 
-                    v-for="service in intervenant.allServices"
-                    :key="service"
-                    class="px-2.5 py-0.5 rounded text-xs font-medium text-white"
-                    :style="{ backgroundColor: service === 'Jardinage' ? '#92B08B' : '#5B7C99' }"
-                  >
-                    {{ service }}
-                  </span>
-                </template>
+              <!-- Afficher les services et la note SEULEMENT si l'intervenant a des services -->
+              <div v-if="intervenant.allServices && intervenant.allServices.length > 0" class="flex items-center gap-1.5 flex-wrap">
+                <!-- Display all services -->
                 <span 
-                  v-else
-                  class="px-2.5 py-0.5 rounded text-xs font-medium text-white"
-                  :style="{ backgroundColor: intervenant.service === 'Jardinage' ? '#92B08B' : '#5B7C99' }"
+                  v-for="service in intervenant.allServices"
+                  :key="service"
+                  class="px-2 py-0.5 rounded text-xs font-medium text-white"
+                  :style="{ backgroundColor: service === 'Jardinage' ? '#92B08B' : '#5B7C99' }"
                 >
-                  {{ intervenant.service }}
+                  {{ service }}
                 </span>
-                <div class="flex items-center gap-1 text-sm">
-                  <Star :size="14" fill="#FFC107" stroke="#FFC107" />
+                <!-- Afficher la note seulement si l'intervenant a des services -->
+                <div class="flex items-center gap-1 text-xs">
+                  <Star :size="12" fill="#FFC107" stroke="#FFC107" />
                   <span class="font-medium">{{ intervenant.note }}</span>
                   <span class="text-gray-400">({{ intervenant.nbAvis }})</span>
                 </div>
@@ -132,42 +130,45 @@
 
           <!-- Status Badge Top Right -->
           <span 
-            class="px-3 py-1 rounded-full text-xs font-medium text-white"
-            :style="{ backgroundColor: intervenant.statut === 'actif' ? '#92B08B' : '#5B7C99' }"
+            class="px-2 py-0.5 rounded-full text-xs font-medium text-white"
+            :style="{ 
+              backgroundColor: intervenant.statut === 'actif' ? '#92B08B' : '#5B7C99'
+            }"
           >
-            {{ intervenant.statut }}
+            {{ intervenant.statut === 'actif' ? 'Actif' : 'Suspendu' }}
           </span>
         </div>
 
         <!-- Contact Info -->
-        <div class="space-y-2 mb-5 text-sm text-gray-600">
-          <div class="flex items-center gap-2">
-            <Mail :size="14" />
+        <div class="space-y-1.5 mb-3 text-xs text-gray-600">
+          <div class="flex items-center gap-1.5">
+            <Mail :size="12" />
             {{ intervenant.email }}
           </div>
-          <div class="flex items-center gap-2">
-            <Phone :size="14" />
+          <div class="flex items-center gap-1.5">
+            <Phone :size="12" />
             {{ intervenant.telephone }}
           </div>
         </div>
 
-        <!-- Stats Grid -->
-        <div class="grid grid-cols-3 gap-4 mb-5">
-          <div class="text-center p-4 rounded-xl" style="background-color: #F9FAFB">
-            <p class="text-sm text-gray-500 mb-1">Missions</p>
-            <p class="text-2xl font-semibold" :style="{ color: getServiceColor(intervenant) }">
+        <!-- Stats Grid - Afficher SEULEMENT pour les intervenants avec services -->
+        <!-- Si l'intervenant n'a pas de services, cette section n'est pas affichée -->
+        <div v-if="intervenant.allServices && intervenant.allServices.length > 0" class="grid grid-cols-3 gap-2 mb-3">
+          <div class="text-center p-3 rounded-lg" style="background-color: #F9FAFB">
+            <p class="text-xs text-gray-500 mb-0.5">Missions</p>
+            <p class="text-xl font-semibold" :style="{ color: getServiceColor(intervenant) }">
               {{ intervenant.missions }}
             </p>
           </div>
-          <div class="text-center p-4 rounded-xl" style="background-color: #F9FAFB">
-            <p class="text-sm text-gray-500 mb-1">Tâches</p>
-            <p class="text-2xl font-semibold" style="color: #2F4F4F">
+          <div class="text-center p-3 rounded-lg" style="background-color: #F9FAFB">
+            <p class="text-xs text-gray-500 mb-0.5">Tâches</p>
+            <p class="text-xl font-semibold" style="color: #2F4F4F">
               {{ intervenant.taches.length }}
             </p>
           </div>
-          <div class="text-center p-4 rounded-xl" style="background-color: #F9FAFB">
-            <p class="text-sm text-gray-500 mb-1">Note</p>
-            <p class="text-2xl font-semibold" style="color: #FFC107">
+          <div class="text-center p-3 rounded-lg" style="background-color: #F9FAFB">
+            <p class="text-xs text-gray-500 mb-0.5">Note</p>
+            <p class="text-xl font-semibold" style="color: #FFC107">
               {{ intervenant.note }}
             </p>
           </div>
@@ -175,7 +176,7 @@
 
         <!-- Action Button -->
         <button
-          class="w-full py-3 rounded-lg text-sm font-medium transition-all text-white"
+          class="w-full py-2 rounded-lg text-xs font-medium transition-all text-white"
           :style="{ backgroundColor: getServiceColor(intervenant) }"
           @click="$emit('view-intervenant', intervenant)"
         >
@@ -185,16 +186,93 @@
     </div>
 
     <!-- Empty State -->
-    <div v-if="filteredIntervenants.length === 0" class="text-center py-16">
-      <UserCheck :size="64" class="mx-auto mb-4 text-gray-300" />
-      <p class="text-gray-500 text-lg">Aucun intervenant trouvé</p>
+    <div v-if="filteredIntervenants.length === 0" class="text-center py-8">
+      <UserCheck :size="48" class="mx-auto mb-3 text-gray-300" />
+      <p class="text-gray-500 text-base">Aucun intervenant trouvé</p>
+    </div>
+
+    <!-- Pagination -->
+    <div v-if="filteredIntervenants.length > 0 && totalPages > 1" class="mt-4 flex items-center justify-between flex-wrap gap-3">
+      <!-- Info -->
+      <div class="text-xs text-gray-600">
+        Affichage de {{ startIndex + 1 }} à {{ endIndex }} sur {{ filteredIntervenants.length }} intervenant{{ filteredIntervenants.length > 1 ? 's' : '' }}
+      </div>
+
+      <!-- Contrôles de pagination -->
+      <div class="flex items-center gap-2">
+        <!-- Bouton Précédent -->
+        <button
+          @click="currentPage = Math.max(1, currentPage - 1)"
+          :disabled="currentPage === 1"
+          class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all border"
+          :style="{
+            borderColor: currentPage === 1 ? '#D1D5DB' : '#5B7C99',
+            color: currentPage === 1 ? '#9CA3AF' : '#5B7C99',
+            cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+            opacity: currentPage === 1 ? 0.5 : 1
+          }"
+        >
+          Précédent
+        </button>
+
+        <!-- Numéros de page -->
+        <div class="flex items-center gap-1">
+          <template v-for="page in visiblePages" :key="page">
+            <button
+              v-if="page !== '...'"
+              @click="currentPage = page"
+              class="w-8 h-8 rounded-lg text-xs font-medium transition-all"
+              :style="{
+                backgroundColor: currentPage === page ? '#5B7C99' : 'transparent',
+                color: currentPage === page ? 'white' : '#5B7C99',
+                border: `1px solid ${currentPage === page ? '#5B7C99' : '#D1D5DB'}`
+              }"
+            >
+              {{ page }}
+            </button>
+            <span v-else class="px-1 text-gray-500 text-xs">...</span>
+          </template>
+        </div>
+
+        <!-- Bouton Suivant -->
+        <button
+          @click="currentPage = Math.min(totalPages, currentPage + 1)"
+          :disabled="currentPage === totalPages"
+          class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all border"
+          :style="{
+            borderColor: currentPage === totalPages ? '#D1D5DB' : '#5B7C99',
+            color: currentPage === totalPages ? '#9CA3AF' : '#5B7C99',
+            cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+            opacity: currentPage === totalPages ? 0.5 : 1
+          }"
+        >
+          Suivant
+        </button>
+      </div>
+
+      <!-- Sélecteur d'éléments par page -->
+      <div class="flex items-center gap-2">
+        <span class="text-xs text-gray-600">Par page:</span>
+        <select
+          v-model="itemsPerPage"
+          @change="currentPage = 1"
+          class="px-2 py-1.5 rounded-lg text-xs border"
+          style="border-color: #D1D5DB; color: #2F4F4F"
+        >
+          <option :value="5">5</option>
+          <option :value="10">10</option>
+          <option :value="20">20</option>
+          <option :value="50">50</option>
+        </select>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { ArrowLeft, Search, User, Check, Star, Mail, Phone, UserCheck } from 'lucide-vue-next'
+import adminService from '@/services/adminService'
 
 const props = defineProps({
   intervenants: {
@@ -210,46 +288,25 @@ const emit = defineEmits(['back', 'view-intervenant', 'suspend-intervenant'])
 const searchTerm = ref('')
 const filterService = ref('tous')
 const filterStatus = ref('tous')
+const allServices = ref([])
 
-// Service Filters with counts
-const serviceFilters = computed(() => {
-  const jardinageCount = props.intervenants.filter(i => {
+// Pagination
+const currentPage = ref(1)
+const itemsPerPage = ref(10)
+
+// Compte le nombre d'intervenants pour un service donné
+const getServiceCount = (serviceName) => {
+  if (serviceName === 'tous') return props.intervenants.length
+  return props.intervenants.filter(i => {
     if (i.allServices && Array.isArray(i.allServices)) {
-      return i.allServices.includes('Jardinage')
+      return i.allServices.includes(serviceName)
     }
-    return i.service === 'Jardinage'
+    return i.service === serviceName
   }).length
-  
-  const menageCount = props.intervenants.filter(i => {
-    if (i.allServices && Array.isArray(i.allServices)) {
-      return i.allServices.includes('Ménage')
-    }
-    return i.service === 'Ménage'
-  }).length
-  
-  return [
-    { 
-      value: 'tous', 
-      label: 'Tous services', 
-      count: props.intervenants.length, 
-      activeColor: '#FFFACD' 
-    },
-    { 
-      value: 'Jardinage', 
-      label: 'Jardinage', 
-      count: jardinageCount, 
-      activeColor: '#92B08B' 
-    },
-    { 
-      value: 'Ménage', 
-      label: 'Ménage', 
-      count: menageCount, 
-      activeColor: '#5B7C99' 
-    }
-  ]
-})
+}
 
 // Status Filters with counts
+// Seulement 2 statuts : actif ou suspendu (pas en_attente)
 const statusFilters = computed(() => {
   const actifsCount = props.intervenants.filter(i => i.statut === 'actif').length
   const suspendusCount = props.intervenants.filter(i => i.statut === 'suspendu').length
@@ -284,32 +341,134 @@ const filteredIntervenants = computed(() => {
                          (intervenant.prenom || '').toLowerCase().includes(searchTerm.value.toLowerCase()) ||
                          (intervenant.email || '').toLowerCase().includes(searchTerm.value.toLowerCase())
     
-    // Service filter (handles multiple services)
+    // Service filter
+    // IMPORTANT : Si un filtre service est appliqué, exclure les intervenants sans services
     let matchesService = filterService.value === 'tous'
-    if (!matchesService && intervenant.allServices && Array.isArray(intervenant.allServices)) {
-      matchesService = intervenant.allServices.includes(filterService.value)
-    } else if (!matchesService) {
-      matchesService = intervenant.service === filterService.value
+    if (!matchesService) {
+      // Si un service spécifique est sélectionné, l'intervenant doit avoir ce service
+      if (intervenant.allServices && Array.isArray(intervenant.allServices) && intervenant.allServices.length > 0) {
+        // L'intervenant a des services : vérifier s'il a le service demandé
+        matchesService = intervenant.allServices.includes(filterService.value)
+      } else {
+        // Intervenant sans services (allServices vide ou null) : exclu du filtre par service
+        matchesService = false
+      }
     }
+    // Si "tous" est sélectionné, on inclut tous les intervenants (avec ou sans services)
     
-    // Status filter
+    // Status filter (actif ou suspendu uniquement)
     const matchesStatus = filterStatus.value === 'tous' || intervenant.statut === filterStatus.value
     
     return matchesSearch && matchesService && matchesStatus
   })
 })
 
-// Get service color (use first service from allServices if available, otherwise main service)
-const getServiceColor = (intervenant) => {
-  let serviceToCheck = intervenant.service
+// Pagination computed properties
+const totalPages = computed(() => {
+  return Math.ceil(filteredIntervenants.value.length / itemsPerPage.value)
+})
+
+const startIndex = computed(() => {
+  return (currentPage.value - 1) * itemsPerPage.value
+})
+
+const endIndex = computed(() => {
+  return Math.min(startIndex.value + itemsPerPage.value, filteredIntervenants.value.length)
+})
+
+const paginatedIntervenants = computed(() => {
+  return filteredIntervenants.value.slice(startIndex.value, endIndex.value)
+})
+
+const visiblePages = computed(() => {
+  const pages = []
+  const total = totalPages.value
+  const current = currentPage.value
   
-  // If intervenant has multiple services, use the first one for the main color
-  if (intervenant.allServices && intervenant.allServices.length > 0) {
-    serviceToCheck = intervenant.allServices[0]
+  if (total <= 7) {
+    // Si moins de 7 pages, afficher toutes
+    for (let i = 1; i <= total; i++) {
+      pages.push(i)
+    }
+  } else {
+    // Sinon, afficher intelligemment
+    if (current <= 3) {
+      // Début
+      for (let i = 1; i <= 5; i++) {
+        pages.push(i)
+      }
+      pages.push('...')
+      pages.push(total)
+    } else if (current >= total - 2) {
+      // Fin
+      pages.push(1)
+      pages.push('...')
+      for (let i = total - 4; i <= total; i++) {
+        pages.push(i)
+      }
+    } else {
+      // Milieu
+      pages.push(1)
+      pages.push('...')
+      for (let i = current - 1; i <= current + 1; i++) {
+        pages.push(i)
+      }
+      pages.push('...')
+      pages.push(total)
+    }
   }
   
-  return serviceToCheck === 'Jardinage' ? '#92B08B' : '#5B7C99'
+  return pages
+})
+
+// Réinitialiser la page quand le filtre change
+watch([searchTerm, filterService, filterStatus], () => {
+  currentPage.value = 1
+})
+
+// Load services from API
+const loadServices = async () => {
+  try {
+    const response = await adminService.getServices()
+    allServices.value = response.data || []
+  } catch (error) {
+    console.error('Erreur chargement services:', error)
+    allServices.value = []
+  }
 }
+
+// Get service color (use first service from allServices if available, otherwise main service)
+// Si l'intervenant n'a pas de services, retourne une couleur par défaut
+const getServiceColor = (intervenant) => {
+  // Si l'intervenant a des services, utiliser le premier pour la couleur
+  if (intervenant.allServices && intervenant.allServices.length > 0) {
+    const firstService = intervenant.allServices[0]
+    // Utiliser la couleur du service depuis allServices si disponible
+    const serviceData = allServices.value.find(s => s.nom === firstService)
+    if (serviceData && serviceData.couleur) {
+      return serviceData.couleur
+    }
+    // Fallback aux couleurs hardcodées
+    return firstService === 'Jardinage' ? '#92B08B' : '#5B7C99'
+  }
+  
+  // Si l'intervenant a un service principal (ancien format)
+  if (intervenant.service && intervenant.service !== 'Aucun service') {
+    const serviceData = allServices.value.find(s => s.nom === intervenant.service)
+    if (serviceData && serviceData.couleur) {
+      return serviceData.couleur
+    }
+    return intervenant.service === 'Jardinage' ? '#92B08B' : '#5B7C99'
+  }
+  
+  // Par défaut pour les intervenants sans services : couleur neutre
+  return '#94A3B8'
+}
+
+// Load services on mount
+onMounted(async () => {
+  await loadServices()
+})
 </script>
 
 <style scoped>

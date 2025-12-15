@@ -78,14 +78,44 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('admin')->group(function () {
         // Dashboard Stats
         Route::get('stats', [AdminController::class, 'stats']);
-        
+
         // Clients Management
         Route::get('clients', [AdminController::class, 'getClients']);
         Route::get('clients/{id}', [AdminController::class, 'getClientDetails']);
         Route::post('clients/{id}/toggle-status', [AdminController::class, 'toggleClientStatus']);
-        
+
         // Intervenants Management
         Route::get('intervenants', [AdminController::class, 'getIntervenants']);
+        Route::get('intervenants/{id}', [AdminController::class, 'getIntervenantDetails']);
         Route::post('intervenants/{id}/toggle-status', [AdminController::class, 'toggleIntervenantStatus']);
+        
+        // Justificatifs Download
+        Route::get('justificatifs/{id}/download', [AdminController::class, 'downloadJustificatif']);
+
+        // Demandes Management
+        Route::get('demandes', [AdminController::class, 'getPendingRequests']);
+        Route::post('demandes/{id}/approve', [AdminController::class, 'approveRequest']);
+        Route::post('demandes/{id}/reject', [AdminController::class, 'rejectRequest']);
+
+        // Services Management
+        Route::get('services', [AdminController::class, 'getServices']);
+        Route::post('services', [AdminController::class, 'createService']);
+        Route::post('services/{id}/toggle-status', [AdminController::class, 'toggleServiceStatus']);
+        Route::get('services/{id}/stats', [AdminController::class, 'getServiceStats']);
+        
+        // Taches (Sub-services) Management
+        Route::get('services/{serviceId}/taches', [AdminController::class, 'getServiceTaches']);
+        Route::post('services/{serviceId}/taches', [AdminController::class, 'createTache']);
+        Route::put('taches/{tacheId}', [AdminController::class, 'updateTache']);
+        Route::delete('taches/{tacheId}', [AdminController::class, 'deleteTache']);
+
+        // Reclamations Management
+        Route::get('reclamations', [AdminController::class, 'getReclamations']);
+        Route::post('reclamations/{id}/handle', [AdminController::class, 'handleReclamation']);
+
+        // Historique
+        Route::get('historique', [AdminController::class, 'getHistorique']);
+        Route::get('historique/export/csv', [AdminController::class, 'exportHistoriqueCSV']);
+        Route::get('historique/export/pdf', [AdminController::class, 'exportHistoriquePDF']);
     });
 });

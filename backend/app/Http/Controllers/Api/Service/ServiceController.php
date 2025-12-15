@@ -10,10 +10,18 @@ class ServiceController extends Controller
 {
     /**
      * Display a listing of services
+     * Retourne uniquement les services actifs pour les clients
      */
     public function index()
     {
-        $services = Service::with(['taches', 'informations', 'justificatifs'])->get();
+        $query = Service::with(['taches', 'informations', 'justificatifs']);
+        
+        // Filtrer uniquement les services actifs si la colonne status existe
+        if (\Illuminate\Support\Facades\Schema::hasColumn('service', 'status')) {
+            $query->where('status', 'active');
+        }
+        
+        $services = $query->get();
 
         return response()->json($services);
     }
@@ -38,10 +46,21 @@ class ServiceController extends Controller
 
     /**
      * Display the specified service
+     * Vérifie que le service est actif avant de le retourner
      */
     public function show($id)
     {
         $service = Service::with(['taches', 'informations', 'justificatifs'])->findOrFail($id);
+        
+        // Vérifier si le service est actif (si la colonne existe)
+        if (\Illuminate\Support\Facades\Schema::hasColumn('service', 'status')) {
+            if ($service->status !== 'active') {
+                return response()->json([
+                    'error' => 'Ce service n\'est pas disponible',
+                    'message' => 'Le service demandé est actuellement désactivé'
+                ], 404);
+            }
+        }
 
         return response()->json($service);
     }

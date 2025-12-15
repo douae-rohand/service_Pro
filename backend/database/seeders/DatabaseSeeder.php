@@ -59,5 +59,8 @@ class DatabaseSeeder extends Seeder
             CommentaireSeeder::class,
             FactureSeeder::class,
         ]);
+
+        // Additional test data for admin features
+        $this->call(TestDataSeeder::class);
     }
 }

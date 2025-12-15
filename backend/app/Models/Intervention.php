@@ -112,7 +112,7 @@ class Intervention extends Model
             'intervention_information',
             'intervention_id',
             'information_id'
-        )->withPivot('valeur')
+        )->withPivot('information')
          ->withTimestamps();
     }
 
@@ -138,14 +138,14 @@ class Intervention extends Model
      */
     public function scopeCompleted(Builder $query): Builder
     {
-        return $query->where('status', 'terminée');
+        return $query->where('status', 'terminee');
     }
 
     /**
-     * Scope a query to only include pending interventions.
+     * Scope a query to only include planned interventions.
      */
     public function scopePending(Builder $query): Builder
     {
-        return $query->where('status', 'en_attente');
+        return $query->where('status', 'planifiee');
     }
 }

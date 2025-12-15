@@ -18,6 +18,7 @@ class Service extends Model
     protected $fillable = [
         'nom_service',
         'description',
+        'status',
     ];
 
     /**
@@ -52,5 +53,19 @@ class Service extends Model
             'service_id',
             'justificatif_id'
         )->withTimestamps();
+    }
+
+    /**
+     * Get the intervenants that provide this service.
+     */
+    public function intervenants()
+    {
+        return $this->belongsToMany(
+            Intervenant::class,
+            'intervenant_service',
+            'service_id',
+            'intervenant_id'
+        )->withPivot('status', 'experience', 'presentation')
+         ->withTimestamps();
     }
 }

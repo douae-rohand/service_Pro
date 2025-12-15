@@ -14,7 +14,7 @@ This guide explains how to deploy your Laravel + Vue.js application to an AWS EC
 Open your terminal and SSH into your server (default user is `ec2-user`):
 
 ```bash
-ssh -i "path/to/your-key.pem" ec2-user@your-ec2-public-ip
+ssh -i "ServicePro.pem" ec2-user@your-ec2-public-ip
 ```
 
 ## 3. Install Docker & Docker Compose (Amazon Linux 2023)
@@ -48,7 +48,7 @@ docker compose version
 ```bash
 exit
 # Then ssh again
-ssh -i "key.pem" ec2-user@your-ip
+ssh -i "ServicePro.pem" ec2-user@your-ip
 ```
 
 ## 4. Deploy the Application
@@ -66,7 +66,7 @@ ssh -i "key.pem" ec2-user@your-ip
 From your **local machine**, use `scp` to copy your project:
 
 ```bash
-scp -i "key.pem" -r ./service_Pro ec2-user@your-ip:~/service_Pro
+scp -i "ServicePro.pem" -r ./service_Pro ec2-user@your-ip:~/service_Pro
 ```
 
 ## 5. Environment Configuration

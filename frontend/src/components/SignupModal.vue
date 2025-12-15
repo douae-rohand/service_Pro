@@ -336,6 +336,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import authService from '@/services/authService'
+import { useRouter } from 'vue-router'
 
 const props = defineProps({
   isOpen: Boolean,
@@ -344,6 +345,7 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 
 const userType = ref('client')
+const router = useRouter()
 
 const formData = ref({
   nom: '',
@@ -398,13 +400,18 @@ const handleSubmit = async () => {
     
     if (response.data.token) {
       authService.setAuthToken(response.data.token)
-      alert(`Inscription ${userType.value} réussie !`)
+      // alert(`Inscription ${userType.value} réussie !`)
       //handleClose()
       //window.location.reload()
-      //emit('signup-success', { email: formData.value.email }) 
-      //handleClose()
-       handleClose()
-       emit('open-login')      
+      // Redirection selon le type
+      emit('signup-success', { email: formData.value.email }) 
+      handleClose()      
+      if (userType.value === 'intervenant') {
+        router.push('/dashboard')
+      } else if (userType.value === 'client') {
+        alert('Connexion réussie !')
+        window.location.reload()
+      } 
     }
   } catch (error) {
     console.error('Erreur d\'inscription:', error)

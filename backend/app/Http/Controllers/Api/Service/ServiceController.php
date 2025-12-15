@@ -9,7 +9,8 @@ use Illuminate\Http\Request;
 class ServiceController extends Controller
 {
     /**
-     * Display a listing of services
+     * Display a listing of services with their tasks
+     * Formatted for frontend consumption
      */
     public function index()
     {
@@ -21,7 +22,43 @@ class ServiceController extends Controller
                           ->get();
         });
 
-        return response()->json($services);
+        // Format data for frontend
+        $formattedServices = $services->map(function ($service) {
+            // Get direct materials for this service
+            $directMaterials = $service->materiels->map(function ($materiel) {
+                return [
+                    'id' => $materiel->id,
+                    'name' => $materiel->nom_materiel,
+                    'description' => $materiel->description,
+                ];
+            });
+
+            return [
+                'id' => $service->id,
+                'name' => $service->nom_service,
+                'description' => $service->description,
+                'materials' => $directMaterials, // Direct service materials
+                'tasks' => $service->taches->map(function ($tache) {
+                    return [
+                        'id' => $tache->id,
+                        'name' => $tache->nom_tache,
+                        'description' => $tache->description,
+                        'status' => $tache->status,
+                        'materials' => $tache->materiels->map(function ($materiel) {
+                            return [
+                                'id' => $materiel->id,
+                                'name' => $materiel->nom_materiel,
+                                'description' => $materiel->description,
+                            ];
+                        }),
+                    ];
+                }),
+            ];
+        });
+
+        return response()->json([
+            'services' => $formattedServices,
+        ]);
     }
 
     /**

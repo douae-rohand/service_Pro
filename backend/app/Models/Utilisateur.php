@@ -28,7 +28,8 @@ class Utilisateur extends Authenticatable
         'password',
         'telephone',
         'url',
-        'googlePw',
+        'profile_photo',
+        'google_pw', // Fixed: matches database column name
         'address',
         'google_id',
         'avatar',
@@ -41,7 +42,7 @@ class Utilisateur extends Authenticatable
      */
     protected $hidden = [
         'password',
-        'googlePw',
+        'google_pw', // Fixed: matches database column name
     ];
 
     /**

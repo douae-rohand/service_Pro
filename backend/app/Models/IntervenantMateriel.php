@@ -9,14 +9,15 @@ class IntervenantMateriel extends Pivot
 {
     use HasFactory;
 
-    protected $table = 'intervenantmateriel';
+    protected $table = 'intervenant_materiel';
 
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = 'updated_at';
 
     protected $fillable = [
-        'idIntervenant',
-        'idMateriel',
+        'intervenant_id',
+        'materiel_id',
+        'prix_materiel',
     ];
 
 

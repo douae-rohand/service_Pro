@@ -187,20 +187,69 @@ class AuthController extends Controller
     public function updateProfile(Request $request)
     {
         $user = $request->user();
+        
+        // Debug logging
+        \Log::info('Update profile request received', [
+            'user_id' => $user->id,
+            'request_data' => $request->all(),
+            'has_file' => $request->hasFile('profile_photo'),
+            'files' => $request->allFiles(),
+        ]);
 
+        // Validate all fields including optional file
         $validated = $request->validate([
             'nom' => 'sometimes|string|max:100',
             'prenom' => 'sometimes|string|max:100',
             'telephone' => 'sometimes|string|max:20',
             'address' => 'sometimes|string',
             'url' => 'sometimes|string',
+            'bio' => 'sometimes|string',
+            'profile_photo' => 'sometimes|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
         ]);
 
-        $user->update($validated);
+        \Log::info('Validation passed', ['validated' => $validated]);
+
+        // Handle profile photo upload
+        if ($request->hasFile('profile_photo')) {
+            $file = $request->file('profile_photo');
+            
+            \Log::info('Processing profile photo', [
+                'original_name' => $file->getClientOriginalName(),
+                'size' => $file->getSize(),
+                'mime_type' => $file->getMimeType()
+            ]);
+            
+            // Generate unique filename
+            $filename = time() . '_' . $file->getClientOriginalName();
+            
+            // Store file in public/storage/profiles directory
+            $path = $file->storeAs('profiles', $filename, 'public');
+            
+            // Store just the filename, not the full path
+            $validated['profile_photo'] = 'profiles/' . $filename;
+            
+            \Log::info('Profile photo uploaded', ['path' => $validated['profile_photo']]);
+        }
+
+        // Update intervenant bio if provided
+        if (isset($validated['bio']) && $user->intervenant) {
+            $user->intervenant->update(['bio' => $validated['bio']]);
+            unset($validated['bio']); // Remove from user update
+            \Log::info('Bio updated for intervenant');
+        }
+
+        // Remove bio from validated data since it's handled separately
+        unset($validated['bio']);
+
+        // Update user with validated data
+        if (!empty($validated)) {
+            $user->update($validated);
+            \Log::info('User updated', ['validated_data' => $validated]);
+        }
 
         return response()->json([
             'message' => 'Profil mis à jour avec succès',
-            'user' => $user,
+            'user' => $user->load(['client', 'intervenant', 'admin']),
         ]);
     }
 

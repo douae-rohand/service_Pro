@@ -12,8 +12,8 @@ class Intervention extends Model
 
     protected $table = 'intervention';
 
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = 'updated_at';
 
     protected $fillable = [
         'address',
@@ -28,7 +28,7 @@ class Intervention extends Model
     protected function casts(): array
     {
         return [
-            'dateIntervention' => 'date',
+            'date_intervention' => 'date',
         ];
     }
 
@@ -98,11 +98,10 @@ class Intervention extends Model
     {
         return $this->belongsToMany(
             Information::class,
-            'interventioninformation',
-            'idIntervention',
-            'idInformation'
-        )->withPivot('information')
-            ->withTimestamps();
+            'intervention_information',
+            'intervention_id',
+            'information_id'
+        )->withPivot('information', 'created_at', 'updated_at');
     }
 
     /**
@@ -112,10 +111,10 @@ class Intervention extends Model
     {
         return $this->belongsToMany(
             Materiel::class,
-            'interventionmateriel',
-            'idIntervention',
-            'idMateriel'
-        )->withTimestamps();
+            'intervention_materiel',
+            'intervention_id',
+            'materiel_id'
+        )->withPivot('created_at', 'updated_at');
     }
 
     /**
@@ -131,8 +130,8 @@ class Intervention extends Model
      */
     public function scopeUpcoming(Builder $query): Builder
     {
-        return $query->where('dateIntervention', '>=', now()->toDateString())
-            ->orderBy('dateIntervention', 'asc');
+        return $query->where('date_intervention', '>=', now()->toDateString())
+            ->orderBy('date_intervention', 'asc');
     }
 
     /**

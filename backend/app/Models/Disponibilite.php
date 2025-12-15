@@ -11,8 +11,8 @@ class Disponibilite extends Model
 
     protected $table = 'disponibilite';
 
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = 'updated_at';
 
     protected $fillable = [
         'intervenant_id',
@@ -26,6 +26,8 @@ class Disponibilite extends Model
     protected function casts(): array
     {
         return [
+            'heure_debut' => 'datetime:H:i:s',
+            'heure_fin' => 'datetime:H:i:s',
             'date_specific' => 'date',
         ];
     }

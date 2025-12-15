@@ -1,3 +1,4 @@
+<!-- App.vue - Navigation hybride: Manuel pour home, Router pour dashboard -->
 <template>
   <div class="min-h-screen bg-gray-50">
     <!-- Page d'accueil -->
@@ -14,23 +15,35 @@
       <Footer @navigate-home="handleNavigateHome" />
     </div>
 
-    <!-- Page de détail du service -->
-    <ServiceDetailPage
-      v-else-if="currentPage === 'service-detail'"
-      :service="selectedService"
-      @back="handleBack"
-      @view-all-intervenants="handleViewAllIntervenants"
-      @view-profile="handleViewProfileFromDetail"
-      @task-click="handleTaskClick"
-    />
+      <!-- Page de détail du service -->
+      <ServiceDetailPage
+        v-else-if="currentPage === 'service-detail'"
+        :service="selectedService"
+        @back="handleBack"
+        @view-all-intervenants="handleViewAllIntervenants"
+        @view-profile="handleViewProfileFromDetail"
+        @task-click="handleTaskClick"
+      />
 
-    <!-- Page de tous les intervenants -->
+      <!-- Page de tous les intervenants -->
+      <AllIntervenantsPage
+        v-else-if="currentPage === 'all-intervenants'"
+        :service="selectedService"
+        @back="handleBackFromAllIntervenants"
+        @view-profile="handleViewProfileFromList"
+      />
+    </div>
+
+    <!-- Dashboard Intervenant (géré par le Router) -->
+    <router-view v-else />
+
+    <!-- Page de tous les intervenants
     <AllIntervenantsPage
       v-else-if="currentPage === 'all-intervenants'"
       :service="selectedService"
       @back="handleBackFromAllIntervenants"
-      @view-profile="handleViewProfileFromList"
-    />
+      @view-profile="handleViewProfile"
+    /> -->
 
     <!-- Page des intervenants pour un sous-service spécifique -->
     <TaskIntervenantsPage
@@ -63,8 +76,9 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, computed } from 'vue'
 import authService from '@/services/authService'
+import { useRoute } from 'vue-router'
 import Header from "./components/Header.vue";
 import HeroSection from './components/HeroSection.vue'
 import StatsSection from './components/StatsSection.vue'

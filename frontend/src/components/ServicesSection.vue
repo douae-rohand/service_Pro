@@ -114,16 +114,17 @@ const loadServices = async () => {
     const response = await serviceService.getAll()
     
     // Mapper les données pour inclure image et couleur
-    services.value = response.data.map(service => {
-      const config = getServiceConfig(service.nom_service)
+    services.value = response.data.services.map(service => {
+      const config = getServiceConfig(service.name)
       return {
         id: service.id,
-        name: service.nom_service,
+        name: service.name,
         description: service.description || '',
         image: config.image,
         color: config.color,
       }
     })
+    
   } catch (err) {
     console.error('Erreur lors du chargement des services:', err)
     error.value = 'Impossible de charger les services. Veuillez réessayer.'

@@ -269,6 +269,7 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import authService from '@/services/authService'
 
 const props = defineProps({
@@ -277,6 +278,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'signup-click'])
+const router = useRouter()
 const view = ref('login') // 'login', 'forgot-email', 'forgot-code', 'forgot-password'
 
 const formData = ref({
@@ -323,9 +325,23 @@ const handleSubmit = async () => {
     
     if (response.data.token) {
       authService.setAuthToken(response.data.token)
-      alert('Connexion réussie !')
+      
+      // Récupérer les données utilisateur
+      const user = response.data.user
+      
       handleClose()
-      window.location.reload()
+      
+      // Redirection selon le type
+      if (user.intervenant) {
+        router.push('/dashboard')
+      } else if (user.client) {
+        alert('Connexion réussie !')
+        window.location.reload()
+      } else if (user.admin) {
+        alert('Connexion admin réussie !')
+      } else {
+        alert('Connexion réussie !')
+      }
     }
   } catch (error) {
     console.error('Erreur de connexion:', error)

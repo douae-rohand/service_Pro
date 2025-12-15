@@ -119,19 +119,6 @@ class Intervention extends Model
     }
 
     /**
-     * Get the materiels used in this intervention.
-     */
-    public function materiels()
-    {
-        return $this->belongsToMany(
-            Materiel::class,
-            'intervention_materiel',
-            'intervention_id',
-            'materiel_id'
-        )->withPivot('created_at', 'updated_at');
-    }
-
-    /**
      * Scope a query to filter interventions by status.
      */
     public function scopeByStatus(Builder $query, string $status): Builder

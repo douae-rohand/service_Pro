@@ -440,6 +440,16 @@ class IntervenantController extends Controller
 
     $intervenant = $user->intervenant;
 
+    // Validate request first before using any validated data
+    $validated = $request->validate([
+        'description' => 'sometimes|string',
+        'hourlyRate' => 'sometimes|numeric|min:0',
+        'materials' => 'sometimes|array',
+        'materials.*.name' => 'required|string',
+        'materials.*.price' => 'required|numeric|min:0',
+        'active' => 'sometimes|boolean',
+    ]);
+
     // Check if the intervenant has this tache, if not create the relationship
     $tache = $intervenant->taches()->find($tacheId);
 
@@ -464,15 +474,6 @@ class IntervenantController extends Controller
         // Get the newly attached task
         $tache = $intervenant->taches()->find($tacheId);
     }
-
-    $validated = $request->validate([
-        'description' => 'sometimes|string',
-        'hourlyRate' => 'sometimes|numeric|min:0',
-        'materials' => 'sometimes|array',
-        'materials.*.name' => 'required|string',
-        'materials.*.price' => 'required|numeric|min:0',
-        'active' => 'sometimes|boolean',
-    ]);
 
     // Update pivot data
     $pivotData = [];

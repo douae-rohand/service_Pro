@@ -343,7 +343,8 @@ const handleSubmit = async () => {
         alert('Connexion réussie !')
         window.location.reload()
       } else if (user.admin) {
-        alert('Connexion admin réussie !')
+        emit('admin-login', user)
+        handleClose()
       } else {
         alert('Connexion réussie !')
       }

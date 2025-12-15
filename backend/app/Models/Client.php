@@ -47,14 +47,6 @@ class Client extends Model
     }
 
     /**
-     * Get the interventions for this client.
-     */
-    public function interventions()
-    {
-        return $this->hasMany(Intervention::class, 'clientId', 'id');
-    }
-
-    /**
      * Get the intervenants favorited by this client.
      */
     public function intervenantsFavoris()

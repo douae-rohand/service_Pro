@@ -281,7 +281,7 @@ class TestDataSeeder extends Seeder
             DB::table('intervenant_service')->insert([
                 'intervenant_id' => $intervenant2UserId,
                 'service_id' => $serviceJardinageId,
-                'status' => 'demande',
+                'status' => 'demmande',
                 'experience' => 7,
                 'presentation' => 'Le jardinage est ma passion depuis mon enfance. J\'ai choisi ce service pour partager mon amour des plantes et créer des espaces verts magnifiques qui apportent joie et sérénité aux personnes.',
                 'created_at' => now()->subMonths(2),

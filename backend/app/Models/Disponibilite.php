@@ -14,6 +14,10 @@ class Disponibilite extends Model
     const CREATED_AT = 'created_at';
     const UPDATED_AT = 'updated_at';
 
+    protected $primaryKey = 'id';
+    public $timestamps = false;
+
+
     protected $fillable = [
         'type',
         'heure_debut',

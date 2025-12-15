@@ -100,7 +100,6 @@ import IntervenantProfile from './components/IntervenantProfile.vue' // ✅ CORR
 import LoginModal from './components/LoginModal.vue'
 import SignupModal from './components/SignupModal.vue'
 import AdminDashboard from './components/Admin/AdminDashboard.vue'
-import authService from './services/authService'
 
 
 const route = useRoute()
@@ -115,7 +114,7 @@ const isDashboardRoute = computed(() => {
 // ============================================
 const currentPage = ref("home"); // 'home', 'service-detail', 'all-intervenants', 'task-intervenants', 'intervenant-profile'
 const previousPage = ref("home"); // Pour savoir d'où on vient lors du retour
-
+const currentUser = ref(null)
 // ============================================
 // ÉTAT DES DONNÉES
 // ============================================
@@ -153,6 +152,34 @@ const handleNavigateHome = () => {
   previousPage.value = "home";
   window.scrollTo({ top: 0, behavior: "smooth" });
 };
+
+// Vérifier si l'utilisateur est connecté au chargement
+onMounted(async () => {
+  const token = authService.getToken()
+  if (token) {
+    try {
+      const response = await authService.getCurrentUser()
+      currentUser.value = response.data.user
+      
+      // Si c'est un admin, rediriger vers le dashboard
+      if (currentUser.value.admin) {
+        currentPage.value = 'admin'
+      }
+    } catch (error) {
+      console.error('Erreur lors de la récupération de l\'utilisateur:', error)
+      authService.setAuthToken(null)
+    }
+  }
+  
+  // Vérifier l'URL pour accès direct admin
+  if (window.location.hash === '#admin' || window.location.pathname.includes('admin')) {
+    // Si pas connecté, montrer le modal de login
+    if (!currentUser.value?.admin) {
+      showLoginModal.value = true
+    }
+  }
+})
+
 
 const handleSearch = (query) => {
   console.log("Search query:", query);

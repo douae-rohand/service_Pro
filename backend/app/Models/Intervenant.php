@@ -37,7 +37,6 @@ class Intervenant extends Model
     public function interventions()
     {
         return $this->hasMany(Intervention::class, 'intervenant_id', 'id');
-        return $this->hasMany(Intervention::class, 'intervenant_id', 'id');
     }
 
     /**
@@ -52,7 +51,6 @@ class Intervenant extends Model
             'service_id'
         )->withPivot('status', 'experience', 'presentation')
          ->withTimestamps();
-        return $this->hasMany(Disponibilite::class, 'intervenant_id', 'id');
     }
 
     /**
@@ -66,20 +64,6 @@ class Intervenant extends Model
             'intervenant_id',
             'tache_id'
         )->withPivot('prix_tache', 'status')
-            ->withTimestamps();
-    }
-
-    /**
-     * Get the services that this intervenant offers.
-     */
-    public function services()
-    {
-        return $this->belongsToMany(
-            Service::class,
-            'intervenant_service',
-            'intervenant_id',
-            'service_id'
-        )->withPivot('status', 'presentation', 'experience')
             ->withTimestamps();
     }
 

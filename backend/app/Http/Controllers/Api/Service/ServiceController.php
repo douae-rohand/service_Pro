@@ -22,6 +22,15 @@ class ServiceController extends Controller
                           ->get();
         });
 
+        $query = Service::with(['taches', 'informations', 'justificatifs']);
+        
+        // Filtrer uniquement les services actifs si la colonne status existe
+        if (\Illuminate\Support\Facades\Schema::hasColumn('service', 'status')) {
+            $query->where('status', 'active');
+        }
+        
+        $services = $query->get();
+
         // Format data for frontend
         $formattedServices = $services->map(function ($service) {
             // Get direct materials for this service
@@ -85,13 +94,22 @@ class ServiceController extends Controller
      */
     public function show($id)
     {
+        // Check if status column exists first
+        $hasStatusColumn = \Illuminate\Support\Facades\Schema::hasColumn('service', 'status');
+        
+        // Build select columns
+        $selectColumns = ['id', 'nom_service', 'description'];
+        if ($hasStatusColumn) {
+            $selectColumns[] = 'status';
+        }
+        
         // Optimiser : charger seulement les colonnes nécessaires des taches
         $service = Service::with(['taches:id,service_id,nom_tache,description,image_url'])
-                          ->select('id', 'nom_service', 'description')
+                          ->select($selectColumns)
                           ->findOrFail($id);
         
         // Vérifier si le service est actif (si la colonne existe)
-        if (\Illuminate\Support\Facades\Schema::hasColumn('service', 'status')) {
+        if ($hasStatusColumn) {
             if ($service->status !== 'active') {
                 return response()->json([
                     'error' => 'Ce service n\'est pas disponible',

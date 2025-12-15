@@ -86,23 +86,8 @@
           </div>
 
           <a
-            href="#about"
-            @click.prevent="handleNavClick('about')"
-            class="px-2 py-2 transition-all duration-300 font-medium relative group"
-            :class="{
-              'text-[#4682B4]': activeLink === 'about',
-              'text-gray-700 hover:text-[#4682B4]': activeLink !== 'about'
-            }"
-          >
-            À Propos
-            <span 
-              class="absolute bottom-0 left-0 h-0.5 bg-[#4682B4] transition-all duration-300"
-              :class="activeLink === 'about' ? 'w-full' : 'w-0 group-hover:w-full'"
-            ></span>
-          </a>
-          <a
             href="#contact"
-            @click.prevent="handleNavClick('contact')"
+            @click="handleContactClick"
             class="px-2 py-2 transition-all duration-300 font-medium relative group"
             :class="{
               'text-[#4682B4]': activeLink === 'contact',
@@ -113,6 +98,21 @@
             <span 
               class="absolute bottom-0 left-0 h-0.5 bg-[#4682B4] transition-all duration-300"
               :class="activeLink === 'contact' ? 'w-full' : 'w-0 group-hover:w-full'"
+            ></span>
+          </a>
+          <a
+            href="#"
+            @click.prevent="handleSignupClick"
+            class="px-2 py-2 transition-all duration-300 font-medium relative group"
+            :class="{
+              'text-[#4682B4]': isSignupModalOpen,
+              'text-gray-700 hover:text-[#4682B4]': !isSignupModalOpen
+            }"
+          >
+            Devenir un intervenant
+            <span 
+              class="absolute bottom-0 left-0 h-0.5 bg-[#4682B4] transition-all duration-300"
+              :class="isSignupModalOpen ? 'w-full' : 'w-0 group-hover:w-full'"
             ></span>
           </a>
         </nav>
@@ -175,10 +175,17 @@
         </a>
         <a
           href="#contact"
-          @click.prevent="handleNavClick('contact')"
+          @click="handleContactClick"
           class="block py-3 px-4 text-gray-700 rounded-lg transition-all hover:bg-[#4682B4] hover:text-white font-medium"
         >
           Contact
+        </a>
+        <a
+          href="#"
+          @click.prevent="handleSignupClick"
+          class="block py-3 px-4 text-gray-700 rounded-lg transition-all hover:bg-[#4682B4] hover:text-white font-medium"
+        >
+          Devenir un intervenant
         </a>
         <div class="pt-4 space-y-2 border-t border-gray-200">
           <button
@@ -233,6 +240,11 @@ const handleLogoClick = () => {
     props.onNavigateHome()
   }
   activeLink.value = 'home'
+  isMenuOpen.value = false
+}
+
+const handleContactClick = () => {
+  activeLink.value = 'contact'
   isMenuOpen.value = false
 }
 

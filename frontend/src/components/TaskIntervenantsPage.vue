@@ -100,13 +100,6 @@
                   <span v-if="intervenant.taskPrice">{{ intervenant.taskPrice }} DH/h</span>
                   <span v-else class="text-sm font-medium">Sur devis</span>
                 </div>
-                <!-- Availability -->
-                <div class="flex items-center gap-2">
-                  <div class="px-3 py-1.5 rounded-lg bg-green-50 flex items-center gap-2">
-                    <Calendar :size="14" class="text-green-600" />
-                    <span class="text-sm text-green-700 font-medium">Disponible aujourd'hui</span>
-                  </div>
-                </div>
               </div>
 
               <!-- Other Specialties -->

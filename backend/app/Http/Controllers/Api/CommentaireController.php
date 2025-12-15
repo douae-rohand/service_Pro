@@ -41,14 +41,10 @@ class CommentaireController extends Controller
             if ($user && $user->prenom) {
                 $initial = substr(strtoupper($user->prenom), 0, 1);
             }
-
-            // Générer le rôle/titre (ex: Client fidèle)
-            $role = 'Client vérifié';
             
             return [
                 'id' => $commentaire->id,
                 'name' => $user ? ($user->prenom . ' ' . $user->nom) : 'Client Anonyme',
-                'role' => $role,
                 'initial' => $initial,
                 'rating' => $rating,
                 'text' => $commentaire->commentaire,

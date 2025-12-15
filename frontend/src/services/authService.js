@@ -11,6 +11,18 @@ const authService = {
         return api.post('auth/login', credentials);
     },
 
+    forgotPassword(email) {
+        return api.post('auth/forgot-password', { email });
+    },
+
+    verifyCode(email, code) {
+        return api.post('auth/verify-code', { email, code });
+    },
+
+    resetPassword({ email, code, password, password_confirmation }) {
+        return api.post('auth/reset-password', { email, code, password, password_confirmation });
+    },
+
     /**
      * Déconnexion utilisateur
      */

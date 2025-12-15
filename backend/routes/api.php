@@ -20,6 +20,11 @@ use App\Http\Controllers\Api\StatsController;
 // Routes publiques (sans authentification)
 Route::post('auth/register', [AuthController::class, 'register']);
 Route::post('auth/login', [AuthController::class, 'login']);
+Route::get('auth/google/redirect', [AuthController::class, 'redirectToGoogle']);
+Route::get('auth/google/callback', [AuthController::class, 'handleGoogleCallback']);
+Route::post('auth/forgot-password', [AuthController::class, 'forgotPassword']);
+Route::post('auth/verify-code', [AuthController::class, 'verifyCode']);
+Route::post('auth/reset-password', [AuthController::class, 'resetPassword']);
 
 // Route de test (à supprimer en production)
 Route::get('/test', function () {
@@ -54,6 +59,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('auth/user', [AuthController::class, 'user']);
     Route::put('auth/profile', [AuthController::class, 'updateProfile']);
     Route::post('auth/change-password', [AuthController::class, 'changePassword']);
+    Route::post('auth/forgot-password', [AuthController::class, 'forgotPassword']);
+    Route::post('auth/verify-code', [AuthController::class, 'verifyCode']);
+    Route::post('auth/reset-password', [AuthController::class, 'resetPassword']);
 
     // ======================
     // Routes Interventions

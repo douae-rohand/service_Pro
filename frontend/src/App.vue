@@ -55,7 +55,8 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import authService from '@/services/authService'
 import Header from './components/Header.vue'
 import HeroSection from './components/HeroSection.vue'
 import StatsSection from './components/StatsSection.vue'
@@ -193,6 +194,25 @@ const handleSwitchToSignup = () => {
   showLoginModal.value = false
   showSignupModal.value = true
 }
+
+onMounted(() => {
+  // Vérifier s'il y a un token dans l'URL (retour de Google login)
+  const urlParams = new URLSearchParams(window.location.search)
+  const token = urlParams.get('token')
+  const error = urlParams.get('error')
+
+  if (token) {
+    authService.setAuthToken(token)
+    // Nettoyer l'URL sans recharger la page
+    window.history.replaceState({}, document.title, window.location.pathname)
+    // Recharger pour mettre à jour l'état de l'application (header, etc.)
+    window.location.reload()
+  } else if (error) {
+    alert('Erreur lors de la connexion Google. Veuillez réessayer.')
+    // Nettoyer l'URL
+    window.history.replaceState({}, document.title, window.location.pathname)
+  }
+})
 </script>
 
 <style>

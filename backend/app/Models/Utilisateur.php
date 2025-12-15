@@ -30,6 +30,8 @@ class Utilisateur extends Authenticatable
         'url',
         'googlePw',
         'address',
+        'google_id',
+        'avatar',
     ];
 
     /**

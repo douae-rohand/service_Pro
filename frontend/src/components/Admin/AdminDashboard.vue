@@ -61,7 +61,9 @@
       <!-- Demandes Section -->
       <template v-if="activeSection === 'demandes'">
         <AdminDemandes
+          :loading="loading"
           @back="activeSection = 'overview'"
+          @stats-updated="loadStats"
         />
       </template>
 
@@ -76,6 +78,7 @@
       <template v-if="activeSection === 'reclamations'">
         <AdminReclamations
           @back="activeSection = 'overview'"
+          @view-profile="handleViewProfileFromReclamation"
         />
       </template>
 
@@ -122,6 +125,9 @@
       @close="showProfileModal = false"
       @toggle-status="handleToggleStatus"
     />
+
+    <!-- Notification Container -->
+    <NotificationContainer />
   </div>
 </template>
 
@@ -142,8 +148,11 @@ import AdminDetailModal from './AdminDetailModal.vue'
 import AdminProfileModal from './AdminProfileModal.vue'
 import AdminIntervenantProfile from './AdminIntervenantProfile.vue'
 import AdminClientDetails from './AdminClientDetails.vue'
+import NotificationContainer from './NotificationContainer.vue'
+import { useNotifications } from '@/composables/useNotifications'
 
 const emit = defineEmits(['logout'])
+const { success, error, confirm: confirmDialog } = useNotifications()
 
 // State
 const activeSection = ref('overview')
@@ -246,45 +255,48 @@ const viewClient = async (client) => {
 }
 
 const suspendClient = async (clientId) => {
-  if (confirm('Voulez-vous vraiment changer le statut de ce client ?')) {
+  const confirmed = await confirmDialog('Voulez-vous vraiment changer le statut de ce client ?')
+  if (confirmed) {
     try {
       const response = await adminService.toggleClientStatus(clientId)
-      alert(response.data.message)
+      success(response.data.message)
       await loadClients()
       await loadStats()
-    } catch (error) {
-      console.error('Erreur changement statut client:', error)
-      alert('Erreur lors du changement de statut du client')
+    } catch (err) {
+      console.error('Erreur changement statut client:', err)
+      error('Erreur lors du changement de statut du client')
     }
   }
 }
 
 const handleSuspendClient = async (client) => {
-  if (confirm(`Voulez-vous vraiment suspendre le compte de ${client.prenom} ${client.nom} ?`)) {
+  const confirmed = await confirmDialog(`Voulez-vous vraiment suspendre le compte de ${client.prenom} ${client.nom} ?`)
+  if (confirmed) {
     try {
       const response = await adminService.toggleClientStatus(client.id)
-      alert(response.data.message)
+      success(response.data.message)
       showClientDetails.value = false
       await loadClients()
       await loadStats()
-    } catch (error) {
-      console.error('Erreur suspension client:', error)
-      alert('Erreur lors de la suspension du client')
+    } catch (err) {
+      console.error('Erreur suspension client:', err)
+      error('Erreur lors de la suspension du client')
     }
   }
 }
 
 const handleActivateClient = async (client) => {
-  if (confirm(`Voulez-vous vraiment activer le compte de ${client.prenom} ${client.nom} ?`)) {
+  const confirmed = await confirmDialog(`Voulez-vous vraiment activer le compte de ${client.prenom} ${client.nom} ?`)
+  if (confirmed) {
     try {
       const response = await adminService.toggleClientStatus(client.id)
-      alert(response.data.message)
+      success(response.data.message)
       showClientDetails.value = false
       await loadClients()
       await loadStats()
-    } catch (error) {
-      console.error('Erreur activation client:', error)
-      alert('Erreur lors de l\'activation du client')
+    } catch (err) {
+      console.error('Erreur activation client:', err)
+      error('Erreur lors de l\'activation du client')
     }
   }
 }
@@ -295,16 +307,17 @@ const viewIntervenant = (intervenant) => {
 }
 
 const handleSuspendIntervenant = async (intervenantId) => {
-  if (confirm('Voulez-vous vraiment changer le statut de cet intervenant ?')) {
+  const confirmed = await confirmDialog('Voulez-vous vraiment changer le statut de cet intervenant ?')
+  if (confirmed) {
     try {
       const response = await adminService.toggleIntervenantStatus(intervenantId)
-      alert(response.data.message)
+      success(response.data.message)
       showIntervenantProfile.value = false
       await loadIntervenants()
       await loadStats()
-    } catch (error) {
-      console.error('Erreur changement statut intervenant:', error)
-      alert('Erreur lors du changement de statut de l\'intervenant')
+    } catch (err) {
+      console.error('Erreur changement statut intervenant:', err)
+      error('Erreur lors du changement de statut de l\'intervenant')
     }
   }
 }
@@ -314,7 +327,6 @@ const suspendIntervenant = async (intervenantId) => {
 }
 
 const handleModalAction = (action) => {
-  console.log('Modal action:', action)
   showDetailModal.value = false
 }
 
@@ -331,6 +343,33 @@ const handleToggleStatus = async (id) => {
     await suspendClient(id)
   }
   showProfileModal.value = false
+}
+
+// Gérer l'ouverture des profils depuis les réclamations
+const handleViewProfileFromReclamation = async ({ id, type }) => {
+  try {
+    // Normaliser le type (peut être "Client", "Intervenant" ou en minuscules)
+    const normalizedType = type ? type.toLowerCase() : ''
+    
+    if (normalizedType === 'client') {
+      // Charger les détails complets du client
+      const response = await adminService.getClientDetails(id)
+      selectedClient.value = response.data
+      showClientDetails.value = true
+    } else if (normalizedType === 'intervenant') {
+      // Charger les détails complets de l'intervenant via l'endpoint admin
+      const response = await adminService.getIntervenant(id)
+      selectedIntervenant.value = response.data
+      showIntervenantProfile.value = true
+    } else {
+      console.error('Type de profil non reconnu:', type)
+      error(`Type de profil non reconnu: ${type}. ID: ${id}`)
+    }
+  } catch (err) {
+    console.error('Erreur chargement profil:', err)
+    console.error('Détails:', { id, type, error: err.response?.data || err.message })
+    error(`Erreur lors du chargement du profil: ${err.response?.data?.message || err.message}`)
+  }
 }
 
 const handleLogoutHover = (e) => {

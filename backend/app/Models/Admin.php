@@ -10,12 +10,11 @@ class Admin extends Model
     use HasFactory;
 
     protected $table = 'admin';
-    protected $primaryKey = 'idAdmin';
+    protected $primaryKey = 'id';
     public $incrementing = false;
-    public $timestamps = false;
+    public $timestamps = true;
 
     protected $fillable = [
-        'idAdmin',
     ];
 
     /**
@@ -23,6 +22,6 @@ class Admin extends Model
      */
     public function utilisateur()
     {
-        return $this->belongsTo(Utilisateur::class, 'idAdmin', 'idUtilisateur');
+        return $this->belongsTo(Utilisateur::class, 'id', 'id');
     }
 }

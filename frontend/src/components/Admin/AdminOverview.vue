@@ -34,15 +34,6 @@
           @mouseenter="(e) => e.currentTarget.style.boxShadow = `0 8px 35px ${nav.shadowColorHover}`"
           @mouseleave="(e) => e.currentTarget.style.boxShadow = `0 4px 20px ${nav.shadowColor}`"
         >
-          <!-- Badge for pending items -->
-          <div 
-            v-if="nav.badge && nav.badge > 0"
-            class="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-xs text-white font-bold"
-            :style="{ backgroundColor: nav.badgeColor }"
-          >
-            {{ nav.badge }}
-          </div>
-          
           <div 
             class="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform" 
             :style="{ backgroundColor: nav.bgColor }"
@@ -176,8 +167,8 @@ const navigationItems = computed(() => [
     titleColor: '#FF9800',
     shadowColor: 'rgba(255, 152, 0, 0.2)',
     shadowColorHover: 'rgba(255, 152, 0, 0.35)',
-    badge: props.stats.demandesEnAttente,
-    badgeColor: '#F44336'
+    badge: null,
+    badgeColor: null
   },
   {
     section: 'services',
@@ -202,8 +193,8 @@ const navigationItems = computed(() => [
     titleColor: '#F44336',
     shadowColor: 'rgba(244, 67, 54, 0.2)',
     shadowColorHover: 'rgba(244, 67, 54, 0.35)',
-    badge: props.stats.reclamationsNouvelles,
-    badgeColor: '#FF9800'
+    badge: null,
+    badgeColor: null
   },
   {
     section: 'historique',

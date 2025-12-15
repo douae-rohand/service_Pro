@@ -15,6 +15,7 @@ return new class extends Migration
             $table->integer('id', true);
             $table->string('nom_service', 100)->nullable();
             $table->text('description')->nullable();
+            $table->enum('status', ['active', 'inactive'])->default('active');
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrentOnUpdate()->useCurrent();
         });

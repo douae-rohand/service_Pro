@@ -14,7 +14,6 @@ return new class extends Migration
         Schema::create('tache_materiel', function (Blueprint $table) {
             $table->integer('materiel_id')->index('materiel_id');
             $table->integer('tache_id')->index('tache_id');
-            $table->float('prix_materiel')->nullable();
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrentOnUpdate()->useCurrent();
             $table->primary(['materiel_id', 'tache_id']);

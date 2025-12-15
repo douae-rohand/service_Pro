@@ -15,10 +15,10 @@ class ServiceController extends Controller
     public function index()
     {
         // Mettre en cache la liste des services (rarement modifiée) pour 24h
-        $services = \Illuminate\Support\Facades\Cache::remember('all_services', 86400, function () {
+        $services = \Illuminate\Support\Facades\Cache::remember('all_services_v2', 86400, function () {
             // Optimisation : Sélectionner uniquement les colonnes nécessaires et charger les tâches de manière légère
             return Service::select('id', 'nom_service', 'description')
-                          ->with(['taches:id,service_id,nom_tache']) // Ne charger que l'essentiel des tâches
+                          ->with(['materiels', 'taches', 'taches.materiels']) // Charge materiels du service, taches, et materiels des taches
                           ->get();
         });
 

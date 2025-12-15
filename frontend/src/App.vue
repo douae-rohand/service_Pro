@@ -1,8 +1,11 @@
 <!-- App.vue - Navigation hybride: Manuel pour home, Router pour dashboard -->
 <template>
   <div class="min-h-screen bg-gray-50">
+    <!-- Dashboard Intervenant (géré par le Router) -->
+    <router-view v-if="isDashboardRoute" />
+
     <!-- Page d'accueil -->
-    <div v-if="currentPage === 'home'">
+    <div v-else-if="currentPage === 'home'">
       <Header
         @login-click="showLoginModal = true"
         @signup-click="showSignupModal = true"
@@ -24,7 +27,7 @@
         @view-profile="handleViewProfileFromDetail"
         @task-click="handleTaskClick"
       />
-
+      
       <!-- Page de tous les intervenants -->
       <AllIntervenantsPage
         v-else-if="currentPage === 'all-intervenants'"
@@ -32,10 +35,8 @@
         @back="handleBackFromAllIntervenants"
         @view-profile="handleViewProfileFromList"
       />
-    </div>
 
-    <!-- Dashboard Intervenant (géré par le Router) -->
-    <router-view v-else />
+    <!-- (Ancien emplacement du router-view) -->
 
     <!-- Page de tous les intervenants
     <AllIntervenantsPage
@@ -76,7 +77,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import authService from '@/services/authService'
 import { useRoute } from 'vue-router'
 import Header from "./components/Header.vue";
@@ -91,6 +92,14 @@ import TaskIntervenantsPage from './components/TaskIntervenantsPage.vue'
 import IntervenantProfile from './components/IntervenantProfile.vue' // ✅ CORRIGÉ
 import LoginModal from './components/LoginModal.vue'
 import SignupModal from './components/SignupModal.vue'
+
+
+const route = useRoute()
+
+// Détecte si on est sur une route dashboard
+const isDashboardRoute = computed(() => {
+  return route.path.startsWith('/dashboard')
+})
 
 // ============================================
 // ÉTAT DE NAVIGATION

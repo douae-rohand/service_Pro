@@ -60,25 +60,11 @@ class Intervenant extends Model
     }
 
     /**
-     * Get the services that this intervenant can perform.
-     */
-    public function services()
-    {
-        return $this->belongsToMany(
-            Service::class,
-            'intervenant_service',
-            'intervenant_id',
-            'service_id'
-        )->withPivot('experience', 'status') // Récupérer l'expérience depuis la table pivot
-            ->withTimestamps();
-    }
-
-    /**
      * Get the disponibilites for this intervenant.
      */
     public function disponibilites()
     {
-        return $this->hasMany(Disponibilite::class, 'intervenantId', 'id');
+        return $this->hasMany(Disponibilite::class, 'intervenant_id', 'id');
     }
 
     /**

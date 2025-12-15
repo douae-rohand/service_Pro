@@ -40,6 +40,24 @@ const intervenantService = {
     },
 
     /**
+     * Récupérer les services et tâches actifs d'un intervenant
+     */
+    getActiveServicesAndTasks(id) {
+        return api.get(`intervenants/${id}/active-services-tasks`);
+    },
+
+    /**
+     * Demander l'activation d'un service avec documents
+     */
+    requestActivation(intervenantId, serviceId, formData) {
+        return api.post(`intervenants/${intervenantId}/services/${serviceId}/request-activation`, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+    },
+
+    /**
      * Créer un nouvel intervenant
      */
     create(data) {
@@ -58,6 +76,27 @@ const intervenantService = {
      */
     delete(id) {
         return api.delete(`intervenants/${id}`);
+    },
+
+    /**
+     * Update service materials
+     */
+    updateServiceMaterials(intervenantId, serviceId, materials) {
+        return api.post(`intervenants/${intervenantId}/services/${serviceId}/materials`, { materials });
+    },
+
+    /**
+     * Update service status
+     */
+    updateServiceStatus(intervenantId, serviceId, status) {
+        return api.post(`intervenants/${intervenantId}/services/${serviceId}/status`, { status });
+    },
+
+    /**
+     * Toggle service activation
+     */
+    toggleService(intervenantId, serviceId) {
+        return api.post(`intervenants/${intervenantId}/services/${serviceId}/toggle`);
     }
 };
 

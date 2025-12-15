@@ -14,7 +14,16 @@ class Materiel extends Model
     protected $fillable = [
         'nom_materiel',
         'description',
+        'service_id',
     ];
+
+    /**
+     * Get the service that owns this materiel.
+     */
+    public function service()
+    {
+        return $this->belongsTo(Service::class, 'service_id');
+    }
 
     /**
      * Get the taches that require this materiel.
@@ -26,8 +35,7 @@ class Materiel extends Model
             'tache_materiel',
             'materiel_id',
             'tache_id'
-        )->withPivot('prix_materiel')
-            ->withTimestamps();
+        )->withTimestamps();
     }
 
     /**

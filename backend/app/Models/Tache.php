@@ -48,7 +48,7 @@ class Tache extends Model
             'tache_materiel',
             'tache_id',
             'materiel_id'
-        )->withPivot('prix_materiel', 'created_at', 'updated_at');
+        )->withPivot('created_at', 'updated_at');
     }
 
     /**

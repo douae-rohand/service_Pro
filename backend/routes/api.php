@@ -39,6 +39,14 @@ Route::get('intervenants/{id}/active-services-tasks', [IntervenantController::cl
 // ======================
 Route::get('intervenants', [IntervenantController::class, 'index']);
 Route::get('intervenants/{id}', [IntervenantController::class, 'show']);
+Route::put('intervenants/{id}/taches/{tacheId}/configure', [IntervenantController::class, 'configureTask']);
+
+// Service activation
+Route::get('intervenants/{id}/services-with-activation', [IntervenantController::class, 'getServicesWithActivation']);
+Route::post('intervenants/{id}/services/{serviceId}/toggle', [IntervenantController::class, 'toggleService']);
+Route::post('intervenants/{id}/services/{serviceId}/status', [IntervenantController::class, 'updateServiceStatus']);
+Route::post('intervenants/{id}/services/{serviceId}/materials', [IntervenantController::class, 'updateServiceMaterials']);
+Route::post('intervenants/{id}/services/{serviceId}/request-activation', [IntervenantController::class, 'requestActivation']);
 
 // ======================
 // Routes Statistiques (publiques pour consultation)
@@ -106,28 +114,32 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('intervenants', [IntervenantController::class, 'store']);
     Route::put('intervenants/{id}', [IntervenantController::class, 'update']);
     Route::delete('intervenants/{id}', [IntervenantController::class, 'destroy']);
-    
+
     // Routes for current intervenant's availability (must come before generic {id} routes)
     Route::get('intervenants/me/disponibilites', [IntervenantController::class, 'myDisponibilites']);
     Route::post('intervenants/me/disponibilites/regular', [IntervenantController::class, 'createRegularAvailability']);
     Route::post('intervenants/me/disponibilites/special', [IntervenantController::class, 'createSpecialAvailability']);
     Route::delete('intervenants/me/disponibilites/{id}', [IntervenantController::class, 'deleteDisponibilite']);
-    
+
     // Generic routes for specific intervenant by ID
     Route::get('intervenants/{id}/interventions', [IntervenantController::class, 'interventions']);
     Route::get('intervenants/{id}/disponibilites', [IntervenantController::class, 'disponibilites']);
     Route::get('intervenants/{id}/taches', [IntervenantController::class, 'taches']);
-    
+
     // Routes for current intervenant's taches
     // TODO: Uncomment these routes when authentication is implemented and remove the temporary routes above
     // Route::get('intervenants/me/taches', [IntervenantController::class, 'myTaches']);
     // Route::put('intervenants/me/taches/{tacheId}', [IntervenantController::class, 'updateMyTache']);
     // Route::post('intervenants/me/taches/{tacheId}/toggle-active', [IntervenantController::class, 'toggleActiveMyTache']);
     // Route::delete('intervenants/me/taches/{tacheId}', [IntervenantController::class, 'deleteMyTache']);
-    
+
     // Routes for current intervenant's reservations
     Route::get('intervenants/me/reservations', [IntervenantController::class, 'myReservations']);
     Route::post('intervenants/me/reservations/{id}/accept', [IntervenantController::class, 'acceptReservation']);
     Route::post('intervenants/me/reservations/{id}/refuse', [IntervenantController::class, 'refuseReservation']);
 
+    Route::get('intervenants/me/taches', [IntervenantController::class, 'myTaches']);
+    Route::put('intervenants/me/taches/{tacheId}', [IntervenantController::class, 'updateMyTache']);
+    Route::post('intervenants/me/taches/{tacheId}/toggle-active', [IntervenantController::class, 'toggleActiveMyTache']);
+    Route::delete('intervenants/me/taches/{tacheId}', [IntervenantController::class, 'deleteMyTache']);
 });

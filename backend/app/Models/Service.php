@@ -20,6 +20,14 @@ class Service extends Model
     ];
 
     /**
+     * Get the materiels for this service.
+     */
+    public function materiels()
+    {
+        return $this->hasMany(Materiel::class, 'service_id', 'id');
+    }
+
+    /**
      * Get the taches for this service.
      */
     public function taches()

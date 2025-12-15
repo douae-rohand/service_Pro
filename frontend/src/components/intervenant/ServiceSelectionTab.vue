@@ -62,15 +62,30 @@
             <!-- Années d'expérience -->
             <div class="form-group">
               <label>
-                Années d'expérience <span class="required">*</span>
+                Expérience <span class="required">*</span>
               </label>
-              <input
-                v-model.number="activationForm.experience"
-                type="number"
-                min="0"
-                placeholder="Ex: 5"
-                required
-              />
+              <div class="experience-inputs">
+                <div class="experience-field">
+                  <input
+                    v-model.number="activationForm.experienceYears"
+                    type="number"
+                    min="0"
+                    max="50"
+                    placeholder="0"
+                  />
+                  <span class="experience-suffix">Années</span>
+                </div>
+                <div class="experience-field">
+                  <input
+                    v-model.number="activationForm.experienceMonths"
+                    type="number"
+                    min="0"
+                    max="11"
+                    placeholder="0"
+                  />
+                  <span class="experience-suffix">Mois</span>
+                </div>
+              </div>
             </div>
 
             <!-- Carte nationale ou Passeport -->
@@ -120,7 +135,7 @@
               <label>Autres documents (optionnel)</label>
               
               <!-- Existing additional documents -->
-              <div v-for="(doc, index) in activationForm.additionalDocs" :key="index" class="additional-doc-item">
+              <div v-for="(doc, index) in activationForm.documents.filter(d => d.type !== 'idCard' && d.type !== 'insurance')" :key="index" class="additional-doc-item">
                 <div class="doc-info">
                   <div class="doc-type-input">
                     <input
@@ -170,8 +185,14 @@
       </div>
     </div>
 
+    <!-- Authentication Error State -->
+    <div v-if="authError && !isLoadingUser" class="error-message">
+      <p>{{ authError }}</p>
+      <button @click="router.push('/')" class="retry-btn">Retour à l'accueil</button>
+    </div>
+
     <!-- Loading State -->
-    <div v-if="isLoading" class="card">
+    <div v-if="isLoading || isLoadingUser" class="card">
       <div class="empty-state">
         <div class="loader"></div>
         <p>Chargement des services...</p>
@@ -185,7 +206,7 @@
     </div>
 
     <!-- Service Selection -->
-    <div v-if="!isLoading && !loadError" class="card">
+    <div v-if="!isLoading && !loadError && !authError && currentUser" class="card">
       <h2>Choisissez vos services</h2>
       <div class="services-grid">
         <div
@@ -200,16 +221,26 @@
         >
           <div class="service-header">
             <span class="service-name">{{ service.name }}</span>
-            <button
-              @click="toggleService(service.id, service.name)"
-              class="toggle-switch"
-              :style="{ backgroundColor: serviceStates[service.id] ? service.color : '#E0E0E0' }"
-            >
-              <span
-                class="toggle-slider"
-                :class="{ 'toggle-slider-active': serviceStates[service.id] }"
-              ></span>
-            </button>
+            <div class="service-actions">
+              <button
+                v-if="serviceStates[service.id]"
+                @click="archiveService(service.id)"
+                class="archive-btn"
+                title="Archiver ce service"
+              >
+                <Archive :size="16" />
+              </button>
+              <button
+                @click="toggleService(service.id, service.name)"
+                class="toggle-switch"
+                :style="{ backgroundColor: serviceStates[service.id] ? service.color : '#E0E0E0' }"
+              >
+                <span
+                  class="toggle-slider"
+                  :class="{ 'toggle-slider-active': serviceStates[service.id] }"
+                ></span>
+              </button>
+            </div>
           </div>
           <p v-if="serviceStates[service.id]" class="service-status">Service activé</p>
         </div>
@@ -217,7 +248,7 @@
     </div>
 
     <!-- Task Selection for Active Services -->
-    <div v-for="(isActive, serviceId) in serviceStates" :key="serviceId">
+    <div v-if="currentUser" v-for="(isActive, serviceId) in serviceStates" :key="serviceId">
       <div v-if="isActive" class="card">
         <h2 :style="{ color: getServiceColor(serviceId) }">
           Sous-services pour {{ getServiceName(serviceId) }}
@@ -248,7 +279,7 @@
             </div>
 
             <!-- Task Configuration (shown when active) -->
-            <div v-if="taskStates[task.id]" class="task-config">
+            <div v-if="taskStates[task.id] && taskFormVisible[task.id]" class="task-config">
               <div class="form-group">
                 <label>Votre tarif horaire <span class="required">*</span></label>
                 <div class="input-with-suffix">
@@ -262,33 +293,16 @@
                   <span class="input-suffix">DH/h</span>
                 </div>
               </div>
-
-              <div class="form-group">
-                <label>Description de votre présentation</label>
-                <textarea
-                  v-model="taskDescriptions[task.id]"
-                  rows="3"
-                  placeholder="Décrivez votre expérience et ce que vous proposez pour ce sous-service..."
-                ></textarea>
-              </div>
-
-              <div class="form-group">
-                <label>Matériaux nécessaires</label>
-                <div class="materials-grid">
-                  <label
-                    v-for="material in getMaterialsByService(serviceId)"
-                    :key="material"
-                    class="checkbox-label"
-                  >
-                    <input
-                      type="checkbox"
-                      :checked="taskMaterials[task.id]?.includes(material)"
-                      @change="toggleMaterial(task.id, material)"
-                      :style="{ accentColor: getServiceColor(serviceId) }"
-                    />
-                    <span>{{ material }}</span>
-                  </label>
-                </div>
+              
+              <!-- Save Button -->
+              <div class="form-actions">
+                <button 
+                  @click="saveTaskConfig(task.id)"
+                  class="btn-save-task"
+                  :style="{ backgroundColor: getServiceColor(serviceId) }"
+                >
+                  Enregistrer
+                </button>
               </div>
             </div>
           </div>
@@ -296,8 +310,81 @@
       </div>
     </div>
 
+    <!-- Service Materials for Active Services -->
+    <div v-if="currentUser" v-for="(isActive, serviceId) in serviceStates" :key="serviceId">
+      <div v-if="isActive" class="card">
+        <h2 :style="{ color: getServiceColor(serviceId) }">
+          Matériaux pour {{ getServiceName(serviceId) }}
+        </h2>
+        
+        <!-- Show materials form or toggle button -->
+        <div v-if="!materialsFormVisible[serviceId]" class="form-actions">
+          <button 
+            @click="materialsFormVisible[serviceId] = true"
+            class="btn-save-task"
+            :style="{ backgroundColor: getServiceColor(serviceId) }"
+          >
+            Configurer les matériaux
+          </button>
+        </div>
+        
+        <div v-else class="service-materials">
+          <div
+            v-for="material in getMaterialsByService(serviceId)"
+            :key="material"
+            class="service-material-item"
+          >
+            <div class="material-header">
+              <span class="material-name">{{ material }}</span>
+              <input
+                type="number"
+                v-model="serviceMaterialPrices[`${serviceId}-${material}`]"
+                placeholder="Prix"
+                min="0"
+                step="0.01"
+                class="price-field"
+              />
+              <span class="price-suffix">DH</span>
+            </div>
+            <div class="material-tasks">
+              <label class="task-checkbox-label">
+                <span class="checkbox-title">Appliquer aux sous-services :</span>
+              </label>
+              <div class="tasks-checkboxes">
+                <label
+                  v-for="task in getTasksByService(serviceId)"
+                  :key="task.id"
+                  class="task-checkbox-item"
+                >
+                  <input
+                    type="checkbox"
+                    :value="task.id"
+                    :checked="materialTasks[`${serviceId}-${material}`]?.includes(task.id)"
+                    @change="toggleMaterialTask(serviceId, material, task.id)"
+                    :style="{ accentColor: getServiceColor(serviceId) }"
+                  />
+                  <span>{{ task.name }}</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Save Service Materials Button (only shown when form is visible) -->
+        <div v-if="materialsFormVisible[serviceId]" class="form-actions">
+          <button 
+            @click="saveServiceMaterials(serviceId)"
+            class="btn-save-task"
+            :style="{ backgroundColor: getServiceColor(serviceId) }"
+          >
+            Enregistrer les matériaux
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Empty State -->
-    <div v-if="activeServicesCount === 0" class="card">
+    <div v-if="currentUser && activeServicesCount === 0" class="card">
       <div class="empty-state">
         <div class="empty-icon">
           <FileText :size="28" />
@@ -310,17 +397,22 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { Check, FileText, X, Upload, AlertCircle, Trash2, Send } from 'lucide-vue-next'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { Plus, Trash2, FileText, AlertCircle, Upload, Send, X, Archive } from 'lucide-vue-next'
+import authService from '@/services/authService'
+import intervenantService from '@/services/intervenantService'
+import intervenantTacheService from '@/services/intervenantTacheService'
+import serviceService from '@/services/serviceService'
 import axios from 'axios'
 
-const currentUser = ref({
-  id: 5,
-  nom: 'Tazi ',
-  prenom: 'Amina',
-})
+const router = useRouter()
+const currentUser = ref(null)
+const isLoadingUser = ref(true)
+const authError = ref(null)
 
 const showSuccessMessage = ref(false)
+const successMessage = ref('')
 const showActivationModal = ref(false)
 const currentService = ref(null)
 
@@ -336,10 +428,9 @@ const additionalInput = ref(null)
 // Activation form data
 const activationForm = ref({
   presentation: '',
-  experience: 0,
-  idCard: null,
-  insurance: null,
-  additionalDocs: []
+  experienceYears: 0,
+  experienceMonths: 0,
+  documents: [] // Array of { type: string, file: File }
 })
 
 // Services data from API
@@ -364,7 +455,7 @@ const fetchServices = async () => {
     isLoading.value = true
     loadError.value = null
     
-    const response = await axios.get('http://localhost:8000/api/services')
+    const response = await serviceService.getAll()
     const apiServices = response.data.services
     
     // Map services with colors
@@ -382,15 +473,11 @@ const fetchServices = async () => {
     apiServices.forEach(service => {
       tasksByService.value[service.id] = service.tasks || []
       
-      // Collect all unique materials from all tasks in this service
+      // Get materials directly from service (new relation)
       const serviceMaterials = new Set()
-      if (service.tasks) {
-        service.tasks.forEach(task => {
-          if (task.materials) {
-            task.materials.forEach(material => {
-              serviceMaterials.add(material.name)
-            })
-          }
+      if (service.materials) {
+        service.materials.forEach(material => {
+          serviceMaterials.add(material.name)
         })
       }
       materialsByService.value[service.id] = Array.from(serviceMaterials)
@@ -414,7 +501,7 @@ const fetchServices = async () => {
 // Load intervenant's active services and tasks from DB
 const loadIntervenantActiveData = async (intervenantId) => {
   try {
-    const response = await axios.get(`http://localhost:8000/api/intervenants/${intervenantId}/active-services-tasks`)
+    const response = await intervenantService.getActiveServicesAndTasks(intervenantId)
     const data = response.data
     
     // Activate the services that are active in DB
@@ -426,17 +513,47 @@ const loadIntervenantActiveData = async (intervenantId) => {
       })
     }
     
-    // Activate the tasks that are active in DB
+    // Initialize all tasks with their actual status from DB
     if (data.tasks && data.tasks.length > 0) {
+      console.log('Initializing tasks from DB:', data.tasks)
       data.tasks.forEach(task => {
-        if (task.status === 1 && task.id) {
-          taskStates.value[task.id] = true
-          // Set the price if available
-          if (task.price) {
-            taskPrices.value[task.id] = task.price
+        if (task.id) {
+          // Set the toggle state based on actual status from DB (handle both boolean and integer)
+          taskStates.value[task.id] = task.status === true || task.status === 1
+          console.log(`Task ${task.id}: status=${task.status}, taskStates=${taskStates.value[task.id]}`)
+          
+          // Update tasksByService to include the task with correct status
+          if (!tasksByService.value[task.service_id]) {
+            tasksByService.value[task.service_id] = []
+          }
+          
+          // Check if task already exists in the service array
+          const existingTaskIndex = tasksByService.value[task.service_id].findIndex(t => t.id === task.id)
+          if (existingTaskIndex >= 0) {
+            // Update existing task
+            tasksByService.value[task.service_id][existingTaskIndex] = task
+          } else {
+            // Add new task
+            tasksByService.value[task.service_id].push(task)
+          }
+          
+          // If task is active, handle price and form visibility
+          if (task.status === true || task.status === 1) {
+            // Set the price if available
+            if (task.price) {
+              taskPrices.value[task.id] = task.price
+              // Hide the form for already configured tasks
+              taskFormVisible.value[task.id] = false
+            } else {
+              // Show the form for active tasks without price
+              taskFormVisible.value[task.id] = true
+              taskMaterials.value[task.id] = []
+            }
           }
         }
       })
+      console.log('Final taskStates after initialization:', taskStates.value)
+      console.log('Updated tasksByService:', tasksByService.value)
     }
     
     console.log('Loaded active services:', data.services)
@@ -446,12 +563,67 @@ const loadIntervenantActiveData = async (intervenantId) => {
   }
 }
 
+// Load authenticated user and their data
+const loadAuthenticatedUser = async () => {
+  try {
+    isLoadingUser.value = true
+    authError.value = null
+
+    // Check if token exists
+    if (!authService.isAuthenticated()) {
+      authError.value = 'Vous devez être connecté pour accéder à cette page'
+      isLoadingUser.value = false
+      return
+    }
+
+    // Get current user from API
+    const response = await authService.getCurrentUser()
+    const user = response.data.user
+
+    // Check if user is an intervenant
+    if (!user.intervenant) {
+      authError.value = 'Cette page est réservée aux intervenants'
+      isLoadingUser.value = false
+      return
+    }
+
+    // Set current user
+    currentUser.value = {
+      id: user.id,
+      nom: user.nom,
+      prenom: user.prenom,
+      email: user.email,
+      intervenant: user.intervenant
+    }
+
+    isLoadingUser.value = false
+  } catch (error) {
+    console.error('Erreur lors du chargement de l\'utilisateur:', error)
+    
+    // Handle authentication errors
+    if (error.status === 401) {
+      authError.value = 'Session expirée. Veuillez vous reconnecter'
+      // Remove invalid token
+      authService.setAuthToken(null)
+    } else {
+      authError.value = 'Erreur lors du chargement de vos informations'
+    }
+    
+    isLoadingUser.value = false
+  }
+}
+
 // Load services on component mount
 onMounted(async () => {
-  await fetchServices()
-  // Load active services and tasks for the test intervenant (id: 1)
-  // In production, use the actual logged-in intervenant ID
-  await loadIntervenantActiveData(currentUser.value.id)
+  // Load authenticated user first
+  await loadAuthenticatedUser()
+  
+  // Only proceed if user is authenticated and is an intervenant
+  if (currentUser.value && currentUser.value.id) {
+    await fetchServices()
+    // Load active services and tasks for the authenticated intervenant
+    await loadIntervenantActiveData(currentUser.value.id)
+  }
 })
 
 
@@ -461,6 +633,8 @@ const taskStates = ref({})
 const taskPrices = ref({})
 const taskDescriptions = ref({})
 const taskMaterials = ref({})
+const taskMaterialPrices = ref({}) // New: Store prices for each material
+const taskFormVisible = ref({})
 
 const activeServicesCount = computed(() => {
   return Object.values(serviceStates.value).filter(Boolean).length
@@ -470,7 +644,36 @@ const activeTasksCount = computed(() => {
   return Object.values(taskStates.value).filter(Boolean).length
 })
 
-const toggleService = (serviceId, serviceName) => {
+// Add service materials state
+const serviceMaterialPrices = ref({})
+const materialTasks = ref({})
+const materialsFormVisible = ref({})
+
+// Add archived services state
+const archivedServices = ref({})
+
+const toggleService = async (serviceId, serviceName) => {
+  // If service is archived, reactivate directly
+  if (archivedServices.value[serviceId]) {
+    try {
+      const response = await intervenantService.updateServiceStatus(
+        currentUser.value.intervenant.id,
+        serviceId,
+        'active'
+      )
+      
+      console.log('Service reactivated:', response.data)
+      
+      // Update states
+      archivedServices.value[serviceId] = false
+      serviceStates.value[serviceId] = true
+    } catch (error) {
+      console.error('Error reactivating service:', error)
+      alert('Erreur lors de la réactivation du service')
+    }
+    return
+  }
+  
   // If activating the service, show the activation request modal
   if (!serviceStates.value[serviceId]) {
     const service = services.value.find(s => s.id === serviceId)
@@ -479,8 +682,111 @@ const toggleService = (serviceId, serviceName) => {
       showActivationModal.value = true
     }
   } else {
-    // Deactivating - just toggle off
+    // Deactivating - call API to update status in database
+    try {
+      const response = await intervenantService.toggleService(
+        currentUser.value.intervenant.id,
+        serviceId
+      )
+      
+      console.log('Service toggle response:', response.data)
+      
+      // Update local state after successful API call
+      serviceStates.value[serviceId] = false
+    } catch (error) {
+      console.error('Error toggling service:', error)
+      // Revert the state if API call failed
+      serviceStates.value[serviceId] = true
+      alert('Erreur lors de la désactivation du service')
+    }
+  }
+}
+
+const archiveService = async (serviceId) => {
+  try {
+    const response = await intervenantService.updateServiceStatus(
+      currentUser.value.intervenant.id,
+      serviceId,
+      'archive'
+    )
+    
+    console.log('Service archived:', response.data)
+    
+    // Update states
     serviceStates.value[serviceId] = false
+    archivedServices.value[serviceId] = true
+  } catch (error) {
+    console.error('Error archiving service:', error)
+    alert('Erreur lors de l\'archivage du service')
+  }
+}
+
+const saveServiceMaterials = async (serviceId) => {
+  if (!currentUser.value) return
+  
+  // Collect materials with prices and tasks
+  const materials = []
+  const serviceMaterials = getMaterialsByService(serviceId)
+  
+  for (const material of serviceMaterials) {
+    const price = serviceMaterialPrices.value[`${serviceId}-${material}`]
+    const tasks = materialTasks.value[`${serviceId}-${material}`] || []
+    
+    if (price && price > 0) {
+      materials.push({
+        name: material,
+        price: parseFloat(price),
+        tasks: tasks
+      })
+    }
+  }
+  
+  if (materials.length === 0) {
+    alert('Veuillez spécifier au moins un matériel avec un prix')
+    return
+  }
+  
+  try {
+    console.log('Saving service materials:', {
+      serviceId: serviceId,
+      materials: materials
+    })
+    
+    // Send data to backend
+    const response = await intervenantService.updateServiceMaterials(
+      currentUser.value.intervenant.id,
+      serviceId,
+      materials
+    )
+    
+    console.log('Save response:', response.data)
+    
+    // Hide the materials form after successful save
+    materialsFormVisible.value[serviceId] = false
+    
+    // Show success message
+    showSuccessMessage.value = true
+    successMessage.value = 'Matériaux enregistrés avec succès !'
+  } catch (error) {
+    console.error('Error saving service materials:', error)
+    alert(`Erreur lors de l'enregistrement: ${error.response?.data?.message || error.message}`)
+  }
+}
+
+const toggleMaterialTask = (serviceId, material, taskId) => {
+  const key = `${serviceId}-${material}`
+  
+  if (!materialTasks.value[key]) {
+    materialTasks.value[key] = []
+  }
+  
+  const index = materialTasks.value[key].indexOf(taskId)
+  if (index > -1) {
+    // Remove task
+    materialTasks.value[key].splice(index, 1)
+  } else {
+    // Add task
+    materialTasks.value[key].push(taskId)
   }
 }
 
@@ -493,10 +799,9 @@ const closeActivationModal = () => {
 const resetActivationForm = () => {
   activationForm.value = {
     presentation: '',
-    experience: 0,
-    idCard: null,
-    insurance: null,
-    additionalDocs: []
+    experienceYears: 0,
+    experienceMonths: 0,
+    documents: []
   }
   
   // Reset file inputs
@@ -515,7 +820,7 @@ const triggerFileInput = (type) => {
   }
 }
 
-const handleFileUpload = (event, field) => {
+const handleFileUpload = (event, type) => {
   const target = event.target
   const file = target.files?.[0]
   
@@ -526,7 +831,14 @@ const handleFileUpload = (event, field) => {
       return
     }
     
-    activationForm.value[field] = file
+    // Remove existing document of same type if it exists
+    activationForm.value.documents = activationForm.value.documents.filter(doc => doc.type !== type)
+    
+    // Add new document
+    activationForm.value.documents.push({
+      type: type,
+      file: file
+    })
   }
 }
 
@@ -541,7 +853,8 @@ const handleAdditionalDocUpload = (event) => {
       return
     }
     
-    activationForm.value.additionalDocs.push({
+    // Add document with empty type (user will fill it in)
+    activationForm.value.documents.push({
       type: '', // User will fill this in
       file: file
     })
@@ -554,67 +867,158 @@ const handleAdditionalDocUpload = (event) => {
 }
 
 const removeAdditionalDoc = (index) => {
-  activationForm.value.additionalDocs.splice(index, 1)
+  // Find the actual index in the full documents array
+  const additionalDocs = activationForm.value.documents.filter(d => d.type !== 'idCard' && d.type !== 'insurance')
+  const actualIndex = activationForm.value.documents.findIndex(doc => doc === additionalDocs[index])
+  if (actualIndex !== -1) {
+    activationForm.value.documents.splice(actualIndex, 1)
+  }
 }
 
 const submitActivationRequest = async () => {
-  // Validate that all additional documents have types specified
-  const hasEmptyTypes = activationForm.value.additionalDocs.some(doc => !doc.type.trim())
+  // Validate that all documents have types specified (except idCard and insurance)
+  const hasEmptyTypes = activationForm.value.documents.some(doc => !doc.type.trim())
   if (hasEmptyTypes) {
     alert('Veuillez spécifier le type pour tous les documents supplémentaires')
     return
   }
 
-  // TODO: Send the activation request to the backend
-  // For now, we'll just simulate a successful submission
+  // Validate experience
+  const totalMonths = (activationForm.value.experienceYears * 12) + activationForm.value.experienceMonths
+  if (totalMonths === 0) {
+    alert('Veuillez spécifier votre expérience')
+    return
+  }
+
   try {
-    console.log('Activation request data:', {
-      service: currentService.value,
-      presentation: activationForm.value.presentation,
-      experience: activationForm.value.experience,
-      idCard: activationForm.value.idCard?.name,
-      insurance: activationForm.value.insurance?.name,
-      additionalDocs: activationForm.value.additionalDocs.map(doc => ({
-        type: doc.type,
-        fileName: doc.file.name
-      }))
+    console.log('Submitting activation request for service:', currentService.value.id)
+    
+    // Create FormData to handle file uploads
+    const formData = new FormData()
+    
+    // Add form data
+    formData.append('intervenant_id', currentUser.value.intervenant.id)
+    formData.append('service_id', currentService.value.id)
+    formData.append('presentation', activationForm.value.presentation)
+    formData.append('experience', totalMonths / 12) // Convert to years as decimal
+    
+    // Add all documents
+    activationForm.value.documents.forEach((doc, index) => {
+      formData.append(`documents[${index}][type]`, doc.type)
+      formData.append(`documents[${index}][file]`, doc.file)
     })
-
-    // Here you would normally send to backend:
-    // const formData = new FormData()
-    // formData.append('serviceId', currentService.value.id)
-    // formData.append('presentation', activationForm.value.presentation)
-    // formData.append('experience', String(activationForm.value.experience))
-    // formData.append('idCard', activationForm.value.idCard)
-    // formData.append('insurance', activationForm.value.insurance)
-    // activationForm.value.additionalDocs.forEach((doc, index) => {
-    //   formData.append(`additionalDocs[${index}][type]`, doc.type)
-    //   formData.append(`additionalDocs[${index}][file]`, doc.file)
-    // })
-    // await axios.post('/api/service-activation-requests', formData)
-
+    
+    // Call the API with FormData using the service
+    const response = await intervenantService.requestActivation(
+      currentUser.value.intervenant.id,
+      currentService.value.id,
+      formData
+    )
+    
+    console.log('Activation request response:', response.data)
+    
     // Show success message
-    showActivationModal.value = false
     showSuccessMessage.value = true
+    successMessage.value = 'Demande d\'activation envoyée avec succès !'
     
-    setTimeout(() => {
-      showSuccessMessage.value = false
-    }, 4000)
+    // Update service state to show it's pending
+    serviceStates.value[currentService.value.id] = false // Will be updated when data is refreshed
     
-    resetActivationForm()
+    // Close modal and reset form
+    closeActivationModal()
+    
+    // Refresh data to show updated status
+    await loadIntervenantActiveData(currentUser.value.id)
+    
   } catch (error) {
     console.error('Error submitting activation request:', error)
-    alert('Une erreur est survenue lors de l\'envoi de la demande')
+    alert(`Erreur lors de l'envoi de la demande: ${error.response?.data?.message || error.message}`)
   }
 }
 
-const toggleTask = (taskId) => {
-  taskStates.value[taskId] = !taskStates.value[taskId]
+const toggleTask = async (taskId) => {
+  try {
+    // Call API to toggle the status in database
+    const response = await intervenantTacheService.toggleActive(taskId)
+    console.log('Task toggle response:', response.data)
+    
+    // Update local state after successful API call
+    taskStates.value[taskId] = !taskStates.value[taskId]
+    
+    if (!taskStates.value[taskId]) {
+      // Désactiver : supprimer les données et masquer le formulaire
+      delete taskPrices.value[taskId]
+      delete taskDescriptions.value[taskId]
+      delete taskMaterials.value[taskId]
+      delete taskFormVisible.value[taskId]
+    } else {
+      // Activer : afficher le formulaire et initialiser les matériaux
+      taskFormVisible.value[taskId] = true
+      taskMaterials.value[taskId] = [] // Initialiser comme tableau vide
+    }
+  } catch (error) {
+    console.error('Error toggling task:', error)
+    // Revert the state if API call failed
+    taskStates.value[taskId] = !taskStates.value[taskId]
+    alert('Erreur lors de la modification du statut de la tâche')
+  }
+}
+
+// Save task configuration and hide form
+const saveTaskConfig = async (taskId) => {
+  if (!currentUser.value) return
   
-  if (!taskStates.value[taskId]) {
-    delete taskPrices.value[taskId]
-    delete taskDescriptions.value[taskId]
-    delete taskMaterials.value[taskId]
+  // Validate price is filled
+  if (!taskPrices.value[taskId] || taskPrices.value[taskId] <= 0) {
+    alert('Le tarif horaire est obligatoire')
+    return
+  }
+  
+  // Validate material prices
+  const materials = taskMaterials.value[taskId] || []
+  const materialsWithPrices = []
+  
+  for (const material of materials) {
+    const price = taskMaterialPrices.value[`${taskId}-${material}`]
+    if (!price || price <= 0) {
+      alert(`Le prix pour ${material} est obligatoire`)
+      return
+    }
+    materialsWithPrices.push({
+      name: material,
+      price: parseFloat(price)
+    })
+  }
+  
+  try {
+    console.log('Saving task config:', {
+      taskId: taskId,
+      hourlyRate: taskPrices.value[taskId],
+      materials: materialsWithPrices
+    })
+    
+    // Send data to backend using the correct service
+    const response = await intervenantTacheService.updateMyTache(taskId, {
+      hourlyRate: taskPrices.value[taskId],
+      materials: materialsWithPrices
+    })
+    
+    console.log('Save response:', response.data)
+    
+    // Hide the form but keep the task active
+    taskFormVisible.value[taskId] = false
+    
+    // Ensure task state remains active (this fixes the toggle issue)
+    taskStates.value[taskId] = true
+    
+    // Show success message
+    showSuccessMessage.value = true
+    successMessage.value = 'Configuration enregistrée avec succès !'
+  } catch (error) {
+    console.error('Erreur complète:', error)
+    console.error('Response data:', error.response?.data)
+    console.error('Status:', error.response?.status)
+    alert(`Erreur lors de l'enregistrement: ${error.response?.data?.message || error.message}`)
   }
 }
 
@@ -626,10 +1030,39 @@ const toggleMaterial = (taskId, material) => {
   const index = taskMaterials.value[taskId].indexOf(material)
   if (index > -1) {
     taskMaterials.value[taskId].splice(index, 1)
+    // Remove price when unchecked
+    delete taskMaterialPrices.value[`${taskId}-${material}`]
   } else {
     taskMaterials.value[taskId].push(material)
+    // Initialize price when checked
+    taskMaterialPrices.value[`${taskId}-${material}`] = 0
   }
 }
+
+// Watch for changes in taskMaterials to handle price initialization
+watch(taskMaterials, (newTaskMaterials, oldTaskMaterials) => {
+  for (const taskId in newTaskMaterials) {
+    const currentMaterials = newTaskMaterials[taskId] || []
+    const oldMaterials = oldTaskMaterials[taskId] || []
+    
+    // Find newly added materials
+    for (const material of currentMaterials) {
+      if (!oldMaterials.includes(material)) {
+        // Initialize price for newly added material
+        if (!taskMaterialPrices.value[`${taskId}-${material}`]) {
+          taskMaterialPrices.value[`${taskId}-${material}`] = 0
+        }
+      }
+    }
+    
+    // Clean up prices for removed materials
+    for (const material of oldMaterials) {
+      if (!currentMaterials.includes(material)) {
+        delete taskMaterialPrices.value[`${taskId}-${material}`]
+      }
+    }
+  }
+}, { deep: true })
 
 const getServiceColor = (serviceId) => {
   return services.value.find(s => s.id === serviceId)?.color || '#92B08B'
@@ -1050,6 +1483,33 @@ const getMaterialsByService = (serviceId) => {
   margin: var(--spacing-2) 0 0 0;
 }
 
+/* Service Actions */
+.service-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.archive-btn {
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-md);
+  background: transparent;
+  border: 1px solid var(--color-gray-300);
+  color: var(--color-gray-600);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.archive-btn:hover {
+  background: var(--color-gray-100);
+  color: var(--color-dark);
+  border-color: var(--color-gray-400);
+}
+
 .toggle-switch {
   position: relative;
   width: 3.5rem;
@@ -1140,31 +1600,136 @@ const getMaterialsByService = (serviceId) => {
   color: var(--color-gray-600);
 }
 
+/* Experience Inputs */
+.experience-inputs {
+  display: flex;
+  gap: var(--spacing-3);
+  align-items: flex-start;
+}
+
+.experience-field {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  flex: 1;
+  max-width: 120px;
+}
+
+.experience-field input {
+  width: 60px;
+  padding: var(--spacing-2);
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  text-align: center;
+  transition: border-color 0.2s;
+}
+
+.experience-field input:focus {
+  outline: none;
+  border-color: var(--color-primary-green);
+  box-shadow: 0 0 0 2px rgba(146, 176, 139, 0.2);
+}
+
+.experience-suffix {
+  font-size: 0.8rem;
+  color: var(--color-gray-600);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 .materials-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-3);
+}
+
+.material-item {
+  display: flex;
+  flex-direction: column;
   gap: var(--spacing-2);
+  padding: var(--spacing-3);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  transition: all 0.2s;
+}
+
+.material-item:hover {
+  border-color: var(--color-gray-300);
+  background-color: var(--color-gray-50);
 }
 
 .checkbox-label {
   display: flex;
   align-items: center;
-  gap: var(--spacing-2);
-  padding: var(--spacing-2);
-  border-radius: var(--radius-md);
+  gap: var(--spacing-3);
   cursor: pointer;
   transition: background-color 0.2s;
   font-size: 0.875rem;
-}
-
-.checkbox-label:hover {
-  background-color: var(--color-gray-50);
+  flex: 1;
 }
 
 .checkbox-label input {
-  width: 1rem;
-  height: 1rem;
+  width: 1.1rem;
+  height: 1.1rem;
   cursor: pointer;
+  flex-shrink: 0;
+}
+
+.material-price-input {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  margin-top: var(--spacing-1);
+}
+
+.price-field {
+  width: 80px;
+  padding: var(--spacing-1) var(--spacing-2);
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  text-align: center;
+  transition: border-color 0.2s;
+}
+
+.price-field:focus {
+  outline: none;
+  border-color: var(--color-primary-green);
+  box-shadow: 0 0 0 2px rgba(146, 176, 139, 0.2);
+}
+
+.price-suffix {
+  font-size: 0.75rem;
+  color: var(--color-gray-600);
+  font-weight: 500;
+}
+
+/* Task Form Actions */
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--spacing-4);
+  padding-top: var(--spacing-4);
+  border-top: 1px solid var(--color-gray-200);
+}
+
+.btn-save-task {
+  padding: var(--spacing-2) var(--spacing-6);
+  color: var(--color-white);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.btn-save-task:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .empty-state {
@@ -1249,5 +1814,78 @@ const getMaterialsByService = (serviceId) => {
 
 .retry-btn:hover {
   background-color: #B91C1C;
+}
+
+/* Service Materials */
+.service-materials {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.service-material-item {
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-4);
+  transition: all 0.2s;
+}
+
+.service-material-item:hover {
+  border-color: var(--color-gray-300);
+  background-color: var(--color-gray-50);
+}
+
+.material-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  margin-bottom: var(--spacing-3);
+}
+
+.material-name {
+  font-weight: 600;
+  color: var(--color-dark);
+  flex: 1;
+}
+
+.material-tasks {
+  border-top: 1px solid var(--color-gray-200);
+  padding-top: var(--spacing-3);
+}
+
+.task-checkbox-label {
+  display: block;
+  margin-bottom: var(--spacing-2);
+}
+
+.checkbox-title {
+  font-weight: 500;
+  color: var(--color-gray-700);
+  font-size: 0.875rem;
+}
+
+.tasks-checkboxes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--spacing-2);
+}
+
+.task-checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--color-gray-600);
+}
+
+.task-checkbox-item input {
+  width: 0.9rem;
+  height: 0.9rem;
+  cursor: pointer;
+}
+
+.task-checkbox-item span {
+  line-height: 1.2;
 }
 </style>

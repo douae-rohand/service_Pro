@@ -120,9 +120,20 @@ const handleNavigateHome = () => {
   window.scrollTo({ top: 0, behavior: "smooth" });
 };
 
-const handleSearch = () => {
-  console.log("Search clicked");
-  // TODO: Implémenter la recherche
+const handleSearch = (query) => {
+  console.log("Search query:", query);
+  if (!query) return;
+  
+  const lowerQuery = query.toLowerCase();
+  
+  if (lowerQuery.includes('jardin')) {
+    handleServiceClick(1);
+  } else if (lowerQuery.includes('menage') || lowerQuery.includes('ménage')) {
+    handleServiceClick(2);
+  } else {
+    // Fallback or alert
+    alert("Aucun service correspondant trouvé. Essayez 'Jardinage' ou 'Ménage'.");
+  }
 };
 
 const handleServiceClick = (serviceId) => {

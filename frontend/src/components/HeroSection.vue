@@ -90,15 +90,13 @@
 <script setup>
 import { ref } from 'vue'
 
-const props = defineProps({
-  onSearch: Function,
-})
+const emit = defineEmits(['search'])
 
 const searchQuery = ref('')
 
 const handleSearch = () => {
-  if (props.onSearch) {
-    props.onSearch()
+  if (searchQuery.value.trim()) {
+    emit('search', searchQuery.value)
   }
 }
 

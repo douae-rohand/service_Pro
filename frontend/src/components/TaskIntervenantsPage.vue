@@ -5,28 +5,44 @@
       <!-- Header -->
       <div class="bg-white shadow-lg sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div class="flex items-center gap-4">
-            <button
-              @click="$emit('back')"
-              @mouseenter="hoverBackButton = true"
-              @mouseleave="hoverBackButton = false"
-              class="flex items-center gap-2 text-gray-600 hover:text-white transition-all px-4 py-2 rounded-lg"
-              :style="{ backgroundColor: hoverBackButton ? currentService.color : 'transparent' }"
-            >
-              <ArrowLeft :size="20" />
-            </button>
-            <div v-if="taskData">
-              <h1 class="text-4xl font-bold" :style="{ color: currentService.color }">
-                {{ taskData.nom_tache }}
-              </h1>
-              <p class="text-gray-600 mt-2">
-                {{ sortedIntervenants.length }} intervenant{{ sortedIntervenants.length > 1 ? 's' : '' }} disponible{{ sortedIntervenants.length > 1 ? 's' : '' }} pour cette tâche
-              </p>
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div class="flex items-center gap-4">
+              <button
+                @click="$emit('back')"
+                @mouseenter="hoverBackButton = true"
+                @mouseleave="hoverBackButton = false"
+                class="flex items-center gap-2 text-gray-600 hover:text-white transition-all px-4 py-2 rounded-lg"
+                :style="{ backgroundColor: hoverBackButton ? currentService.color : 'transparent' }"
+              >
+                <ArrowLeft :size="20" />
+              </button>
+              <div v-if="taskData">
+                <h1 class="text-4xl font-bold" :style="{ color: currentService.color }">
+                  {{ taskData.nom_tache }}
+                </h1>
+                <p class="text-gray-600 mt-2">
+                  {{ sortedIntervenants.length }} intervenant{{ sortedIntervenants.length > 1 ? 's' : '' }} disponible{{ sortedIntervenants.length > 1 ? 's' : '' }} pour cette tâche
+                </p>
+              </div>
+               <!-- Skeleton Loader pour le titre si pas encore chargé -->
+              <div v-else class="animate-pulse w-full">
+                <div class="h-8 bg-gray-200 rounded w-64 mb-2"></div>
+                <div class="h-4 bg-gray-200 rounded w-48"></div>
+              </div>
             </div>
-             <!-- Skeleton Loader pour le titre si pas encore chargé -->
-            <div v-else class="animate-pulse w-full">
-              <div class="h-8 bg-gray-200 rounded w-1/3 mb-2"></div>
-              <div class="h-4 bg-gray-200 rounded w-1/4"></div>
+
+            <!-- Sorting Dropdown -->
+            <div class="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-lg border border-gray-200">
+              <span class="text-gray-600 font-medium">Trier par :</span>
+              <select
+                v-model="sortBy"
+                class="bg-transparent border-none font-semibold focus:ring-0 cursor-pointer text-gray-800 outline-none"
+              >
+                <option value="pertinence">Pertinence</option>
+                <option value="rating">Note (Décroissant)</option>
+                <option value="price-asc">Prix (Croissant)</option>
+                <option value="price-desc">Prix (Décroissant)</option>
+              </select>
             </div>
           </div>
         </div>

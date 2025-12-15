@@ -73,13 +73,15 @@
         </div>
 
         <!-- Hero Image Grid -->
-        <div class="relative animate-fade-in-right">
+        <div class="relative animate-fade-in-right perspective-1000">
+          <div class="animate-float-continuous">
             <img
               src="../assets/hero-image.png"
               alt="Nos intervenants professionnels"
-              class="w-full h-auto rounded-2xl shadow-2xl transform hover:scale-105 transition-transform duration-500 animate-zoom-in"
+              class="w-full h-auto rounded-2xl shadow-2xl transform transition-all duration-700 hover:scale-105 hover:rotate-2 hover:shadow-cyan-500/50 animate-zoom-in"
             />
           </div>
+        </div>
       </div>
     </div>
   </section>
@@ -270,6 +272,24 @@ const handleButtonLeave = (e) => {
 
 .animate-pulse-slow {
   animation: pulseSlow 2s ease-in-out infinite;
+}
+
+.animate-float-continuous {
+  animation: floatContinuous 6s ease-in-out infinite;
+  animation-delay: 1.5s; /* Start after entrance */
+}
+
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+@keyframes floatContinuous {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
 }
 </style>
 

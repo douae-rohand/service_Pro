@@ -38,6 +38,7 @@
               :alt="intervenant.name"
               class="w-32 h-32 rounded-full object-cover"
             />
+            <!-- Badge commenté comme demandé
             <div
               v-if="intervenant.verified"
               class="absolute bottom-1 right-1 w-8 h-8 rounded-full flex items-center justify-center shadow-md"
@@ -45,6 +46,7 @@
             >
               <CheckCircleIcon :size="20" class="text-white" />
             </div>
+            -->
           </div>
 
           <!-- Profile Info -->
@@ -74,7 +76,7 @@
 
           <!-- Favorite Button -->
           <button
-            @click="isFavorite = !isFavorite"
+            @click="handleFavoriteClick"
             class="px-5 py-2.5 rounded-lg border-2 transition-all flex items-center gap-2"
             :style="{ borderColor: primaryColor, color: primaryColor }"
           >
@@ -139,7 +141,7 @@
                     <span>{{ serviceItem.duration }}</span>
                   </div>
                   <span class="text-lg font-bold" :style="{ color: primaryColor }">
-                    {{ serviceItem.price }}€/h
+                    {{ serviceItem.price }}DH/h
                   </span>
                 </div>
                 <div class="flex items-center justify-end">
@@ -329,6 +331,7 @@ import {
 } from 'lucide-vue-next';
 import ImageWithFallback from './figma/ImageWithFallback.vue';
 import intervenantService from '../services/intervenantService';
+import authService from '../services/authService';
 import { formatExperience } from '@/utils/experienceFormatter';
 
 export default {
@@ -359,7 +362,7 @@ export default {
       validator: (value) => ['jardinage', 'menage'].includes(value)
     }
   },
-  emits: ['back'],
+  emits: ['back', 'login-required'],
   data() {
     return {
       selectedImage: null,
@@ -373,13 +376,6 @@ export default {
         { id: 'avis', label: 'Avis' },
         { id: 'photos', label: 'Photos' },
         { id: 'disponibilites', label: 'Disponibilités' }
-      ],
-      ratingDistribution: [
-        { stars: 5, percentage: 92, count: 82 },
-        { stars: 4, percentage: 6, count: 5 },
-        { stars: 3, percentage: 1, count: 1 },
-        { stars: 2, percentage: 1, count: 1 },
-        { stars: 1, percentage: 0, count: 0 }
       ],
       intervenant: {
         id: null,
@@ -408,18 +404,60 @@ export default {
     },
     buttonColor() {
       return '#609B41';
+    },
+    ratingDistribution() {
+      const distribution = [
+        { stars: 5, count: 0 },
+        { stars: 4, count: 0 },
+        { stars: 3, count: 0 },
+        { stars: 2, count: 0 },
+        { stars: 1, count: 0 }
+      ];
+
+      const reviews = this.intervenant.reviews || [];
+      const total = reviews.length;
+
+      if (total === 0) {
+        return distribution.map(d => ({ ...d, percentage: 0 }));
+      }
+
+      reviews.forEach(review => {
+        // Round rating to nearest integer (1-5)
+        let rating = Math.round(Number(review.rating));
+        if (rating < 1) rating = 1;
+        if (rating > 5) rating = 5;
+        
+        const item = distribution.find(d => d.stars === rating);
+        if (item) item.count++;
+      });
+
+      return distribution.map(d => ({
+        ...d,
+        percentage: Math.round((d.count / total) * 100)
+      }));
     }
   },
   async created() {
-    // Si les données sont déjà passées en prop, les utiliser directement
+    // Si les données sont déjà passées en prop, les utiliser directement pour l'affichage initial
     if (this.intervenantData) {
       this.loadFromProvidedData();
     } 
-    // Sinon, charger depuis l'API
-    else if (this.intervenantId) {
-      await this.fetchIntervenantData();
+    
+    // TOUJOURS charger les données complètes depuis l'API pour avoir la bio, les avis, et les disponibilités réelles
+    const idToFetch = this.intervenantId || (this.intervenantData ? this.intervenantData.id : null);
+    
+    if (idToFetch) {
+      // Si l'ID n'était pas dans les props mais dans les data, on s'assure qu'on l'a pour le fetch
+      if (!this.intervenantId && this.intervenantData) {
+          // On passe l'ID à la méthode de fetch
+          await this.fetchIntervenantData(idToFetch);
+      } else {
+          await this.fetchIntervenantData();
+      }
     } else {
-      this.error = "Aucune donnée d'intervenant fournie.";
+      if (!this.intervenantData) {
+         this.error = "Aucune donnée d'intervenant fournie.";
+      }
     }
   },
   methods: {
@@ -431,7 +469,7 @@ export default {
         id: data.id,
         name: data.name,
         profileImage: data.image,
-        rating: data.rating || 5.0,
+        rating: data.rating || 0,
         reviewCount: data.reviewCount || 0,
         location: data.location,
         experience: data.experience,
@@ -440,47 +478,65 @@ export default {
         memberSince: 'Membre récent',
         responseTime: '~2h',
         completedJobs: 0,
-        bio: [data.experience, 'Professionnel expérimenté dans le domaine.'],
+        bio: [], // Pas de bio par défaut, on attend l'API
         services: this.mapServices(data.taches || []),
-        reviews: [
-          {
-            id: 1,
-            clientName: 'Client satisfait',
-            date: new Date().toISOString(),
-            rating: 5,
-            comment: 'Excellente prestation ! Je recommande vivement.'
-          }
-        ],
-        photos: [
-          data.image,
-          'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=400&h=300&fit=crop',
-          'https://images.unsplash.com/photo-1585421514738-01798e348b17?w=400&h=300&fit=crop'
-        ],
-        availability: [
-          { day: 'Lundi', available: true, hours: '9h00 - 17h00' },
-          { day: 'Mardi', available: true, hours: '9h00 - 17h00' },
-          { day: 'Mercredi', available: true, hours: '9h00 - 17h00' },
-          { day: 'Jeudi', available: true, hours: '9h00 - 17h00' },
-          { day: 'Vendredi', available: true, hours: '9h00 - 17h00' },
-          { day: 'Samedi', available: true, hours: '9h00 - 17h00' },
-          { day: 'Dimanche', available: false, hours: '' }
-        ]
+        reviews: [], // Pas d'avis par défaut, on attend l'API
+        photos: [data.image].filter(Boolean), // Juste l'image de profil en attendant
+        availability: [] // Pas de dispo par défaut, on attend l'API
       };
     },
     
     // Méthode existante pour charger depuis l'API
-    async fetchIntervenantData() {
+    // Méthode existante pour charger depuis l'API
+    async fetchIntervenantData(optionalId = null) {
       // this.loading = true; // Désactivé pour affichage immédiat
       try {
-        const response = await intervenantService.getById(this.intervenantId);
+        const id = optionalId || this.intervenantId;
+        if (!id) return;
+        
+        const response = await intervenantService.getById(id);
         const data = response.data;
         
+        // --- DATA MAPPING LOGIC ---
+        
+        // 1. Photos: Collect all photos from all interventions
+        // Note: photos is now an array of objects inside interventions
+        const mappedPhotos = [];
+        if (data.interventions) {
+             data.interventions.forEach(intervention => {
+                 if (intervention.photos) {
+                     intervention.photos.forEach(photo => {
+                         if (photo.photo_path) mappedPhotos.push(photo.photo_path);
+                     });
+                 }
+             });
+        }
+        // Fallback images if no real photos found - KEEP THIS or REMOVE?
+        // User wants REAL data. Let's keep mappedPhotos empty if empty.
+        // Or keep distinct fallback only if absolutely NO photos exist? 
+        // Let's remove the fallback images to match user request "pas depuis la bd".
+        
+        const reviews = this.mapReviews(data.interventions);
+        
+        // Calculate average rating and count from reviews to ensure consistency
+        let calculatedRating = 0;
+        let calculatedCount = reviews.length;
+        
+        if (calculatedCount > 0) {
+            const sum = reviews.reduce((acc, review) => acc + Number(review.rating), 0);
+            calculatedRating = (sum / calculatedCount).toFixed(1); // Keep 1 decimal
+        } else {
+            // Fallback to backend value if no specific reviews found
+            calculatedRating = Number(data.average_rating) || 0;
+            calculatedCount = Number(data.review_count) || 0;
+        }
+
         this.intervenant = {
           id: data.id,
           name: data.utilisateur ? `${data.utilisateur.prenom || ''} ${data.utilisateur.nom || ''}`.trim() : 'Intervenant',
           profileImage: data.utilisateur && data.utilisateur.url ? data.utilisateur.url : 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=400&h=400&fit=crop',
-          rating: Number(data.average_rating) || 5.0,
-          reviewCount: Number(data.review_count) || 0,
+          rating: calculatedRating,
+          reviewCount: calculatedCount,
           location: data.ville || data.address || 'Localisation non spécifiée',
           experience: this.getExperienceForService(data) || 'N/A',
           verified: !!data.is_active,
@@ -488,18 +544,18 @@ export default {
           memberSince: data.created_at ? `Membre depuis ${new Date(data.created_at).getFullYear()}` : 'Membre récent',
           responseTime: '~2h',
           completedJobs: data.interventions ? data.interventions.length : 0,
-          bio: data.bio ? [data.bio] : ['Aucune biographie disponible.'],
+          bio: data.bio ? [data.bio] : [], // Empty if no bio
           services: this.mapServices(data.taches),
-          reviews: this.mapReviews(data.interventions),
-          photos: data.interventions && data.interventions.flatMap(i => i.photos || []) || [
-            'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=400&h=300&fit=crop',
-            'https://images.unsplash.com/photo-1585421514738-01798e348b17?w=400&h=300&fit=crop'
-          ],
+          reviews: reviews, 
+          photos: mappedPhotos,
           availability: this.mapAvailability(data.disponibilites)
         };
       } catch (err) {
         console.error("Erreur lors du chargement de l'intervenant:", err);
-        this.error = "Impossible de charger les informations de l'intervenant.";
+        // Ne pas écraser l'erreur si on a déjà chargé des données via props
+        if (!this.intervenant.id) {
+             this.error = "Impossible de charger les informations de l'intervenant.";
+        }
       } finally {
         this.loading = false;
       }
@@ -518,33 +574,47 @@ export default {
     },
     
     mapReviews(interventions) {
-      if (!interventions) return [];
-      return [
-        {
-          id: 1,
-          clientName: 'Salma K.',
-          date: '2024-11-20',
-          rating: 5,
-          comment: 'Excellente prestation ! Je recommande vivement.'
-        }
-      ]; 
+      if (!interventions || !Array.isArray(interventions)) return [];
+      
+      const reviews = [];
+      
+      interventions.forEach(intervention => {
+          // Check for evaluations first
+          if (intervention.evaluations && intervention.evaluations.length > 0) {
+              intervention.evaluations.forEach(evaluation => {
+                 // Try to find a matching comment
+                 const comment = intervention.commentaires && intervention.commentaires.length > 0 
+                    ? intervention.commentaires[0].commentaire 
+                    : 'Pas de commentaire écrit.';
+                 
+                 // Get client name
+                 let clientName = 'Client';
+                 if (intervention.client && intervention.client.utilisateur) {
+                     clientName = `${intervention.client.utilisateur.prenom || ''} ${intervention.client.utilisateur.nom || ''}`.trim();
+                 }
+                 
+                 reviews.push({
+                     id: evaluation.id,
+                     clientName: clientName || 'Client',
+                     date: this.formatDate(evaluation.created_at || intervention.date_intervention),
+                     rating: evaluation.note,
+                     comment: comment
+                 });
+              });
+          }
+      });
+      
+      return reviews; // Return pure reviews array, empty if none
     },
     
     mapAvailability(disponibilites) {
-      if (!disponibilites) return [
-          { day: 'Lundi', available: true, hours: '9h00 - 17h00' },
-          { day: 'Mardi', available: true, hours: '9h00 - 17h00' },
-          { day: 'Mercredi', available: true, hours: '9h00 - 17h00' },
-          { day: 'Jeudi', available: true, hours: '9h00 - 17h00' },
-          { day: 'Vendredi', available: true, hours: '9h00 - 17h00' },
-          { day: 'Samedi', available: true, hours: '9h00 - 17h00' },
-          { day: 'Dimanche', available: false, hours: '' }
-      ];
+      if (!disponibilites || disponibilites.length === 0) return []; // Retour simple si vide
+      
       
       return disponibilites.map(d => ({
-        day: this.getDayName(d.dateDebut), 
+        day: d.jours_semaine ? d.jours_semaine.charAt(0).toUpperCase() + d.jours_semaine.slice(1) : this.getDayName(d.date_specific), 
         available: true,
-        hours: `${this.formatTime(d.dateDebut)} - ${this.formatTime(d.dateFin)}`
+        hours: `${this.formatTime(d.heure_debut)} - ${this.formatTime(d.heure_fin)}`
       }));
     },
     
@@ -586,6 +656,18 @@ export default {
       // Fallback: take first non-null experience
       const anyExp = data.services.find(s => s.pivot && s.pivot.experience);
       return anyExp ? anyExp.pivot.experience : null;
+    },
+    handleFavoriteClick() {
+      const isAuth = authService.isAuthenticated();
+      console.log('IntervenantProfile: Clic favori. Authentifié ?', isAuth);
+      
+      if (!isAuth) {
+        console.log('IntervenantProfile: Redirection vers login demandée');
+        this.$emit('login-required');
+        return;
+      }
+      this.isFavorite = !this.isFavorite;
+      // TODO: Call API to save favorite
     },
     formatExperience
   }

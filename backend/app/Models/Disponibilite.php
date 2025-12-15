@@ -15,17 +15,18 @@ class Disponibilite extends Model
     const UPDATED_AT = 'updatedAt';
 
     protected $fillable = [
-        'intervenantId',
-        'dateDebut',
-        'dateFin',
-        'periode',
+        'intervenant_id',
+        'heure_debut',
+        'heure_fin',
+        'date_specific',
+        'jours_semaine',
+        'type'
     ];
 
     protected function casts(): array
     {
         return [
-            'dateDebut' => 'date',
-            'dateFin' => 'date',
+            'date_specific' => 'date',
         ];
     }
 

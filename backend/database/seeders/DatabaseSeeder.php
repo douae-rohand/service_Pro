@@ -47,6 +47,7 @@ class DatabaseSeeder extends Seeder
             ServiceJustificatifSeeder::class,
             TacheMaterielSeeder::class,
             FavoriseSeeder::class,
+            //DemoDataSeeder::class,
         ]);
 
         // Intervention and related data

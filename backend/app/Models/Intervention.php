@@ -19,10 +19,10 @@ class Intervention extends Model
         'address',
         'ville',
         'status',
-        'dateIntervention',
-        'clientId',
-        'intervenantId',
-        'tacheId',
+        'date_intervention',
+        'client_id',
+        'intervenant_id',
+        'tache_id',
     ];
 
     protected function casts(): array
@@ -59,9 +59,12 @@ class Intervention extends Model
     /**
      * Get the photos for this intervention.
      */
+    /**
+     * Get the photos for this intervention.
+     */
     public function photos()
     {
-        return $this->hasMany(PhotoIntervention::class, 'interventionId', 'id');
+        return $this->hasMany(PhotoIntervention::class, 'intervention_id', 'id');
     }
 
     /**
@@ -77,7 +80,7 @@ class Intervention extends Model
      */
     public function commentaires()
     {
-        return $this->hasMany(Commentaire::class, 'interventionId', 'id');
+        return $this->hasMany(Commentaire::class, 'intervention_id', 'id');
     }
 
     /**

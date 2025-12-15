@@ -48,6 +48,7 @@
       :intervenant-id="selectedIntervenantId"
       :service="serviceType"
       @back="handleBackFromProfile"
+      @login-required="showLoginModal = true"
     />
 
     <!-- Modals -->
@@ -64,6 +65,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import authService from '@/services/authService'
+import Header from "./components/Header.vue";
 import HeroSection from './components/HeroSection.vue'
 import StatsSection from './components/StatsSection.vue'
 import ServicesSection from './components/ServicesSection.vue'
@@ -71,6 +73,7 @@ import TestimonialsSection from './components/TestimonialsSection.vue'
 import Footer from './components/Footer.vue'
 import ServiceDetailPage from './components/ServiceDetailPage.vue'
 import AllIntervenantsPage from './components/AllIntervenantsPage.vue'
+import TaskIntervenantsPage from './components/TaskIntervenantsPage.vue'
 import IntervenantProfile from './components/IntervenantProfile.vue' // ✅ CORRIGÉ
 import LoginModal from './components/LoginModal.vue'
 import SignupModal from './components/SignupModal.vue'

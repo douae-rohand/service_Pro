@@ -75,14 +75,18 @@ const authService = {
      * Récupérer le token du localStorage
      */
     getToken() {
-        return localStorage.getItem('token');
+        const token = localStorage.getItem('token');
+        // console.log('authService.getToken:', token ? 'Token présent' : 'Pas de token');
+        return token;
     },
 
     /**
      * Vérifier si l'utilisateur est connecté
      */
     isAuthenticated() {
-        return !!this.getToken();
+        const hasToken = !!this.getToken();
+        console.log('authService.isAuthenticated:', hasToken);
+        return hasToken;
     }
 };
 

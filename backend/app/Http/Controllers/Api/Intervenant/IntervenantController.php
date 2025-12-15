@@ -102,7 +102,17 @@ class IntervenantController extends Controller
                 'taches:id,nom_tache,service_id',
                 'taches.service:id,nom_service',
                 'services',
-                'interventions',
+                'interventions' => function($q) {
+                    $q->orderBy('date_intervention', 'desc');
+                },
+                'interventions.photos',
+                'interventions.evaluations' => function($q) {
+                    $q->where('type_auteur', 'client');
+                },
+                'interventions.commentaires' => function($q) {
+                    $q->where('type_auteur', 'client');
+                },
+                'interventions.client.utilisateur:id,nom,prenom',
                 'disponibilites'
             ])->find($id);
 

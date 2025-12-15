@@ -16,9 +16,9 @@ class Evaluation extends Model
 
     protected $fillable = [
         'note',
-        'interventionId',
-        'critaireId',
-        'typeAutheur',
+        'intervention_id',
+        'critaire_id',
+        'type_auteur',
     ];
 
     protected function casts(): array

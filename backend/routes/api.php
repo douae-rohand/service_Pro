@@ -106,6 +106,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('intervenants', [IntervenantController::class, 'store']);
     Route::put('intervenants/{id}', [IntervenantController::class, 'update']);
     Route::delete('intervenants/{id}', [IntervenantController::class, 'destroy']);
+    
+    // Routes for current intervenant's availability (must come before generic {id} routes)
+    Route::get('intervenants/me/disponibilites', [IntervenantController::class, 'myDisponibilites']);
+    Route::post('intervenants/me/disponibilites/regular', [IntervenantController::class, 'createRegularAvailability']);
+    Route::post('intervenants/me/disponibilites/special', [IntervenantController::class, 'createSpecialAvailability']);
+    Route::delete('intervenants/me/disponibilites/{id}', [IntervenantController::class, 'deleteDisponibilite']);
+    
+    // Generic routes for specific intervenant by ID
     Route::get('intervenants/{id}/interventions', [IntervenantController::class, 'interventions']);
     Route::get('intervenants/{id}/disponibilites', [IntervenantController::class, 'disponibilites']);
     Route::get('intervenants/{id}/taches', [IntervenantController::class, 'taches']);

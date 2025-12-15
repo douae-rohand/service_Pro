@@ -28,7 +28,40 @@
 
       <!-- Profile Image & Basic Info -->
       <div class="profile-section">
-        <img :src="intervenant.profileImage" :alt="formData.name" class="avatar" />
+        <div class="avatar-container">
+          <div v-if="intervenant.profileImage" class="avatar-wrapper">
+            <img :src="intervenant.profileImage" :alt="formData.name" class="avatar" />
+            <div v-if="isEditing" class="avatar-upload">
+              <input 
+                type="file" 
+                ref="fileInput" 
+                @change="handleFileUpload" 
+                accept="image/*" 
+                style="display: none;"
+              />
+              <button @click="$refs.fileInput.click()" class="upload-btn">
+                <Camera :size="16" />
+                Changer
+              </button>
+            </div>
+          </div>
+          <div v-else class="avatar-placeholder">
+            <User :size="48" />
+            <div v-if="isEditing" class="avatar-upload-placeholder">
+              <input 
+                type="file" 
+                ref="fileInput" 
+                @change="handleFileUpload" 
+                accept="image/*" 
+                style="display: none;"
+              />
+              <button @click="$refs.fileInput.click()" class="upload-btn-placeholder">
+                <Camera :size="16" />
+                Ajouter
+              </button>
+            </div>
+          </div>
+        </div>
         <div class="profile-details">
           <div v-if="isEditing" class="form-group">
             <label>Nom complet</label>
@@ -95,42 +128,140 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { Edit2, Check, X, MapPin, Phone, Mail, Calendar } from 'lucide-vue-next'
+import { ref, onMounted } from 'vue'
+import { Edit2, Check, X, MapPin, Phone, Mail, Calendar, Camera, User } from 'lucide-vue-next'
+import authService from '@/services/authService'
 
 const intervenant = ref({
-  id: 1,
-  name: 'Amina Chakir',
-  email: 'amina.chakir@email.com',
-  phone: '+212 6 12 34 56 78',
-  profileImage: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=150&h=150&fit=crop',
-  location: 'Tetouan Centre',
-  memberSince: '2019'
+  id: null,
+  name: '',
+  email: '',
+  phone: '',
+  profileImage: '',
+  location: '',
+  memberSince: ''
 })
 
+const loading = ref(true)
 const isEditing = ref(false)
 const showSuccessMessage = ref(false)
+const selectedFile = ref(null)
 
 const formData = ref({
-  name: intervenant.value.name,
-  email: intervenant.value.email,
-  phone: intervenant.value.phone,
-  location: intervenant.value.location,
-  bio: 'Professionnelle du ménage avec plus de 5 ans d\'expérience. Spécialisée dans le nettoyage en profondeur et l\'entretien régulier des espaces résidentiels.',
-  experience: '5 ans',
-  languages: 'Arabe, Français'
+  name: '',
+  email: '',
+  phone: '',
+  location: '',
+  bio: '',
+  experience: '',
+  languages: ''
+})
+
+// Fetch current user data
+const fetchCurrentUser = async () => {
+  try {
+    const response = await authService.getCurrentUser()
+    const user = response.data.user
+    
+    console.log('User data from backend:', user)
+    console.log('Profile photo path:', user.profile_photo)
+    
+    if (user.intervenant) {
+      intervenant.value = {
+        id: user.intervenant.id,
+        name: `${user.prenom} ${user.nom}`,
+        email: user.email,
+        phone: user.telephone || '',
+        profileImage: user.profile_photo ? `http://127.0.0.1:8000/storage/${user.profile_photo}?t=${Date.now()}` : null,
+        location: user.address || 'Non spécifié',
+        memberSince: new Date(user.created_at).getFullYear().toString()
+      }
+      
+      console.log('Final profile image URL:', intervenant.value.profileImage)
+      
+      // Initialize form data with real values
+      formData.value = {
+        name: intervenant.value.name,
+        email: intervenant.value.email,
+        phone: intervenant.value.phone,
+        location: intervenant.value.location,
+        bio: user.intervenant.bio || '',
+        experience: '', // You might want to add this to the database
+        languages: '' // You might want to add this to the database
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching user data:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+// Handle file upload for profile photo
+const handleFileUpload = (event) => {
+  const file = event.target.files[0]
+  if (file) {
+    // Check if file is an image
+    if (!file.type.startsWith('image/')) {
+      alert('Veuillez sélectionner une image valide')
+      return
+    }
+    
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('L\'image ne doit pas dépasser 5MB')
+      return
+    }
+    
+    selectedFile.value = file
+    
+    // Create a preview
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      intervenant.value.profileImage = e.target.result
+    }
+    reader.readAsDataURL(file)
+  }
+}
+
+onMounted(() => {
+  fetchCurrentUser()
 })
 
 const startEdit = () => {
   isEditing.value = true
 }
 
-const saveEdit = () => {
-  isEditing.value = false
-  showSuccessMessage.value = true
-  setTimeout(() => {
-    showSuccessMessage.value = false
-  }, 3000)
+const saveEdit = async () => {
+  try {
+    const formDataToSend = new FormData()
+    
+    // Add text fields
+    formDataToSend.append('address', formData.value.location)
+    formDataToSend.append('bio', formData.value.bio)
+    formDataToSend.append('telephone', formData.value.phone)
+    
+    // Add profile photo if selected
+    if (selectedFile.value) {
+      formDataToSend.append('profile_photo', selectedFile.value)
+    }
+    
+    // Update profile using authService with FormData
+    const response = await authService.updateProfile(formDataToSend)
+    
+    // Refresh user data to get updated profile
+    await fetchCurrentUser()
+    
+    selectedFile.value = null
+    isEditing.value = false
+    showSuccessMessage.value = true
+    setTimeout(() => {
+      showSuccessMessage.value = false
+    }, 3000)
+  } catch (error) {
+    console.error('Error updating profile:', error)
+    alert('Erreur lors de la mise à jour du profil')
+  }
 }
 
 const cancelEdit = () => {
@@ -139,10 +270,13 @@ const cancelEdit = () => {
     email: intervenant.value.email,
     phone: intervenant.value.phone,
     location: intervenant.value.location,
-    bio: 'Professionnelle du ménage avec plus de 5 ans d\'expérience. Spécialisée dans le nettoyage en profondeur et l\'entretien régulier des espaces résidentiels.',
-    experience: '5 ans',
-    languages: 'Arabe, Français'
+    bio: intervenant.value.bio || '',
+    experience: formData.value.experience,
+    languages: formData.value.languages
   }
+  selectedFile.value = null
+  // Reset profile image to original
+  fetchCurrentUser()
   isEditing.value = false
 }
 </script>
@@ -252,6 +386,88 @@ const cancelEdit = () => {
   border-radius: 50%;
   object-fit: cover;
   border: 4px solid var(--color-primary-green);
+  display: block;
+}
+
+.avatar-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.avatar-container {
+  position: relative;
+  display: inline-block;
+}
+
+.avatar-placeholder {
+  width: 6rem;
+  height: 6rem;
+  border-radius: 50%;
+  background-color: var(--color-light-green);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary-green);
+  border: 4px solid var(--color-primary-green);
+  position: relative;
+}
+
+.avatar-upload-placeholder {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  background: var(--color-primary-green);
+  border-radius: 50%;
+  padding: 0.25rem;
+  border: 2px solid white;
+  box-shadow: var(--shadow-md);
+}
+
+.upload-btn-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  background: transparent;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 0.75rem;
+}
+
+.upload-btn-placeholder:hover {
+  background-color: #A5C09E;
+}
+
+.avatar-upload {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  background: var(--color-primary-green);
+  border-radius: 50%;
+  padding: 0.25rem;
+  border: 2px solid white;
+  box-shadow: var(--shadow-md);
+}
+
+.upload-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  background: transparent;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 0.75rem;
+}
+
+.upload-btn:hover {
+  background-color: #A5C09E;
 }
 
 .profile-details {

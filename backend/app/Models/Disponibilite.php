@@ -11,21 +11,24 @@ class Disponibilite extends Model
 
     protected $table = 'disponibilite';
 
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = 'updated_at';
 
     protected $fillable = [
-        'intervenantId',
-        'dateDebut',
-        'dateFin',
-        'periode',
+        'type',
+        'heure_debut',
+        'heure_fin',
+        'date_specific',
+        'jours_semaine',
+        'intervenant_id',
     ];
 
     protected function casts(): array
     {
         return [
-            'dateDebut' => 'date',
-            'dateFin' => 'date',
+            'heure_debut' => 'datetime:H:i:s',
+            'heure_fin' => 'datetime:H:i:s',
+            'date_specific' => 'date',
         ];
     }
 
@@ -34,6 +37,6 @@ class Disponibilite extends Model
      */
     public function intervenant()
     {
-        return $this->belongsTo(Intervenant::class, 'intervenantId', 'id');
+        return $this->belongsTo(Intervenant::class, 'intervenant_id', 'id');
     }
 }

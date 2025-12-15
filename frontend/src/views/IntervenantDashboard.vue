@@ -53,7 +53,12 @@
           <!-- Profile Dropdown -->
           <div class="profile-section">
             <button @click="showProfileMenu = !showProfileMenu" class="profile-btn">
-              <img :src="intervenant.profileImage" :alt="intervenant.name" class="profile-image" />
+              <div v-if="intervenant.profileImage" class="profile-image-container">
+                <img :src="intervenant.profileImage" :alt="intervenant.name" class="profile-image" />
+              </div>
+              <div v-else class="profile-placeholder">
+                <User :size="24" />
+              </div>
               <div class="profile-info">
                 <p class="profile-name">{{ intervenant.name }}</p>
                 <p class="profile-location">{{ intervenant.location }}</p>
@@ -128,7 +133,7 @@ const fetchCurrentUser = async () => {
         name: `${user.prenom} ${user.nom}`,
         email: user.email,
         phone: user.telephone || '',
-        profileImage: user.url || 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=150&h=150&fit=crop',
+        profileImage: user.profile_photo ? `http://127.0.0.1:8000/storage/${user.profile_photo}?t=${Date.now()}` : null,
         location: user.address || 'Non spécifié',
         memberSince: new Date(user.created_at).getFullYear().toString()
       }
@@ -341,11 +346,32 @@ const handleLogout = async () => {
   background-color: var(--color-gray-50);
 }
 
-.profile-image {
+.profile-image-container {
   width: 2.5rem;
   height: 2.5rem;
   border-radius: 50%;
+  overflow: hidden;
+  display: inline-block;
+}
+
+.profile-image {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
   object-fit: cover;
+  border: 2px solid var(--color-primary-green);
+  display: block;
+}
+
+.profile-placeholder {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background-color: var(--color-primary-green);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
   border: 2px solid var(--color-primary-green);
 }
 

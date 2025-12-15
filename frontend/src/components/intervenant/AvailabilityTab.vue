@@ -152,38 +152,26 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { Plus, Trash2, Check, Calendar } from 'lucide-vue-next'
+import availabilityService from '@/services/availabilityService'
 
 const showSuccessMessage = ref(false)
 const showAddSpecial = ref(false)
+const loading = ref(false)
 
+// Initialize with default values
 const regularAvailability = ref([
-  { day: 'Lundi', available: true, startTime: '09:00', endTime: '17:00' },
-  { day: 'Mardi', available: true, startTime: '09:00', endTime: '17:00' },
-  { day: 'Mercredi', available: true, startTime: '09:00', endTime: '17:00' },
-  { day: 'Jeudi', available: true, startTime: '09:00', endTime: '17:00' },
-  { day: 'Vendredi', available: true, startTime: '09:00', endTime: '17:00' },
-  { day: 'Samedi', available: true, startTime: '09:00', endTime: '17:00' },
+  { day: 'Lundi', available: false, startTime: '09:00', endTime: '17:00' },
+  { day: 'Mardi', available: false, startTime: '09:00', endTime: '17:00' },
+  { day: 'Mercredi', available: false, startTime: '09:00', endTime: '17:00' },
+  { day: 'Jeudi', available: false, startTime: '09:00', endTime: '17:00' },
+  { day: 'Vendredi', available: false, startTime: '09:00', endTime: '17:00' },
+  { day: 'Samedi', available: false, startTime: '09:00', endTime: '17:00' },
   { day: 'Dimanche', available: false, startTime: '09:00', endTime: '17:00' }
 ])
 
-const specialAvailability = ref([
-  {
-    id: 1,
-    date: '2024-12-25',
-    available: false,
-    reason: 'Jour férié'
-  },
-  {
-    id: 2,
-    date: '2024-12-15',
-    available: true,
-    startTime: '14:00',
-    endTime: '18:00',
-    reason: 'Disponibilité exceptionnelle'
-  }
-])
+const specialAvailability = ref([])
 
 const newSpecial = ref({
   date: '',
@@ -193,47 +181,178 @@ const newSpecial = ref({
   reason: ''
 })
 
+// Map French day names to database values
+const dayMap = {
+  'Lundi': 'lundi',
+  'Mardi': 'mardi',
+  'Mercredi': 'mercredi',
+  'Jeudi': 'jeudi',
+  'Vendredi': 'vendredi',
+  'Samedi': 'samedi',
+  'Dimanche': 'dimanche'
+}
+
+// Map database values back to French day names
+const reverseDayMap = {
+  'lundi': 'Lundi',
+  'mardi': 'Mardi',
+  'mercredi': 'Mercredi',
+  'jeudi': 'Jeudi',
+  'vendredi': 'Vendredi',
+  'samedi': 'Samedi',
+  'dimanche': 'Dimanche'
+}
+
+// Fetch disponibilites from backend
+const fetchDisponibilites = async () => {
+  try {
+    loading.value = true
+    
+    // Debug: Check authentication status
+    const token = localStorage.getItem('token')
+    console.log('Authentication token exists:', !!token)
+    console.log('Token value:', token ? token.substring(0, 20) + '...' : 'null')
+    
+    const response = await availabilityService.getMyDisponibilites()
+    const disponibilites = response.data
+    
+    console.log('Disponibilites from backend:', disponibilites)
+    
+    // Reset regular availability
+    regularAvailability.value = regularAvailability.value.map(day => ({
+      ...day,
+      available: false,
+      startTime: '09:00',
+      endTime: '17:00'
+    }))
+    
+    // Process regular availability
+    const regularDispos = disponibilites.filter(d => d.type === 'reguliere')
+    regularDispos.forEach(dispo => {
+      const dayIndex = regularAvailability.value.findIndex(
+        day => day.day === reverseDayMap[dispo.jours_semaine]
+      )
+      if (dayIndex !== -1) {
+        regularAvailability.value[dayIndex] = {
+          ...regularAvailability.value[dayIndex],
+          available: true,
+          startTime: dispo.heure_debut ? dispo.heure_debut.substring(0, 5) : '09:00',
+          endTime: dispo.heure_fin ? dispo.heure_fin.substring(0, 5) : '17:00'
+        }
+      }
+    })
+    
+    // Process special availability
+    const specialDispos = disponibilites.filter(d => d.type === 'ponctuelle')
+    specialAvailability.value = specialDispos.map(dispo => ({
+      id: dispo.id,
+      date: dispo.date_specific,
+      available: !!dispo.heure_debut, // If there's a start time, it's available
+      startTime: dispo.heure_debut ? dispo.heure_debut.substring(0, 5) : null,
+      endTime: dispo.heure_fin ? dispo.heure_fin.substring(0, 5) : null,
+      reason: null // Reason field not in database yet
+    }))
+    
+    console.log('Processed regular availability:', regularAvailability.value)
+    console.log('Processed special availability:', specialAvailability.value)
+    
+  } catch (error) {
+    console.error('Error fetching disponibilites:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
 const toggleDay = (index) => {
   regularAvailability.value[index].available = !regularAvailability.value[index].available
 }
 
-const saveRegularAvailability = () => {
-  showSuccessMessage.value = true
-  setTimeout(() => {
-    showSuccessMessage.value = false
-  }, 3000)
+const saveRegularAvailability = async () => {
+  try {
+    loading.value = true
+    
+    const availabilities = regularAvailability.value.map(day => ({
+      day: dayMap[day.day],
+      available: day.available,
+      startTime: day.available ? day.startTime : null,
+      endTime: day.available ? day.endTime : null
+    }))
+    
+    console.log('Saving regular availability:', availabilities)
+    
+    await availabilityService.createRegularAvailability(availabilities)
+    
+    showSuccessMessage.value = true
+    setTimeout(() => {
+      showSuccessMessage.value = false
+    }, 3000)
+    
+    // Refresh data
+    await fetchDisponibilites()
+    
+  } catch (error) {
+    console.error('Error saving regular availability:', error)
+    alert('Erreur lors de l\'enregistrement des disponibilités régulières')
+  } finally {
+    loading.value = false
+  }
 }
 
-const addSpecialAvailability = () => {
+const addSpecialAvailability = async () => {
   if (!newSpecial.value.date) return
 
-  const newItem = {
-    id: Date.now(),
-    date: newSpecial.value.date,
-    available: newSpecial.value.available,
-    startTime: newSpecial.value.available ? newSpecial.value.startTime : undefined,
-    endTime: newSpecial.value.available ? newSpecial.value.endTime : undefined,
-    reason: newSpecial.value.reason
+  try {
+    loading.value = true
+    
+    const data = {
+      date: newSpecial.value.date,
+      available: newSpecial.value.available,
+      startTime: newSpecial.value.available ? newSpecial.value.startTime : null,
+      endTime: newSpecial.value.available ? newSpecial.value.endTime : null,
+      reason: newSpecial.value.reason
+    }
+    
+    console.log('Adding special availability:', data)
+    
+    await availabilityService.createSpecialAvailability(data)
+    
+    // Reset form
+    newSpecial.value = {
+      date: '',
+      available: true,
+      startTime: '09:00',
+      endTime: '17:00',
+      reason: ''
+    }
+    showAddSpecial.value = false
+    
+    // Refresh data
+    await fetchDisponibilites()
+    
+  } catch (error) {
+    console.error('Error adding special availability:', error)
+    alert('Erreur lors de l\'ajout de la disponibilité ponctuelle')
+  } finally {
+    loading.value = false
   }
-
-  specialAvailability.value.push(newItem)
-  specialAvailability.value.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-
-  // Reset form
-  newSpecial.value = {
-    date: '',
-    available: true,
-    startTime: '09:00',
-    endTime: '17:00',
-    reason: ''
-  }
-  showAddSpecial.value = false
 }
 
-const deleteSpecialAvailability = (id) => {
-  const index = specialAvailability.value.findIndex(s => s.id === id)
-  if (index > -1) {
-    specialAvailability.value.splice(index, 1)
+const deleteSpecialAvailability = async (id) => {
+  try {
+    loading.value = true
+    
+    console.log('Deleting special availability:', id)
+    
+    await availabilityService.deleteDisponibilite(id)
+    
+    // Refresh data
+    await fetchDisponibilites()
+    
+  } catch (error) {
+    console.error('Error deleting special availability:', error)
+    alert('Erreur lors de la suppression de la disponibilité')
+  } finally {
+    loading.value = false
   }
 }
 
@@ -246,6 +365,11 @@ const formatDate = (dateStr) => {
     year: 'numeric'
   })
 }
+
+// Load data on component mount
+onMounted(() => {
+  fetchDisponibilites()
+})
 </script>
 
 <style scoped>

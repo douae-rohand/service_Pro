@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Intervenant;
 use App\Models\Intervention;
 use App\Models\Materiel;
+use App\Models\Disponibilite;
 use Illuminate\Http\Request;
 
 class IntervenantController extends Controller
@@ -157,10 +158,134 @@ class IntervenantController extends Controller
     {
         $intervenant = Intervenant::findOrFail($id);
         $disponibilites = $intervenant->disponibilites()
-            ->orderBy('dateDebut', 'asc')
+            ->orderBy('created_at', 'asc')
             ->get();
 
         return response()->json($disponibilites);
+    }
+
+    /**
+     * Get current authenticated intervenant's disponibilites
+     */
+    public function myDisponibilites(Request $request)
+    {
+        $user = $request->user();
+        $intervenant = $user->intervenant;
+        
+        if (!$intervenant) {
+            return response()->json(['error' => 'Intervenant not found'], 404);
+        }
+
+        $disponibilites = $intervenant->disponibilites()
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        return response()->json($disponibilites);
+    }
+
+    /**
+     * Create regular availability (weekly schedule)
+     */
+    public function createRegularAvailability(Request $request)
+    {
+        $user = $request->user();
+        $intervenant = $user->intervenant;
+        
+        if (!$intervenant) {
+            return response()->json(['error' => 'Intervenant not found'], 404);
+        }
+
+        $validated = $request->validate([
+            'availabilities' => 'required|array',
+            'availabilities.*.day' => 'required|string|in:lundi,mardi,mercredi,jeudi,vendredi,samedi,dimanche',
+            'availabilities.*.available' => 'required|boolean',
+            'availabilities.*.startTime' => 'nullable|string',
+            'availabilities.*.endTime' => 'nullable|string',
+        ]);
+
+        // Delete existing regular availabilities for this intervenant
+        Disponibilite::where('intervenant_id', $intervenant->id)
+            ->where('type', 'reguliere')
+            ->delete();
+
+        // Create new regular availabilities
+        $createdDisponibilites = [];
+        foreach ($validated['availabilities'] as $availability) {
+            if ($availability['available']) {
+                $disponibilite = Disponibilite::create([
+                    'type' => 'reguliere',
+                    'jours_semaine' => $availability['day'],
+                    'heure_debut' => $availability['startTime'],
+                    'heure_fin' => $availability['endTime'],
+                    'intervenant_id' => $intervenant->id,
+                ]);
+                $createdDisponibilites[] = $disponibilite;
+            }
+        }
+
+        return response()->json([
+            'message' => 'Disponibilités régulières créées avec succès',
+            'disponibilites' => $createdDisponibilites
+        ]);
+    }
+
+    /**
+     * Create special availability (one-time exception)
+     */
+    public function createSpecialAvailability(Request $request)
+    {
+        $user = $request->user();
+        $intervenant = $user->intervenant;
+        
+        if (!$intervenant) {
+            return response()->json(['error' => 'Intervenant not found'], 404);
+        }
+
+        $validated = $request->validate([
+            'date' => 'required|date',
+            'available' => 'required|boolean',
+            'startTime' => 'nullable|string',
+            'endTime' => 'nullable|string',
+            'reason' => 'nullable|string',
+        ]);
+
+        $disponibilite = Disponibilite::create([
+            'type' => 'ponctuelle',
+            'date_specific' => $validated['date'],
+            'heure_debut' => $validated['available'] ? $validated['startTime'] : null,
+            'heure_fin' => $validated['available'] ? $validated['endTime'] : null,
+            'intervenant_id' => $intervenant->id,
+        ]);
+
+        return response()->json([
+            'message' => 'Disponibilité ponctuelle créée avec succès',
+            'disponibilite' => $disponibilite
+        ]);
+    }
+
+    /**
+     * Delete a specific disponibilite
+     */
+    public function deleteDisponibilite(Request $request, $id)
+    {
+        $user = $request->user();
+        $intervenant = $user->intervenant;
+        
+        if (!$intervenant) {
+            return response()->json(['error' => 'Intervenant not found'], 404);
+        }
+
+        $disponibilite = Disponibilite::where('id', $id)
+            ->where('intervenant_id', $intervenant->id)
+            ->first();
+
+        if (!$disponibilite) {
+            return response()->json(['error' => 'Disponibilité non trouvée'], 404);
+        }
+
+        $disponibilite->delete();
+
+        return response()->json(['message' => 'Disponibilité supprimée avec succès']);
     }
 
     /**

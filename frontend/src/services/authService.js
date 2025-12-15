@@ -36,7 +36,14 @@ const authService = {
      * Mettre à jour le profil
      */
     updateProfile(data) {
-        return api.put('auth/profile', data);
+        // If data is FormData, don't set Content-Type header (axios will set it automatically)
+        const config = data instanceof FormData ? {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        } : {};
+        
+        return api.put('auth/profile', data, config);
     },
 
     /**

@@ -19,6 +19,7 @@ return new class extends Migration
             $table->date('date_specific')->nullable();
             $table->enum('jours_semaine', ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'])->nullable();
             $table->integer('intervenant_id')->nullable()->index('intervenant_id');
+            $table->timestamps();
         });
     }
 

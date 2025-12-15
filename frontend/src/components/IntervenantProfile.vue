@@ -632,8 +632,15 @@ export default {
       return new Date(dateString).toLocaleDateString('fr-FR', { weekday: 'long' });
     },
     
-    formatTime(dateString) {
-      return new Date(dateString).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    formatTime(timeString) {
+      if (!timeString) return '00:00';
+      // Si c'est déjà un objet Date ou une chaine de date complète
+      if (timeString instanceof Date || timeString.includes('T') || timeString.includes('-')) {
+        return new Date(timeString).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      }
+      // Sinon on suppose que c'est une heure "HH:mm:ss" ou "HH:mm"
+      const [hours, minutes] = timeString.split(':');
+      return `${hours}:${minutes}`;
     },
     getExperienceForService(data) {
       if (!data || !data.services) return null;

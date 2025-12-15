@@ -44,7 +44,7 @@
           >
             <div class="text-center text-white">
               <Package :size="48" class="mx-auto mb-2 opacity-80" />
-              <p class="text-lg font-semibold">{{ service.nom }}</p>
+              <p class="text-lg font-semibold">{{ service.nom_service || service.nom }}</p>
             </div>
           </div>
           <div
@@ -58,7 +58,7 @@
         <!-- Content -->
         <div class="p-6">
           <div class="flex items-center justify-between mb-4">
-            <h3 class="text-2xl" :style="{ color: service.couleur }">{{ service.nom }}</h3>
+            <h3 class="text-2xl" :style="{ color: service.couleur }">{{ service.nom_service || service.nom }}</h3>
 
             <!-- Switch Button -->
             <button
@@ -203,7 +203,7 @@
     </div>
 
     <!-- Service Stats Detailed View -->
-    <div v-if="showStatsModal" class="min-h-screen" :style="{ backgroundColor: pageBackgroundColor }">
+    <div v-if="showStatsModal" class="min-h-screen">
       <!-- Back Button -->
       <div class="p-6">
         <button
@@ -224,7 +224,7 @@
           v-else-if="serviceStats"
           class="relative rounded-xl overflow-hidden mb-6 p-6 shadow-lg"
           :style="{
-            background: isJardinage ? '#d7e4d2' : (isMenage ? '#b8c5d1' : (serviceStats?.service?.couleur ? `linear-gradient(135deg, ${serviceStats.service.couleur}, ${serviceStats.service.couleur}DD)` : 'linear-gradient(135deg, #5B7C99, #5B7C99DD)')),
+            background: isJardinage ? '#d7e4d2' : (isMenage ? '#b8c5d1' : (serviceColor ? `linear-gradient(135deg, ${serviceColor}, ${serviceColor}DD)` : 'linear-gradient(135deg, #5B7C99, #5B7C99DD)')),
             color: (isJardinage || isMenage) ? '#4a4a4a' : 'white'
           }"
         >
@@ -331,7 +331,7 @@
                         class="h-full rounded-full transition-all duration-500"
                         :style="{
                           width: `${(mois.count / Math.max(...serviceStats.missionsParMois.map(m => m.count), 1)) * 100}%`,
-                          backgroundColor: '#86af88'
+                          backgroundColor: serviceColor
                         }"
                       ></div>
                     </div>
@@ -354,7 +354,7 @@
                 >
                   <div
                     class="w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm"
-                    style="background-color: #d7e4d2; color: #86af88;"
+                    :style="{ backgroundColor: lightColor, color: serviceColor }"
                   >
                     {{ getInitials(intervenant.nom, intervenant.prenom) }}
                   </div>
@@ -366,7 +366,7 @@
                   </div>
                   <div class="flex items-center gap-1.5">
                     <Star :size="16" fill="#FEE347" :style="{ color: '#FEE347' }" />
-                    <span class="font-bold text-sm" style="color: #86af88;">
+                    <span class="font-bold text-sm" :style="{ color: serviceColor }">
                       {{ intervenant.note }}
                     </span>
                   </div>
@@ -380,21 +380,14 @@
           </div>
 
           <!-- Revenus par tâche -->
-          <div v-if="serviceStats.revenusParTache && serviceStats.revenusParTache.length > 0" 
-               :style="isJardinage ? { 
-                 backgroundColor: 'rgba(215, 228, 210, 0.4)', 
-                 padding: '1.5rem', 
-                 borderRadius: '0.75rem', 
-                 marginTop: '1.5rem'
-               } : (isMenage ? {
-                 backgroundColor: 'rgba(184, 197, 209, 0.4)', 
-                 padding: '1.5rem', 
-                 borderRadius: '0.75rem', 
-                 marginTop: '1.5rem'
-               } : { marginTop: '1.5rem' })"
+          <div v-if="serviceStats" 
+               :style="getRevenusParTacheStyle()"
                class="rounded-xl">
             <h3 class="text-lg font-bold mb-4" :style="{ color: serviceColor }">Revenus par tâche</h3>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            <!-- Afficher les tâches si elles existent -->
+            <div v-if="serviceStats.revenusParTache && Array.isArray(serviceStats.revenusParTache) && serviceStats.revenusParTache.length > 0" 
+                 class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div
                 v-for="tache in serviceStats.revenusParTache"
                 :key="tache.id"
@@ -406,6 +399,13 @@
                 </p>
                 <p class="text-xs text-gray-500">{{ tache.missions }} missions</p>
               </div>
+            </div>
+            
+            <!-- Message si aucune tâche ou aucun revenu -->
+            <div v-else class="text-center py-8">
+              <Package :size="48" class="mx-auto mb-3 opacity-30" :style="{ color: serviceColor }" />
+              <p class="text-sm text-gray-500 mb-2">Aucune tâche avec revenus enregistrée</p>
+              <p class="text-xs text-gray-400">Les revenus par tâche apparaîtront ici une fois que des missions auront été complétées</p>
             </div>
           </div>
         </div>
@@ -794,7 +794,7 @@ import { Package, Activity, Star, Clock, X, Users, Briefcase, TrendingUp, Plus, 
 import adminService from '@/services/adminService'
 import { useNotifications } from '@/composables/useNotifications'
 
-const emit = defineEmits(['back'])
+const emit = defineEmits(['back', 'demandes-updated'])
 const { success, error, confirm: confirmDialog } = useNotifications()
 
 const services = ref([])
@@ -893,12 +893,189 @@ const visiblePages = computed(() => {
   return pages
 })
 
+// Palette de couleurs prédéfinies pour les services
+// Note: '#5B7C99' (Ménage) et '#92B08B' (Jardinage) sont exclus car déjà utilisées
+// Exclure aussi leurs dérivés (bleus gris et verts similaires)
+const serviceColorPalette = [
+  '#F4A261',  // Orange
+  '#E76F51',  // Rouge corail
+  '#E9C46A',  // Jaune
+  '#EF476F',  // Rose
+  '#F77F00',  // Orange foncé
+  '#D62828',  // Rouge
+  '#FCBF49',  // Jaune doré
+  '#FFD166',  // Jaune pâle
+  '#F38181',  // Rose saumon
+  '#AA96DA',  // Violet
+  '#FCBAD3',  // Rose pâle
+  '#FFFFD2',  // Jaune très clair
+  '#264653'   // Bleu foncé (différent du bleu gris)
+]
+
+/**
+ * Génère une couleur unique qui n'est pas déjà utilisée par les autres services
+ */
+const generateUniqueServiceColor = () => {
+  // Récupérer toutes les couleurs déjà utilisées depuis les services chargés
+  const usedColorsFromServices = services.value.map(service => service.couleur).filter(Boolean)
+  
+  // Récupérer toutes les couleurs stockées dans localStorage
+  const storedColors = getAllStoredColors()
+  const usedColorsFromStorage = Object.values(storedColors).filter(Boolean)
+  
+  // Combiner les deux listes et supprimer les doublons
+  const usedColors = [...new Set([...usedColorsFromServices, ...usedColorsFromStorage])]
+  
+  // Chercher la première couleur disponible dans la palette
+  for (const color of serviceColorPalette) {
+    if (!usedColors.includes(color)) {
+      return color
+    }
+  }
+  
+  // Si toutes les couleurs de la palette sont utilisées, générer une couleur aléatoire
+  // qui soit suffisamment différente des couleurs existantes
+  let newColor
+  let attempts = 0
+  const maxAttempts = 50
+  
+  do {
+    // Générer une couleur HSL avec une saturation et luminosité agréables
+    const hue = Math.floor(Math.random() * 360)
+    const saturation = 45 + Math.floor(Math.random() * 30) // Entre 45% et 75%
+    const lightness = 40 + Math.floor(Math.random() * 20) // Entre 40% et 60%
+    
+    // Convertir HSL en hexadécimal
+    newColor = hslToHex(hue, saturation, lightness)
+    attempts++
+  } while (usedColors.includes(newColor) && attempts < maxAttempts)
+  
+  // Si on n'a pas trouvé de couleur unique après plusieurs tentatives,
+  // retourner une couleur par défaut avec une variation
+  if (attempts >= maxAttempts || usedColors.includes(newColor)) {
+    const baseHue = Math.floor(Math.random() * 360)
+    return hslToHex(baseHue, 50, 50)
+  }
+  
+  return newColor
+}
+
+/**
+ * Convertit HSL en hexadécimal
+ */
+const hslToHex = (h, s, l) => {
+  s /= 100
+  l /= 100
+  
+  const c = (1 - Math.abs(2 * l - 1)) * s
+  const x = c * (1 - Math.abs((h / 60) % 2 - 1))
+  const m = l - c / 2
+  
+  let r = 0, g = 0, b = 0
+  
+  if (0 <= h && h < 60) {
+    r = c; g = x; b = 0
+  } else if (60 <= h && h < 120) {
+    r = x; g = c; b = 0
+  } else if (120 <= h && h < 180) {
+    r = 0; g = c; b = x
+  } else if (180 <= h && h < 240) {
+    r = 0; g = x; b = c
+  } else if (240 <= h && h < 300) {
+    r = x; g = 0; b = c
+  } else if (300 <= h && h < 360) {
+    r = c; g = 0; b = x
+  }
+  
+  r = Math.round((r + m) * 255)
+  g = Math.round((g + m) * 255)
+  b = Math.round((b + m) * 255)
+  
+  return '#' + [r, g, b].map(x => {
+    const hex = x.toString(16)
+    return hex.length === 1 ? '0' + hex : hex
+  }).join('')
+}
+
+/**
+ * Récupère la couleur stockée pour un service depuis localStorage
+ */
+const getStoredServiceColor = (serviceId) => {
+  try {
+    const storedColors = JSON.parse(localStorage.getItem('serviceColors') || '{}')
+    return storedColors[serviceId] || null
+  } catch (e) {
+    return null
+  }
+}
+
+/**
+ * Stocke la couleur d'un service dans localStorage
+ */
+const storeServiceColor = (serviceId, color) => {
+  try {
+    const storedColors = JSON.parse(localStorage.getItem('serviceColors') || '{}')
+    storedColors[serviceId] = color
+    localStorage.setItem('serviceColors', JSON.stringify(storedColors))
+  } catch (e) {
+    console.error('Erreur lors du stockage de la couleur:', e)
+  }
+}
+
+/**
+ * Récupère toutes les couleurs stockées
+ */
+const getAllStoredColors = () => {
+  try {
+    return JSON.parse(localStorage.getItem('serviceColors') || '{}')
+  } catch (e) {
+    return {}
+  }
+}
+
 // Methods
 const loadServices = async () => {
   try {
     loading.value = true
     const response = await adminService.getServices()
-    services.value = response.data || []
+    // Handle paginated response structure (new) or direct array (old for compatibility)
+    const loadedServices = response.data?.data || response.data || []
+    
+    // Récupérer les couleurs stockées
+    const storedColors = getAllStoredColors()
+    
+    // Mapper les services avec leurs couleurs stockées ou générer de nouvelles
+    services.value = loadedServices.map(service => {
+      // Vérifier si une couleur est déjà stockée pour ce service
+      const storedColor = storedColors[service.id]
+      
+      if (storedColor) {
+        // Utiliser la couleur stockée
+        return {
+          ...service,
+          couleur: storedColor
+        }
+      } else {
+        // Si le service a déjà une couleur (depuis le backend)
+        if (service.couleur && service.couleur !== '#808080') {
+          // Stocker la couleur si ce n'est pas la couleur par défaut du backend
+          storeServiceColor(service.id, service.couleur)
+          return {
+            ...service,
+            couleur: service.couleur
+          }
+        } else {
+          // Si pas de couleur ou couleur par défaut (#808080), générer une nouvelle couleur unique
+          const newColor = generateUniqueServiceColor()
+          storeServiceColor(service.id, newColor)
+          return {
+            ...service,
+            couleur: newColor
+          }
+        }
+      }
+    })
+    
     // Réinitialiser la pagination après chargement
     currentPage.value = 1
   } catch (error) {
@@ -963,6 +1140,10 @@ const toggleService = async (serviceParam) => {
     success(successMessage)
     
     await loadServices()
+    
+    // Émettre un événement pour rafraîchir les demandes si nécessaire
+    // Car la désactivation/réactivation d'un service peut affecter les demandes en attente
+    emit('demandes-updated')
   } catch (err) {
     console.error('Erreur changement statut service:', err)
     const errorMessage = err.response?.data?.message || err.response?.data?.error || err.message || 'Erreur lors du changement de statut du service'
@@ -983,6 +1164,31 @@ const viewServiceStats = async (service) => {
     }
     
     serviceStats.value = response.data
+    
+    // S'assurer que revenusParTache est toujours défini comme un tableau
+    if (!serviceStats.value.revenusParTache) {
+      serviceStats.value.revenusParTache = []
+    }
+    
+    // Toujours prioriser la couleur stockée dans localStorage ou dans les services chargés
+    // pour garantir que les nouveaux services avec leurs couleurs uniques sont affichés correctement
+    const loadedService = services.value.find(s => s.id === service.id)
+    const storedColor = getStoredServiceColor(service.id)
+    
+    // Priorité : 1) Service chargé, 2) localStorage, 3) Service passé en paramètre, 4) Backend, 5) Défaut
+    if (loadedService?.couleur) {
+      serviceStats.value.service.couleur = loadedService.couleur
+    } else if (storedColor) {
+      serviceStats.value.service.couleur = storedColor
+    } else if (service.couleur) {
+      serviceStats.value.service.couleur = service.couleur
+    } else if (!serviceStats.value.service.couleur || serviceStats.value.service.couleur === '#808080') {
+      // Si le backend retourne la couleur par défaut (#808080) ou aucune couleur,
+      // générer une nouvelle couleur unique et la stocker
+      const newColor = generateUniqueServiceColor()
+      storeServiceColor(service.id, newColor)
+      serviceStats.value.service.couleur = newColor
+    }
   } catch (error) {
     console.error('Erreur chargement statistiques:', error)
     const errorMessage = error.response?.data?.message || error.message || 'Erreur lors du chargement des statistiques'
@@ -1050,26 +1256,46 @@ const getServiceColors = (serviceName) => {
 // Pour Jardinage, utiliser les couleurs spécifiques, sinon utiliser service.couleur
 const serviceColor = computed(() => {
   if (!serviceStats.value?.service) return '#5B7C99'
-  const customColors = getServiceColors(serviceStats.value.service.nom)
-  // Pour Jardinage, utiliser la couleur primaire spécifique
+  const customColors = getServiceColors(serviceStats.value.service.nom_service || serviceStats.value.service.nom)
+  // Pour Jardinage et Ménage, utiliser la couleur primaire spécifique
   if (customColors) {
     return customColors.primary
   }
   // Sinon utiliser directement la couleur du service comme dans la carte
+  // Si la couleur n'est pas présente, essayer de la récupérer depuis les services chargés
+  if (!serviceStats.value.service.couleur) {
+    const loadedService = services.value.find(s => s.id === serviceStats.value.service.id)
+    if (loadedService?.couleur) {
+      return loadedService.couleur
+    }
+    // Sinon depuis localStorage
+    const storedColor = getStoredServiceColor(serviceStats.value.service.id)
+    if (storedColor) {
+      return storedColor
+    }
+  }
   return serviceStats.value.service.couleur || '#5B7C99'
 })
 
 // Computed pour obtenir la couleur du header
 const headerColor = computed(() => {
   if (!serviceStats.value?.service) return '#5B7C99'
-  const customColors = getServiceColors(serviceStats.value.service.nom)
-  return customColors ? customColors.header : (serviceStats.value.service.couleur || '#5B7C99')
+  const customColors = getServiceColors(serviceStats.value.service.nom_service || serviceStats.value.service.nom)
+  if (customColors) {
+    return customColors.header
+  }
+  // Récupérer la couleur du service
+  const color = serviceStats.value.service.couleur || 
+                services.value.find(s => s.id === serviceStats.value.service.id)?.couleur ||
+                getStoredServiceColor(serviceStats.value.service.id) ||
+                '#5B7C99'
+  return color
 })
 
 // Computed pour obtenir la couleur de fond claire
 const lightColor = computed(() => {
   if (!serviceStats.value?.service) return '#5B7C9915'
-  const serviceName = serviceStats.value.service.nom
+  const serviceName = serviceStats.value.service.nom_service || serviceStats.value.service.nom
   const customColors = getServiceColors(serviceName)
   if (customColors) {
     // Pour Jardinage, utiliser le vert clair avec opacité
@@ -1081,44 +1307,48 @@ const lightColor = computed(() => {
       return 'rgba(184, 197, 209, 0.25)' // #b8c5d1 avec 25% d'opacité
     }
   }
-  return `${serviceStats.value.service.couleur || '#5B7C99'}15`
+  // Récupérer la couleur du service
+  const color = serviceStats.value.service.couleur || 
+                services.value.find(s => s.id === serviceStats.value.service.id)?.couleur ||
+                getStoredServiceColor(serviceStats.value.service.id) ||
+                '#5B7C99'
+  return `${color}15`
 })
 
 // Computed pour obtenir la couleur de croissance positive (utiliser la couleur du service)
 const positiveGrowthColor = computed(() => {
   if (!serviceStats.value?.service) return '#16a34a' // green-600 en hex
-  const customColors = getServiceColors(serviceStats.value.service.nom)
+  const customColors = getServiceColors(serviceStats.value.service.nom_service || serviceStats.value.service.nom)
   if (customColors) {
-    // Pour Jardinage, utiliser la couleur primaire (vert clair)
+    // Pour Jardinage et Ménage, utiliser la couleur primaire spécifique
     return customColors.primary
   }
-  return '#16a34a' // green-600 en hex
+  // Pour les nouveaux services, utiliser leur couleur unique
+  const color = serviceStats.value.service.couleur || 
+                services.value.find(s => s.id === serviceStats.value.service.id)?.couleur ||
+                getStoredServiceColor(serviceStats.value.service.id) ||
+                '#16a34a'
+  return color
 })
 
-// Computed pour obtenir la couleur de fond de la page
-const pageBackgroundColor = computed(() => {
-  if (!serviceStats.value?.service) return ''
-  const serviceName = serviceStats.value.service.nom
-  const customColors = getServiceColors(serviceName)
-  if (customColors) {
-    // Pour Jardinage, utiliser un fond très clair vert
-    if (serviceName.toLowerCase().includes('jardinage')) {
-      return 'rgba(215, 228, 210, 0.1)' // #d7e4d2 avec 10% d'opacité
-    }
-    // Pour Ménage, utiliser un fond très clair bleu gris
-    if (serviceName.toLowerCase().includes('ménage') || serviceName.toLowerCase().includes('menage')) {
-      return 'rgba(184, 197, 209, 0.1)' // #b8c5d1 avec 10% d'opacité
-    }
+/**
+ * Obtient le style pour la section "Revenus par tâche"
+ */
+const getRevenusParTacheStyle = () => {
+  // Style par défaut sans backgroundColor
+  return {
+    padding: '1.5rem',
+    borderRadius: '0.75rem',
+    marginTop: '1.5rem'
   }
-  return ''
-})
+}
 
 // Computed pour vérifier si c'est Jardinage
 const isJardinage = computed(() => {
   if (!serviceStats.value?.service?.nom) {
     return false
   }
-  const serviceName = String(serviceStats.value.service.nom).toLowerCase().trim()
+  const serviceName = String(serviceStats.value.service.nom_service || serviceStats.value.service.nom).toLowerCase().trim()
   return serviceName === 'jardinage' || serviceName.includes('jardinage')
 })
 
@@ -1127,7 +1357,7 @@ const isMenage = computed(() => {
   if (!serviceStats.value?.service?.nom) {
     return false
   }
-  const serviceName = String(serviceStats.value.service.nom).toLowerCase().trim()
+  const serviceName = String(serviceStats.value.service.nom_service || serviceStats.value.service.nom).toLowerCase().trim()
   return serviceName === 'ménage' || serviceName.includes('ménage') || serviceName === 'menage' || serviceName.includes('menage')
 })
 
@@ -1268,7 +1498,22 @@ const saveService = async () => {
       return
     }
 
-    await adminService.createService(serviceForm.value)
+    // Générer une couleur unique pour le nouveau service
+    const uniqueColor = generateUniqueServiceColor()
+    
+    // Ajouter la couleur au formulaire avant l'envoi
+    const serviceData = {
+      ...serviceForm.value,
+      couleur: uniqueColor
+    }
+
+    const response = await adminService.createService(serviceData)
+    
+    // Stocker la couleur générée pour le nouveau service
+    if (response.data?.service?.id) {
+      storeServiceColor(response.data.service.id, uniqueColor)
+    }
+    
     success('Service créé avec succès')
     closeAddServiceModal()
     await loadServices()

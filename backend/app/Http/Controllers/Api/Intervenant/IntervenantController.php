@@ -42,11 +42,19 @@ class IntervenantController extends Controller
             'address' => 'nullable|string',
             'ville' => 'nullable|string|max:100',
             'bio' => 'nullable|string',
-            'isActive' => 'nullable|boolean',
-            'adminId' => 'nullable|exists:admin,id',
+            'is_active' => 'nullable|boolean',
+            'admin_id' => 'nullable|exists:admin,id',
         ]);
 
-        $intervenant = Intervenant::create($validated);
+        // Support legacy camelCase payloads
+        $intervenant = Intervenant::create([
+            'id' => $validated['id'],
+            'address' => $validated['address'] ?? $request->input('address'),
+            'ville' => $validated['ville'] ?? $request->input('ville'),
+            'bio' => $validated['bio'] ?? $request->input('bio'),
+            'is_active' => $validated['is_active'] ?? $request->boolean('isActive'),
+            'admin_id' => $validated['admin_id'] ?? $request->input('adminId'),
+        ]);
 
         return response()->json([
             'message' => 'Intervenant créé avec succès',
@@ -83,11 +91,17 @@ class IntervenantController extends Controller
             'address' => 'nullable|string',
             'ville' => 'nullable|string|max:100',
             'bio' => 'nullable|string',
-            'isActive' => 'nullable|boolean',
-            'adminId' => 'nullable|exists:admin,id',
+            'is_active' => 'nullable|boolean',
+            'admin_id' => 'nullable|exists:admin,id',
         ]);
 
-        $intervenant->update($validated);
+        $intervenant->update([
+            'address' => $validated['address'] ?? $request->input('address'),
+            'ville' => $validated['ville'] ?? $request->input('ville'),
+            'bio' => $validated['bio'] ?? $request->input('bio'),
+            'is_active' => $validated['is_active'] ?? $request->boolean('isActive'),
+            'admin_id' => $validated['admin_id'] ?? $request->input('adminId'),
+        ]);
 
         return response()->json([
             'message' => 'Intervenant mis à jour avec succès',
@@ -129,7 +143,8 @@ class IntervenantController extends Controller
     {
         $intervenant = Intervenant::findOrFail($id);
         $disponibilites = $intervenant->disponibilites()
-            ->orderBy('dateDebut', 'asc')
+            ->orderBy('date_specific', 'asc')
+            ->orderBy('heure_debut', 'asc')
             ->get();
 
         return response()->json($disponibilites);

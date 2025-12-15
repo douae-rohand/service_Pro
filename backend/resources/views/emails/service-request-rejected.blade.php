@@ -44,12 +44,18 @@
                             
                             <!-- Main Message -->
                             <p style="margin: 25px 0; color: #555555; font-size: 15px; line-height: 1.7;">
-                                Nous avons examiné votre demande avec attention et malheureusement, nous ne pouvons pas l'accepter pour le moment.
+                                @if(is_string($services) && !empty($services))
+                                    {{ $services }}
+                                @else
+                                    Nous avons examiné votre demande avec attention et malheureusement, nous ne pouvons pas l'accepter pour le moment.
+                                @endif
                             </p>
                             
+                            @if(!is_string($services) || empty($services))
                             <p style="margin: 20px 0; color: #555555; font-size: 15px; line-height: 1.7;">
                                 Si vous avez des questions concernant cette décision ou souhaitez obtenir plus d'informations, n'hésitez pas à nous contacter. Nous sommes là pour vous aider.
                             </p>
+                            @endif
                             
                             @if(!empty($services))
                             <!-- Services List -->

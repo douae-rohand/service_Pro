@@ -43,8 +43,13 @@
       </div>
     </div>
 
+    <!-- Loading State (minimal) -->
+    <div v-if="loading" class="text-center py-4">
+      <div class="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+    </div>
+
     <!-- Clients Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       <div 
         v-for="client in paginatedClients" 
         :key="client.id"

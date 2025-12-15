@@ -113,8 +113,7 @@ class AdminController extends Controller
                 'satisfaction' => $satisfaction,
                 'satisfactionLabel' => $satisfactionLabel,
                 'heuresTotal' => $heuresTotal,
-                'heuresGrowth' => ($heuresGrowth >= 0 ? '+' : '') . $heuresGrowth . '%',
-                'reclamationsNouvelles' => 0
+                'heuresGrowth' => ($heuresGrowth >= 0 ? '+' : '') . $heuresGrowth . '%'
             ];
         });
 
@@ -248,7 +247,8 @@ class AdminController extends Controller
             ];
         })->filter(); // Filtrer les valeurs null
 
-        return response()->json($clientsData->values()); // Reset les clés
+        // Use standardized pagination helper
+        return $this->formatPaginatedResponse($clientsData->values(), $request, 15);
     }
 
     /**
@@ -377,7 +377,8 @@ class AdminController extends Controller
             'utilisateur', // Charger toutes les colonnes de l'utilisateur
             'taches.service', // Charger les tâches avec leur service
             'services', // Charger tous les services (nécessaire pour le pivot)
-            'interventions' // Charger les interventions pour compter
+            'interventions', // Charger les interventions pour compter
+            'disponibilites', // Charger les disponibilités pour l'affichage dynamique
         ]);
 
         // Filtrer par statut (par défaut, afficher tous)
@@ -415,11 +416,6 @@ class AdminController extends Controller
         }
 
         $intervenants = $query->get();
-        
-        // Vérifier si des intervenants ont été trouvés
-        if ($intervenants->isEmpty()) {
-            return response()->json([]);
-        }
         
         // Précharger toutes les données nécessaires en une seule fois pour éviter N+1
         $allIntervenantIds = $intervenants->pluck('id');
@@ -516,7 +512,8 @@ class AdminController extends Controller
                     'dateInscription' => $intervenant->created_at ? $intervenant->created_at->format('Y-m-d') : now()->format('Y-m-d'),
                     'statut' => $statut,
                     'taches' => [],
-                    'disponibilite' => null,
+                    'disponibilite' => $this->formatDisponibilitesForIntervenant($intervenant),
+                    'disponibilites' => $this->mapDisponibilites($intervenant),
                     'avis' => [],
                     'repartitionNotes' => [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0]
                 ];
@@ -582,10 +579,10 @@ class AdminController extends Controller
                 $experience = $this->formatExperience($servicePrincipal->pivot->experience ?? null);
             }
             
-            // Construire allServicesWithDetails avec les détails (nom, id, experience, presentation)
+            // Construire allServicesWithDetails avec les détails (nom_service, id, experience, presentation)
             $allServicesWithDetails = $servicesActives->map(function($service) {
                 return [
-                    'nom' => $service->nom_service,
+                    'nom_service' => $service->nom_service,
                     'id' => $service->id,
                     'experience' => $this->formatExperience($service->pivot->experience ?? null),
                     'presentation' => $service->pivot->presentation ?? null
@@ -626,13 +623,15 @@ class AdminController extends Controller
                     })
                     ->values()
                     ->toArray(),
-                'disponibilite' => 'Lun-Sam 8h-18h',
+                'disponibilite' => $this->formatDisponibilitesForIntervenant($intervenant),
+                'disponibilites' => $this->mapDisponibilites($intervenant),
                 'avis' => $avisList,
                 'repartitionNotes' => $repartitionNotes
             ];
         })->filter(); // Filtrer les valeurs null
 
-        return response()->json($intervenantsData->values()); // Reset les clés - CORRECTION: utiliser $intervenantsData au lieu de $intervenants
+        // Use standardized pagination helper
+        return $this->formatPaginatedResponse($intervenantsData->values(), $request, 15);
     }
 
     /**
@@ -645,7 +644,8 @@ class AdminController extends Controller
             'taches.service', 
             'services', 
             'interventions.photos',
-            'justificatifs'
+            'justificatifs',
+            'disponibilites',
         ])->findOrFail($id);
         
         if (!$intervenant->utilisateur) {
@@ -655,10 +655,14 @@ class AdminController extends Controller
         // Déterminer le statut : actif ou suspendu
         $statut = $intervenant->is_active ? 'actif' : 'suspendu';
         
-        // Filtrer uniquement les services ACTIVÉS
+        // Récupérer TOUS les services (peu importe le statut) pour calculer l'expérience
+        // Mais filtrer uniquement les services ACTIVÉS pour l'affichage (limitation de 2 services)
+        $tousServices = $intervenant->services;
+        
+        // Filtrer uniquement les services ACTIVÉS pour l'affichage
         // 1. Le service doit être actif dans la table pivot (intervenant_service.status = 'active')
         // 2. Le service lui-même doit être actif (service.status = 'active')
-        $servicesActives = $intervenant->services->filter(function($service) {
+        $servicesActives = $tousServices->filter(function($service) {
             // Vérifier d'abord le statut dans la table pivot
             if ($service->pivot->status !== 'active') {
                 return false;
@@ -913,21 +917,28 @@ class AdminController extends Controller
             }
         }
         
-        // Récupérer l'expérience depuis le pivot du service principal
+        // Récupérer l'expérience depuis le pivot du service principal (premier service actif)
         $experience = null;
         if ($servicePrincipal && isset($servicePrincipal->pivot)) {
             $experience = $this->formatExperience($servicePrincipal->pivot->experience ?? null);
         }
         
-        // Construire allServices avec les détails (nom + experience + presentation)
-        $allServicesWithDetails = $servicesActives->map(function($service) {
+        // Construire allServicesWithDetails avec TOUS les services (pour avoir toutes les expériences)
+        // Mais seulement afficher les services actifs dans le frontend (limitation de 2)
+        $allServicesWithDetails = $tousServices->map(function($service) {
             return [
-                'nom' => $service->nom_service,
+                'nom_service' => $service->nom_service,
                 'id' => $service->id,
                 'experience' => $this->formatExperience($service->pivot->experience ?? null),
-                'presentation' => $service->pivot->presentation ?? null
+                'presentation' => $service->pivot->presentation ?? null,
+                'status' => $service->pivot->status ?? null // Ajouter le statut pour pouvoir filtrer côté frontend
             ];
         })->toArray();
+        
+        // Filtrer allServicesWithDetails pour ne garder que les services actifs pour l'affichage
+        $allServicesWithDetailsActifs = collect($allServicesWithDetails)->filter(function($service) {
+            return $service['status'] === 'active';
+        })->values()->toArray();
         
         return response()->json([
             'id' => $intervenant->id,
@@ -941,8 +952,9 @@ class AdminController extends Controller
             'experience' => $experience, // Experience du service principal (pour compatibilité)
             'service' => $servicePrincipal ? $servicePrincipal->nom_service : null,
             'serviceId' => $servicePrincipal ? $servicePrincipal->id : null,
-            'allServices' => $servicesActives->pluck('nom_service')->toArray(), // Seulement les services ACTIVÉS (pour compatibilité)
-            'allServicesWithDetails' => $allServicesWithDetails, // Services avec détails (nom, id, experience)
+            'allServices' => $servicesActives->pluck('nom_service')->toArray(), // Seulement les services ACTIVÉS (pour compatibilité - limitation de 2)
+            'allServicesWithDetails' => $allServicesWithDetailsActifs, // Services ACTIFS avec détails (nom, id, experience) - pour affichage (limitation de 2)
+            'allServicesWithDetailsAll' => $allServicesWithDetails, // TOUS les services avec détails (pour calculer l'expérience de tous les services)
             'note' => $avgNote ? round($avgNote, 1) : 0,
             'nbAvis' => $nbAvis,
             'missions' => $interventions->count(),
@@ -963,7 +975,8 @@ class AdminController extends Controller
                 })
                 ->values() // Réindexer après le map
                 ->toArray(),
-            'disponibilite' => 'Lun-Sam 8h-18h', // À implémenter depuis la table disponibilite
+                'disponibilite' => $this->formatDisponibilitesForIntervenant($intervenant),
+                'disponibilites' => $this->mapDisponibilites($intervenant),
             'avis' => $avisList, // Liste complète des avis
             'repartitionNotes' => $repartitionNotes, // Pourcentages par étoile
             'photos' => $allPhotos, // Photos de toutes les interventions
@@ -1057,12 +1070,14 @@ class AdminController extends Controller
     {
         try {
             // Récupérer uniquement les intervenants ACTIFS qui ont AU MOINS UN SERVICE avec status='demande'
+            // ET qui concernent des services ACTIFS
             $query = Intervenant::with(['utilisateur', 'services', 'taches.service', 'justificatifs'])
                 ->where('is_active', true) // Uniquement les intervenants actifs
                 ->whereHas('services', function($q) {
-                    // Seulement les services avec status = 'demande'
+                    // Seulement les services avec status = 'demande' dans la table pivot
                     $q->where('intervenant_service.status', 'demande');
                     // IMPORTANT : Filtrer uniquement les services ACTIFS (service.status = 'active')
+                    // Cela garantit qu'on ne montre que les demandes pour des services actifs
                     if (Schema::hasColumn('service', 'status')) {
                         $q->where('service.status', 'active');
                     }
@@ -1100,11 +1115,21 @@ class AdminController extends Controller
                     continue;
                 }
 
-                // IMPORTANT : Filtrer uniquement les services avec status = 'demande'
+                // IMPORTANT : Filtrer uniquement les services avec status = 'demande' ET service actif
                 // Un intervenant peut avoir des services activés ET des services en attente
+                // Mais on ne doit afficher que les demandes pour les services ACTIFS
                 $servicesEnAttente = $intervenant->services->filter(function($service) {
                     $status = $service->pivot->status;
-                    return $status === 'demande'; // Uniquement status='demande'
+                    // Vérifier que le statut de la demande est 'demande'
+                    if ($status !== 'demande') {
+                        return false;
+                    }
+                    // IMPORTANT : Vérifier aussi que le service lui-même est actif
+                    if (Schema::hasColumn('service', 'status')) {
+                        return $service->status === 'active';
+                    }
+                    // Si la colonne status n'existe pas, considérer comme actif
+                    return true;
                 });
 
                 // Vérifier que l'intervenant a bien des services en attente
@@ -1245,6 +1270,45 @@ class AdminController extends Controller
                 return response()->json([
                     'error' => 'Statut invalide',
                     'message' => 'Ce service n\'est pas en attente d\'approbation.'
+                ], 400);
+            }
+
+            // Vérifier la limite de 2 services actifs maximum par intervenant
+            $servicesActifsCount = $this->countActiveServices($intervenant);
+            if ($servicesActifsCount >= 2) {
+                // Refuser automatiquement la demande car l'intervenant a déjà 2 services actifs
+                $intervenant->services()->updateExistingPivot($serviceId, [
+                    'status' => 'refuse',
+                    'updated_at' => now()
+                ]);
+
+                $serviceName = $service->nom_service;
+                $servicesActifs = $intervenant->services()
+                    ->wherePivot('status', 'active')
+                    ->pluck('nom_service')
+                    ->toArray();
+
+                // Envoyer un email pour informer l'intervenant
+                try {
+                    $messageRejet = "Vous êtes déjà admis à 2 services (" . implode(', ', $servicesActifs) . "). Cette demande pour le service '{$serviceName}' a été automatiquement refusée.";
+                    Mail::to($intervenant->utilisateur->email)->send(
+                        new ServiceRequestRejected(
+                            $intervenant->utilisateur,
+                            $messageRejet
+                        )
+                    );
+                } catch (\Exception $emailException) {
+                    Log::error("Erreur lors de l'envoi de l'email de refus automatique", [
+                        'email' => $intervenant->utilisateur->email,
+                        'error' => $emailException->getMessage()
+                    ]);
+                }
+
+                return response()->json([
+                    'error' => 'Limite de services atteinte',
+                    'message' => 'Cet intervenant est déjà admis à 2 services. La demande a été automatiquement refusée.',
+                    'services_actifs' => $servicesActifs,
+                    'service_refuse' => $serviceName
                 ], 400);
             }
 
@@ -1444,7 +1508,7 @@ class AdminController extends Controller
     /**
      * Get all services with stats (optimized to avoid N+1 queries)
      */
-    public function getServices()
+    public function getServices(Request $request)
     {
         // Get all services without filtering
         $services = \App\Models\Service::select('id', 'nom_service', 'description', 'status')->get();
@@ -1487,7 +1551,7 @@ class AdminController extends Controller
 
             return [
                 'id' => $service->id,
-                'nom' => $service->nom_service ?? '',
+                'nom_service' => $service->nom_service ?? '',
                 'description' => $service->description ?? '',
                 'intervenants' => $intervenants,
                 'missions' => $missions,
@@ -1499,7 +1563,8 @@ class AdminController extends Controller
             ];
         });
 
-        return response()->json($servicesData);
+        // Use standardized pagination helper
+        return $this->formatPaginatedResponse($servicesData, $request, 15);
     }
 
     /**
@@ -1586,8 +1651,38 @@ class AdminController extends Controller
                     'new_status' => $newStatus
                 ]);
                 
+                // Mettre à jour les demandes liées au service en fonction du statut du service
+                // - Si le service est désactivé : passer toutes les demandes (status='demande') à 'desactive'
+                // - Si le service est réactivé : remettre ces demandes à 'demande' MAIS seulement pour les intervenants actifs
+                //   et en respectant la limite de 2 services actifs
+                if ($newStatus === 'inactive') {
+                    // Désactiver toutes les demandes en attente pour ce service
+                    DB::table('intervenant_service')
+                        ->where('service_id', $service->id)
+                        ->where('status', 'demande')
+                        ->update([
+                            'status' => 'desactive',
+                            'updated_at' => now(),
+                        ]);
+                } else { // $newStatus === 'active'
+                    // Réactiver les demandes, mais seulement pour les intervenants actifs
+                    // et en respectant la limite de 2 services actifs
+                    // On laisse handleServiceReactivation gérer cela correctement
+                    // Ne pas remettre automatiquement toutes les demandes à 'demande' ici
+                    // car certaines peuvent avoir été mises à 'desactive' pour d'autres raisons
+                }
+                
+                // Si le service est réactivé, vérifier la limite de 2 services actifs par intervenant
+                // Cette méthode gère aussi la réactivation des demandes appropriées
+                // Elle retourne la liste des IDs des intervenants qui ont été exclus (déjà 2 services actifs)
+                $excludedIntervenantIds = [];
+                if ($newStatus === 'active') {
+                    $excludedIntervenantIds = $this->handleServiceReactivation($service);
+                }
+                
                 // Envoyer des emails aux intervenants qui ont demandé ce service
-                $this->notifyIntervenantsAboutServiceStatus($service, $newStatus);
+                // Mais exclure ceux qui ont déjà 2 services actifs (ils ont déjà reçu un email de refus)
+                $this->notifyIntervenantsAboutServiceStatus($service, $newStatus, $excludedIntervenantIds);
                 
                 $message = $newStatus === 'active' 
                     ? 'Service activé avec succès. Il est maintenant visible pour les clients. Tous les intervenants associés à ce service ont été notifiés.'
@@ -1624,10 +1719,150 @@ class AdminController extends Controller
     }
 
     /**
+     * Compter le nombre de services actifs d'un intervenant
+     * 
+     * @param Intervenant $intervenant
+     * @return int
+     */
+    private function countActiveServices($intervenant)
+    {
+        return $intervenant->services()
+            ->wherePivot('status', 'active')
+            ->count();
+    }
+
+    /**
+     * Gérer la réactivation d'un service avec la limite de 2 services actifs
+     * - Remet les demandes à 'demande' pour les intervenants actifs qui ont moins de 2 services actifs
+     * - Si un intervenant a déjà 2 services actifs ET a ce service avec status='active', 
+     *   on le met à 'desactive' avec notification
+     * - Si un intervenant a déjà 2 services actifs ET a ce service avec status='desactive',
+     *   le service reste à 'desactive' avec notification
+     * - Ne touche pas aux demandes qui sont à 'desactive' pour d'autres raisons (suspension intervenant)
+     * 
+     * @return array Liste des IDs des intervenants exclus (qui ont déjà 2 services actifs)
+     */
+    private function handleServiceReactivation($service)
+    {
+        $excludedIntervenantIds = [];
+        
+        try {
+            // Récupérer TOUS les intervenants ACTIFS qui ont ce service (peu importe le statut)
+            // Car un intervenant peut avoir ce service avec status='active' mais avoir déjà 2 autres services actifs
+            $intervenantsAvecService = Intervenant::with(['utilisateur', 'services'])
+                ->where('is_active', true) // Uniquement les intervenants actifs
+                ->whereHas('services', function($q) use ($service) {
+                    $q->where('service_id', $service->id);
+                })
+                ->get();
+
+            foreach ($intervenantsAvecService as $intervenant) {
+                // Rafraîchir les relations pour avoir les données à jour
+                $intervenant->refresh();
+                $intervenant->load('services');
+                
+                // Trouver le statut actuel de ce service pour cet intervenant
+                $servicePivot = $intervenant->services->firstWhere('id', $service->id);
+                $currentStatus = $servicePivot ? $servicePivot->pivot->status : null;
+                
+                // Compter les services actifs (en excluant ce service pour avoir le vrai nombre)
+                $servicesActifsCount = $intervenant->services()
+                    ->wherePivot('status', 'active')
+                    ->where('service.id', '!=', $service->id) // Exclure ce service du comptage
+                    ->count();
+                
+                // Si l'intervenant a déjà 2 services actifs (en excluant ce service)
+                if ($servicesActifsCount >= 2) {
+                    // Ajouter cet intervenant à la liste des exclus (ne pas lui envoyer l'email de réactivation)
+                    $excludedIntervenantIds[] = $intervenant->id;
+                    
+                    // Si le service était 'active', on doit le mettre à 'desactive'
+                    // Si le service était 'desactive' ou 'demande', on le met à 'desactive'
+                    if ($currentStatus === 'active' || $currentStatus === 'demande') {
+                        // Mettre à 'desactive' car l'intervenant a déjà 2 autres services actifs
+                        $intervenant->services()->updateExistingPivot($service->id, [
+                            'status' => 'desactive',
+                            'updated_at' => now()
+                        ]);
+                        
+                        Log::info("Service mis à 'desactive' car l'intervenant a déjà 2 services actifs", [
+                            'intervenant_id' => $intervenant->id,
+                            'service_id' => $service->id,
+                            'services_actifs_autres' => $servicesActifsCount,
+                            'ancien_statut' => $currentStatus
+                        ]);
+                    }
+                    
+                    // Envoyer une notification de refus de demande (pas d'email de réactivation du service)
+                    $servicesActifs = $intervenant->services()
+                        ->wherePivot('status', 'active')
+                        ->where('service.id', '!=', $service->id) // Exclure ce service de la liste
+                        ->pluck('nom_service')
+                        ->toArray();
+
+                    if ($intervenant->utilisateur && $intervenant->utilisateur->email) {
+                        try {
+                            $messageReactivation = "Votre demande pour le service '{$service->nom_service}' ne peut pas être acceptée car vous êtes déjà admis à 2 services (" . implode(', ', $servicesActifs) . "). Cette demande a été automatiquement refusée.";
+                            Mail::to($intervenant->utilisateur->email)->send(
+                                new ServiceRequestRejected(
+                                    $intervenant->utilisateur,
+                                    $messageReactivation
+                                )
+                            );
+                            
+                            Log::info("Notification de refus envoyée à l'intervenant (déjà 2 services actifs)", [
+                                'intervenant_id' => $intervenant->id,
+                                'service_id' => $service->id,
+                                'services_actifs' => $servicesActifs,
+                                'ancien_statut' => $currentStatus
+                            ]);
+                        } catch (\Exception $e) {
+                            Log::error("Erreur lors de l'envoi de notification de refus", [
+                                'intervenant_id' => $intervenant->id,
+                                'error' => $e->getMessage()
+                            ]);
+                        }
+                    }
+                } else {
+                    // L'intervenant a moins de 2 services actifs (en excluant ce service)
+                    // On peut remettre la demande à 'demande' si elle était à 'desactive'
+                    if ($currentStatus === 'desactive') {
+                        $intervenant->services()->updateExistingPivot($service->id, [
+                            'status' => 'demande',
+                            'updated_at' => now()
+                        ]);
+                        
+                        Log::info("Demande remise à 'demande' pour l'intervenant après réactivation du service", [
+                            'intervenant_id' => $intervenant->id,
+                            'service_id' => $service->id,
+                            'services_actifs_autres' => $servicesActifsCount
+                        ]);
+                    }
+                    // Si le statut était déjà 'active', on le laisse tel quel
+                }
+            }
+            
+            return $excludedIntervenantIds;
+        } catch (\Exception $e) {
+            Log::error("Erreur lors de la gestion de la réactivation du service", [
+                'service_id' => $service->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return [];
+        }
+    }
+
+    /**
      * Notify intervenants about service status change
      * Envoie un email à TOUS les intervenants associés à ce service (quel que soit leur statut)
+     * Sauf ceux qui sont dans la liste $excludedIntervenantIds (déjà notifiés avec un email de refus)
+     * 
+     * @param Service $service
+     * @param string $newStatus
+     * @param array $excludedIntervenantIds Liste des IDs des intervenants à exclure de l'envoi d'email
      */
-    private function notifyIntervenantsAboutServiceStatus($service, $newStatus)
+    private function notifyIntervenantsAboutServiceStatus($service, $newStatus, $excludedIntervenantIds = [])
     {
         try {
             // Récupérer TOUS les intervenants associés à ce service (quel que soit leur statut)
@@ -1638,6 +1873,15 @@ class AdminController extends Controller
                 ->get();
 
             foreach ($intervenants as $intervenant) {
+                // Exclure les intervenants qui ont déjà reçu un email de refus (déjà 2 services actifs)
+                if (in_array($intervenant->id, $excludedIntervenantIds)) {
+                    Log::info("Intervenant exclu de l'email de réactivation (déjà 2 services actifs)", [
+                        'intervenant_id' => $intervenant->id,
+                        'service_id' => $service->id
+                    ]);
+                    continue;
+                }
+                
                 // Vérifier que l'intervenant a un utilisateur avec un email
                 if ($intervenant->utilisateur && $intervenant->utilisateur->email) {
                     try {
@@ -1840,11 +2084,19 @@ class AdminController extends Controller
                 ->take(3)
                 ->values();
 
+            // Déterminer la couleur du service (même logique que getServices)
+            $serviceColor = '#808080'; // Couleur par défaut
+            if ($service->nom_service === 'Jardinage') {
+                $serviceColor = '#92B08B';
+            } elseif ($service->nom_service === 'Ménage') {
+                $serviceColor = '#5B7C99';
+            }
+            
             $stats = [
                 'service' => [
                     'id' => $service->id,
-                    'nom' => $service->nom_service ?? $service->nom ?? 'Service',
-                    'couleur' => $service->couleur ?? '#5B7C99'
+                    'nom_service' => $service->nom_service ?? 'Service',
+                    'couleur' => $serviceColor
                 ],
                 'totalIntervenants' => $totalIntervenants ?? 0,
                 'croissanceIntervenants' => $croissanceIntervenants ?? 0,
@@ -1907,30 +2159,24 @@ class AdminController extends Controller
             $query->whereDate('created_at', '<=', $request->dateFin);
         }
 
-        // Pagination
-        $perPage = $request->input('per_page', 5);
-        $perPage = (int)$perPage > 0 ? (int)$perPage : 5; // S'assurer que c'est un entier positif
-        $page = $request->input('page', 1);
-        $page = (int)$page > 0 ? (int)$page : 1; // S'assurer que c'est un entier positif
+        // Pagination robuste
+        $perPage = (int) $request->input('per_page', 5);
+        $perPage = $perPage > 0 ? $perPage : 5;
+        $page = (int) $request->input('page', 1);
+        $page = $page > 0 ? $page : 1;
+
+        $reclamations = $query
+            ->latest('created_at')
+            ->paginate($perPage, ['*'], 'page', $page);
         
-        // Optimiser le count en utilisant la même query (évite de recalculer les filtres)
-        // Utiliser count() directement sur la query construite pour meilleure performance
-        $total = $query->count();
-        
-        // Appliquer la pagination avec latest() pour trier par date de création (plus récent en premier)
-        $reclamations = $query->latest('created_at')
-            ->skip(($page - 1) * $perPage)
-            ->take($perPage)
-            ->get();
-        
-        // Précharger tous les clients et intervenants concernés en une seule fois
-        $clientIds = $reclamations->pluck('signale_par_id')
-            ->merge($reclamations->pluck('concernant_id'))
+        // Précharger tous les clients et intervenants concernés en une seule fois (séparation stricte par type)
+        $clientIds = $reclamations->where('signale_par_type', 'Client')->pluck('signale_par_id')
+            ->merge($reclamations->where('concernant_type', 'Client')->pluck('concernant_id'))
             ->filter()
             ->unique();
         
-        $intervenantIds = $reclamations->pluck('signale_par_id')
-            ->merge($reclamations->pluck('concernant_id'))
+        $intervenantIds = $reclamations->where('signale_par_type', 'Intervenant')->pluck('signale_par_id')
+            ->merge($reclamations->where('concernant_type', 'Intervenant')->pluck('concernant_id'))
             ->filter()
             ->unique();
         
@@ -1983,7 +2229,7 @@ class AdminController extends Controller
         }
         
         // Mapper les réclamations avec les données préchargées
-        $reclamationsData = $reclamations->map(function ($reclamation) use ($clients, $intervenants, $evaluationsByIntervenant) {
+        $reclamationsData = $reclamations->getCollection()->map(function ($reclamation) use ($clients, $intervenants, $evaluationsByIntervenant) {
             $signaleParName = 'N/A';
             $concernantName = 'N/A';
             $signaleParId = $reclamation->signale_par_id;
@@ -2065,14 +2311,14 @@ class AdminController extends Controller
         });
 
         return response()->json([
-            'data' => $reclamationsData,
+            'data' => $reclamationsData->values(),
             'pagination' => [
-                'current_page' => $page,
-                'per_page' => $perPage,
-                'total' => $total,
-                'last_page' => ceil($total / $perPage),
-                'from' => $total > 0 ? (($page - 1) * $perPage) + 1 : 0,
-                'to' => min($page * $perPage, $total)
+                'current_page' => $reclamations->currentPage(),
+                'per_page' => $reclamations->perPage(),
+                'total' => $reclamations->total(),
+                'last_page' => $reclamations->lastPage(),
+                'from' => $reclamations->firstItem() ?? 0,
+                'to' => $reclamations->lastItem() ?? 0
             ]
         ]);
     }
@@ -2275,13 +2521,8 @@ class AdminController extends Controller
             'informations'
         ]);
 
-        // IMPORTANT : Filtrer par défaut uniquement les interventions avec des services ACTIFS
-        // Même si aucun filtre service n'est appliqué, on exclut les services inactifs
-        if (Schema::hasColumn('service', 'status')) {
-            $query->whereHas('tache.service', function($q) {
-                $q->where('service.status', 'active');
-            });
-        }
+        // Ne pas filtrer par défaut sur les services actifs : on veut un historique complet,
+        // y compris les interventions rattachées à des services aujourd'hui désactivés.
 
         // Filters
         if ($request->has('statut') && $request->statut !== '' && $request->statut !== 'all') {
@@ -2298,10 +2539,6 @@ class AdminController extends Controller
         if ($request->has('service') && $request->service !== '' && $request->service !== 'all') {
             $query->whereHas('tache.service', function($q) use ($request) {
                 $q->where('nom_service', $request->service);
-                // Filtrer uniquement les services actifs
-                if (Schema::hasColumn('service', 'status')) {
-                    $q->where('service.status', 'active');
-                }
             });
         }
 
@@ -2389,12 +2626,7 @@ class AdminController extends Controller
             'informations'
         ]);
 
-        // IMPORTANT : Filtrer par défaut uniquement les interventions avec des services ACTIFS
-        if (Schema::hasColumn('service', 'status')) {
-            $query->whereHas('tache.service', function($q) {
-                $q->where('service.status', 'active');
-            });
-        }
+        // Pas de filtre implicite sur services actifs : conserver tout l'historique.
 
         // Apply same filters as getHistorique
         if ($request->has('statut') && $request->statut !== '' && $request->statut !== 'all') {
@@ -2410,10 +2642,6 @@ class AdminController extends Controller
         if ($request->has('service') && $request->service !== '' && $request->service !== 'all') {
             $query->whereHas('tache.service', function($q) use ($request) {
                 $q->where('nom_service', $request->service);
-                // Filtrer uniquement les services actifs
-                if (Schema::hasColumn('service', 'status')) {
-                    $q->where('service.status', 'active');
-                }
             });
         }
 
@@ -2526,12 +2754,7 @@ class AdminController extends Controller
             'informations'
         ]);
 
-        // IMPORTANT : Filtrer par défaut uniquement les interventions avec des services ACTIFS
-        if (Schema::hasColumn('service', 'status')) {
-            $query->whereHas('tache.service', function($q) {
-                $q->where('service.status', 'active');
-            });
-        }
+        // Pas de filtre implicite sur services actifs : conserver tout l'historique.
 
         // Apply same filters as getHistorique
         if ($request->has('statut') && $request->statut !== '' && $request->statut !== 'all') {
@@ -2547,10 +2770,6 @@ class AdminController extends Controller
         if ($request->has('service') && $request->service !== '' && $request->service !== 'all') {
             $query->whereHas('tache.service', function($q) use ($request) {
                 $q->where('nom_service', $request->service);
-                // Filtrer uniquement les services actifs
-                if (Schema::hasColumn('service', 'status')) {
-                    $q->where('service.status', 'active');
-                }
             });
         }
 
@@ -2765,7 +2984,7 @@ class AdminController extends Controller
             return response()->json([
                 'service' => [
                     'id' => $service->id,
-                    'nom' => $service->nom_service,
+                    'nom_service' => $service->nom_service,
                 ],
                 'taches' => $taches->map(function($tache) {
                     return [
@@ -2964,6 +3183,133 @@ class AdminController extends Controller
                 'message' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Formatte les disponibilités d'un intervenant en chaîne lisible.
+     */
+    protected function formatDisponibilitesForIntervenant($intervenant): ?string
+    {
+        $dispos = $this->getDisponibilitesCollection($intervenant);
+        if (!$dispos || $dispos->isEmpty()) {
+            return null;
+        }
+
+        $dayLabels = [
+            'lundi' => 'Lundi',
+            'mardi' => 'Mardi',
+            'mercredi' => 'Mercredi',
+            'jeudi' => 'Jeudi',
+            'vendredi' => 'Vendredi',
+            'samedi' => 'Samedi',
+            'dimanche' => 'Dimanche',
+        ];
+
+        $segments = $dispos->map(function ($d) use ($dayLabels) {
+            $label = $d->date_specific
+                ? $d->date_specific
+                : ($dayLabels[$d->jours_semaine] ?? ($d->jours_semaine ? ucfirst(substr($d->jours_semaine, 0, 3)) : ''));
+
+            $timeRange = trim(
+                ($d->heure_debut ?? '') .
+                (!empty($d->heure_fin) ? ' - ' . $d->heure_fin : '')
+            );
+
+            return trim($label . (empty($timeRange) ? '' : ' ' . $timeRange));
+        })->filter()->implode(' | ');
+
+        return $segments ?: null;
+    }
+
+    /**
+     * Retourne les disponibilités sous forme de tableau structuré.
+     */
+    protected function mapDisponibilites($intervenant): array
+    {
+        $dispos = $this->getDisponibilitesCollection($intervenant);
+        if (!$dispos || $dispos->isEmpty()) {
+            return [];
+        }
+
+        return $dispos->map(function ($d) {
+            return [
+                'id' => $d->id,
+                'type' => $d->type,
+                'jour' => $d->jours_semaine,
+                'date' => $d->date_specific,
+                'heure_debut' => $d->heure_debut,
+                'heure_fin' => $d->heure_fin,
+            ];
+        })->toArray();
+    }
+
+    /**
+     * Récupère la collection de disponibilités (relation préchargée ou requête).
+     */
+    protected function getDisponibilitesCollection($intervenant)
+    {
+        if ($intervenant->relationLoaded('disponibilites')) {
+            return $intervenant->disponibilites;
+        }
+
+        return $intervenant->disponibilites()->get();
+    }
+
+    /**
+     * Format API response with standardized pagination structure
+     * Clean code approach: Single method to avoid code duplication
+     * 
+     * @param \Illuminate\Support\Collection|\Illuminate\Pagination\LengthAwarePaginator|array $data
+     * @param \Illuminate\Http\Request $request
+     * @param int $defaultPerPage Default items per page
+     * @return \Illuminate\Http\JsonResponse
+     */
+    private function formatPaginatedResponse($data, Request $request, $defaultPerPage = 15)
+    {
+        // If data is already a paginator, use it directly
+        if ($data instanceof \Illuminate\Pagination\LengthAwarePaginator) {
+            return response()->json([
+                'data' => $data->items(),
+                'pagination' => [
+                    'current_page' => $data->currentPage(),
+                    'per_page' => $data->perPage(),
+                    'total' => $data->total(),
+                    'last_page' => $data->lastPage(),
+                    'from' => $data->firstItem() ?? 0,
+                    'to' => $data->lastItem() ?? 0
+                ]
+            ]);
+        }
+
+        // Convert collection/array to collection if needed
+        $collection = is_array($data) ? collect($data) : $data;
+        
+        // Get pagination parameters from request
+        $perPage = (int) $request->input('per_page', $defaultPerPage);
+        $perPage = $perPage > 0 ? $perPage : $defaultPerPage;
+        $page = (int) $request->input('page', 1);
+        $page = $page > 0 ? $page : 1;
+
+        // Calculate pagination
+        $total = $collection->count();
+        $lastPage = $total > 0 ? (int) ceil($total / $perPage) : 1;
+        $from = $total > 0 ? (($page - 1) * $perPage) + 1 : 0;
+        $to = min($page * $perPage, $total);
+
+        // Slice the collection for current page
+        $paginatedData = $collection->slice(($page - 1) * $perPage, $perPage)->values();
+
+        return response()->json([
+            'data' => $paginatedData,
+            'pagination' => [
+                'current_page' => $page,
+                'per_page' => $perPage,
+                'total' => $total,
+                'last_page' => $lastPage,
+                'from' => $from,
+                'to' => $to
+            ]
+        ]);
     }
 
     /**

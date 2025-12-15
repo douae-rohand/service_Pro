@@ -84,8 +84,13 @@
 
       <!-- Content -->
       <div class="flex-1 overflow-y-auto p-4">
+        <!-- Loading State (minimal) -->
+        <div v-if="loading" class="text-center py-4">
+          <div class="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+        </div>
+
         <!-- À propos Tab -->
-        <div v-if="activeTab === 'apropos'">
+        <div v-if="!loading && activeTab === 'apropos'">
           <!-- Bio -->
           <div class="mb-4">
             <p class="text-xs text-gray-700 leading-relaxed">
@@ -94,29 +99,19 @@
           </div>
 
           <!-- Contact Info -->
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-            <div class="flex items-start gap-2 p-3 rounded-lg" style="background-color: #F9FAFB">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+            <div class="flex items-start gap-2 p-3 rounded-lg w-full" style="background-color: #F9FAFB">
               <Mail :size="14" style="color: #5B7C99" class="mt-0.5" />
               <div>
                 <p class="text-xs text-gray-500 mb-0.5">Email</p>
                 <p class="text-xs font-medium" style="color: #2F4F4F">{{ intervenantData.email }}</p>
               </div>
             </div>
-            <div class="flex items-start gap-2 p-3 rounded-lg" style="background-color: #F9FAFB">
+            <div class="flex items-start gap-2 p-3 rounded-lg w-full" style="background-color: #F9FAFB">
               <Phone :size="14" style="color: #5B7C99" class="mt-0.5" />
               <div>
                 <p class="text-xs text-gray-500 mb-0.5">Téléphone</p>
                 <p class="text-xs font-medium" style="color: #2F4F4F">{{ intervenantData.telephone }}</p>
-              </div>
-            </div>
-            <div class="flex items-start gap-2 p-3 rounded-lg" style="background-color: #F9FAFB">
-              <Clock :size="14" style="color: #5B7C99" class="mt-0.5" />
-              <div>
-                <p class="text-xs text-gray-500 mb-0.5">Disponibilité</p>
-                <p v-if="intervenantData.disponibilite" class="text-xs font-medium" style="color: #2F4F4F">
-                  {{ intervenantData.disponibilite }}
-                </p>
-                <p v-else class="text-xs text-gray-400 italic">Non renseignée</p>
               </div>
             </div>
           </div>
@@ -139,7 +134,7 @@
         </div>
 
         <!-- Tâches/Service Tab -->
-        <div v-if="activeTab === 'taches'">
+        <div v-if="!loading && activeTab === 'taches'">
           <!-- Navigation entre services si plusieurs services -->
           <div 
             v-if="intervenantData.allServices && intervenantData.allServices.length > 1"
@@ -220,7 +215,7 @@
                 v-for="tache in getTachesForService(currentService)"
                 :key="tache.id"
                 class="border-2 rounded-lg p-3"
-                :style="{ borderColor: currentService === 'Jardinage' ? '#92B08B' : '#5B7C99' }"
+                :style="{ borderColor: getServiceColor() }"
               >
                 <h5 class="font-semibold mb-1.5 text-sm" style="color: #2F4F4F">{{ tache.nom }}</h5>
                 <p v-if="tache.description" class="text-xs text-gray-600 mb-2">{{ tache.description }}</p>
@@ -231,7 +226,7 @@
                     <span v-if="tache.duree">{{ tache.duree }}</span>
                     <span v-else class="text-gray-400 italic">Durée non précisée</span>
                   </div>
-                  <div class="text-lg font-bold" :style="{ color: currentService === 'Jardinage' ? '#92B08B' : '#5B7C99' }">
+                  <div class="text-lg font-bold" :style="{ color: getServiceColor() }">
                     {{ tache.tarif }}DH/h
                   </div>
                 </div>
@@ -284,8 +279,61 @@
           </div>
         </div>
 
+        <!-- Disponibilités Tab -->
+        <div v-if="!loading && activeTab === 'dispos'">
+          <div class="grid md:grid-cols-2 gap-4">
+            <!-- Disponibilités régulières regroupées par jour -->
+            <div class="p-4 rounded-lg border" style="border-color: #E5E7EB">
+              <div class="flex items-center gap-2 mb-3">
+                <Clock :size="16" style="color: #5B7C99" />
+                <h4 class="text-sm font-semibold" style="color: #2F4F4F">Disponibilités régulières</h4>
+              </div>
+              <div v-if="disponibilitesParJour.length" class="space-y-2">
+                <div
+                  v-for="(jour, idx) in disponibilitesParJour"
+                  :key="`jour-${jour.jour}-${idx}`"
+                  class="bg-gray-50 rounded-lg p-2.5 text-xs text-gray-700"
+                >
+                  <div
+                    v-for="(slot, sIdx) in jour.slots"
+                    :key="`slot-${jour.jour}-${sIdx}`"
+                    class="flex items-center justify-between"
+                  >
+                    <span class="font-semibold" style="color: #2F4F4F">{{ jour.label }}</span>
+                    <span>{{ slot.debut }}<span v-if="slot.fin"> - {{ slot.fin }}</span></span>
+                  </div>
+                </div>
+              </div>
+              <p v-else class="text-xs text-gray-400 italic">Aucune disponibilité régulière</p>
+            </div>
+
+            <!-- Disponibilités ponctuelles -->
+            <div class="p-4 rounded-lg border" style="border-color: #E5E7EB">
+              <div class="flex items-center gap-2 mb-3">
+                <Clock :size="16" style="color: #92B08B" />
+                <h4 class="text-sm font-semibold" style="color: #2F4F4F">Disponibilités ponctuelles</h4>
+              </div>
+              <div v-if="disponibilitesPonctuelles.length" class="space-y-2">
+                <div
+                  v-for="(d, idx) in disponibilitesPonctuelles.slice(0, dispoPerSection)"
+                  :key="`ponc-${d.id || idx}`"
+                  class="bg-gray-50 rounded-lg p-2.5 flex items-center justify-between text-xs"
+                >
+                  <span class="font-semibold" style="color: #2F4F4F">
+                    {{ formatDateShort(d.date) || 'Date non précisée' }}
+                  </span>
+                  <span class="text-gray-700">
+                    {{ formatHeure(d.heure_debut) }}<span v-if="d.heure_fin"> - {{ formatHeure(d.heure_fin) }}</span>
+                  </span>
+                </div>
+              </div>
+              <p v-else class="text-xs text-gray-400 italic">Aucune disponibilité ponctuelle</p>
+            </div>
+          </div>
+        </div>
+
         <!-- Avis Tab -->
-        <div v-if="activeTab === 'avis'">
+        <div v-if="!loading && activeTab === 'avis'">
           <!-- Rating Summary -->
           <div class="mb-4 p-4 rounded-lg" style="background-color: #F9FAFB">
             <div class="flex items-center gap-6">
@@ -391,7 +439,7 @@
         </div>
 
         <!-- Photos Tab -->
-        <div v-if="activeTab === 'photos'">
+        <div v-if="!loading && activeTab === 'photos'">
           <div v-if="photosList.length === 0" class="text-center py-6 text-gray-500">
             <ImageIcon :size="48" class="mx-auto mb-3 text-gray-300" />
             <p class="text-sm">Aucune photo disponible</p>
@@ -476,7 +524,7 @@
         </div>
 
         <!-- Documents Tab -->
-        <div v-if="activeTab === 'documents'">
+        <div v-if="!loading && activeTab === 'documents'">
           <div v-if="documentsList.length === 0" class="text-center py-6 text-gray-500">
             <FileText :size="48" class="mx-auto mb-3 text-gray-300" />
             <p class="text-sm">Aucun document disponible</p>
@@ -589,6 +637,9 @@ import {
   FileText, ImageIcon 
 } from 'lucide-vue-next'
 import adminService from '@/services/adminService'
+import { useServiceColor } from '@/composables/useServiceColor'
+
+const { getServiceColor: getServiceColorUtil } = useServiceColor()
 
 const props = defineProps({
   isOpen: {
@@ -614,10 +665,13 @@ const currentPhotosPage = ref(1)
 const photosPerPage = 4
 const currentDocumentsPage = ref(1)
 const documentsPerPage = 4
+const dispoPerSection = 10
+const allServices = ref([])
 
 const tabs = [
   { id: 'apropos', label: 'À propos' },
   { id: 'taches', label: 'Tâches/Service' },
+  { id: 'dispos', label: 'Disponibilités' },
   { id: 'avis', label: 'Avis' },
   { id: 'photos', label: 'Photos' },
   { id: 'documents', label: 'Documents' }
@@ -637,6 +691,17 @@ watch([() => props.isOpen, () => props.intervenant?.id], async ([isOpen, interve
   }
 }, { immediate: true })
 
+const loadServices = async () => {
+  try {
+    const response = await adminService.getServices()
+    // Handle paginated response structure (new) or direct array (old for compatibility)
+    allServices.value = response.data?.data || response.data || []
+  } catch (error) {
+    console.error('Erreur chargement services:', error)
+    allServices.value = []
+  }
+}
+
 const fetchIntervenantDetails = async (id) => {
   try {
     loading.value = true
@@ -654,6 +719,45 @@ const fetchIntervenantDetails = async (id) => {
 // Use fullIntervenantData if available, otherwise fallback to props.intervenant
 const intervenantData = computed(() => {
   return fullIntervenantData.value || props.intervenant
+})
+
+const disponibilitesPonctuelles = computed(() => {
+  if (!intervenantData.value || !intervenantData.value.disponibilites) return []
+  return intervenantData.value.disponibilites.filter(d => d.type === 'ponctuelle')
+})
+
+const disponibilitesRegulieres = computed(() => {
+  if (!intervenantData.value || !intervenantData.value.disponibilites) return []
+  return intervenantData.value.disponibilites.filter(d => d.type === 'reguliere')
+})
+
+const disponibilitesParJour = computed(() => {
+  if (!disponibilitesRegulieres.value.length) return []
+  const joursOrder = ['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche']
+  const label = {
+    'lundi': 'Lundi',
+    'mardi': 'Mardi',
+    'mercredi': 'Mercredi',
+    'jeudi': 'Jeudi',
+    'vendredi': 'Vendredi',
+    'samedi': 'Samedi',
+    'dimanche': 'Dimanche'
+  }
+  const grouped = joursOrder.map(j => ({
+    jour: j,
+    label: label[j],
+    slots: []
+  }))
+  disponibilitesRegulieres.value.forEach(d => {
+    const target = grouped.find(g => g.jour === d.jour || g.jour === d.jours_semaine)
+    if (target) {
+      target.slots.push({
+        debut: formatHeure(d.heure_debut),
+        fin: formatHeure(d.heure_fin)
+      })
+    }
+  })
+  return grouped.filter(g => g.slots.length)
 })
 
 // Récupérer les photos depuis les données complètes (avec déduplication robuste)
@@ -861,10 +965,13 @@ const getServiceColor = () => {
   
   let serviceToCheck = intervenantData.value.service
   if (intervenantData.value.allServices && intervenantData.value.allServices.length > 0) {
-    serviceToCheck = intervenantData.value.allServices[0]
+    serviceToCheck = intervenantData.value.allServices[currentServiceIndex.value] || intervenantData.value.allServices[0]
   }
   
-  return serviceToCheck === 'Jardinage' ? '#92B08B' : '#5B7C99'
+  // Trouver le service dans la liste chargée pour obtenir son ID
+  const serviceData = allServices.value.find(s => (s.nom_service || s.nom) === serviceToCheck)
+  
+  return getServiceColorUtil(serviceToCheck, serviceData?.id, allServices.value)
 }
 
 const getMainService = () => {
@@ -905,30 +1012,83 @@ const getExperience = () => {
 
 // Service actuel basé sur l'index
 const currentService = computed(() => {
-  if (!intervenantData.value || !intervenantData.value.allServices || intervenantData.value.allServices.length === 0) {
-    return null
+  if (!intervenantData.value) return null
+  
+  // Priorité à allServices si disponible
+  if (intervenantData.value.allServices && Array.isArray(intervenantData.value.allServices) && intervenantData.value.allServices.length > 0) {
+    return intervenantData.value.allServices[currentServiceIndex.value] || intervenantData.value.allServices[0]
   }
-  return intervenantData.value.allServices[currentServiceIndex.value] || intervenantData.value.allServices[0]
+  
+  // Fallback : utiliser allServicesWithDetails si allServices n'est pas disponible
+  if (intervenantData.value.allServicesWithDetails && Array.isArray(intervenantData.value.allServicesWithDetails) && intervenantData.value.allServicesWithDetails.length > 0) {
+    const service = intervenantData.value.allServicesWithDetails[currentServiceIndex.value] || intervenantData.value.allServicesWithDetails[0]
+    return service?.nom_service || service?.nom || null
+  }
+  
+  return null
 })
 
-// Récupérer l'expérience pour le service actuel depuis allServicesWithDetails
+// Récupérer l'expérience pour le service actuel depuis allServicesWithDetails ou allServicesWithDetailsAll
 const getExperienceForCurrentService = () => {
-  if (!intervenantData.value || !currentService.value) return 'Expérience non précisée'
+  if (!intervenantData.value) return 'Expérience non précisée'
   
-  // Utiliser allServicesWithDetails si disponible (nouveau format avec détails)
-  if (intervenantData.value.allServicesWithDetails && intervenantData.value.allServicesWithDetails.length > 0) {
-    const currentServiceName = currentService.value
-    const serviceDetails = intervenantData.value.allServicesWithDetails.find(
-      s => s.nom === currentServiceName
-    )
-    if (serviceDetails && serviceDetails.experience) {
-      return serviceDetails.experience
+  const currentServiceName = currentService.value
+  if (!currentServiceName) {
+    // Fallback si pas de service actuel
+    if (intervenantData.value.experience && 
+        intervenantData.value.experience !== '' && 
+        intervenantData.value.experience !== null &&
+        intervenantData.value.experience !== undefined &&
+        intervenantData.value.experience !== 'Expérience non précisée') {
+      return intervenantData.value.experience
+    }
+    return 'Expérience non précisée'
+  }
+  
+  // Priorité : utiliser allServicesWithDetailsAll (TOUS les services) pour trouver l'expérience
+  // Cela permet de récupérer l'expérience même si le service n'est pas actif
+  let servicesToSearch = []
+  
+  if (intervenantData.value.allServicesWithDetailsAll && 
+      Array.isArray(intervenantData.value.allServicesWithDetailsAll) && 
+      intervenantData.value.allServicesWithDetailsAll.length > 0) {
+    servicesToSearch = intervenantData.value.allServicesWithDetailsAll
+  } else if (intervenantData.value.allServicesWithDetails && 
+             Array.isArray(intervenantData.value.allServicesWithDetails) && 
+             intervenantData.value.allServicesWithDetails.length > 0) {
+    // Fallback : utiliser allServicesWithDetails si allServicesWithDetailsAll n'est pas disponible
+    servicesToSearch = intervenantData.value.allServicesWithDetails
+  }
+  
+  if (servicesToSearch.length > 0) {
+    // Chercher le service par nom (comparaison insensible à la casse)
+    const serviceDetails = servicesToSearch.find(s => {
+      const serviceNom = s.nom_service || s.nom
+      if (!s || !serviceNom || !currentServiceName) return false
+      return serviceNom.trim().toLowerCase() === currentServiceName.trim().toLowerCase()
+    })
+    
+    if (serviceDetails) {
+      // Vérifier si l'expérience existe et n'est pas vide/null/undefined
+      const experience = serviceDetails.experience
+      if (experience && 
+          experience !== '' && 
+          experience !== null && 
+          experience !== undefined &&
+          experience !== 'Expérience non précisée') {
+        return experience
+      }
     }
   }
   
   // Fallback : utiliser l'expérience générale si elle existe et correspond au service actuel
-  // (pour compatibilité avec l'ancien format ou quand allServicesWithDetails n'est pas encore chargé)
-  if (intervenantData.value.experience && currentServiceIndex.value === 0) {
+  // (pour compatibilité avec l'ancien format ou quand les données ne sont pas encore chargées)
+  if (intervenantData.value.experience && 
+      intervenantData.value.experience !== '' && 
+      intervenantData.value.experience !== null &&
+      intervenantData.value.experience !== undefined &&
+      intervenantData.value.experience !== 'Expérience non précisée' &&
+      currentServiceIndex.value === 0) {
     return intervenantData.value.experience
   }
   
@@ -937,14 +1097,21 @@ const getExperienceForCurrentService = () => {
 
 // Récupérer la présentation pour le service actuel depuis allServicesWithDetails
 const getPresentationForCurrentService = () => {
-  if (!intervenantData.value || !currentService.value) return null
+  if (!intervenantData.value) return null
   
-  // Utiliser allServicesWithDetails si disponible (nouveau format avec détails)
-  if (intervenantData.value.allServicesWithDetails && intervenantData.value.allServicesWithDetails.length > 0) {
-    const currentServiceName = currentService.value
-    const serviceDetails = intervenantData.value.allServicesWithDetails.find(
-      s => s.nom === currentServiceName
-    )
+  const currentServiceName = currentService.value
+  if (!currentServiceName) return null
+  
+  // Utiliser allServicesWithDetails (services actifs) pour la présentation
+  // Car on affiche seulement les services actifs
+  if (intervenantData.value.allServicesWithDetails && 
+      Array.isArray(intervenantData.value.allServicesWithDetails) && 
+      intervenantData.value.allServicesWithDetails.length > 0) {
+    
+    // Récupérer le service à l'index actuel (services actifs seulement)
+    const serviceDetails = intervenantData.value.allServicesWithDetails[currentServiceIndex.value] || 
+                          intervenantData.value.allServicesWithDetails[0]
+    
     if (serviceDetails && serviceDetails.presentation) {
       return serviceDetails.presentation
     }
@@ -1006,6 +1173,22 @@ const formatDate = (dateString) => {
   return date.toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
+const formatDateShort = (dateString) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  return date.toLocaleDateString('fr-FR', { year: 'numeric', month: '2-digit', day: '2-digit' })
+}
+
+const formatHeure = (timeString) => {
+  if (!timeString) return ''
+  // Accepte "HH:MM:SS" ou "YYYY-MM-DDTHH:MM:SS"
+  const clean = timeString.includes('T') ? timeString.split('T')[1] : timeString
+  const [h, m] = clean.split(':')
+  const hh = h?.padStart(2, '0') || '00'
+  const mm = m?.padStart(2, '0') || '00'
+  return `${hh}:${mm}`
+}
+
 // Ouvrir une photo en modal (simple version pour l'instant)
 const openPhotoModal = (photo) => {
   const photoUrl = getPhotoUrl(photo.photo_path)
@@ -1038,6 +1221,10 @@ const handleImageError = (event, photo) => {
     parent.appendChild(placeholder)
   }
 }
+
+onMounted(async () => {
+  await loadServices()
+})
 </script>
 
 <style scoped>

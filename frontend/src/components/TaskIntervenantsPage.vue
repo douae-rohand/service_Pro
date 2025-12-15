@@ -59,7 +59,7 @@
                 <!-- Name and Info -->
                 <div class="flex-1">
                   <h3 class="text-xl font-bold mb-1">{{ intervenant.name }}</h3>
-                  <p class="text-sm text-gray-600 mb-2">{{ intervenant.experience }} d'éxperience</p>
+                  <p class="text-sm text-gray-600 mb-2">{{ formatExperience(intervenant.experience) }} d'expérience</p>
                   
                   <!-- Rating -->
                   <div class="flex items-center gap-2 mb-2">
@@ -175,6 +175,7 @@
 import { ArrowLeft, Star, MapPin, Clock, Calendar, CheckCircle } from 'lucide-vue-next';
 import intervenantService from '@/services/intervenantService';
 import serviceService from '@/services/serviceService';
+import { formatExperience } from '@/utils/experienceFormatter';
 
 export default {
   name: 'TaskIntervenantsPage',
@@ -450,7 +451,8 @@ export default {
       console.log('Réserver avec:', intervenant);
       // Pour l'instant, rediriger vers le profil
       this.viewProfile(intervenant);
-    }
+    },
+    formatExperience
   }
 };
 </script>

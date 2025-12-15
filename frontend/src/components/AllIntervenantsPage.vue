@@ -201,7 +201,7 @@
               <div class="p-6">
                 <div class="mb-3">
                   <h3 class="text-xl font-bold mb-1">{{ intervenant.name }}</h3>
-                  <p class="text-sm text-gray-600">{{ intervenant.experience }} d'éxperience</p>
+                  <p class="text-sm text-gray-600">{{ formatExperience(intervenant.experience) }} d'expérience</p>
                 </div>
 
                 <!-- Specialties (Sous-services) -->
@@ -280,6 +280,7 @@
 import { ArrowLeft, Star, MapPin, Search, Filter, SlidersHorizontal } from 'lucide-vue-next';
 import intervenantService from '@/services/intervenantService';
 import serviceService from '@/services/serviceService';
+import { formatExperience } from '@/utils/experienceFormatter';
 
 export default {
   name: 'AllIntervenantsPage',
@@ -578,7 +579,8 @@ export default {
       this.selectedRating = 'all';
       this.bringsMaterial = false;
       this.ecoProducts = false;
-    }
+    },
+    formatExperience
   }
 };
 </script>

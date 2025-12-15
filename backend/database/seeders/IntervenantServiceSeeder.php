@@ -17,7 +17,7 @@ class IntervenantServiceSeeder extends Seeder
             [
                 'intervenant_id' => 5,
                 'service_id' => 1, // Jardinage
-                'experience' => '5 ans',
+                'experience' => '5',
                 'status' => 'active',
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -26,7 +26,7 @@ class IntervenantServiceSeeder extends Seeder
             [
                 'intervenant_id' => 6,
                 'service_id' => 1, // Jardinage
-                'experience' => '3 ans',
+                'experience' => '3',
                 'status' => 'active',
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -35,7 +35,7 @@ class IntervenantServiceSeeder extends Seeder
             [
                 'intervenant_id' => 7,
                 'service_id' => 2, // Ménage
-                'experience' => '2 ans',
+                'experience' => '2',
                 'status' => 'active',
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -44,7 +44,7 @@ class IntervenantServiceSeeder extends Seeder
             [
                 'intervenant_id' => 8,
                 'service_id' => 2, // Ménage
-                'experience' => '7 ans',
+                'experience' => '7',
                 'status' => 'active',
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -53,7 +53,7 @@ class IntervenantServiceSeeder extends Seeder
             [
                 'intervenant_id' => 5,
                 'service_id' => 2, // Ménage
-                'experience' => '2 ans',
+                'experience' => '2',
                 'status' => 'active',
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -62,7 +62,7 @@ class IntervenantServiceSeeder extends Seeder
             [
                 'intervenant_id' => 6,
                 'service_id' => 2, // Ménage
-                'experience' => '1 an',
+                'experience' => '1',
                 'status' => 'desactive',
                 'created_at' => now(),
                 'updated_at' => now(),

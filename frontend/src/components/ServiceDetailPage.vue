@@ -121,7 +121,7 @@
                 />
                 <div class="flex-1">
                   <h3 class="text-lg">{{ intervenant.name }}</h3>
-                  <p class="text-sm text-gray-600 font-medium">{{ intervenant.experience }} d'éxperience</p>
+                  <p class="text-sm text-gray-600 font-medium">{{ formatExperience(intervenant.experience) }} d'expérience</p>
                   
                   <div class="flex items-center gap-2 mt-2">
                     <Star :size="16" class="fill-yellow-400 text-yellow-400" />
@@ -197,6 +197,7 @@
 import { ArrowLeft, Star, MapPin, CheckCircle } from 'lucide-vue-next';
 import serviceService from '@/services/serviceService';
 import intervenantService from '@/services/intervenantService';
+import { formatExperience } from '@/utils/experienceFormatter';
 
 export default {
   name: 'ServiceDetailPage',
@@ -386,7 +387,8 @@ export default {
         console.error('Erreur lors du chargement des intervenants:', error);
         this.intervenants = [];
       }
-    }
+    },
+    formatExperience
   }
 };
 </script>

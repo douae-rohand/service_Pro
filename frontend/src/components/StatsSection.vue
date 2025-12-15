@@ -125,7 +125,7 @@ onMounted(async () => {
     targets.forEach((target, index) => {
       // Créer un objet réactif temporaire pour l'animation ou manipuler directement l'objet stat
       // Ici on modifie directement la propriété .number de l'objet dans le tableau réactif
-      animateValue(stats.value[index], 0, target, 2000); // 2 secondes de durée
+      animateValue(stats.value[index], 0, target, 1000); // 1 secondes de durée
     });
 
   } catch (error) {

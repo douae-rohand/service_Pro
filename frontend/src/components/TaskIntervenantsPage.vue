@@ -82,17 +82,17 @@
                       @error="handleImageError"
                     />
                   </div>
-                  <div class="absolute -bottom-2 -right-2 bg-white rounded-full p-1.5 shadow-md">
-                     <CheckCircle :size="16" class="text-blue-500 fill-blue-50" v-if="intervenant.verified" />
-                  </div>
                 </div>
 
                 <div class="flex-1 min-w-0">
                   <div class="flex justify-between items-start">
                     <h3 class="text-xl font-bold text-gray-900 truncate pr-2">{{ intervenant.name }}</h3>
-                    <div class="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-lg border border-yellow-100">
-                       <Star :size="14" class="fill-yellow-400 text-yellow-400" />
-                       <span class="font-bold text-gray-800 text-sm">{{ intervenant.rating }}</span>
+                    <div class="flex flex-col items-end gap-1">
+                      <div class="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-lg border border-yellow-100">
+                         <Star :size="14" class="fill-yellow-400 text-yellow-400" />
+                         <span class="font-bold text-gray-800 text-sm">{{ intervenant.rating }}</span>
+                      </div>
+                      <span class="text-gray-500 text-xs">{{ intervenant.reviewCount }} avis</span>
                     </div>
                   </div>
                   
@@ -109,18 +109,18 @@
               <div class="mb-6 space-y-3">
                  <div class="flex flex-wrap gap-2">
                     <span 
-                      v-for="(specialty, index) in (intervenant.otherSpecialties || []).slice(0, 3)"
+                      v-for="(specialty, index) in (intervenant.otherSpecialties || []).slice(0, 5)"
                       :key="index"
                       class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors"
                       :style="{ 
-                        backgroundColor: currentService.color + '10', 
-                        color: currentService.color 
+                        backgroundColor: (serviceIdToColor[specialty.serviceId] || currentService.color) + '10', 
+                        color: serviceIdToColor[specialty.serviceId] || currentService.color 
                       }"
                     >
-                      {{ specialty }}
+                      {{ specialty.name }}
                     </span>
-                    <span v-if="(intervenant.otherSpecialties || []).length > 3" class="px-2 py-1 rounded-md text-xs font-medium bg-gray-50 text-gray-400">
-                      +{{ (intervenant.otherSpecialties || []).length - 3 }}
+                    <span v-if="(intervenant.otherSpecialties || []).length > 5" class="px-2 py-1 rounded-md text-xs font-medium bg-gray-50 text-gray-400">
+                      +{{ (intervenant.otherSpecialties || []).length - 5 }}
                     </span>
                  </div>
 
@@ -456,8 +456,11 @@ export default {
           // Autres spécialités (exclure la tâche actuelle)
           const otherSpecialties = taches
             .filter(t => t.id != this.taskId)
-            .map(t => t.nom_tache || t.name || '')
-            .filter(Boolean);
+            .map(t => ({
+              name: t.nom_tache || t.name || '',
+              serviceId: t.service_id // Assumes service_id is available on the task object
+            }))
+            .filter(s => s.name);
           
           // Tarif horaire moyen pour les autres tâches
           let hourlyRate = 25;
@@ -473,7 +476,7 @@ export default {
           // Trouver l'expérience pour ce service spécifique
           const userServices = intervenant.services || [];
           const currentServiceInfo = userServices.find(s => s.id == this.serviceId);
-          const realExperience = currentServiceInfo?.pivot?.experience || 'Expérience confirmée';
+          const realExperience = currentServiceInfo?.pivot?.experience || 'Pas';
 
           return {
             id: intervenant.id,

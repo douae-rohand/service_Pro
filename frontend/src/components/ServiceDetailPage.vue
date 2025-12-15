@@ -355,7 +355,7 @@ export default {
           const userServices = intervenant.services || [];
           // this.service est l'ID du service actuel
           const currentServiceInfo = userServices.find(s => s.id == serviceId);
-          const realExperience = currentServiceInfo?.pivot?.experience || 'Expérience confirmée';
+          const realExperience = currentServiceInfo?.pivot?.experience || 'Pas';
 
           return {
             id: intervenant.id,

@@ -44,7 +44,7 @@ class InterventionController extends Controller
         $validated = $request->validate([
             'address' => 'required|string',
             'ville' => 'required|string|max:100',
-            'status' => 'nullable|in:planifiee,terminee,en_cours',
+            'status' => 'nullable|in:en attend,acceptee,refuse,termine',
             'dateIntervention' => 'required|date',
             'clientId' => 'required|exists:client,id',
             'intervenantId' => 'required|exists:intervenant,id',
@@ -100,7 +100,7 @@ class InterventionController extends Controller
         $validated = $request->validate([
             'address' => 'sometimes|string',
             'ville' => 'sometimes|string|max:100',
-            'status' => 'sometimes|in:planifiee,terminee,en_cours',
+            'status' => 'sometimes|in:en attend,acceptee,refuse,termine',
             'dateIntervention' => 'sometimes|date',
             'clientId' => 'sometimes|exists:client,id',
             'intervenantId' => 'sometimes|exists:intervenant,id',

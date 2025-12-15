@@ -64,8 +64,9 @@
           >
             <option value="">Tous</option>
             <option value="terminé">Terminé</option>
-            <option value="en_cours">En cours</option>
-            <option value="planifié">Planifié</option>
+            <option value="acceptée">Acceptée</option>
+            <option value="refusée">Refusée</option>
+            <option value="en attente">En attente</option>
           </select>
         </div>
         <div class="flex items-center gap-2">
@@ -523,8 +524,9 @@ const exportPDF = async () => {
 const getStatusColor = (status) => {
   switch (status) {
     case 'terminé': return '#4CAF50'
-    case 'en_cours': return '#FF9800'
-    case 'planifié': return '#2196F3'
+    case 'acceptée': return '#2196F3'
+    case 'refusée': return '#F44336'
+    case 'en attente': return '#FF9800'
     default: return '#9E9E9E'
   }
 }
@@ -532,8 +534,9 @@ const getStatusColor = (status) => {
 const formatStatus = (status) => {
   switch (status) {
     case 'terminé': return 'Terminé'
-    case 'en_cours': return 'En cours'
-    case 'planifié': return 'Planifié'
+    case 'acceptée': return 'Acceptée'
+    case 'refusée': return 'Refusée'
+    case 'en attente': return 'En attente'
     default: return status
   }
 }

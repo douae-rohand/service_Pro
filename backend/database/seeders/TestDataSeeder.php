@@ -453,7 +453,7 @@ class TestDataSeeder extends Seeder
             $intervention1Id = DB::table('intervention')->insertGetId([
                 'address' => '100 Rue Mohammed V, Casablanca',
                 'ville' => 'Casablanca',
-                'status' => 'terminee',
+                'status' => 'termine',
                 'date_intervention' => now()->subDays(15)->format('Y-m-d'),
                 'client_id' => $client1UserId,
                 'intervenant_id' => $intervenant1UserId,
@@ -476,7 +476,7 @@ class TestDataSeeder extends Seeder
             $intervention2Id = DB::table('intervention')->insertGetId([
                 'address' => '150 Boulevard Zerktouni, Rabat',
                 'ville' => 'Rabat',
-                'status' => 'terminee',
+                'status' => 'termine',
                 'date_intervention' => now()->subDays(10)->format('Y-m-d'),
                 'client_id' => $client2UserId,
                 'intervenant_id' => $intervenant1UserId,
@@ -499,7 +499,7 @@ class TestDataSeeder extends Seeder
             $intervention3Id = DB::table('intervention')->insertGetId([
                 'address' => '100 Rue Mohammed V, Casablanca',
                 'ville' => 'Casablanca',
-                'status' => 'en_cours',
+                'status' => 'acceptee',
                 'date_intervention' => now()->addDays(5)->format('Y-m-d'),
                 'client_id' => $client1UserId,
                 'intervenant_id' => $intervenant1UserId,
@@ -521,7 +521,7 @@ class TestDataSeeder extends Seeder
             $intervention4Id = DB::table('intervention')->insertGetId([
                 'address' => '200 Avenue Allal Ben Abdellah, Marrakech',
                 'ville' => 'Marrakech',
-                'status' => 'terminee',
+                'status' => 'termine',
                 'date_intervention' => now()->subDays(7)->format('Y-m-d'),
                 'client_id' => $client3UserId,
                 'intervenant_id' => $intervenant3UserId,

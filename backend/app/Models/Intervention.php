@@ -138,14 +138,14 @@ class Intervention extends Model
      */
     public function scopeCompleted(Builder $query): Builder
     {
-        return $query->where('status', 'terminee');
+        return $query->where('status', 'termine');
     }
 
     /**
-     * Scope a query to only include planned interventions.
+     * Scope a query to only include pending interventions.
      */
     public function scopePending(Builder $query): Builder
     {
-        return $query->where('status', 'planifiee');
+        return $query->where('status', 'en attend');
     }
 }

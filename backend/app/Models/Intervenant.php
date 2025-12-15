@@ -91,7 +91,7 @@ class Intervenant extends Model
             'intervenant_service',
             'intervenant_id',
             'service_id'
-        )->withPivot('status')
+        )->withPivot('status', 'presentation', 'experience')
             ->withTimestamps();
     }
 

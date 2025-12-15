@@ -14,15 +14,25 @@ class ServiceController extends Controller
      */
     public function index()
     {
-        // $services = Service::with('taches')->get();
-        $services = Service::with('taches.materiels')->get();
+        // Load services with their direct materials and task materials
+        $services = Service::with(['materiels', 'taches.materiels'])->get();
 
         // Format data for frontend
         $formattedServices = $services->map(function ($service) {
+            // Get direct materials for this service
+            $directMaterials = $service->materiels->map(function ($materiel) {
+                return [
+                    'id' => $materiel->id,
+                    'name' => $materiel->nom_materiel,
+                    'description' => $materiel->description,
+                ];
+            });
+
             return [
                 'id' => $service->id,
                 'name' => $service->nom_service,
                 'description' => $service->description,
+                'materials' => $directMaterials, // Direct service materials
                 'tasks' => $service->taches->map(function ($tache) {
                     return [
                         'id' => $tache->id,

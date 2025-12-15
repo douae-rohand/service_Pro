@@ -17,7 +17,6 @@ class TacheMateriel extends Pivot
     protected $fillable = [
         'tache_id',
         'materiel_id',
-        'prix_materiel',
     ];
 
 //    protected function casts(): array

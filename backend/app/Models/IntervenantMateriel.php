@@ -17,7 +17,7 @@ class IntervenantMateriel extends Pivot
     protected $fillable = [
         'intervenant_id',
         'materiel_id',
-        'quantite',
+        'prix_materiel',
     ];
 
 

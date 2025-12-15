@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Intervenant;
 use App\Models\Service;
 use App\Models\Materiel;
+use App\Models\Tache;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -296,7 +297,8 @@ class IntervenantController extends Controller
         'description' => 'sometimes|string',
         'hourlyRate' => 'sometimes|numeric|min:0',
         'materials' => 'sometimes|array',
-        'materials.*' => 'string', // Material names as strings
+        'materials.*.name' => 'required|string',
+        'materials.*.price' => 'required|numeric|min:0',
         'active' => 'sometimes|boolean',
     ]);
 
@@ -304,6 +306,8 @@ class IntervenantController extends Controller
     $pivotData = [];
     if (isset($validated['hourlyRate'])) {
         $pivotData['prix_tache'] = $validated['hourlyRate'];
+        // When updating price, also set status to active (1)
+        $pivotData['status'] = 1;
     }
     if (isset($validated['active'])) {
         $pivotData['status'] = $validated['active'];
@@ -318,22 +322,28 @@ class IntervenantController extends Controller
         $tache->update(['description' => $validated['description']]);
     }
 
-    // Update materials if provided - store in intervenant_materiel table
+    // Update materials if provided - store in intervenant_materiel table with prices
     if (isset($validated['materials'])) {
         $materialIds = [];
+        $materialSyncData = [];
         $allMaterials = Materiel::pluck('nom_materiel', 'id')->toArray();
 
-        foreach ($validated['materials'] as $materialName) {
+        foreach ($validated['materials'] as $materialData) {
+            $materialName = $materialData['name'];
+            $materialPrice = $materialData['price'];
+            
             // Try exact match first
             $material = Materiel::where('nom_materiel', $materialName)->first();
 
             if ($material) {
                 $materialIds[] = $material->id;
+                $materialSyncData[$material->id] = ['prix_materiel' => $materialPrice];
             } else {
                 // Try partial/contains match for variations
                 $matchedMaterial = Materiel::where('nom_materiel', 'like', '%' . $materialName . '%')->first();
                 if ($matchedMaterial) {
                     $materialIds[] = $matchedMaterial->id;
+                    $materialSyncData[$matchedMaterial->id] = ['prix_materiel' => $materialPrice];
                     Log::info("Partial match found: '{$materialName}' → '{$matchedMaterial->nom_materiel}'");
                 } else {
                     Log::warning("Material not found: '{$materialName}'. Available materials: " . json_encode(array_values($allMaterials)));
@@ -341,10 +351,10 @@ class IntervenantController extends Controller
             }
         }
 
-        // Sync materials for this intervenant (not for the task)
-        $intervenant->materiels()->sync($materialIds);
+        // Sync materials for this intervenant with prices
+        $intervenant->materiels()->sync($materialSyncData);
         
-        Log::info("Syncing materials for intervenant {$intervenant->id}: " . json_encode($materialIds));
+        Log::info("Syncing materials with prices for intervenant {$intervenant->id}: " . json_encode($materialSyncData));
     }
 
     return response()->json([
@@ -380,9 +390,10 @@ class IntervenantController extends Controller
             'materials.*' => 'string',
         ]);
 
-        // Update task price in pivot table
+        // Update task price and status in pivot table
         $intervenant->taches()->updateExistingPivot($tacheId, [
             'prix_tache' => $validated['hourlyRate'],
+            'status' => 1, // Set status to active (1) when configuring for the first time
         ]);
 
         // Update materials if provided
@@ -607,6 +618,274 @@ class IntervenantController extends Controller
     }
 
     /**
+     * Request service activation with documents
+     */
+    public function requestActivation(Request $request, $intervenantId, $serviceId)
+    {
+        // Verify intervenant exists
+        $intervenant = Intervenant::find($intervenantId);
+        if (!$intervenant) {
+            return response()->json(['error' => 'Intervenant not found'], 404);
+        }
+
+        // Verify service exists
+        $service = Service::find($serviceId);
+        if (!$service) {
+            return response()->json(['error' => 'Service not found'], 404);
+        }
+
+        // Validate request
+        $validated = $request->validate([
+            'presentation' => 'required|string',
+            'experience' => 'required|numeric|min:0',
+            'documents' => 'required|array|min:2', // idCard and insurance required
+            'documents.*.type' => 'required|string',
+            'documents.*.file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
+        ]);
+
+        try {
+            // Check if relation already exists
+            $existing = DB::table('intervenant_service')
+                ->where('intervenant_id', $intervenantId)
+                ->where('service_id', $serviceId)
+                ->first();
+
+            if ($existing && $existing->status !== 'refuse' && $existing->status !== 'desactive') {
+                return response()->json([
+                    'message' => 'Une demande existe déjà pour ce service',
+                    'status' => $existing->status
+                ], 400);
+            }
+
+            // Validate required documents
+            $hasIdCard = false;
+            $hasInsurance = false;
+            
+            foreach ($validated['documents'] as $doc) {
+                if ($doc['type'] === 'idCard') $hasIdCard = true;
+                if ($doc['type'] === 'insurance') $hasInsurance = true;
+            }
+
+            if (!$hasIdCard || !$hasInsurance) {
+                return response()->json([
+                    'message' => 'La carte d\'identité et l\'assurance sont obligatoires'
+                ], 400);
+            }
+
+            DB::beginTransaction();
+
+            // Create or update relation with 'demmande' status
+            if ($existing) {
+                // Update existing refused request
+                DB::table('intervenant_service')
+                    ->where('intervenant_id', $intervenantId)
+                    ->where('service_id', $serviceId)
+                    ->update([
+                        'status' => 'demmande',
+                        'presentation' => $validated['presentation'],
+                        'experience' => $validated['experience'],
+                        'updated_at' => now(),
+                    ]);
+            } else {
+                // Create new relation
+                DB::table('intervenant_service')->insert([
+                    'intervenant_id' => $intervenantId,
+                    'service_id' => $serviceId,
+                    'status' => 'demmande',
+                    'presentation' => $validated['presentation'],
+                    'experience' => $validated['experience'],
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            // Store documents in justificatif table and link to service
+            foreach ($validated['documents'] as $doc) {
+                // Store file
+                $filePath = $doc['file']->store('justificatifs', 'public');
+                
+                // Create justificatif record
+                $justificatifId = DB::table('justificatif')->insertGetId([
+                    'type' => $doc['type'],
+                    'chemin_fichier' => $filePath,
+                    'intervenant_id' => $intervenantId,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+                // Link justificatif to service
+                DB::table('service_justificatif')->insert([
+                    'justificatif_id' => $justificatifId,
+                    'service_id' => $serviceId,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Demande d\'activation envoyée avec succès',
+                'status' => 'demmande',
+                'isActive' => false
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error in requestActivation: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Erreur lors du traitement de la demande',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update service materials
+     */
+    public function updateServiceMaterials(Request $request, $intervenantId, $serviceId)
+    {
+        // Verify intervenant exists
+        $intervenant = Intervenant::find($intervenantId);
+        if (!$intervenant) {
+            return response()->json(['error' => 'Intervenant not found'], 404);
+        }
+
+        // Verify service exists
+        $service = Service::find($serviceId);
+        if (!$service) {
+            return response()->json(['error' => 'Service not found'], 404);
+        }
+
+        // Validate request
+        $validated = $request->validate([
+            'materials' => 'required|array|min:1',
+            'materials.*.name' => 'required|string',
+            'materials.*.price' => 'required|numeric|min:0',
+            'materials.*.tasks' => 'required|array',
+            'materials.*.tasks.*' => 'integer'
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            // Process each material
+            foreach ($validated['materials'] as $materialData) {
+                $materialName = $materialData['name'];
+                $materialPrice = $materialData['price'];
+                $taskIds = $materialData['tasks'];
+
+                // Find or create the material
+                $material = Materiel::where('nom_materiel', $materialName)->first();
+                if (!$material) {
+                    return response()->json([
+                        'error' => "Material '{$materialName}' not found"
+                    ], 404);
+                }
+
+                // Store price in intervenant_materiel table
+                DB::table('intervenant_materiel')
+                    ->updateOrInsert(
+                        [
+                            'intervenant_id' => $intervenantId,
+                            'materiel_id' => $material->id
+                        ],
+                        [
+                            'prix_materiel' => $materialPrice,
+                            'updated_at' => now()
+                        ]
+                    );
+
+                // Store relations in tache_materiel table for each selected task
+                if (!empty($taskIds)) {
+                    foreach ($taskIds as $taskId) {
+                        // Verify task belongs to this service
+                        $task = Tache::where('id', $taskId)
+                            ->where('service_id', $serviceId)
+                            ->first();
+                        
+                        if ($task) {
+                            DB::table('tache_materiel')
+                                ->updateOrInsert(
+                                    [
+                                        'tache_id' => $taskId,
+                                        'materiel_id' => $material->id
+                                    ],
+                                    [
+                                        'created_at' => now(),
+                                        'updated_at' => now()
+                                    ]
+                                );
+                        }
+                    }
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Matériaux enregistrés avec succès',
+                'materials_count' => count($validated['materials'])
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error in updateServiceMaterials: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Erreur lors de l\'enregistrement des matériaux',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update service status
+     */
+    public function updateServiceStatus(Request $request, $intervenantId, $serviceId)
+    {
+        // Verify intervenant exists
+        $intervenant = Intervenant::find($intervenantId);
+        if (!$intervenant) {
+            return response()->json(['error' => 'Intervenant not found'], 404);
+        }
+
+        // Verify service exists
+        $service = Service::find($serviceId);
+        if (!$service) {
+            return response()->json(['error' => 'Service not found'], 404);
+        }
+
+        // Validate request
+        $validated = $request->validate([
+            'status' => 'required|in:active,desactive,archive'
+        ]);
+
+        // Check if relation exists
+        $existing = DB::table('intervenant_service')
+            ->where('intervenant_id', $intervenantId)
+            ->where('service_id', $serviceId)
+            ->first();
+
+        if (!$existing) {
+            return response()->json(['error' => 'Service relation not found'], 404);
+        }
+
+        // Update status
+        DB::table('intervenant_service')
+            ->where('intervenant_id', $intervenantId)
+            ->where('service_id', $serviceId)
+            ->update([
+                'status' => $validated['status'],
+                'updated_at' => now(),
+            ]);
+
+        return response()->json([
+            'message' => 'Statut mis à jour',
+            'status' => $validated['status']
+        ]);
+    }
+
+    /**
      * Toggle service activation
      */
     public function toggleService($intervenantId, $serviceId)
@@ -633,13 +912,21 @@ class IntervenantController extends Controller
             // Toggle status
             $newStatus = ($existing->status === 'active') ? 'desactive' : 'active';
 
+            // If deactivating, clear presentation and experience to allow new requests
+            $updateData = [
+                'status' => $newStatus,
+                'updated_at' => now(),
+            ];
+            
+            if ($newStatus === 'desactive') {
+                $updateData['presentation'] = null;
+                $updateData['experience'] = null;
+            }
+
             DB::table('intervenant_service')
                 ->where('intervenant_id', $intervenantId)
                 ->where('service_id', $serviceId)
-                ->update([
-                    'status' => $newStatus,
-                    'updated_at' => now(),
-                ]);
+                ->update($updateData);
 
             return response()->json([
                 'message' => 'Statut mis à jour',

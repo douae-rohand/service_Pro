@@ -11,8 +11,8 @@ class PhotoIntervention extends Model
 
     protected $table = 'photo_intervention';
 
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = 'updated_at';
 
     protected $fillable = [
         'intervention_id',

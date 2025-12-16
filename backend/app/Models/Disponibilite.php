@@ -15,7 +15,7 @@ class Disponibilite extends Model
     const UPDATED_AT = 'updated_at';
 
     protected $primaryKey = 'id';
-    public $timestamps = false;
+    public $timestamps = true;
 
 
     protected $fillable = [

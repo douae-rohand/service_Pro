@@ -19,6 +19,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(prepend: [
             \Illuminate\Http\Middleware\HandleCors::class,
         ]);
+        
+        // Enregistrer le middleware admin
+        $middleware->alias([
+            'admin' => \App\Http\Middleware\EnsureAdmin::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

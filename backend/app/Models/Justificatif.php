@@ -22,6 +22,14 @@ class Justificatif extends Model
      */
     public function intervenant()
     {
+        return $this->belongsTo(Intervenant::class, 'intervenant_id', 'id');
+    }
+
+    /**
+     * Get the services that require this justificatif.
+     */
+    public function services()
+    {
         return $this->belongsToMany(
             Service::class,
             'service_justificatif',

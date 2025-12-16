@@ -145,7 +145,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // ======================
     // Routes Admin
     // ======================
-    Route::prefix('admin')->group(function () {
+    Route::prefix('admin')->middleware('admin')->group(function () {
         // Dashboard Stats
         Route::get('stats', [AdminController::class, 'stats']);
 

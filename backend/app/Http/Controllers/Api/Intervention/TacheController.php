@@ -131,9 +131,8 @@ class TacheController extends Controller
                           ->withAvg('evaluations', 'note')
                           ->withCount('evaluations');
                 },
-                'intervenants.taches.service'
-                // ⬇️ RETIREZ COMPLÈTEMENT CETTE LIGNE SI ELLE EXISTE ⬇️
-                // 'intervenants.interventions.evaluation' ← ❌ CAUSE DE L'ERREUR
+                'intervenants.taches.service',
+                'intervenants.interventions.evaluation'
             ])->findOrFail($id);
             
             $intervenants = $tache->intervenants;

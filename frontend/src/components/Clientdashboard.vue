@@ -1,12 +1,31 @@
 <template>
   <div class="min-h-screen bg-gray-50 flex">
     <!-- Sidebar -->
-    <ClientSidebar :active-tab="activeTab" @nav-change="handleNavChange" />
+    <ClientSidebar 
+      :active-tab="activeTab" 
+      :is-visible="sidebarVisible"
+      @nav-change="handleNavChange" 
+    />
+
+    <!-- Overlay for mobile when sidebar is open -->
+    <div 
+      v-if="sidebarVisible"
+      class="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+      @click="toggleSidebar"
+    ></div>
 
     <!-- Main Content Area -->
-    <div class="flex-1 flex flex-col">
+    <div 
+      class="flex-1 flex flex-col transition-all duration-300"
+      :class="sidebarVisible ? 'lg:ml-64' : 'lg:ml-0'"
+    >
       <!-- Header -->
-      <ClientHeader :user="currentUser" @logout="logout" />
+      <ClientHeader 
+        :user="currentUser" 
+        :sidebar-visible="sidebarVisible"
+        @logout="logout"
+        @toggle-sidebar="toggleSidebar"
+      />
 
       <!-- Main Content -->
       <main class="flex-1 overflow-y-auto">
@@ -113,6 +132,7 @@ export default {
   data() {
     return {
       activeTab: 'home',
+      sidebarVisible: true, // Sidebar visible by default on desktop
       loading: false,
       error: null,
       currentUser: {
@@ -135,10 +155,21 @@ export default {
   mounted() {
     this.loadUserData();
     this.loadStats();
+    // Hide sidebar on mobile by default
+    if (window.innerWidth < 1024) {
+      this.sidebarVisible = false;
+    }
   },
   methods: {
+    toggleSidebar() {
+      this.sidebarVisible = !this.sidebarVisible;
+    },
     handleNavChange(tabId) {
       this.activeTab = tabId;
+      // Auto-hide sidebar on mobile after navigation
+      if (window.innerWidth < 1024) {
+        this.sidebarVisible = false;
+      }
     },
     async loadUserData() {
       try {

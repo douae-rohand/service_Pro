@@ -197,7 +197,22 @@ class IntervenantController extends Controller
     public function search(Request $request)
 {
     try {
-        $query = Intervenant::with(['utilisateur', 'taches.service', 'interventions'])
+        // Load all necessary relations for the frontend
+        // Note: taches already includes service via 'taches.service', so we don't need to load taches twice
+        $query = Intervenant::with([
+            'utilisateur', 
+            'taches' => function($q) {
+                $q->with('service')
+                  ->withPivot('prix_tache', 'status');
+            },
+            'interventions' => function($q) {
+                $q->with('evaluation');
+            },
+            'services' => function($q) {
+                $q->withPivot('status');
+            },
+            'materiels'
+        ])
                     ->withAvg('evaluations', 'note')
                     ->withCount('evaluations');
         
@@ -218,12 +233,21 @@ class IntervenantController extends Controller
             $query->where('is_active', filter_var($request->active, FILTER_VALIDATE_BOOLEAN));
         }
         
-        // Search by name
+        // Search by name, city, or specialty (tache name)
         if ($request->has('search') && !empty($request->search)) {
             $search = $request->search;
-            $query->whereHas('utilisateur', function ($q) use ($search) {
-                $q->where('prenom', 'like', '%' . $search . '%')
-                  ->orWhere('nom', 'like', '%' . $search . '%');
+            $query->where(function($q) use ($search) {
+                // Search in user name
+                $q->whereHas('utilisateur', function ($subQ) use ($search) {
+                    $subQ->where('prenom', 'like', '%' . $search . '%')
+                         ->orWhere('nom', 'like', '%' . $search . '%');
+                })
+                // Search in city
+                ->orWhere('ville', 'like', '%' . $search . '%')
+                // Search in taches (specialties)
+                ->orWhereHas('taches', function ($subQ) use ($search) {
+                    $subQ->where('nom_tache', 'like', '%' . $search . '%');
+                });
             });
         }
         
@@ -244,26 +268,91 @@ class IntervenantController extends Controller
         
         // Pagination
         $perPage = $request->get('per_page', 12);
-        $intervenants = $query->paginate($perPage);
         
-        // Transformation simplifiée
-        $intervenants->getCollection()->transform(function ($intervenant) {
-            $realRating = $intervenant->evaluations_avg_note ? round($intervenant->evaluations_avg_note, 1) : null;
-            $realCount = $intervenant->evaluations_count;
+        // Check if query is valid before pagination
+        try {
+            $intervenants = $query->paginate($perPage);
+        } catch (\Exception $e) {
+            \Log::error('Pagination error: ' . $e->getMessage());
+            throw $e;
+        }
+        
+        // Transformation simplifiée + calcul de la note moyenne par service si demandé
+        $serviceIdFilter = $request->has('service_id') && $request->service_id !== 'all'
+            ? (int) $request->service_id
+            : null;
 
-            $intervenant->average_rating = $realRating ?? 4.0;
-            $intervenant->review_count = $realCount ?? 0;
-            
-            return $intervenant;
+        $intervenants->getCollection()->transform(function ($intervenant) use ($serviceIdFilter) {
+            try {
+                $realRating = null;
+                $realCount  = 0;
+
+                // Si un service précis est filtré (ex: Jardinage ou Ménage),
+                // recalculer la note UNIQUEMENT à partir des interventions de ce service.
+                if ($serviceIdFilter !== null && $intervenant->relationLoaded('interventions')) {
+                    $notes = collect();
+
+                    foreach ($intervenant->interventions as $intervention) {
+                        // S'assurer que la relation tache->service est chargée
+                        if (
+                            $intervention->relationLoaded('tache') &&
+                            $intervention->tache &&
+                            (int) $intervention->tache->service_id === $serviceIdFilter
+                        ) {
+                            // Utiliser la relation evaluation (note du client) si elle existe
+                            if ($intervention->relationLoaded('evaluation') && $intervention->evaluation) {
+                                $notes->push((float) $intervention->evaluation->note);
+                            } elseif ($intervention->relationLoaded('evaluations')) {
+                                // Fallback: toutes les évaluations clients liées à cette intervention
+                                foreach ($intervention->evaluations as $eval) {
+                                    $notes->push((float) $eval->note);
+                                }
+                            }
+                        }
+                    }
+
+                    if ($notes->count() > 0) {
+                        $realRating = round($notes->avg(), 1);
+                        $realCount  = $notes->count();
+                    }
+                }
+
+                // Sinon, ou si aucune note spécifique trouvée, utiliser l'agrégat global
+                if ($realRating === null) {
+                    $realRating = $intervenant->evaluations_avg_note
+                        ? round($intervenant->evaluations_avg_note, 1)
+                        : null;
+                    $realCount = $intervenant->evaluations_count ?? 0;
+                }
+
+                $intervenant->average_rating = $realRating ?? 0.0;
+                $intervenant->review_count = $realCount;
+                
+                // Ensure utilisateur exists
+                if (!$intervenant->utilisateur) {
+                    \Log::warning("Intervenant {$intervenant->id} has no utilisateur relation");
+                }
+                
+                return $intervenant;
+            } catch (\Exception $e) {
+                \Log::error("Error transforming intervenant {$intervenant->id}: " . $e->getMessage());
+                // Return intervenant with default values
+                $intervenant->average_rating = 0.0;
+                $intervenant->review_count = 0;
+                return $intervenant;
+            }
         });
         
         return response()->json($intervenants);
         
     } catch (\Exception $e) {
         \Log::error('Search error: ' . $e->getMessage());
+        \Log::error('Stack trace: ' . $e->getTraceAsString());
         return response()->json([
             'error' => 'Server error',
-            'message' => $e->getMessage()
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine()
         ], 500);
     }
 }

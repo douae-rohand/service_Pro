@@ -202,3 +202,12 @@ Pour tester la fonctionnalité :
 4. Sélectionnez une image (JPEG, PNG, JPG ou GIF, max 2MB)
 5. L'image devrait se mettre à jour automatiquement
 
+
+
+
+
+
+
+
+
+

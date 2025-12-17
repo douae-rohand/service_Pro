@@ -74,6 +74,14 @@ class Intervention extends Model
     }
 
     /**
+     * Get the client evaluation for this intervention.
+     */
+    public function evaluation()
+    {
+        return $this->hasOne(Evaluation::class, 'intervention_id', 'id')->where('type_auteur', 'client');
+    }
+
+    /**
      * Get the commentaires for this intervention.
      */
     public function commentaires()

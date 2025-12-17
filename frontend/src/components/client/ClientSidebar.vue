@@ -1,6 +1,9 @@
 <template>
-  <aside class="w-64 bg-white border-r border-gray-200 min-h-screen">
-    <div class="p-6">
+  <aside 
+    class="fixed lg:fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 min-h-screen transform transition-transform duration-300 ease-in-out"
+    :class="isVisible ? 'translate-x-0' : '-translate-x-full'"
+  >
+    <div class="p-6 h-full overflow-y-auto">
       <!-- Branding -->
       <div class="mb-8">
         <h1 class="text-2xl font-bold mb-1" style="color: #92b08b">ServicePro</h1>
@@ -63,6 +66,10 @@ export default {
     activeTab: {
       type: String,
       default: 'home'
+    },
+    isVisible: {
+      type: Boolean,
+      default: true
     }
   },
   emits: ['nav-change'],

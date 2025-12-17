@@ -2,8 +2,24 @@
   <header class="bg-white shadow-sm border-b border-gray-200">
     <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
       <div class="flex items-center justify-between">
-        <!-- Left: Branding -->
+        <!-- Left: Toggle Button & Branding -->
         <div class="flex items-center gap-4">
+          <button
+            @click="handleToggleSidebar"
+            class="p-2 rounded-lg hover:bg-gray-100 transition-colors lg:hidden"
+            aria-label="Toggle sidebar"
+          >
+            <Menu v-if="!sidebarVisible" :size="24" style="color: #92b08b" />
+            <X v-else :size="24" style="color: #92b08b" />
+          </button>
+          <button
+            @click="handleToggleSidebar"
+            class="hidden lg:flex p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            aria-label="Toggle sidebar"
+          >
+            <Menu v-if="!sidebarVisible" :size="24" style="color: #92b08b" />
+            <X v-else :size="24" style="color: #92b08b" />
+          </button>
           <h1 class="text-3xl font-bold" style="color: #92b08b">ServicePro</h1>
           <span class="text-gray-500 text-sm">Espace Client</span>
         </div>
@@ -35,12 +51,14 @@
 </template>
 
 <script>
-import { ArrowRight } from 'lucide-vue-next';
+import { ArrowRight, Menu, X } from 'lucide-vue-next';
 
 export default {
   name: 'ClientHeader',
   components: {
-    ArrowRight
+    ArrowRight,
+    Menu,
+    X
   },
   props: {
     user: {
@@ -51,12 +69,19 @@ export default {
         quartier: '',
         avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop'
       })
+    },
+    sidebarVisible: {
+      type: Boolean,
+      default: true
     }
   },
-  emits: ['logout'],
+  emits: ['logout', 'toggle-sidebar'],
   methods: {
     handleLogout() {
       this.$emit('logout');
+    },
+    handleToggleSidebar() {
+      this.$emit('toggle-sidebar');
     }
   }
 };

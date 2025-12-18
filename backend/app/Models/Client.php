@@ -11,27 +11,16 @@ class Client extends Model
     use HasFactory;
 
     protected $table = 'client';
-
     protected $primaryKey = 'id';
-
     public $incrementing = false;
 
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
-
     protected $fillable = [
+        'id',
         'address',
         'ville',
-        'isActive',
-        'adminId',
+        'is_active',
+        'admin_id',
     ];
-
-    protected function casts(): array
-    {
-        return [
-            'isActive' => 'boolean',
-        ];
-    }
 
     /**
      * Get the utilisateur record associated with the client.
@@ -42,20 +31,22 @@ class Client extends Model
     }
 
     /**
-     * Get the admin that manages this client.
-     */
-    public function admin()
-    {
-        return $this->belongsTo(Admin::class, 'adminId', 'id');
-    }
-
-    /**
      * Get the interventions for this client.
      */
     public function interventions()
     {
-        return $this->hasMany(Intervention::class, 'clientId', 'id');
+        return $this->hasMany(Intervention::class, 'client_id', 'id');
     }
+
+    /**
+     * Get the admin that manages this client.
+     */
+    public function admin()
+    {
+        return $this->belongsTo(Admin::class, 'admin_id', 'id');
+    }
+
+
 
     /**
      * Get the intervenants favorited by this client.
@@ -65,8 +56,8 @@ class Client extends Model
         return $this->belongsToMany(
             Intervenant::class,
             'favorise',
-            'clientId',
-            'intervenantId'
+            'client_id',
+            'intervenant_id'
         )->withTimestamps();
     }
 
@@ -75,7 +66,7 @@ class Client extends Model
      */
     public function scopeActive(Builder $query): Builder
     {
-        return $query->where('isActive', true);
+        return $query->where('is_active', true);
     }
 
     /**
@@ -83,6 +74,6 @@ class Client extends Model
      */
     public function scopeInactive(Builder $query): Builder
     {
-        return $query->where('isActive', false);
+        return $query->where('is_active', false);
     }
 }

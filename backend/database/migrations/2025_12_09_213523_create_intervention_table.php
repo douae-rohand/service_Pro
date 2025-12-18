@@ -15,7 +15,7 @@ return new class extends Migration
             $table->integer('id', true);
             $table->text('address')->nullable();
             $table->string('ville', 100)->nullable();
-            $table->string('status', 50)->nullable();
+            $table->enum('status', ['en attend', 'acceptee' , 'refuse' ,'termine' ])->default('en attend');
             $table->date('date_intervention')->nullable();
             $table->integer('client_id')->nullable()->index('client_id');
             $table->integer('intervenant_id')->nullable()->index('intervenant_id');

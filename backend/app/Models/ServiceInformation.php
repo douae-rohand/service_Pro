@@ -11,12 +11,11 @@ class ServiceInformation extends Pivot
 
     protected $table = 'serviceinformation';
 
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
+    
 
     protected $fillable = [
-        'serviceId',
-        'informationId',
+        'service_id',
+        'information_id',
     ];
 
     /**
@@ -24,7 +23,7 @@ class ServiceInformation extends Pivot
      */
     public function service()
     {
-        return $this->belongsTo(Service::class, 'serviceId', 'id');
+        return $this->belongsTo(Service::class, 'service_id', 'id');
     }
 
     /**
@@ -32,6 +31,6 @@ class ServiceInformation extends Pivot
      */
     public function information()
     {
-        return $this->belongsTo(Information::class, 'informationId', 'id');
+        return $this->belongsTo(Information::class, 'information_id', 'id');
     }
 }

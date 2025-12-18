@@ -11,13 +11,12 @@ class Information extends Model
 
     protected $table = 'information';
 
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = 'updated_at';
 
     protected $fillable = [
         'nom',
         'description',
-        'type',
     ];
 
     /**
@@ -27,10 +26,10 @@ class Information extends Model
     {
         return $this->belongsToMany(
             Service::class,
-            'serviceinformation',
-            'informationId',
-            'serviceId'
-        )->withTimestamps();
+            'service_information',
+            'information_id',
+            'service_id'
+        )->withPivot('created_at', 'updated_at');
     }
 
     /**
@@ -40,10 +39,9 @@ class Information extends Model
     {
         return $this->belongsToMany(
             Intervention::class,
-            'interventioninformation',
-            'informationId',
-            'interventionId'
-        )->withPivot('valeur')
-            ->withTimestamps();
+            'intervention_information',
+            'information_id',
+            'intervention_id'
+        )->withPivot('information', 'created_at', 'updated_at');
     }
 }

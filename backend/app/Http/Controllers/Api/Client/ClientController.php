@@ -4,7 +4,11 @@ namespace App\Http\Controllers\Api\Client;
 
 use App\Http\Controllers\Controller;
 use App\Models\Client;
+use App\Models\Intervention;
+use App\Models\Evaluation;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 class ClientController extends Controller
 {
@@ -134,6 +138,202 @@ class ClientController extends Controller
 
         return response()->json([
             'message' => 'Intervenant retiré des favoris',
+        ]);
+    }
+
+    /**
+     * Get client profile data for intervenant view
+     * Includes ratings summary and past interventions between them
+     */
+    public function getProfileForIntervenant($interventionId)
+    {
+        // Find the intervention first to get the clientId and verify ownership
+        $intervention = Intervention::with('client.utilisateur')->findOrFail($interventionId);
+        $clientId = $intervention->client_id;
+        $client = $intervention->client;
+        
+        $currentUser = Auth::user();
+        $intervenant = $currentUser->intervenant;
+
+        if (!$intervenant || $intervention->intervenant_id !== $intervenant->id) {
+            return response()->json(['message' => 'Accès refusé'], 403);
+        }
+
+        // Helper to find public intervention IDs for this client
+        // Rule: Only public if BOTH parties have rated OR 7 days have passed
+        $publicInterventionIds = Intervention::where('client_id', $clientId)
+            ->where('status', 'termine')
+            ->get()
+            ->filter(function($i) {
+                // Check if both parties have rated
+                $ratingsCount = Evaluation::where('intervention_id', $i->id)->count();
+                $bothRated = $ratingsCount >= 2; // Assuming 2 authors: client & intervenant
+                
+                // OR check if 7 days have passed
+                $windowPassed = \Carbon\Carbon::parse($i->date_intervention)->addDays(7)->isPast();
+                
+                return $bothRated || $windowPassed;
+            })
+            ->pluck('id');
+
+        // Get past interventions between this SPECIFIC intervenant and client
+        $pastInterventions = Intervention::where('client_id', $clientId)
+            ->where('intervenant_id', $intervenant->id)
+            ->where('status', 'termine')
+            ->with(['tache.service'])
+            ->orderBy('date_intervention', 'desc')
+            ->get()
+            ->map(function ($i) use ($publicInterventionIds) {
+                // Check if evaluation exists AND is public
+                $hasEvaluation = Evaluation::where('intervention_id', $i->id)
+                    ->where('type_auteur', 'intervenant')
+                    ->exists();
+                
+                $isPublic = $publicInterventionIds->contains($i->id);
+
+                return [
+                    'id' => $i->id,
+                    'date' => $i->date_intervention,
+                    'service' => $i->tache->service->nom_service ?? 'Service',
+                    'task' => $i->tache->nom_tache ?? 'Tâche',
+                    'status' => $i->status,
+                    'has_evaluation' => $hasEvaluation,
+                    'is_public' => $isPublic
+                ];
+            });
+
+        // Get all PUBLIC evaluations made by ANY intervenant for this client
+        $allClientEvaluations = Evaluation::whereIn('intervention_id', $publicInterventionIds)
+            ->where('type_auteur', 'intervenant')
+            ->with('critaire')
+            ->get();
+
+        // Calculate overall rating from public evaluations
+        $overallAverage = $allClientEvaluations->avg('note') ?? 0;
+        $totalRatedInterventions = $allClientEvaluations->pluck('intervention_id')->unique()->count();
+
+        // Calculate average per criteria from public evaluations
+        $criteriaAverages = $allClientEvaluations->groupBy('critaire_id')->map(function ($evaluations) {
+            $critaire = $evaluations->first()->critaire;
+            return [
+                'id' => $critaire->id,
+                'nom' => $critaire->nom_critaire,
+                'average' => round($evaluations->avg('note'), 1)
+            ];
+        })->values();
+
+        // Get PUBLIC comments from ALL intervenants about this client
+        $comments = DB::table('commentaire')
+            ->join('intervention', 'commentaire.intervention_id', '=', 'intervention.id')
+            ->join('intervenant', 'intervention.intervenant_id', '=', 'intervenant.id')
+            ->join('utilisateur', 'intervenant.id', '=', 'utilisateur.id')
+            ->where('intervention.client_id', $clientId)
+            ->whereIn('intervention.id', $publicInterventionIds)
+            ->where('commentaire.type_auteur', 'intervenant')
+            ->select(
+                'commentaire.commentaire', 
+                'commentaire.created_at', 
+                'intervention.date_intervention',
+                'utilisateur.nom',
+                'utilisateur.prenom'
+            )
+            ->orderBy('intervention.date_intervention', 'desc')
+            ->get()
+            ->map(function($comment) {
+                return [
+                    'commentaire' => $comment->commentaire,
+                    'date_intervention' => $comment->date_intervention,
+                    'author' => $comment->nom . ' ' . $comment->prenom
+                ];
+            });
+
+        return response()->json([
+            'client' => [
+                'id' => $client->id,
+                'name' => $client->utilisateur->nom . ' ' . $client->utilisateur->prenom,
+                'email' => $client->utilisateur->email,
+                'phone' => $client->utilisateur->numTel ?? 'Non renseigné',
+                'address' => $client->address ?? 'Non renseignée',
+                'ville' => $client->ville ?? 'Non renseignée',
+                'photo' => $client->utilisateur->profilePicture ?? 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop',
+                'member_since' => $client->created_at
+            ],
+            'rating_summary' => [
+                'overall_average' => round($overallAverage, 1),
+                'total_rated_interventions' => $totalRatedInterventions,
+                'criteria_averages' => $criteriaAverages
+            ],
+            'past_interventions' => $pastInterventions,
+            'comments' => $comments
+        ]);
+    }
+
+    /**
+     * Get client favorites with detailed information
+     */
+    public function getFavorites($id)
+    {
+        $client = Client::findOrFail($id);
+        
+        $favorites = $client->intervenantsFavoris()
+            ->with([
+                'utilisateur',
+                'services',
+                'taches.service',
+                'interventions' => function($query) use ($id) {
+                    $query->where('client_id', $id);
+                }
+            ])
+            ->get();
+
+        // Transform data for frontend
+        $favoritesData = $favorites->map(function($intervenant) use ($id) {
+            $clientInterventions = $intervenant->interventions;
+            $lastIntervention = $clientInterventions->sortByDesc('date_intervention')->first();
+            
+            // Calculate average rating
+            $evaluations = \App\Models\Evaluation::whereHas('intervention', function($query) use ($intervenant) {
+                $query->where('intervenant_id', $intervenant->id);
+            })->where('type_auteur', 'client')->get();
+            
+            $averageRating = null;
+            $totalReviews = 0;
+            if ($evaluations->count() > 0) {
+                $totalReviews = $evaluations->count();
+                $averageRating = round($evaluations->avg('note'), 1);
+            }
+
+            // Get services offered
+            $services = $intervenant->services->pluck('nom_service')->toArray();
+            
+            // Get hourly rate (from intervenant_tache)
+            $hourlyRate = null;
+            if ($intervenant->taches->count() > 0) {
+                $firstTache = $intervenant->taches->first();
+                $intervenantTache = \App\Models\IntervenantTache::where('intervenant_id', $intervenant->id)
+                    ->where('tache_id', $firstTache->id)
+                    ->first();
+                $hourlyRate = $intervenantTache ? $intervenantTache->prix_tache : null;
+            }
+
+            return [
+                'id' => $intervenant->id,
+                'name' => trim(($intervenant->utilisateur->prenom ?? '') . ' ' . ($intervenant->utilisateur->nom ?? '')),
+                'image' => $intervenant->utilisateur->url ?? 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop',
+                'phone' => $intervenant->utilisateur->telephone ?? '',
+                'location' => $intervenant->ville ?? '',
+                'averageRating' => $averageRating,
+                'totalReviews' => $totalReviews,
+                'services' => $services,
+                'hourlyRate' => $hourlyRate,
+                'servicesWithClient' => $clientInterventions->count(),
+                'totalMissions' => \App\Models\Intervention::where('intervenant_id', $intervenant->id)->count(),
+                'lastServiceDate' => $lastIntervention ? $lastIntervention->date_intervention : null,
+            ];
+        });
+
+        return response()->json([
+            'data' => $favoritesData
         ]);
     }
 }

@@ -9,23 +9,27 @@ class IntervenantTache extends Pivot
 {
     use HasFactory;
 
-    protected $table = 'intervenanttache';
+    protected $table = 'intervenant_tache';
 
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = 'updated_at';
 
     protected $fillable = [
-        'intervenantId',
-        'tacheId',
-        'tarif',
-        'experience',
+        'intervenant_id',
+        'tache_id',
+        'prix_tache',
+        'intervenant_id',
+        'tache_id',
+        'prix_tache',
+        'status',
     ];
 
     protected function casts(): array
     {
         return [
-            'tarif' => 'decimal:2',
-            'experience' => 'integer',
+            'prix_tache' => 'decimal:2',
+            'prix_tache' => 'decimal:2',
+            'status' => 'boolean',
         ];
     }
 
@@ -34,7 +38,8 @@ class IntervenantTache extends Pivot
      */
     public function intervenant()
     {
-        return $this->belongsTo(Intervenant::class, 'intervenantId', 'id');
+        return $this->belongsTo(Intervenant::class, 'intervenant_id', 'id');
+        return $this->belongsTo(Intervenant::class, 'intervenant_id', 'id');
     }
 
     /**
@@ -42,6 +47,7 @@ class IntervenantTache extends Pivot
      */
     public function tache()
     {
-        return $this->belongsTo(Tache::class, 'tacheId', 'id');
+        return $this->belongsTo(Tache::class, 'tache_id', 'id');
+        return $this->belongsTo(Tache::class, 'tache_id', 'id');
     }
 }

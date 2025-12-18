@@ -11,24 +11,27 @@ class Intervention extends Model
     use HasFactory;
 
     protected $table = 'intervention';
+    protected $primaryKey = 'id';
 
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = 'updated_at';
 
     protected $fillable = [
         'address',
         'ville',
         'status',
-        'dateIntervention',
-        'clientId',
-        'intervenantId',
-        'tacheId',
+        'date_intervention',
+        'duration_hours',  
+        'client_id',
+        'intervenant_id',
+        'tache_id',
     ];
 
     protected function casts(): array
     {
         return [
-            'dateIntervention' => 'date',
+            'date_intervention' => 'datetime',
+            'duration_hours' => 'decimal:2',
         ];
     }
 
@@ -37,7 +40,7 @@ class Intervention extends Model
      */
     public function client()
     {
-        return $this->belongsTo(Client::class, 'clientId', 'id');
+        return $this->belongsTo(Client::class, 'client_id', 'id');
     }
 
     /**
@@ -45,15 +48,15 @@ class Intervention extends Model
      */
     public function intervenant()
     {
-        return $this->belongsTo(Intervenant::class, 'intervenantId', 'id');
+        return $this->belongsTo(Intervenant::class, 'intervenant_id', 'id');
     }
 
     /**
-     * Get the tache associated with this intervention.
+     * Get the tache for this intervention.
      */
     public function tache()
     {
-        return $this->belongsTo(Tache::class, 'tacheId', 'id');
+        return $this->belongsTo(Tache::class, 'tache_id', 'id');
     }
 
     /**
@@ -61,7 +64,7 @@ class Intervention extends Model
      */
     public function photos()
     {
-        return $this->hasMany(PhotoIntervention::class, 'interventionId', 'id');
+        return $this->hasMany(PhotoIntervention::class, 'intervention_id', 'id');
     }
 
     /**
@@ -69,7 +72,15 @@ class Intervention extends Model
      */
     public function evaluations()
     {
-        return $this->hasMany(Evaluation::class, 'interventionId', 'id');
+        return $this->hasMany(Evaluation::class, 'intervention_id', 'id');
+    }
+
+    /**
+     * Get the client evaluation for this intervention.
+     */
+    public function evaluation()
+    {
+        return $this->hasOne(Evaluation::class, 'intervention_id', 'id')->where('type_auteur', 'client');
     }
 
     /**
@@ -77,7 +88,7 @@ class Intervention extends Model
      */
     public function commentaires()
     {
-        return $this->hasMany(Commentaire::class, 'interventionId', 'id');
+        return $this->hasMany(Commentaire::class, 'intervention_id', 'id');
     }
 
     /**
@@ -85,7 +96,7 @@ class Intervention extends Model
      */
     public function facture()
     {
-        return $this->hasOne(Facture::class, 'interventionId', 'id');
+        return $this->hasOne(Facture::class, 'intervention_id', 'id');
     }
 
     /**
@@ -95,11 +106,11 @@ class Intervention extends Model
     {
         return $this->belongsToMany(
             Information::class,
-            'interventioninformation',
-            'interventionId',
-            'informationId'
-        )->withPivot('valeur')
-            ->withTimestamps();
+            'intervention_information',
+            'intervention_id',
+            'information_id'
+        )->withPivot('information', 'created_at', 'updated_at')
+         ->withTimestamps();
     }
 
     /**
@@ -109,9 +120,9 @@ class Intervention extends Model
     {
         return $this->belongsToMany(
             Materiel::class,
-            'interventionmateriel',
-            'interventionId',
-            'materielId'
+            'intervention_materiel',
+            'intervention_id',
+            'materiel_id'
         )->withTimestamps();
     }
 
@@ -128,8 +139,8 @@ class Intervention extends Model
      */
     public function scopeUpcoming(Builder $query): Builder
     {
-        return $query->where('dateIntervention', '>=', now()->toDateString())
-            ->orderBy('dateIntervention', 'asc');
+        return $query->where('date_intervention', '>=', now())
+            ->orderBy('date_intervention', 'asc');
     }
 
     /**
@@ -137,7 +148,7 @@ class Intervention extends Model
      */
     public function scopeCompleted(Builder $query): Builder
     {
-        return $query->where('status', 'terminée');
+        return $query->where('status', 'termine');
     }
 
     /**
@@ -145,6 +156,6 @@ class Intervention extends Model
      */
     public function scopePending(Builder $query): Builder
     {
-        return $query->where('status', 'en attente');
+        return $query->where('status', 'en attend');
     }
 }

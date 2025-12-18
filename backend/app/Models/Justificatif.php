@@ -11,14 +11,21 @@ class Justificatif extends Model
 
     protected $table = 'justificatif';
 
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
-
     protected $fillable = [
+        'intervenant_id',
         'nom',
         'description',
         'type',
+        'chemin_fichier',
     ];
+
+    /**
+     * Get the intervenant that owns this justificatif.
+     */
+    public function intervenant()
+    {
+        return $this->belongsTo(Intervenant::class, 'intervenant_id', 'id');
+    }
 
     /**
      * Get the services that require this justificatif.
@@ -27,9 +34,9 @@ class Justificatif extends Model
     {
         return $this->belongsToMany(
             Service::class,
-            'servicejustificatif',
-            'justificatifId',
-            'serviceId'
+            'service_justificatif',
+            'justificatif_id',
+            'service_id'
         )->withTimestamps();
     }
 }

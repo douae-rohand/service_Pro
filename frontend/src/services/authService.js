@@ -7,36 +7,83 @@ const authService = {
     /**
      * Connexion utilisateur
      */
-    login(credentials) {
-        return api.post('auth/login', credentials);
+    async login(credentials) {
+        const res = await api.post('auth/login', credentials);
+        if (res.data?.user) {
+            localStorage.setItem('user', JSON.stringify(res.data.user));
+        }
+        return res;
+    },
+
+    forgotPassword(email) {
+        return api.post('auth/forgot-password', { email });
+    },
+
+    verifyCode(email, code) {
+        return api.post('auth/verify-code', { email, code });
+    },
+
+    resetPassword({ email, code, password, password_confirmation }) {
+        return api.post('auth/reset-password', { email, code, password, password_confirmation });
     },
 
     /**
      * Déconnexion utilisateur
      */
-    logout() {
-        return api.post('auth/logout');
+    async logout() {
+        const res = await api.post('auth/logout');
+        localStorage.removeItem('user');
+        return res;
+    },
+
+    async register(userData) {
+        const res = await api.post('auth/register', userData);
+        if (res.data?.user) {
+            localStorage.setItem('user', JSON.stringify(res.data.user));
+        }
+        return res;
     },
 
     /**
-     * Inscription utilisateur
+     * Récupérer l'utilisateur connecté (API)
      */
-    register(userData) {
-        return api.post('auth/register', userData);
+    async getCurrentUser() {
+        try {
+            const res = await api.get('auth/user');
+            if (res.data) {
+                localStorage.setItem('user', JSON.stringify(res.data));
+            }
+            return res;
+        } catch (error) {
+            console.error('Error fetching user:', error);
+            throw error;
+        }
     },
 
     /**
-     * Récupérer l'utilisateur connecté
+     * Récupérer l'utilisateur depuis le cache (synchrone)
      */
-    getCurrentUser() {
-        return api.get('auth/user');
+    getUserSync() {
+        try {
+            const userStr = localStorage.getItem('user');
+            return userStr ? JSON.parse(userStr) : null;
+        } catch (e) {
+            return null;
+        }
     },
 
     /**
      * Mettre à jour le profil
      */
     updateProfile(data) {
-        return api.put('auth/profile', data);
+        // If data is FormData, don't set Content-Type header (axios will set it automatically)
+        const config = data instanceof FormData ? {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        } : {};
+
+        return api.put('auth/profile', data, config);
     },
 
     /**
@@ -44,6 +91,20 @@ const authService = {
      */
     changePassword(data) {
         return api.post('auth/change-password', data);
+    },
+
+    /**
+     * Mettre à jour la photo de profil
+     */
+    updateAvatar(file) {
+        const formData = new FormData();
+        formData.append('avatar', file);
+
+        return api.post('auth/profile/avatar', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
     },
 
     /**
@@ -56,6 +117,7 @@ const authService = {
         } else {
             delete api.defaults.headers.common['Authorization'];
             localStorage.removeItem('token');
+            localStorage.removeItem('user');
         }
     },
 
@@ -63,14 +125,18 @@ const authService = {
      * Récupérer le token du localStorage
      */
     getToken() {
-        return localStorage.getItem('token');
+        const token = localStorage.getItem('token');
+        // console.log('authService.getToken:', token ? 'Token présent' : 'Pas de token');
+        return token;
     },
 
     /**
      * Vérifier si l'utilisateur est connecté
      */
     isAuthenticated() {
-        return !!this.getToken();
+        const hasToken = !!this.getToken();
+        console.log('authService.isAuthenticated:', hasToken);
+        return hasToken;
     }
 };
 

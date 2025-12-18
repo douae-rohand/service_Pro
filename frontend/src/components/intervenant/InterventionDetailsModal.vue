@@ -55,9 +55,9 @@
                 <h3>Service & Tâche</h3>
               </div>
               <div class="service-details">
-                <p class="service-name">{{ intervention.service }}</p>
-                <p class="task-name">{{ intervention.task }}</p>
-                <p class="description" v-if="intervention.description">{{ intervention.description }}</p>
+                <p class="service-name">{{ intervention.tache?.service?.nom_service || 'Service non spécifié' }}</p>
+                <p class="task-name">{{ intervention.tache?.nom_tache || 'Tâche non spécifiée' }}</p>
+                <p class="description" v-if="intervention.tache?.description">{{ intervention.tache.description }}</p>
               </div>
             </div>
 
@@ -262,6 +262,15 @@
               <div v-if="intervenantComment" class="detail-comment-card intervenant">
                 <p class="comment-msg-text">"{{ intervenantComment.commentaire }}"</p>
               </div>
+
+              <!-- Privacy Notice for Hidden Intervenant Rating -->
+              <div v-else-if="intervention.ratings_meta?.intervenant_has_rated && !intervention.ratings_meta?.is_public" class="privacy-explanation">
+                <div class="lock-circle">
+                  <Lock :size="16" />
+                </div>
+                <p>Votre évaluation est enregistrée. Elle sera visible publiquement une fois que le client aura évalué (ou après 7 jours).</p>
+              </div>
+
               <p v-else-if="intervenantEvaluations.length === 0" class="empty-hint">Vous n'avez pas encore évalué ce client</p>
             </div>
           </div>

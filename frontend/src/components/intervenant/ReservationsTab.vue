@@ -380,7 +380,7 @@ const notification = ref(null)
 const fetchAllServices = async () => {
   try {
     const response = await api.get('services')
-    allServices.value = response.data.services || []
+    allServices.value = response.data.data || response.data.services || []
   } catch (err) {
     console.error('Error fetching global services:', err)
   }

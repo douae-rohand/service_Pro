@@ -7,8 +7,7 @@ use App\Models\Intervention;
 use App\Models\PhotoIntervention;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Models\Intervenant;
-use App\Models\Client;
+use App\Models\Utilisateur;
 
 class InterventionControllerIntervenant extends Controller
 {
@@ -23,11 +22,12 @@ class InterventionControllerIntervenant extends Controller
             return $query;
         }
 
-        // We assume this controller is accessed by Intervenants
-        if ($user->userable_type === Intervenant::class || $user->userable_type === 'App\Models\Intervenant') {
-            $query->where('intervenant_id', $user->userable_id);
+        // Use isIntervenant() helper from Utilisateur model
+        if ($user->isIntervenant()) {
+            // User ID in Utilisateur table is same as Intervenant ID
+            $query->where('intervenant_id', $user->id);
         } else {
-            // If a Client calls this controller by mistake
+            // Not an intervenant
             $query->where('id', -1);
         }
         
@@ -75,7 +75,8 @@ class InterventionControllerIntervenant extends Controller
         $currentUser = Auth::guard('sanctum')->user();
         
         // Explicit Access Check for Intervenant
-        if (!$currentUser || ($currentUser->userable_type !== 'App\Models\Intervenant' && $currentUser->userable_type !== Intervenant::class) || $intervention->intervenant_id != $currentUser->userable_id) {
+        // Ensure user is an intervenant AND corresponds to the intervention's intervenant_id
+        if (!$currentUser || !$currentUser->isIntervenant() || $intervention->intervenant_id != $currentUser->id) {
              abort(403, 'Accès non autorisé.');
         }
 
@@ -83,13 +84,9 @@ class InterventionControllerIntervenant extends Controller
         $isPublic = $intervention->areRatingsPublic();
         
         if (!$isPublic) {
-            $intervention->setRelation('evaluations', $intervention->evaluations->filter(function ($e) {
-                return $e->type_auteur === 'intervenant';
-            }));
-
-            $intervention->setRelation('commentaires', $intervention->commentaires->filter(function ($c) {
-                return $c->type_auteur === 'intervenant';
-            }));
+            // Strict Privacy: Hide everything until public (blind date)
+            $intervention->setRelation('evaluations', collect([]));
+            $intervention->setRelation('commentaires', collect([]));
         }
 
         $intervention->ratings_meta = [
@@ -111,7 +108,7 @@ class InterventionControllerIntervenant extends Controller
         $user = Auth::guard('sanctum')->user();
 
         // Check ownership
-        if (!$user || $intervention->intervenant_id != $user->userable_id) {
+        if (!$user || !$user->isIntervenant() || $intervention->intervenant_id != $user->id) {
              abort(403, "Vous n'êtes pas autorisé à modifier cette intervention.");
         }
 
@@ -142,9 +139,6 @@ class InterventionControllerIntervenant extends Controller
             'intervention' => $intervention->load(['client.utilisateur', 'intervenant.utilisateur', 'tache']),
         ]);
     }
-    
-    // Helper functionality for specialized "upcoming" or "completed" logic could be added here if frontend needs distinct endpoints,
-    // otherwise index with filters covers it.
     
     /**
      * Get upcoming interventions

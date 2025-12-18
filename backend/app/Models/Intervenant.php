@@ -21,6 +21,9 @@ class Intervenant extends Model
         'bio',
         'is_active',
         'admin_id',
+        'google_id',
+        'address',
+        'ville',
     ];
 
     /**

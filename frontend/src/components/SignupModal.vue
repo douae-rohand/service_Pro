@@ -273,8 +273,8 @@
                 />
               </div>
 
-              <!-- Adresse / Ville uniquement pour Intervenant -->
-              <template v-if="userType === 'intervenant'">
+              <!-- Adresse / Ville -->
+              <template v-if="true">
                 <div class="grid md:grid-cols-2 gap-3">
                   <div class="relative">
                     <label class="block text-xs font-medium mb-1.5 text-gray-700">
@@ -466,11 +466,9 @@ const handleSubmit = async () => {
       confirmPassword: formData.value.confirmPassword,
       type: userType.value,
     }
-    // Ajouter adresse/ville seulement pour intervenant
-    if (userType.value === 'intervenant') {
-      registrationData.adresse = cleanValue(formData.value.adresse)
-      registrationData.ville = cleanValue(formData.value.ville)
-    }
+    // Ajouter adresse/ville
+    registrationData.adresse = cleanValue(formData.value.adresse)
+    registrationData.ville = cleanValue(formData.value.ville)
 
     isLoading.value = true
     const response = await authService.register(registrationData)

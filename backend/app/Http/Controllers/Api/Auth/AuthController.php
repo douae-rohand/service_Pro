@@ -43,6 +43,8 @@ class AuthController extends Controller
                 'confirmPassword' => 'nullable|same:password',
                 'telephone' => 'nullable|string|max:20',
                 'type' => 'nullable|string|in:client,intervenant',
+                'adresse' => 'nullable|string|max:255',
+                'ville' => 'nullable|string|max:100',
             ]);
         } catch (ValidationException $e) {
             return response()->json([
@@ -75,6 +77,8 @@ class AuthController extends Controller
             if ($userType === 'client') {
                 DB::table('client')->insert([
                     'id' => $userId,
+                    'address' => $validated['adresse'] ?? null,
+                    'ville' => $validated['ville'] ?? null,
                     'is_active' => true,
                     'created_at' => now(),
                     'updated_at' => now(),
@@ -82,6 +86,8 @@ class AuthController extends Controller
             } elseif ($userType === 'intervenant') {
                 DB::table('intervenant')->insert([
                     'id' => $userId,
+                    'address' => $validated['adresse'] ?? null,
+                    'ville' => $validated['ville'] ?? null,
                     'is_active' => false, // Nouveau intervenant en attente de validation
                     'created_at' => now(),
                     'updated_at' => now(),

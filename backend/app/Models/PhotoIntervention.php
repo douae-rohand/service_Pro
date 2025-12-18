@@ -19,6 +19,7 @@ class PhotoIntervention extends Model
         'photo_path', // changed from url to match migration
         'phase_prise', 
         'description',
+        'phase_prise',
     ];
 
     /**
@@ -26,6 +27,7 @@ class PhotoIntervention extends Model
      */
     public function intervention()
     {
+        return $this->belongsTo(Intervention::class, 'intervention_id', 'id');
         return $this->belongsTo(Intervention::class, 'intervention_id', 'id');
     }
 }

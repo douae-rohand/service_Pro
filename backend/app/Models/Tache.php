@@ -31,6 +31,11 @@ class Tache extends Model
         return $this->belongsTo(Service::class, 'service_id', 'id');
     }
 
+    public function contraintes()
+    {
+        return $this->hasMany(Contrainte::class, 'tache_id', 'id');
+    }
+
     /**
      * Get the interventions for this tache.
      */
@@ -49,7 +54,9 @@ class Tache extends Model
             'tache_materiel',
             'tache_id',
             'materiel_id'
-        )->withPivot('created_at', 'updated_at');
+        )
+        //->withPivot('prix_materiel')
+        ->withTimestamps();
     }
 
     /**

@@ -30,6 +30,13 @@ class Service extends Model
     }
 
     /**
+     * Get All Services
+     */
+    public function getAllServices()
+    {
+        return self::all();
+    }
+    /**
      * Get the taches for this service.
      */
     public function taches()

@@ -447,7 +447,7 @@ const fetchServices = async () => {
     loadError.value = null
     
     const response = await serviceService.getAll()
-    const apiServices = response.data.services
+    const apiServices = response.data.data || [] // Backend wraps in 'data'
     
     // Map services with colors
     services.value = apiServices.map(service => ({
@@ -462,7 +462,8 @@ const fetchServices = async () => {
     materialsByService.value = {}
     
     apiServices.forEach(service => {
-      tasksByService.value[service.id] = service.tasks || []
+      // Backend might return 'tasks' or 'taches', map both to 'tasks' for frontend
+      tasksByService.value[service.id] = service.tasks || service.taches || []
       
       // Get materials directly from service (new relation)
       const serviceMaterials = new Set()
@@ -492,11 +493,10 @@ const fetchServices = async () => {
 // Load intervenant's active services and tasks from DB
 const loadIntervenantActiveData = async (intervenantId) => {
   try {
-    const response = await intervenantService.getActiveServicesAndTasks(intervenantId)
-    const data = response.data
+    const data = await intervenantService.getActiveServicesAndTasks(intervenantId)
     
     // Activate the services that are active in DB
-    if (data.services && data.services.length > 0) {
+    if (data && data.services && data.services.length > 0) {
       data.services.forEach(service => {
         if (service.status === 'active' && serviceStates.value[service.id] !== undefined) {
           serviceStates.value[service.id] = true
@@ -569,10 +569,17 @@ const loadAuthenticatedUser = async () => {
 
     // Get current user from API
     const response = await authService.getCurrentUser()
-    const user = response.data.user
+    const user = response.data
+
+    // Safely check if user exists and has data
+    if (!user) {
+      authError.value = 'Impossible de charger les données utilisateur'
+      isLoadingUser.value = false
+      return
+    }
 
     // Check if user is an intervenant
-    if (!user.intervenant) {
+    if (!user.intervenant || !user.intervenant.id) {
       authError.value = 'Cette page est réservée aux intervenants'
       isLoadingUser.value = false
       return
@@ -592,7 +599,7 @@ const loadAuthenticatedUser = async () => {
     console.error('Erreur lors du chargement de l\'utilisateur:', error)
     
     // Handle authentication errors
-    if (error.status === 401) {
+    if (error.status === 401 || error.response?.status === 401) {
       authError.value = 'Session expirée. Veuillez vous reconnecter'
       // Remove invalid token
       authService.setAuthToken(null)
@@ -653,7 +660,7 @@ const toggleService = async (serviceId, serviceName) => {
         'active'
       )
       
-      console.log('Service reactivated:', response.data)
+      console.log('Service reactivated:', response)
       
       // Update states
       archivedServices.value[serviceId] = false
@@ -680,7 +687,7 @@ const toggleService = async (serviceId, serviceName) => {
         serviceId
       )
       
-      console.log('Service toggle response:', response.data)
+      console.log('Service toggle response:', response)
       
       // Update local state after successful API call
       serviceStates.value[serviceId] = false
@@ -701,7 +708,7 @@ const archiveService = async (serviceId) => {
       'archive'
     )
     
-    console.log('Service archived:', response.data)
+    console.log('Service archived:', response)
     
     // Update states
     serviceStates.value[serviceId] = false
@@ -722,7 +729,7 @@ const loadServiceMaterials = async (serviceId) => {
       serviceId
     )
     
-    const materials = response.data.materials || []
+    const materials = response.materials || []
     
     // Pre-fill prices and selections
     materials.forEach(material => {
@@ -785,7 +792,7 @@ const saveServiceMaterials = async (serviceId) => {
       materials
     )
     
-    console.log('Save response:', response.data)
+    console.log('Save response:', response)
     
     // Hide the materials form after successful save
     materialsFormVisible.value[serviceId] = false
@@ -827,7 +834,7 @@ const toggleMaterialSelection = async (serviceId, material) => {
           serviceId
         )
         
-        const materialData = response.data.materials.find(m => m.name === material)
+        const materialData = response.materials.find(m => m.name === material)
         if (materialData) {
           // Delete from database
           await intervenantService.deleteIntervenantMaterial(
@@ -969,7 +976,7 @@ const submitActivationRequest = async () => {
       formData
     )
     
-    console.log('Activation request response:', response.data)
+    console.log('Activation request response:', response)
     
     // Show success message
     showSuccessMessage.value = true
@@ -994,10 +1001,15 @@ const toggleTask = async (taskId) => {
   try {
     // Call API to toggle the status in database
     const response = await intervenantTacheService.toggleActive(taskId)
-    console.log('Task toggle response:', response.data)
+    console.log('Task toggle response:', response)
     
-    // Update local state after successful API call
-    taskStates.value[taskId] = !taskStates.value[taskId]
+    // Update local task state based on response
+    if (response && response.active !== undefined) {
+      taskStates.value[taskId] = response.active
+    } else {
+      // Fallback if response.active is not present
+      taskStates.value[taskId] = !taskStates.value[taskId]
+    }
     
     if (!taskStates.value[taskId]) {
       // Désactiver : supprimer les données et masquer le formulaire
@@ -1057,7 +1069,7 @@ const saveTaskConfig = async (taskId) => {
       materials: materialsWithPrices
     })
     
-    console.log('Save response:', response.data)
+    console.log('Save response:', response)
     
     // Hide the form but keep the task active
     taskFormVisible.value[taskId] = false

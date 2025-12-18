@@ -15,7 +15,6 @@ class Intervenant extends Model
     public $incrementing = false;
 
     protected $fillable = [
-        'id',
         'address',
         'ville',
         'bio',
@@ -37,6 +36,14 @@ class Intervenant extends Model
     public function interventions()
     {
         return $this->hasMany(Intervention::class, 'intervenant_id', 'id');
+    }
+
+    /**
+     * Get the disponibilites for this intervenant.
+     */
+    public function disponibilites()
+    {
+        return $this->hasMany(Disponibilite::class, 'intervenant_id', 'id');
     }
 
     /**
@@ -66,20 +73,6 @@ class Intervenant extends Model
         )->withPivot('prix_tache', 'status')
             ->withTimestamps();
     }
-
-    /**
-     * Get the services that this intervenant offers.
-     
-        *public function services()
-        *{
-            *return $this->belongsToMany(
-                *Service::class,
-                *'intervenant_service',
-                *'intervenant_id',
-                *'service_id'
-            *)->withPivot('prix_tache', 'status', 'created_at', 'updated_at');
-        *}
-    **/
 
     /**
      * Get the materiels owned by this intervenant.
@@ -124,14 +117,6 @@ class Intervenant extends Model
     }
 
     /**
-     * Get the disponibilites for this intervenant.
-     */
-    public function disponibilites()
-    {
-        return $this->hasMany(Disponibilite::class, 'intervenant_id', 'id');
-    }
-
-    /**
      * Get all photos from interventions performed by this intervenant.
      */
     public function photosInterventions()
@@ -169,7 +154,6 @@ class Intervenant extends Model
     public function getRatingInfo()
     {
         // Get all interventions for this intervenant
-        // Utiliser directement la colonne intervenant_id pour éviter les problèmes de relation
         $interventionIds = \App\Models\Intervention::where('intervenant_id', $this->id)
             ->pluck('id');
         
@@ -181,7 +165,6 @@ class Intervenant extends Model
         }
         
         // Get all client evaluations for these interventions
-        // Utiliser les noms de colonnes réels de la base de données (snake_case)
         $evaluations = \App\Models\Evaluation::whereIn('intervention_id', $interventionIds)
             ->where('type_auteur', 'client')
             ->get();
@@ -193,5 +176,20 @@ class Intervenant extends Model
             'average_rating' => $averageRating,
             'review_count' => $reviewCount
         ];
+    }
+
+    /**
+     * Get all evaluations for this intervenant through their interventions.
+     */
+    public function evaluations()
+    {
+        return $this->hasManyThrough(
+            Evaluation::class,
+            Intervention::class,
+            'intervenant_id', // Foreign key on intervention table
+            'intervention_id', // Foreign key on evaluation table
+            'id', // Local key on intervenant table
+            'id' // Local key on intervention table
+        );
     }
 }

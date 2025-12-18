@@ -207,7 +207,7 @@ const fetchServices = async () => {
   error.value = null
   try {
     const response = await intervenantTacheService.getMyTaches()
-    services.value = response.data
+    services.value = response
   } catch (err) {
     error.value = err.response?.data?.message || 'Erreur lors du chargement des sous-services'
     console.error(err)
@@ -258,8 +258,8 @@ const saveEdit = async (id) => {
       service.hourlyRate = editData.value.hourlyRate
       
       // Use the updated materials from backend response if available
-      if (response.data && response.data.updatedMaterials) {
-        service.materials = response.data.updatedMaterials
+      if (response && response.updatedMaterials) {
+        service.materials = response.updatedMaterials
       } else {
         service.materials = [...editData.value.materials]
       }

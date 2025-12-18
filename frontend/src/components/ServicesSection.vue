@@ -113,17 +113,24 @@ const loadServices = async () => {
     error.value = null
     const response = await serviceService.getAll()
     
+    console.log('[ServicesSection] API Response:', response.data)
+    
+    // Handle new API response format: response.data.data instead of response.data.services
+    const servicesData = response.data.data || response.data.services || response.data || []
+    
     // Mapper les données pour inclure image et couleur
-    services.value = response.data.services.map(service => {
-      const config = getServiceConfig(service.name)
+    services.value = servicesData.map(service => {
+      const config = getServiceConfig(service.nom_service || service.name)
       return {
         id: service.id,
-        name: service.name,
+        name: service.nom_service || service.name,
         description: service.description || '',
         image: config.image,
         color: config.color,
       }
     })
+    
+    console.log('[ServicesSection] Loaded services:', services.value)
     
   } catch (err) {
     console.error('Erreur lors du chargement des services:', err)

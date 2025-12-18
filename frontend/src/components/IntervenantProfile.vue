@@ -38,15 +38,6 @@
               :alt="intervenant.name"
               class="w-32 h-32 rounded-full object-cover"
             />
-            <!-- Badge commenté comme demandé
-            <div
-              v-if="intervenant.verified"
-              class="absolute bottom-1 right-1 w-8 h-8 rounded-full flex items-center justify-center shadow-md"
-              :style="{ backgroundColor: buttonColor }"
-            >
-              <CheckCircleIcon :size="20" class="text-white" />
-            </div>
-            -->
           </div>
 
           <!-- Profile Info -->
@@ -146,6 +137,7 @@
                 </div>
                 <div class="flex items-center justify-end">
                   <button
+                    @click="handleBookingClick(null, serviceItem)"
                     class="px-8 py-3 rounded-lg text-white transition-all hover:opacity-90"
                     :style="{ backgroundColor: buttonColor }"
                   >
@@ -205,11 +197,17 @@
                 class="border-b border-gray-100 pb-6 last:border-0"
               >
                 <div class="flex items-start justify-between mb-3">
-                  <div>
-                    <h4 class="text-lg mb-1">{{ review.clientName }}</h4>
-                    <p class="text-sm text-gray-500">
-                      {{ formatDate(review.date) }}
-                    </p>
+                  <div class="flex items-center gap-3">
+                    <img 
+                      :src="review.clientAvatar" 
+                      class="w-10 h-10 rounded-full object-cover border border-gray-100"
+                    />
+                    <div>
+                      <h4 class="text-lg mb-1">{{ review.clientName }}</h4>
+                      <p class="text-sm text-gray-500">
+                        {{ formatDate(review.date) }}
+                      </p>
+                    </div>
                   </div>
                   <div class="flex items-center gap-1">
                     <StarIcon
@@ -256,18 +254,34 @@
                 :key="index"
                 class="flex items-center justify-between py-4 border-b border-gray-200 last:border-0"
               >
-                <span
-                  class="text-lg"
-                  :style="{ color: day.available ? primaryColor : '#9CA3AF' }"
-                >
-                  {{ day.day }}
-                </span>
-                <span
-                  class="text-lg"
-                  :style="{ color: day.available ? primaryColor : '#9CA3AF' }"
-                >
-                  {{ day.available ? day.hours : 'Non disponible' }}
-                </span>
+                <div class="flex flex-col">
+                  <span
+                    class="text-lg font-medium"
+                    :style="{ color: day.available ? primaryColor : '#9CA3AF' }"
+                  >
+                    {{ day.day }}
+                  </span>
+                  <span class="text-xs uppercase tracking-wider text-gray-400">
+                    {{ day.type === 'reguliere' ? 'Chaque semaine' : 'Date spécifique' }}
+                  </span>
+                </div>
+                <div class="flex items-center gap-3">
+                  <div 
+                    class="px-3 py-1 rounded-full text-xs font-bold"
+                    :style="{ 
+                      backgroundColor: day.available ? primaryColor + '15' : '#F3F4F6',
+                      color: day.available ? primaryColor : '#9CA3AF'
+                    }"
+                  >
+                    {{ day.available ? 'Ouvert' : 'Fermé' }}
+                  </div>
+                  <span
+                    class="text-lg font-bold"
+                    :style="{ color: day.available ? '#374151' : '#9CA3AF' }"
+                  >
+                    {{ day.available ? day.hours : 'Non disponible' }}
+                  </span>
+                </div>
               </div>
             </div>
             <button
@@ -288,6 +302,7 @@
         </p>
         <div class="flex flex-col sm:flex-row gap-4 justify-center">
           <button
+            @click="handleBookingClick()"
             class="px-10 py-4 rounded-lg text-white text-lg transition-all hover:opacity-90"
             :style="{ backgroundColor: primaryColor }"
           >
@@ -296,6 +311,23 @@
         </div>
       </div>
     </div>
+
+    <!-- Booking Modal -->
+    <BookingModal
+      v-if="showBookingModal"
+      :intervenant="{
+        id: intervenant.id,
+        name: intervenant.name,
+        image: intervenant.profileImage,
+        averageRating: intervenant.rating,
+        hourlyRate: intervenant.services[0]?.price || 0
+      }"
+      :clientId="effectiveClientId"
+      :preselectedService="selectedServiceForBooking"
+      :preselectedTask="selectedTaskForBooking"
+      @close="showBookingModal = false"
+      @success="handleBookingSuccess"
+    />
 
     <!-- Image Modal -->
     <div
@@ -330,6 +362,7 @@ import {
   X as XIcon 
 } from 'lucide-vue-next';
 import ImageWithFallback from './figma/ImageWithFallback.vue';
+import BookingModal from './BookingModal.vue';
 import intervenantService from '../services/intervenantService';
 import authService from '../services/authService';
 import { formatExperience } from '@/utils/experienceFormatter';
@@ -345,7 +378,8 @@ export default {
     ClockIcon,
     CameraIcon,
     XIcon,
-    ImageWithFallback
+    ImageWithFallback,
+    BookingModal
   },
   props: {
     intervenantId: {
@@ -360,6 +394,10 @@ export default {
       type: String,
       required: true,
       validator: (value) => ['jardinage', 'menage'].includes(value)
+    },
+    clientId: {
+      type: Number,
+      required: false
     }
   },
   emits: ['back', 'login-required'],
@@ -370,6 +408,9 @@ export default {
       isFavorite: false,
       loading: false,
       error: null,
+      showBookingModal: false,
+      selectedServiceForBooking: null,
+      selectedTaskForBooking: null,
       tabs: [
         { id: 'apropos', label: 'À propos' },
         { id: 'services', label: 'Taches' },
@@ -386,9 +427,7 @@ export default {
         location: '',
         experience: 'N/A',
         verified: false,
-        expert: false,
         memberSince: '',
-        responseTime: '~2h',
         completedJobs: 0,
         bio: [],
         services: [],
@@ -404,6 +443,12 @@ export default {
     },
     buttonColor() {
       return '#609B41';
+    },
+    effectiveClientId() {
+      if (this.clientId) return this.clientId;
+      const user = authService.getUserSync();
+      // Try multiple possible locations for the client ID
+      return user?.client?.id || user?.client_id || user?.id || 1;
     },
     ratingDistribution() {
       const distribution = [
@@ -422,7 +467,6 @@ export default {
       }
 
       reviews.forEach(review => {
-        // Round rating to nearest integer (1-5)
         let rating = Math.round(Number(review.rating));
         if (rating < 1) rating = 1;
         if (rating > 5) rating = 5;
@@ -438,22 +482,14 @@ export default {
     }
   },
   async created() {
-    // Si les données sont déjà passées en prop, les utiliser directement pour l'affichage initial
     if (this.intervenantData) {
       this.loadFromProvidedData();
     } 
     
-    // TOUJOURS charger les données complètes depuis l'API pour avoir la bio, les avis, et les disponibilités réelles
     const idToFetch = this.intervenantId || (this.intervenantData ? this.intervenantData.id : null);
     
     if (idToFetch) {
-      // Si l'ID n'était pas dans les props mais dans les data, on s'assure qu'on l'a pour le fetch
-      if (!this.intervenantId && this.intervenantData) {
-          // On passe l'ID à la méthode de fetch
-          await this.fetchIntervenantData(idToFetch);
-      } else {
-          await this.fetchIntervenantData();
-      }
+      await this.fetchIntervenantData(idToFetch);
     } else {
       if (!this.intervenantData) {
          this.error = "Aucune donnée d'intervenant fournie.";
@@ -461,7 +497,6 @@ export default {
     }
   },
   methods: {
-    // NOUVELLE MÉTHODE: Charger depuis les données fournies
     loadFromProvidedData() {
       const data = this.intervenantData;
       
@@ -474,33 +509,27 @@ export default {
         location: data.location,
         experience: data.experience,
         verified: data.verified,
-        expert: true,
         memberSince: 'Membre récent',
-        responseTime: '~2h',
         completedJobs: 0,
-        bio: [], // Pas de bio par défaut, on attend l'API
+        bio: [],
         services: this.mapServices(data.taches || []),
-        reviews: [], // Pas d'avis par défaut, on attend l'API
-        photos: [data.image].filter(Boolean), // Juste l'image de profil en attendant
-        availability: [] // Pas de dispo par défaut, on attend l'API
+        reviews: [],
+        photos: [data.image].filter(Boolean),
+        availability: []
       };
     },
     
-    // Méthode existante pour charger depuis l'API
-    // Méthode existante pour charger depuis l'API
     async fetchIntervenantData(optionalId = null) {
-      // this.loading = true; // Désactivé pour affichage immédiat
       try {
         const id = optionalId || this.intervenantId;
         if (!id) return;
         
-        const response = await intervenantService.getById(id);
-        const data = response.data;
+        const data = await intervenantService.getById(id);
+
+        if (!data) {
+          throw new Error("Données de l'intervenant introuvables");
+        }
         
-        // --- DATA MAPPING LOGIC ---
-        
-        // 1. Photos: Collect all photos from all interventions
-        // Note: photos is now an array of objects inside interventions
         const mappedPhotos = [];
         if (data.interventions) {
              data.interventions.forEach(intervention => {
@@ -511,40 +540,21 @@ export default {
                  }
              });
         }
-        // Fallback images if no real photos found - KEEP THIS or REMOVE?
-        // User wants REAL data. Let's keep mappedPhotos empty if empty.
-        // Or keep distinct fallback only if absolutely NO photos exist? 
-        // Let's remove the fallback images to match user request "pas depuis la bd".
         
         const reviews = this.mapReviews(data.interventions);
-        
-        // Calculate average rating and count from reviews to ensure consistency
-        let calculatedRating = 0;
-        let calculatedCount = reviews.length;
-        
-        if (calculatedCount > 0) {
-            const sum = reviews.reduce((acc, review) => acc + Number(review.rating), 0);
-            calculatedRating = (sum / calculatedCount).toFixed(1); // Keep 1 decimal
-        } else {
-            // Fallback to backend value if no specific reviews found
-            calculatedRating = Number(data.average_rating) || 0;
-            calculatedCount = Number(data.review_count) || 0;
-        }
 
         this.intervenant = {
           id: data.id,
           name: data.utilisateur ? `${data.utilisateur.prenom || ''} ${data.utilisateur.nom || ''}`.trim() : 'Intervenant',
-          profileImage: data.utilisateur && data.utilisateur.url ? data.utilisateur.url : 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=400&h=400&fit=crop',
-          rating: calculatedRating,
-          reviewCount: calculatedCount,
+          profileImage: data.utilisateur && data.utilisateur.url ? data.utilisateur.url : 'https://ui-avatars.com/api/?name=Intervenant&background=random',
+          rating: data.average_rating || 0,
+          reviewCount: data.review_count || 0,
           location: data.ville || data.address || 'Localisation non spécifiée',
           experience: this.getExperienceForService(data) || 'N/A',
-          verified: !!data.is_active,
-          expert: true,
-          memberSince: data.created_at ? `Membre depuis ${new Date(data.created_at).getFullYear()}` : 'Membre récent',
-          responseTime: '~2h',
-          completedJobs: data.interventions ? data.interventions.length : 0,
-          bio: data.bio ? [data.bio] : [], // Empty if no bio
+          verified: data.is_active ?? true,
+          memberSince: data.created_at ? `Membre depuis ${new Date(data.created_at).getFullYear()}` : 'N/A',
+          completedJobs: data.interv_count || 0,
+          bio: data.bio ? [data.bio] : ["Professionnel expérimenté à votre service."],
           services: this.mapServices(data.taches),
           reviews: reviews, 
           photos: mappedPhotos,
@@ -552,7 +562,6 @@ export default {
         };
       } catch (err) {
         console.error("Erreur lors du chargement de l'intervenant:", err);
-        // Ne pas écraser l'erreur si on a déjà chargé des données via props
         if (!this.intervenant.id) {
              this.error = "Impossible de charger les informations de l'intervenant.";
         }
@@ -564,13 +573,20 @@ export default {
     mapServices(taches) {
       if (!taches || !Array.isArray(taches)) return [];
       
-      return taches.map(t => ({
-        id: t.id,
-        name: t.nom_tache || t.service?.nom_service || 'Service',
-        description: t.description || 'Description du service...',
-        duration: '2-3 heures recommandées',
-        price: t.pivot?.prix_tache || t.prix || 25
-      }));
+      const currentServiceLabel = this.service === 'jardinage' ? 'jardin' : 'ménage';
+      
+      return taches
+        .filter(t => {
+           const serviceName = (t.service?.nom_service || '').toLowerCase();
+           return serviceName.includes(currentServiceLabel);
+        })
+        .map(t => ({
+          id: t.id,
+          name: t.nom_tache || 'Service',
+          description: t.description || 'Prestation de qualité réalisée avec soin et professionnalisme.',
+          duration: 'Sur mesure (2h min)',
+          price: t.pivot?.prix_tache || t.prix || 25
+        }));
     },
     
     mapReviews(interventions) {
@@ -579,43 +595,57 @@ export default {
       const reviews = [];
       
       interventions.forEach(intervention => {
-          // Check for evaluations first
           if (intervention.evaluations && intervention.evaluations.length > 0) {
-              intervention.evaluations.forEach(evaluation => {
-                 // Try to find a matching comment
-                 const comment = intervention.commentaires && intervention.commentaires.length > 0 
-                    ? intervention.commentaires[0].commentaire 
-                    : 'Pas de commentaire écrit.';
-                 
-                 // Get client name
-                 let clientName = 'Client';
-                 if (intervention.client && intervention.client.utilisateur) {
-                     clientName = `${intervention.client.utilisateur.prenom || ''} ${intervention.client.utilisateur.nom || ''}`.trim();
-                 }
-                 
-                 reviews.push({
-                     id: evaluation.id,
-                     clientName: clientName || 'Client',
-                     date: this.formatDate(evaluation.created_at || intervention.date_intervention),
-                     rating: evaluation.note,
-                     comment: comment
-                 });
+              // Calculer la moyenne des notes pour cette intervention
+              const totalNote = intervention.evaluations.reduce((sum, e) => sum + Number(e.note), 0);
+              const avgNote = (totalNote / intervention.evaluations.length).toFixed(1);
+              
+              const comment = intervention.commentaires && intervention.commentaires.length > 0 
+                 ? intervention.commentaires[0].commentaire 
+                 : 'Prestation satisfaisante, client n\'a pas laissé de commentaire détaillé.';
+              
+              let clientName = 'Client';
+              if (intervention.client && intervention.client.utilisateur) {
+                  clientName = `${intervention.client.utilisateur.prenom || ''} ${intervention.client.utilisateur.nom || ''}`.trim();
+              }
+
+              const clientAvatar = intervention.client?.utilisateur?.url || `https://ui-avatars.com/api/?name=${clientName}&background=random`;
+              
+              reviews.push({
+                  id: intervention.id,
+                  clientName: clientName || 'Client anonyme',
+                  clientAvatar: clientAvatar,
+                  date: this.formatDate(intervention.date_intervention),
+                  rating: Number(avgNote),
+                  comment: comment
               });
           }
       });
       
-      return reviews; // Return pure reviews array, empty if none
+      return reviews;
     },
     
     mapAvailability(disponibilites) {
-      if (!disponibilites || disponibilites.length === 0) return []; // Retour simple si vide
+      if (!disponibilites || !Array.isArray(disponibilites) || disponibilites.length === 0) return [];
       
-      
-      return disponibilites.map(d => ({
-        day: d.jours_semaine ? d.jours_semaine.charAt(0).toUpperCase() + d.jours_semaine.slice(1) : this.getDayName(d.date_specific), 
-        available: true,
-        hours: `${this.formatTime(d.heure_debut)} - ${this.formatTime(d.heure_fin)}`
-      }));
+      // Trier par jour de la semaine ou date
+      return disponibilites.map(d => {
+        let dayLabel = '';
+        if (d.type === 'reguliere' && d.jours_semaine) {
+          dayLabel = d.jours_semaine.charAt(0).toUpperCase() + d.jours_semaine.slice(1);
+        } else if (d.date_specific) {
+          dayLabel = this.formatDate(d.date_specific);
+        } else {
+          dayLabel = 'Disponible';
+        }
+        
+        return {
+          day: dayLabel,
+          available: true,
+          hours: `${this.formatTime(d.heure_debut)} - ${this.formatTime(d.heure_fin)}`,
+          type: d.type
+        };
+      });
     },
     
     formatDate(dateString) {
@@ -634,47 +664,42 @@ export default {
     
     formatTime(timeString) {
       if (!timeString) return '00:00';
-      // Si c'est déjà un objet Date ou une chaine de date complète
       if (timeString instanceof Date || timeString.includes('T') || timeString.includes('-')) {
         return new Date(timeString).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
       }
-      // Sinon on suppose que c'est une heure "HH:mm:ss" ou "HH:mm"
       const [hours, minutes] = timeString.split(':');
       return `${hours}:${minutes}`;
     },
     getExperienceForService(data) {
       if (!data || !data.services) return null;
-      // Find service matching current context (jardinage/menage)
-      // This requires the service names to be normalized or checked broadly
-      // For now we check if any service name contains our prop
-      // Or we just take the max experience?
-      // Let's try to match by name or return the first with experience
-      
       const targetService = this.service ? this.service.toLowerCase() : '';
-      
       const found = data.services.find(s => 
         (s.nom_service || s.name || '').toLowerCase().includes(targetService)
       );
-      
       if (found && found.pivot && found.pivot.experience) {
         return found.pivot.experience;
       }
-      
-      // Fallback: take first non-null experience
       const anyExp = data.services.find(s => s.pivot && s.pivot.experience);
       return anyExp ? anyExp.pivot.experience : null;
     },
     handleFavoriteClick() {
-      const isAuth = authService.isAuthenticated();
-      console.log('IntervenantProfile: Clic favori. Authentifié ?', isAuth);
-      
-      if (!isAuth) {
-        console.log('IntervenantProfile: Redirection vers login demandée');
+      if (!authService.isAuthenticated()) {
         this.$emit('login-required');
         return;
       }
       this.isFavorite = !this.isFavorite;
-      // TODO: Call API to save favorite
+    },
+    handleBookingClick(service = null, task = null) {
+      if (!authService.isAuthenticated()) {
+        this.$emit('login-required');
+        return;
+      }
+      this.selectedServiceForBooking = service;
+      this.selectedTaskForBooking = task;
+      this.showBookingModal = true;
+    },
+    handleBookingSuccess() {
+      this.showBookingModal = false;
     },
     formatExperience
   }
@@ -682,5 +707,4 @@ export default {
 </script>
 
 <style scoped>
-/* Styles spécifiques si nécessaire */
 </style>

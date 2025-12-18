@@ -9,6 +9,7 @@ use App\Models\Intervenant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Laravel\Socialite\Facades\Socialite;
@@ -173,9 +174,34 @@ class AuthController extends Controller
      */
     public function user(Request $request)
     {
-        return response()->json([
-            'user' => $request->user()->load(['client', 'intervenant', 'admin']),
-        ]);
+        try {
+            $user = $request->user();
+            
+            if (!$user) {
+                return response()->json([
+                    'message' => 'User not authenticated'
+                ], 401);
+            }
+            
+            // Explicitly load all relationships
+            $user->load(['client', 'intervenant', 'admin']);
+            
+            // Log for debugging
+            Log::info('User data loaded', [
+                'user_id' => $user->id,
+                'has_client' => $user->client !== null,
+                'has_intervenant' => $user->intervenant !== null,
+                'has_admin' => $user->admin !== null,
+            ]);
+            
+            return response()->json($user);
+        } catch (\Exception $e) {
+            Log::error('Error fetching user: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Error fetching user data',
+                'error' => config('app.debug') ? $e->getMessage() : 'Server error'
+            ], 500);
+        }
     }
 
     /**
@@ -200,6 +226,7 @@ class AuthController extends Controller
             'telephone' => 'sometimes|string|max:20',
             'address' => 'sometimes|string',
             'url' => 'sometimes|string',
+            'ville' => 'sometimes|string|max:100', // For client location
             'bio' => 'sometimes|string',
             'profile_photo' => 'sometimes|image|mimes:jpeg,png,jpg,gif|max:5120', // 5MB max
         ]);
@@ -241,12 +268,55 @@ class AuthController extends Controller
         // Update user with validated data
         if (!empty($validated)) {
             $user->update($validated);
+
+        // Update client ville if user is a client
+        if ($user->client && isset($validated['ville'])) {
+            $user->client->update(['ville' => $validated['ville']]);
+        }
             \Log::info('User updated', ['validated_data' => $validated]);
         }
 
         return response()->json([
             'message' => 'Profil mis à jour avec succès',
-            'user' => $user->load(['client', 'intervenant', 'admin']),
+            'user' => $user->load(['client', 'intervenant', 'admin'])->load(['client', 'intervenant']),
+        ]);
+    }
+
+    /**
+     * Update user avatar
+     */
+    public function updateAvatar(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'avatar' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+        ]);
+
+        // Delete old avatar if exists
+        if ($user->url) {
+            // Extract filename from URL
+            $filename = basename(parse_url($user->url, PHP_URL_PATH));
+            $oldPath = 'avatars/' . $filename;
+            
+            if (Storage::disk('public')->exists($oldPath)) {
+                Storage::disk('public')->delete($oldPath);
+            }
+        }
+
+        // Store the image
+        $path = $request->file('avatar')->store('avatars', 'public');
+
+        // Generate API URL for the stored image (bypasses CORS issues)
+        $filename = basename($path);
+        $url = url('api/images/avatars/' . $filename);
+
+        // Update user URL
+        $user->update(['url' => $url]);
+
+        return response()->json([
+            'message' => 'Photo de profil mise à jour avec succès',
+            'url' => $url,
         ]);
     }
 

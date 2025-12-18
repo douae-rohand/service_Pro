@@ -626,11 +626,19 @@ class IntervenantController extends Controller
 
         $intervenant = $user->intervenant;
 
-        // Get taches with pivot data, service, materials, and completed jobs count
-        $taches = $intervenant->taches()
-            ->with(['service', 'materiels'])
-            ->get()
-            ->map(function ($tache) use ($intervenant) {
+    // Get IDs of active services only (exclude archived/inactive)
+    $activeServiceIds = $intervenant->services()
+        ->wherePivot('status', 'active')
+        ->pluck('service.id')
+        ->toArray();
+
+    // Get taches with pivot data, service, materials, and completed jobs count
+    // Only for active services
+    $taches = $intervenant->taches()
+        ->whereIn('service_id', $activeServiceIds)
+        ->with(['service', 'materiels'])
+        ->get()
+        ->map(function ($tache) use ($intervenant) {
                 // Get pivot data (tarif, experience, archived, active)
                 $pivot = $tache->pivot;
 
@@ -977,9 +985,9 @@ class IntervenantController extends Controller
             return response()->json(['error' => 'Intervenant not found'], 404);
         }
 
-        // Get active services
+        // Get active and archived services
         $activeServices = $intervenant->services()
-            ->wherePivot('status', 'active')
+            ->wherePivotIn('status', ['active', 'archive'])
             ->get()
             ->map(function ($service) {
                 return [

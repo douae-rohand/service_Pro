@@ -123,10 +123,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // ======================
     // Routes Clients
     // ======================
-    Route::apiResource('clients', ClientController::class);
+    // Specific routes must come BEFORE apiResource routes
+    Route::get('clients/{interventionId}/profile-for-intervenant', [ClientController::class, 'getProfileForIntervenant']);
     Route::get('clients/{id}/interventions', [ClientController::class, 'interventions']);
     Route::post('clients/{id}/favorites', [ClientController::class, 'addFavorite']);
     Route::delete('clients/{id}/favorites/{intervenantId}', [ClientController::class, 'removeFavorite']);
+    Route::apiResource('clients', ClientController::class);
 
     // ======================
     // Routes Intervenants (modification - protégées)

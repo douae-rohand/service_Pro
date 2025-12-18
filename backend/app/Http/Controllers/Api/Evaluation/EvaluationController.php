@@ -96,7 +96,7 @@ class EvaluationController extends Controller
 
             // Store comment if provided
             if ($request->has('comment') && !empty($request->comment)) {
-                \DB::table('comente')->insert([
+                \DB::table('commentaire')->insert([
                     'intervention_id' => $interventionId,
                     'commentaire' => $request->comment,
                     'type_auteur' => 'intervenant',
@@ -132,7 +132,16 @@ class EvaluationController extends Controller
             ->with('critaire')
             ->get();
 
-        return response()->json($evaluations);
+        // Get the comment for this intervention
+        $comment = \DB::table('commentaire')
+            ->where('intervention_id', $interventionId)
+            ->where('type_auteur', 'intervenant')
+            ->first();
+
+        return response()->json([
+            'evaluations' => $evaluations,
+            'comment' => $comment ? $comment->commentaire : ''
+        ]);
     }
 
     /**
@@ -262,12 +271,12 @@ class EvaluationController extends Controller
             }
 
             // Get comments
-            $intervenantComment = \DB::table('comente')
+            $intervenantComment = \DB::table('commentaire')
                 ->where('intervention_id', $interventionId)
                 ->where('type_auteur', 'intervenant')
                 ->first();
 
-            $clientComment = \DB::table('comente')
+            $clientComment = \DB::table('commentaire')
                 ->where('intervention_id', $interventionId)
                 ->where('type_auteur', 'client')
                 ->first();

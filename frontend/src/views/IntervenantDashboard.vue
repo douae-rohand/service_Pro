@@ -474,8 +474,16 @@ const handleLogout = async () => {
 /* Desktop */
 @media (min-width: 1024px) {
   .sidebar {
-    position: static;
+    position: fixed;
     transform: translateX(0);
+    width: 16rem;
+    top: 0;
+    left: 0;
+    bottom: 0;
+  }
+
+  .main-content {
+    margin-left: 16rem;
   }
 
   .close-btn {

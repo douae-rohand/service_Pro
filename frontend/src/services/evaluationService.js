@@ -11,9 +11,10 @@ class RatingService {
     return response.data
   }
 
-  async storeClientEvaluation(interventionId, evaluations) {
+  async storeClientEvaluation(interventionId, evaluations, comment = '') {
     const response = await api.post(`evaluations/interventions/${interventionId}/rate-client`, {
-      evaluations
+      evaluations,
+      comment
     })
     return response.data
   }
@@ -30,6 +31,11 @@ class RatingService {
 
   async getClientAverageRating(clientId) {
     const response = await api.get(`evaluations/clients/${clientId}/average-rating`)
+    return response.data
+  }
+
+  async getPublicEvaluations(interventionId) {
+    const response = await api.get(`evaluations/interventions/${interventionId}/public`)
     return response.data
   }
 }

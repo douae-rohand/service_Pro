@@ -62,6 +62,7 @@
       :service-id="selectedService"
       @back="handleBackFromTaskIntervenants"
       @view-profile="handleViewProfileFromTask"
+      @login-required="showLoginModal = true"
     />
 
     <!-- Profil de l'intervenant -->

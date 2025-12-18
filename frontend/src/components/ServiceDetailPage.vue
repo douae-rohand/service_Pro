@@ -296,11 +296,8 @@ export default {
   },
   methods: {
     handleReserveClick(task) {
-      if (authService.isAuthenticated()) {
-        this.$emit('task-click', { taskId: task.id, taskName: task.name });
-      } else {
-        this.$emit('login-required');
-      }
+      // Pas de vérification d'auth ici - on veut voir la liste des intervenants
+      this.$emit('task-click', { taskId: task.id, taskName: task.name });
     },
     async loadServiceData(showLoading = true) {
       try {

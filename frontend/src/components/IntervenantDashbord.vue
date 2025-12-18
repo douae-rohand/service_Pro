@@ -156,10 +156,12 @@ import {
   X as XIcon, 
   MessageCircle 
 } from 'lucide-vue-next';
-// Import existing or placeholder components
 import IntervenantProfileTab from './intervenant/IntervenantProfileTab.vue';
+import ServiceSelectionTab from './intervenant/ServiceSelectionTab.vue';
+import MyServicesTab from './intervenant/MyServicesTab.vue';
 import PlaceholderTab from './intervenant/PlaceholderTab.vue';
 import intervenantService from '../services/intervenantService';
+import authService from '../services/authService';
 
 export default {
   name: 'IntervenantDashboard',
@@ -168,9 +170,8 @@ export default {
     UserIcon,
     MenuIcon,
     XIcon,
-    // Using placeholders for missing components to ensure build works
-    ServiceSelectionTab: PlaceholderTab,
-    MyServicesTab: PlaceholderTab,
+    ServiceSelectionTab,
+    MyServicesTab,
     ReservationsTab: PlaceholderTab,
     AvailabilityTab: PlaceholderTab,
     ClientReviewsTab: PlaceholderTab,
@@ -193,7 +194,9 @@ export default {
         phone: '',
         profileImage: '',
         location: '',
-        memberSince: ''
+        memberSince: '',
+        bio: '',
+        services: []
       },
       tabs: [
         { id: 'services', label: 'Mes Services', icon: Briefcase, color: '#92B08B' },
@@ -218,9 +221,24 @@ export default {
     async fetchIntervenantData() {
       this.loading = true;
       try {
-        // Hardcoded ID 5 for demo purposes as requested/implied context
-        // In a real app, this would come from auth state
-        const response = await intervenantService.getById(5);
+        const user = authService.getCurrentUserRaw(); // Or however you get local user
+        // Fallback or verify user exists
+        let userId = null;
+        if (user && user.intervenant) {
+             userId = user.intervenant.id;
+        } else {
+             // Try to fetch current user profile if not in storage
+             const response = await authService.getCurrentUser();
+             if (response.data.user && response.data.user.intervenant) {
+                 userId = response.data.user.intervenant.id;
+             }
+        }
+
+        if (!userId) {
+            throw new Error("Intervenant ID not found");
+        }
+
+        const response = await intervenantService.getById(userId);
         const data = response.data;
         
         this.intervenant = {
@@ -228,9 +246,16 @@ export default {
           name: data.utilisateur ? `${data.utilisateur.prenom} ${data.utilisateur.nom}` : '',
           email: data.utilisateur ? data.utilisateur.email : '',
           phone: data.utilisateur ? data.utilisateur.telephone : '',
-          profileImage: data.utilisateur && data.utilisateur.url ? data.utilisateur.url : 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=150&h=150&fit=crop',
-          location: data.ville || data.address || '',
-          memberSince: data.created_at ? new Date(data.created_at).getFullYear() : '2024'
+          // Use 'profile_photo' from API if 'url' is null or ensure consistent naming
+          profileImage: data.profile_photo 
+                ? `http://127.0.0.1:8000/storage/${data.profile_photo}` 
+                : (data.utilisateur && data.utilisateur.url ? data.utilisateur.url : 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=150&h=150&fit=crop'),
+          location: data.ville || data.address || '', // Fallback for header/small display
+          ville: data.ville || '',
+          address: data.address || '',
+          memberSince: data.created_at ? new Date(data.created_at).getFullYear() : '2024',
+          bio: data.bio || '',
+          services: data.services || []
         };
       } catch (err) {
         console.error("Erreur chargement dashboard:", err);

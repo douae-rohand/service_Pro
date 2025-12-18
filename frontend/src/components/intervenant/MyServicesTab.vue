@@ -78,20 +78,7 @@
               </div>
 
               <div class="service-actions">
-                <button
-                  @click="toggleActive(service.id)"
-                  class="toggle-switch"
-                  :style="{
-                    backgroundColor: service.active ? '#92B08B' : '#E0E0E0'
-                  }"
-                  title="Activer/Désactiver"
-                >
-                  <span
-                    class="toggle-slider"
-                    :class="{ 'toggle-slider-active': service.active }"
-                  ></span>
-                </button>
-                <button @click="startEdit(service)" class="icon-btn">
+                <button v-if="service.active" @click="startEdit(service)" class="icon-btn">
                   <Edit2 :size="18" />
                 </button>
 <!--                <button @click="deleteService(service.id)" class="icon-btn icon-btn-danger">-->

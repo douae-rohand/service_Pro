@@ -64,24 +64,28 @@
         </div>
         <div class="profile-details">
           <div v-if="isEditing" class="form-group">
-            <label>Nom complet</label>
-            <input v-model="formData.name" type="text" />
+            <label>Adresse</label>
+            <input v-model="formData.address" type="text" placeholder="123 Rue Exemple" />
+          </div>
+          <div v-if="isEditing" class="form-group" style="margin-top: 10px;">
+            <label>Ville</label>
+            <input v-model="formData.ville" type="text" placeholder="Casablanca" />
           </div>
           <div v-else>
             <h2>{{ formData.name }}</h2>
             <div class="info-item">
               <MapPin :size="16" />
-              <span>{{ formData.location }}</span>
+              <span>{{ intervenant.address || 'Adresse non spécifiée' }}</span>
+            </div>
+            <div class="info-item">
+              <MapPin :size="16" class="opacity-0" />
+              <span class="font-medium mr-1">Ville:</span>
+              <span>{{ intervenant.ville || 'Non spécifiée' }}</span>
             </div>
             <div class="info-item">
               <Calendar :size="16" />
               <span>Membre depuis {{ intervenant.memberSince }}</span>
             </div>
-          </div>
-          
-          <div v-if="isEditing" class="form-group">
-            <label>Localisation</label>
-            <input v-model="formData.location" type="text" />
           </div>
         </div>
       </div>
@@ -113,9 +117,28 @@
       <div class="section">
         <h3>Informations professionnelles</h3>
         <div class="form-group">
-          <label>Expérience</label>
-          <input v-if="isEditing" v-model="formData.experience" type="text" />
-          <p v-else>{{ formData.experience }}</p>
+          <label>Expérience par Service</label>
+          
+          <!-- Edit Mode: List of services with inputs -->
+          <div v-if="isEditing" class="services-list-edit">
+            <div v-for="(service, index) in formData.services" :key="service.id" class="service-item-edit">
+                <span class="service-name">{{ service.nom_service }}</span>
+                <div class="experience-input-group">
+                    <input v-model="service.experience" type="number" step="0.5" min="0" />
+                    <span class="unit">ans</span>
+                </div>
+            </div>
+            <p v-if="formData.services.length === 0" class="no-services">Aucun service actif.</p>
+          </div>
+
+          <!-- View Mode: List of services with experience badges -->
+          <div v-else class="services-list-view">
+            <div v-for="service in intervenant.services" :key="service.id" class="service-item-view">
+                <span class="service-name-view">{{ service.nom_service }}</span>
+                <span class="experience-badge">{{ formatExperience(service.pivot?.experience) }}</span>
+            </div>
+             <p v-if="!intervenant.services || intervenant.services.length === 0" class="no-services">Aucun service actif.</p>
+          </div>
         </div>
         <div class="form-group">
           <label>Bio / Description</label>
@@ -131,6 +154,8 @@
 import { ref, onMounted } from 'vue'
 import { Edit2, Check, X, MapPin, Phone, Mail, Calendar, Camera, User } from 'lucide-vue-next'
 import authService from '@/services/authService'
+import intervenantService from '@/services/intervenantService' // Import intervenantService
+import api from '@/services/api' // Import api for direct put if needed
 
 const intervenant = ref({
   id: null,
@@ -139,7 +164,10 @@ const intervenant = ref({
   phone: '',
   profileImage: '',
   location: '',
-  memberSince: ''
+  address: '',
+  ville: '',
+  memberSince: '',
+  services: [] // Add services array
 })
 
 const loading = ref(true)
@@ -151,10 +179,11 @@ const formData = ref({
   name: '',
   email: '',
   phone: '',
-  location: '',
+  location: '', // Keep for backward compatibility or full display
+  address: '',
+  ville: '',
   bio: '',
-  experience: '',
-  languages: ''
+  services: [] // Store services for editing
 })
 
 // Fetch current user data
@@ -163,31 +192,38 @@ const fetchCurrentUser = async () => {
     const response = await authService.getCurrentUser()
     const user = response.data.user
     
-    console.log('User data from backend:', user)
-    console.log('Profile photo path:', user.profile_photo)
-    
     if (user.intervenant) {
+      // Fetch full intervenant data to get services with pivot
+      const intResponse = await intervenantService.getById(user.intervenant.id)
+      const fullIntervenant = intResponse.data
+      
       intervenant.value = {
         id: user.intervenant.id,
         name: `${user.prenom} ${user.nom}`,
         email: user.email,
         phone: user.telephone || '',
         profileImage: user.profile_photo ? `http://127.0.0.1:8000/storage/${user.profile_photo}?t=${Date.now()}` : null,
-        location: user.address || 'Non spécifié',
-        memberSince: new Date(user.created_at).getFullYear().toString()
+        location: fullIntervenant.ville || fullIntervenant.address || 'Non spécifié',
+        address: fullIntervenant.address || '',
+        ville: fullIntervenant.ville || '',
+        memberSince: new Date(user.created_at).getFullYear().toString(),
+        services: fullIntervenant.services || [] // Store services
       }
       
-      console.log('Final profile image URL:', intervenant.value.profileImage)
-      
-      // Initialize form data with real values
+      // Initialize form data
       formData.value = {
         name: intervenant.value.name,
         email: intervenant.value.email,
         phone: intervenant.value.phone,
         location: intervenant.value.location,
+        address: intervenant.value.address,
+        ville: intervenant.value.ville,
         bio: user.intervenant.bio || '',
-        experience: '', // You might want to add this to the database
-        languages: '' // You might want to add this to the database
+        services: intervenant.value.services.map(s => ({
+            id: s.id,
+            nom_service: s.nom_service,
+            experience: s.pivot?.experience || 0
+        }))
       }
     }
   } catch (error) {
@@ -201,21 +237,15 @@ const fetchCurrentUser = async () => {
 const handleFileUpload = (event) => {
   const file = event.target.files[0]
   if (file) {
-    // Check if file is an image
     if (!file.type.startsWith('image/')) {
       alert('Veuillez sélectionner une image valide')
       return
     }
-    
-    // Check file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       alert('L\'image ne doit pas dépasser 5MB')
       return
     }
-    
     selectedFile.value = file
-    
-    // Create a preview
     const reader = new FileReader()
     reader.onload = (e) => {
       intervenant.value.profileImage = e.target.result
@@ -229,55 +259,77 @@ onMounted(() => {
 })
 
 const startEdit = () => {
+  // Re-sync form data before editing to ensure freshness
+  formData.value.services = intervenant.value.services.map(s => ({
+      id: s.id,
+      nom_service: s.nom_service,
+      experience: s.pivot?.experience || 0
+  }))
+  // Sync other fields if needed, but they are usually static until save
   isEditing.value = true
 }
 
 const saveEdit = async () => {
   try {
-    // Debug: Log the form data values
-    console.log('FormData values being sent:', {
-      phone: formData.value.phone,
-      location: formData.value.location,
-      bio: formData.value.bio,
-      bioType: typeof formData.value.bio,
-      bioValue: formData.value.bio
+    // 1. Save Profile Photo & Basic Info (Phone, Bio, Address, Ville)
+    // We need to send both address and ville. authService.updateProfile might need to be checked if it handles separate fields.
+    // Assuming authService.updateProfile wraps the endpoint we used in IntervenantController.
+    // If not, we might need to use api.post or modify authService.
+    
+    // Construct payload matching IntervenantController@update validation and structure
+    // The previous working code used api.put('intervenants/{id}')
+    
+    // Let's use the exact same logic as IntervenantProfileTab for consistency and correctness
+    
+    const servicesPayload = formData.value.services.map(s => ({
+        id: s.id,
+        experience: s.experience
+    }));
+
+    // Prepare FormData for file upload support
+    const formDataToSend = new FormData()
+    formDataToSend.append('telephone', formData.value.phone || '')
+    formDataToSend.append('address', formData.value.address || '')
+    formDataToSend.append('ville', formData.value.ville || '')
+    formDataToSend.append('bio', formData.value.bio || '')
+    formDataToSend.append('_method', 'PUT') // Method spoofing for Laravel if using POST for file upload
+    
+    // Add services as array
+    servicesPayload.forEach((s, index) => {
+        formDataToSend.append(`services[${index}][id]`, s.id)
+        formDataToSend.append(`services[${index}][experience]`, s.experience)
     })
-    
-    let response
-    
-    // Use FormData only if there's a file, otherwise use JSON
+
     if (selectedFile.value) {
-      const formDataToSend = new FormData()
-      
-      // Add text fields
-      formDataToSend.append('telephone', formData.value.phone || '')
-      formDataToSend.append('address', formData.value.location || '')
-      formDataToSend.append('bio', formData.value.bio || '')
-      
-      // Add profile photo
       formDataToSend.append('profile_photo', selectedFile.value)
-      
-      // Debug: Log FormData contents
-      console.log('FormData entries:')
-      for (let [key, value] of formDataToSend.entries()) {
-        console.log(`${key}:`, value, typeof value)
-      }
-      
-      response = await authService.updateProfile(formDataToSend)
-    } else {
-      // Send as JSON when no file
-      const jsonData = {
-        telephone: formData.value.phone || '',
-        address: formData.value.location || '',
-        bio: formData.value.bio || ''
-      }
-      
-      console.log('JSON data being sent:', jsonData)
-      
-      response = await authService.updateProfile(jsonData)
     }
+
+    // We can use the dedicated update endpoint or the auth update. 
+    // Since fetchCurrentUser gets ID, let's use the direct intervenant update endpoint which we know handles services and ville.
+    // However, profile_photo is usually handled by auth/user controller.
+    // Let's stick to authService.updateProfile if it points to 'intervenants/me' or similar?
+    // Actually, looking at previous code, profile photo update was likely separate or handled via 'user/profile-information'.
     
-    // Refresh user data to get updated profile
+    // STRATEGY: 
+    // 1. Update Profile Photo via authService (if file selected)
+    // 2. Update Intervenant Details (Ville, Bio, Experience) via api.put -> intervenants/{id}
+    
+    if (selectedFile.value) {
+         const photoData = new FormData();
+         photoData.append('profile_photo', selectedFile.value);
+         // Assuming this endpoint exists and works for photo
+         await authService.updateProfile(photoData); 
+    }
+
+    // Update info
+    await api.put(`intervenants/${intervenant.value.id}`, {
+        telephone: formData.value.phone,
+        address: formData.value.address,
+        ville: formData.value.ville,
+        bio: formData.value.bio,
+        services: servicesPayload
+    });
+
     await fetchCurrentUser()
     
     selectedFile.value = null
@@ -293,19 +345,32 @@ const saveEdit = async () => {
 }
 
 const cancelEdit = () => {
-  formData.value = {
-    name: intervenant.value.name,
-    email: intervenant.value.email,
-    phone: intervenant.value.phone,
-    location: intervenant.value.location,
-    bio: intervenant.value.bio || '',
-    experience: formData.value.experience,
-    languages: formData.value.languages
-  }
   selectedFile.value = null
-  // Reset profile image to original
   fetchCurrentUser()
   isEditing.value = false
+}
+
+const formatExperience = (value) => {
+  if (!value) return "Débutant";
+  const num = parseFloat(value);
+  if (isNaN(num) || num === 0) return "Débutant";
+  
+  const years = Math.floor(num);
+  const months = Math.round((num - years) * 12);
+  
+  let parts = [];
+  
+  if (years > 0) {
+    parts.push(`${years} an${years > 1 ? 's' : ''}`);
+  }
+  
+  if (months > 0) {
+    parts.push(`${months} mois`);
+  }
+  
+  if (parts.length === 0) return "Débutant"; // Should happen if 0
+  
+  return parts.join(' et ');
 }
 </script>
 
@@ -569,5 +634,66 @@ const cancelEdit = () => {
   .profile-section {
     flex-direction: column;
   }
+}
+
+.services-list-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.service-item-edit {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f9f9f9;
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.service-name {
+  font-weight: 500;
+  color: #333;
+}
+
+.experience-input-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.experience-input-group input {
+    width: 80px;
+    text-align: right;
+}
+
+.services-list-view {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.service-item-view {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+}
+
+.service-name-view {
+    font-weight: 600;
+    color: #374151;
+}
+
+.experience-badge {
+    background-color: #f0fdf4;
+    color: #15803d;
+    padding: 4px 8px;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 500;
 }
 </style>

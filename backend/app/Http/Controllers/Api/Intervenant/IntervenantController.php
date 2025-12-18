@@ -168,9 +168,22 @@ class IntervenantController extends Controller
             'admin_id' => $validated['admin_id'] ?? $request->input('adminId'),
         ]);
 
+        // Update service experience if provided
+        if ($request->has('services') && is_array($request->services)) {
+            foreach ($request->services as $serviceData) {
+                if (isset($serviceData['id']) && isset($serviceData['experience'])) {
+                    // Update existing pivot
+                    $intervenant->services()->updateExistingPivot(
+                        $serviceData['id'], 
+                        ['experience' => $serviceData['experience']]
+                    );
+                }
+            }
+        }
+
         return response()->json([
             'message' => 'Intervenant mis à jour avec succès',
-            'intervenant' => $intervenant->load('utilisateur'),
+            'intervenant' => $intervenant->load('utilisateur', 'services'), // Reload services to return updated data
         ]);
     }
 
@@ -389,8 +402,16 @@ class IntervenantController extends Controller
                     ->where('status', 'terminée')
                     ->count();
 
-                // Get materials names
-                $materials = $tache->materiels->pluck('nom_materiel')->toArray();
+                // Get all materials for this task
+                $taskMaterials = $tache->materiels;
+                
+                // Get IDs of materials owned by the intervenant
+                $intervenantMaterialIds = $intervenant->materiels->pluck('id')->toArray();
+
+                // Filter task materials to include only those owned by the intervenant
+                $ownedMaterials = $taskMaterials->filter(function ($material) use ($intervenantMaterialIds) {
+                    return in_array($material->id, $intervenantMaterialIds);
+                })->pluck('nom_materiel')->toArray();
 
                 // Determine service type (menage or jardinage) from service name
                 $serviceType = 'menage'; // default
@@ -409,7 +430,7 @@ class IntervenantController extends Controller
                     'hourlyRate' => (float) ($pivot->prix_tache ?? 0),
                     'active' => $pivot->status ?? true,
                     'completedJobs' => $completedJobs,
-                    'materials' => $materials,
+                    'materials' => $ownedMaterials,
                 ];
             });
 
@@ -524,10 +545,23 @@ class IntervenantController extends Controller
             }
         }
 
-        // Sync materials for this intervenant with prices
-        $intervenant->materiels()->sync($materialSyncData);
+        
+        // Get all materials that are relevant to this task (offered as options)
+        $taskMaterials = $tache->materiels->pluck('id')->toArray();
+        
+        // Identify materials that were unchecked (in Task but not in Request)
+        // These should be removed from the intervenant's inventory
+        $materialsToDetach = array_diff($taskMaterials, $materialIds);
+        
+        if (!empty($materialsToDetach)) {
+             $intervenant->materiels()->detach($materialsToDetach);
+        }
 
-        Log::info("Syncing materials with prices for intervenant {$intervenant->id}: " . json_encode($materialSyncData));
+        // Sync materials for this intervenant with prices (without detaching others)
+        // This updates existing pivots and attaches new ones
+        $intervenant->materiels()->sync($materialSyncData, false);
+
+        Log::info("Updated materials for intervenant {$intervenant->id} via task {$tacheId}");
     }
 
     return response()->json([
@@ -717,15 +751,25 @@ class IntervenantController extends Controller
                 ];
             });
 
+        // Get IDs of materials owned by the intervenant
+        $intervenantMaterialIds = $intervenant->materiels->pluck('id')->toArray();
+
         // Get all tasks (active and inactive) with their status
         $allTasks = $intervenant->taches()
+            ->with('materiels')
             ->get()
-            ->map(function ($tache) {
+            ->map(function ($tache) use ($intervenantMaterialIds) {
+                // Filter task materials to include only those owned by the intervenant
+                $ownedMaterials = $tache->materiels->filter(function ($material) use ($intervenantMaterialIds) {
+                    return in_array($material->id, $intervenantMaterialIds);
+                })->pluck('nom_materiel')->toArray();
+
                 return [
                     'id' => $tache->id,
                     'name' => $tache->nom_tache,
                     'price' => $tache->pivot->prix_tache,
                     'status' => $tache->pivot->status,
+                    'materials' => $ownedMaterials,
                 ];
             });
 

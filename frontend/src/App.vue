@@ -103,7 +103,7 @@ import Footer from './components/Footer.vue'
 import ServiceDetailPage from './components/ServiceDetailPage.vue'
 import AllIntervenantsPage from './components/AllIntervenantsPage.vue'
 import TaskIntervenantsPage from './components/TaskIntervenantsPage.vue'
-import IntervenantProfile from './components/IntervenantProfile.vue' // ✅ CORRIGÉ
+import IntervenantProfile from './components/IntervenantProfile.vue' 
 import LoginModal from './components/LoginModal.vue'
 import SignupModal from './components/SignupModal.vue'
 import Clientdashboard from './components/Clientdashboard.vue'

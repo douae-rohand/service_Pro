@@ -23,19 +23,21 @@ class ServiceController extends Controller
                 $query->where('status', 'active');
             }
             
-            $services = $query->get();
+            // Load tasks relationship with only necessary columns
+            $services = $query->with('taches:id,service_id,nom_tache,description,image_url')->get();
 
-            // Simple format without loading relationships first
+            // Format services with tasks included
             $formattedServices = $services->map(function ($service) {
                 return [
                     'id' => $service->id,
-                    'name' => $service->nom_service,
+                    'nom_service' => $service->nom_service,  // Match frontend expectation
                     'description' => $service->description,
+                    'taches' => $service->taches,  // Include tasks
                 ];
             });
 
             return response()->json([
-                'services' => $formattedServices,
+                'data' => $formattedServices,  // Use 'data' key for consistency
             ]);
         } catch (\Exception $e) {
             \Log::error('Service index error: ' . $e->getMessage());

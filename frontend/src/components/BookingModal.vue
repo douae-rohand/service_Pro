@@ -1201,20 +1201,22 @@ export default {
         
       } catch (error) {
         console.error('Error submitting booking:', error);
-        console.error('Error response:', error.response);
         
         let errorMessage = 'Erreur lors de l\'envoi de la demande. Veuillez réessayer.';
         
-        if (error.response?.data?.errors) {
-          // Gestion des erreurs de validation Laravel
-          const errors = Object.values(error.response.data.errors).flat();
-          errorMessage = errors.join('\n');
-        } else if (error.response?.data?.message) {
-          errorMessage = error.response.data.message;
-        } else if (error.response?.data?.error) {
-          errorMessage = error.response.data.error;
-        } else if (error.message) {
-          errorMessage = error.message;
+        // Handle custom rejected object from api.js OR standard axios error
+        const errorData = error.data || error.response?.data;
+        const errors = error.errors || errorData?.errors;
+        const message = error.message || errorData?.message;
+
+        if (errors) {
+          // Gestion des erreurs de validation (Array of arrays or Array of strings)
+          const errorList = Object.values(errors).flat();
+          errorMessage = errorList.join('\n');
+        } else if (message) {
+          errorMessage = message;
+        } else if (error.error) {
+          errorMessage = error.error;
         }
         
         alert(errorMessage);

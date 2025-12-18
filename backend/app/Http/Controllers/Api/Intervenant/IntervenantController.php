@@ -23,8 +23,8 @@ class IntervenantController extends Controller
     {
         // Optimiser le chargement : ne charger que les relations nécessaires
         $query = Intervenant::with([
-            'utilisateur:id,nom,prenom,address,url,photo',
-            'taches:id,nom_tache,service_id',
+            'utilisateur:id,nom,prenom,address,url',
+            'taches:id,nom_tache,service_id,description',
             'taches.service:id,nom_service',
             'services'
         ]);
@@ -42,9 +42,10 @@ class IntervenantController extends Controller
         }
 
         // Filtrer par service si spécifié - optimisé
-        if ($request->has('serviceId')) {
-            $query->whereHas('taches', function ($q) use ($request) {
-                $q->where('service_id', $request->serviceId);
+        $serviceId = $request->input('serviceId') ?: $request->input('service_id');
+        if ($serviceId) {
+            $query->whereHas('taches', function ($q) use ($serviceId) {
+                $q->where('service_id', $serviceId);
             });
         }
 
@@ -70,6 +71,7 @@ class IntervenantController extends Controller
             
             $intervenant->average_rating = round($avg, 1);
             $intervenant->review_count = $count;
+            $intervenant->interv_count = $intervenant->interventions->count();
             
             // Nettoyer la relation pour ne pas renvoyer de données inutiles en JSON
             unset($intervenant->interventions);
@@ -114,7 +116,7 @@ class IntervenantController extends Controller
         public function show($id)
         {
             $intervenant = Intervenant::with([
-                'utilisateur:id,nom,prenom,address,url,photo',
+                'utilisateur:id,nom,prenom,address,url',
                 'taches:id,nom_tache,service_id',
                 'taches.service:id,nom_service',
                 'services',
@@ -141,6 +143,7 @@ class IntervenantController extends Controller
             $ratingInfo = $intervenant->getRatingInfo();
             $intervenant->average_rating = $ratingInfo['average_rating'];
             $intervenant->review_count = $ratingInfo['review_count'];
+            $intervenant->interv_count = $intervenant->interventions()->count();
 
             return response()->json($intervenant);
         }
@@ -408,8 +411,8 @@ class IntervenantController extends Controller
         }
         
         // Filter by service - using serviceId parameter
-        if ($request->has('serviceId') && $request->serviceId != 'all') {
-            $serviceId = $request->serviceId;
+        $serviceId = $request->input('serviceId') ?: $request->input('service_id');
+        if ($serviceId && $serviceId != 'all') {
             Log::info('Filtering by serviceId: ' . $serviceId);
             
             $query->whereHas('taches', function ($q) use ($serviceId) {
@@ -452,12 +455,13 @@ class IntervenantController extends Controller
         $intervenants->load('utilisateur');
         
         // Simple transformation
-        $intervenants->getCollection()->transform(function ($intervenant) {
-            $intervenant->average_rating = 0;
-            $intervenant->review_count = 0;
-            
-            return $intervenant;
-        });
+    $intervenants->getCollection()->transform(function ($intervenant) {
+        $ratingInfo = $intervenant->getRatingInfo();
+        $intervenant->average_rating = $ratingInfo['average_rating'];
+        $intervenant->review_count = $ratingInfo['review_count'];
+        
+        return $intervenant;
+    });
         
         return response()->json($intervenants);
         

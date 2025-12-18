@@ -996,10 +996,10 @@ class AdminController extends Controller
         $intervenant->save();
 
         // Si l'intervenant est suspendu (is_active devient false)
-        // Mettre automatiquement toutes ses demandes avec status='demande' à status='desactive'
+        // Mettre automatiquement toutes ses demandes avec status='demmande' à status='desactive'
         if (!$intervenant->is_active && $oldStatus === true) {
             $servicesAvecDemande = $intervenant->services()
-                ->wherePivot('status', 'demande')
+                ->wherePivot('status', 'demmande')
                 ->get();
             
             foreach ($servicesAvecDemande as $service) {
@@ -1009,7 +1009,7 @@ class AdminController extends Controller
             }
         }
         // Si l'intervenant est réactivé (is_active devient true)
-        // Remettre automatiquement toutes ses demandes avec status='desactive' à status='demande'
+        // Remettre automatiquement toutes ses demandes avec status='desactive' à status='demmande'
         if ($intervenant->is_active && $oldStatus === false) {
             $servicesDesactives = $intervenant->services()
                 ->wherePivot('status', 'desactive')
@@ -1017,7 +1017,7 @@ class AdminController extends Controller
             
             foreach ($servicesDesactives as $service) {
                 $intervenant->services()->updateExistingPivot($service->id, [
-                    'status' => 'demande'
+                    'status' => 'demmande'
                 ]);
             }
         }
@@ -1063,20 +1063,20 @@ class AdminController extends Controller
 
     /**
      * Get all pending intervenant requests
-     * Retourne uniquement les demandes avec status='demande' pour les intervenants actifs (is_active=true)
+     * Retourne uniquement les demandes avec status='demmande' pour les intervenants actifs (is_active=true)
      * - Uniquement les intervenants actifs (is_active = true)
-     * - Uniquement les demandes avec status='demande' (exclut 'desactive', 'refuse', 'active' et null)
+     * - Uniquement les demandes avec status='demmande' (exclut 'desactive', 'refuse', 'active' et null)
      */
     public function getPendingRequests(Request $request)
     {
         try {
-            // Récupérer uniquement les intervenants ACTIFS qui ont AU MOINS UN SERVICE avec status='demande'
+            // Récupérer uniquement les intervenants ACTIFS qui ont AU MOINS UN SERVICE avec status='demmande'
             // ET qui concernent des services ACTIFS
             $query = Intervenant::with(['utilisateur', 'services', 'taches.service', 'justificatifs'])
                 ->where('is_active', true) // Uniquement les intervenants actifs
                 ->whereHas('services', function($q) {
-                    // Seulement les services avec status = 'demande' dans la table pivot
-                    $q->where('intervenant_service.status', 'demande');
+                    // Seulement les services avec status = 'demmande' dans la table pivot
+                    $q->where('intervenant_service.status', 'demmande');
                     // IMPORTANT : Filtrer uniquement les services ACTIFS (service.status = 'active')
                     // Cela garantit qu'on ne montre que les demandes pour des services actifs
                     if (Schema::hasColumn('service', 'status')) {
@@ -1088,7 +1088,7 @@ class AdminController extends Controller
             if ($request->has('service') && $request->service !== 'tous' && $request->service !== 'all') {
                 $query->whereHas('services', function($q) use ($request) {
                     $q->where('nom_service', $request->service)
-                      ->where('intervenant_service.status', 'demande'); // Uniquement status='demande'
+                      ->where('intervenant_service.status', 'demmande'); // Uniquement status='demmande'
                     // IMPORTANT : Filtrer uniquement les services ACTIFS
                     if (Schema::hasColumn('service', 'status')) {
                         $q->where('service.status', 'active');
@@ -1116,13 +1116,13 @@ class AdminController extends Controller
                     continue;
                 }
 
-                // IMPORTANT : Filtrer uniquement les services avec status = 'demande' ET service actif
+                // IMPORTANT : Filtrer uniquement les services avec status = 'demmande' ET service actif
                 // Un intervenant peut avoir des services activés ET des services en attente
                 // Mais on ne doit afficher que les demandes pour les services ACTIFS
                 $servicesEnAttente = $intervenant->services->filter(function($service) {
                     $status = $service->pivot->status;
-                    // Vérifier que le statut de la demande est 'demande'
-                    if ($status !== 'demande') {
+                    // Vérifier que le statut de la demande est 'demmande'
+                    if ($status !== 'demmande') {
                         return false;
                     }
                     // IMPORTANT : Vérifier aussi que le service lui-même est actif
@@ -1187,7 +1187,7 @@ class AdminController extends Controller
                         'experience' => $this->formatExperience($service->pivot->experience ?? null),
                         'presentation' => $service->pivot->presentation ?? null, // Présentation spécifique au service
                         'service' => $service->nom_service, // Un seul service par entrée
-                        'statut' => $service->pivot->status ?? 'demande', // Statut du service dans le pivot
+                        'statut' => $service->pivot->status ?? 'demmande', // Statut du service dans le pivot
                         'dateInscription' => $intervenant->created_at ? $intervenant->created_at->format('Y-m-d') : now()->format('Y-m-d'),
                         'dateAttente' => $this->calculateWaitingTime($service->pivot->created_at ?? $intervenant->created_at ?? now()),
                         'photo' => null, // Placeholder for photo
@@ -1267,7 +1267,7 @@ class AdminController extends Controller
             }
 
             // Vérifier que le service est bien en attente
-            if ($status !== 'demande' && $status !== 'desactive' && $status !== null) {
+            if ($status !== 'demmande' && $status !== 'desactive' && $status !== null) {
                 return response()->json([
                     'error' => 'Statut invalide',
                     'message' => 'Ce service n\'est pas en attente d\'approbation.'
@@ -1434,7 +1434,7 @@ class AdminController extends Controller
             }
 
             // Vérifier que le service est bien en attente (ne pas rejeter une demande déjà refusée)
-            if ($status !== 'demande' && $status !== 'desactive' && $status !== null) {
+            if ($status !== 'demmande' && $status !== 'desactive' && $status !== null) {
                 return response()->json([
                     'error' => 'Statut invalide',
                     'message' => 'Ce service n\'est pas en attente d\'approbation.'
@@ -1653,14 +1653,14 @@ class AdminController extends Controller
                 ]);
                 
                 // Mettre à jour les demandes liées au service en fonction du statut du service
-                // - Si le service est désactivé : passer toutes les demandes (status='demande') à 'desactive'
-                // - Si le service est réactivé : remettre ces demandes à 'demande' MAIS seulement pour les intervenants actifs
+                // - Si le service est désactivé : passer toutes les demandes (status='demmande') à 'desactive'
+                // - Si le service est réactivé : remettre ces demandes à 'demmande' MAIS seulement pour les intervenants actifs
                 //   et en respectant la limite de 2 services actifs
                 if ($newStatus === 'inactive') {
                     // Désactiver toutes les demandes en attente pour ce service
                     DB::table('intervenant_service')
                         ->where('service_id', $service->id)
-                        ->where('status', 'demande')
+                        ->where('status', 'demmande')
                         ->update([
                             'status' => 'desactive',
                             'updated_at' => now(),
@@ -1669,7 +1669,7 @@ class AdminController extends Controller
                     // Réactiver les demandes, mais seulement pour les intervenants actifs
                     // et en respectant la limite de 2 services actifs
                     // On laisse handleServiceReactivation gérer cela correctement
-                    // Ne pas remettre automatiquement toutes les demandes à 'demande' ici
+                    // Ne pas remettre automatiquement toutes les demandes à 'demmande' ici
                     // car certaines peuvent avoir été mises à 'desactive' pour d'autres raisons
                 }
                 
@@ -1734,7 +1734,7 @@ class AdminController extends Controller
 
     /**
      * Gérer la réactivation d'un service avec la limite de 2 services actifs
-     * - Remet les demandes à 'demande' pour les intervenants actifs qui ont moins de 2 services actifs
+     * - Remet les demandes à 'demmande' pour les intervenants actifs qui ont moins de 2 services actifs
      * - Si un intervenant a déjà 2 services actifs ET a ce service avec status='active', 
      *   on le met à 'desactive' avec notification
      * - Si un intervenant a déjà 2 services actifs ET a ce service avec status='desactive',
@@ -1778,8 +1778,8 @@ class AdminController extends Controller
                     $excludedIntervenantIds[] = $intervenant->id;
                     
                     // Si le service était 'active', on doit le mettre à 'desactive'
-                    // Si le service était 'desactive' ou 'demande', on le met à 'desactive'
-                    if ($currentStatus === 'active' || $currentStatus === 'demande') {
+                    // Si le service était 'desactive' ou 'demmande', on le met à 'desactive'
+                    if ($currentStatus === 'active' || $currentStatus === 'demmande') {
                         // Mettre à 'desactive' car l'intervenant a déjà 2 autres services actifs
                         $intervenant->services()->updateExistingPivot($service->id, [
                             'status' => 'desactive',
@@ -1826,14 +1826,14 @@ class AdminController extends Controller
                     }
                 } else {
                     // L'intervenant a moins de 2 services actifs (en excluant ce service)
-                    // On peut remettre la demande à 'demande' si elle était à 'desactive'
+                    // On peut remettre la demande à 'demmande' si elle était à 'desactive'
                     if ($currentStatus === 'desactive') {
                         $intervenant->services()->updateExistingPivot($service->id, [
-                            'status' => 'demande',
+                            'status' => 'demmande',
                             'updated_at' => now()
                         ]);
                         
-                        Log::info("Demande remise à 'demande' pour l'intervenant après réactivation du service", [
+                        Log::info("Demande remise à 'demmande' pour l'intervenant après réactivation du service", [
                             'intervenant_id' => $intervenant->id,
                             'service_id' => $service->id,
                             'services_actifs_autres' => $servicesActifsCount
@@ -3115,7 +3115,7 @@ class AdminController extends Controller
             $validated = $request->validate([
                 'nom_tache' => 'required|string|max:150',
                 'description' => 'nullable|string',
-                'status' => 'nullable|string|max:50',
+                'status' => 'nullable|string|in:actif,inactif',
                 'image_url' => 'nullable|string|max:255',
             ]);
 
@@ -3123,7 +3123,7 @@ class AdminController extends Controller
             $tache->service_id = $serviceId;
             $tache->nom_tache = $validated['nom_tache'];
             $tache->description = $validated['description'] ?? null;
-            $tache->status = $validated['status'] ?? 'active';
+            $tache->status = $validated['status'] ?? 'actif';
             $tache->image_url = $validated['image_url'] ?? null;
             $tache->save();
 
@@ -3176,7 +3176,7 @@ class AdminController extends Controller
             $validated = $request->validate([
                 'nom_tache' => 'sometimes|required|string|max:150',
                 'description' => 'nullable|string',
-                'status' => 'nullable|string|max:50',
+                'status' => 'nullable|string|in:actif,inactif',
                 'image_url' => 'nullable|string|max:255',
             ]);
 

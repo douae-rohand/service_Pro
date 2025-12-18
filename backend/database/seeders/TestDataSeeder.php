@@ -57,9 +57,9 @@ class TestDataSeeder extends Seeder
         
         if (!$client1User) {
             $client1UserId = DB::table('utilisateur')->insertGetId([
-                'nom' => 'Tafraouti',
+                'nom' => 'Alaoui',
                 'prenom' => 'Soufiane',
-                'email' => 'tafraoutist@gmail.com',
+                'email' => 'alaouis@gmail.com',
                 'password' => Hash::make('password123'),
                 'telephone' => '0611122233',
                 'url' => null,
@@ -74,9 +74,9 @@ class TestDataSeeder extends Seeder
         
         if (!$client2User) {
             $client2UserId = DB::table('utilisateur')->insertGetId([
-                'nom' => 'Tafraouti',
+                'nom' => 'Ayadi',
                 'prenom' => 'Aya',
-                'email' => 'tafraouti.aya2006@gmail.com',
+                'email' => 'ayadi.aya@gmail.com',
                 'password' => Hash::make('password123'),
                 'telephone' => '0612233344',
                 'url' => null,
@@ -155,9 +155,9 @@ class TestDataSeeder extends Seeder
         
         if (!$intervenant1User) {
             $intervenant1UserId = DB::table('utilisateur')->insertGetId([
-                'nom' => 'Tafraouti',
-                'prenom' => 'Sanae',
-                'email' => 'tafraouti.sanae@etu.uae.ac.ma',
+                'nom' => 'Benjelloun',
+                'prenom' => 'Sare',
+                'email' => 'benjelloun.sara@gmail.com',
                 'password' => Hash::make('password123'),
                 'telephone' => '0623344455',
                 'url' => null,
@@ -172,9 +172,9 @@ class TestDataSeeder extends Seeder
         
         if (!$intervenant2User) {
             $intervenant2UserId = DB::table('utilisateur')->insertGetId([
-                'nom' => 'Tafraouti',
-                'prenom' => 'Khaoula',
-                'email' => 'tafraouti.khaoula@gmail.com',
+                'nom' => 'Hamani',
+                'prenom' => 'Adil',
+                'email' => 'hamani.adil@gmail.com',
                 'password' => Hash::make('password123'),
                 'telephone' => '0624455566',
                 'url' => null,

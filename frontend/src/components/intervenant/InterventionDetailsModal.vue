@@ -333,7 +333,7 @@ const fetchDetails = async () => {
   loading.value = true
   error.value = null
   try {
-    const response = await api.get(`interventions/${props.interventionId}`)
+    const response = await api.get(`intervenant-interventions/${props.interventionId}`)
     // Laravel Resource wraps data in a 'data' property
     intervention.value = response.data.data || response.data
   } catch (err) {
@@ -382,13 +382,7 @@ const formatStatus = (status) => {
   return map[status] || status
 }
 
-const getImageUrl = (path) => {
-  if (!path) return ''
-  if (path.startsWith('http')) return path
-  // Match the logic in api.js for base URL but for storage
-  const baseUrl = (import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api").replace("/api", "").replace(/\/+$/, "");
-  return `${baseUrl}/storage/${path}`
-}
+
 
 const getImageUrl = (path) => {
   if (!path) return 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=400&h=300&fit=crop'
@@ -954,3 +948,4 @@ const openImage = (photo) => {
   .evaluation-content-grid { grid-template-columns: 1fr; gap: 2.5rem; }
 }
 </style>
+

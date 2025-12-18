@@ -7,9 +7,31 @@ use App\Models\Intervention;
 use App\Models\PhotoIntervention;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Client;
+use App\Models\Intervenant;
 
 class InterventionController extends Controller
 {
+    /**
+     * Helper to scope queries to the authenticated user
+     */
+    private function scopeQueryProprety($query)
+    {
+        $user = Auth::user();
+
+        if (!$user) {
+            return $query; // Or handle as error/empty
+        }
+
+        if ($user->userable_type === Client::class || $user->userable_type === 'App\Models\Client') {
+            $query->where('client_id', $user->userable_id);
+        } elseif ($user->userable_type === Intervenant::class || $user->userable_type === 'App\Models\Intervenant') {
+            $query->where('intervenant_id', $user->userable_id);
+        }
+        
+        return $query;
+    }
+
     /**
      * Display a listing of interventions
      */
@@ -49,7 +71,7 @@ class InterventionController extends Controller
             'dateIntervention' => 'required|date',
             'clientId' => 'required|exists:client,id',
             'intervenantId' => 'required|exists:intervenant,id',
-            'tacheId' => 'required|exists:tache,id',
+            'tache_id' => 'required|exists:tache,id',
         ]);
 
         // Convertir les noms camelCase en snake_case pour correspondre aux colonnes de la base de données

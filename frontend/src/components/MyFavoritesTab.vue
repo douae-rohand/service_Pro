@@ -162,6 +162,11 @@
 import { Heart, Star, MapPin, Calendar, AlertCircle } from 'lucide-vue-next';
 import favoriteService from '@/services/favoriteService';
 import BookingModal from './BookingModal.vue';
+import api from '@/services/api';
+
+// Base URL of backend (without the `/api` suffix used for API routes)
+const API_BASE_URL = (api.defaults.baseURL || '').replace(/\/+$/, '');
+const BACKEND_BASE_URL = API_BASE_URL.replace(/\/api$/, '');
 
 export default {
   name: 'MyFavoritesTab',
@@ -191,6 +196,22 @@ export default {
     this.loadFavorites();
   },
   methods: {
+    buildImageUrl(photoPath) {
+      // If nothing is provided, return a placeholder
+      if (!photoPath) {
+        return 'https://via.placeholder.com/150';
+      }
+
+      // Absolute URL: return as-is
+      if (/^https?:\/\//i.test(photoPath)) {
+        return photoPath;
+      }
+
+      // Relative path from Laravel storage/public
+      const base = BACKEND_BASE_URL || '';
+      const normalizedPath = photoPath.startsWith('/') ? photoPath : `/${photoPath}`;
+      return `${base}${normalizedPath}`;
+    },
     async loadFavorites() {
       this.loading = true;
       this.error = null;
@@ -202,7 +223,7 @@ export default {
         this.favorites = rawFavorites.map(fav => ({
           ...fav,
           name: `${fav.prenom} ${fav.nom}`,
-          image: fav.photo_url || 'https://via.placeholder.com/150',
+          image: this.buildImageUrl(fav.photo_url || fav.photo || fav.url),
           services: [fav.nom_service], // Since backend returns one row per service
           location: fav.ville || fav.adresse || 'Maroc', // Fallback
           // Default values for missing backend data

@@ -26,6 +26,7 @@ class Intervention extends Model
         'client_id',
         'intervenant_id',
         'tache_id',
+        'description',
     ];
 
     protected function casts(): array

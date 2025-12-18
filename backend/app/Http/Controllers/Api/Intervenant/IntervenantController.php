@@ -25,7 +25,7 @@ class IntervenantController extends Controller
         // Optimiser le chargement : ne charger que les relations nécessaires
         $query = Intervenant::with([
             'utilisateur:id,nom,prenom,address,url',
-            'taches:id,nom_tache,service_id,description',
+            'taches',
             'taches.service:id,nom_service',
             'services'
         ]);
@@ -117,23 +117,23 @@ class IntervenantController extends Controller
         public function show($id)
         {
             $intervenant = Intervenant::with([
-                'utilisateur:id,nom,prenom,address,url',
-                'taches:id,nom_tache,service_id',
-                'taches.service:id,nom_service',
-                'services',
-                'interventions' => function($q) {
-                    $q->orderBy('date_intervention', 'desc');
-                },
-                'interventions.photos',
-                'interventions.evaluations' => function($q) {
-                    $q->where('type_auteur', 'client');
-                },
-                'interventions.commentaires' => function($q) {
-                    $q->where('type_auteur', 'client');
-                },
-                'interventions.client.utilisateur:id,nom,prenom',
-                'disponibilites'
-            ])->find($id);
+                'utilisateur:id,nom,prenom,address,url,avatar',
+            'taches',
+            'taches.service:id,nom_service',
+            'services',
+            'interventions' => function($q) {
+                $q->orderBy('date_intervention', 'desc');
+            },
+            'interventions.photos',
+            'interventions.evaluations' => function($q) {
+                $q->where('type_auteur', 'client');
+            },
+            'interventions.commentaires' => function($q) {
+                $q->where('type_auteur', 'client');
+            },
+            'interventions.client.utilisateur:id,nom,prenom,url,avatar',
+            'disponibilites'
+        ])->find($id);
 
             if (!$intervenant) {
                 return response()->json([
@@ -452,14 +452,24 @@ class IntervenantController extends Controller
         
         Log::info('Found ' . $intervenants->total() . ' intervenants');
         
-        // Load relationships AFTER pagination - minimal loading
-        $intervenants->load('utilisateur');
-        
-        // Simple transformation
+        // Load relationships AFTER pagination
+    $intervenants->load([
+        'utilisateur:id,nom,prenom,address,url',
+        'taches',
+        'taches.service:id,nom_service',
+        'services',
+        'interventions'
+    ]);
+    
+    // Transform to include rating info and interv_count
     $intervenants->getCollection()->transform(function ($intervenant) {
         $ratingInfo = $intervenant->getRatingInfo();
         $intervenant->average_rating = $ratingInfo['average_rating'];
         $intervenant->review_count = $ratingInfo['review_count'];
+        $intervenant->interv_count = $intervenant->interventions->count();
+        
+        // Clean up to keep response size manageable
+        unset($intervenant->interventions);
         
         return $intervenant;
     });
@@ -1467,13 +1477,14 @@ class IntervenantController extends Controller
                 'service' => $tache && $tache->service ? $tache->service->nom_service : 'Service inconnu',
                 'task' => $tache ? $tache->nom_tache : 'Tâche inconnue',
                 'date' => date('Y-m-d', strtotime($intervention->date_intervention)),
-                'time' => date('H:i', strtotime($intervention->date_intervention)),
-                'duration' => '2 heures', // You might want to add this field to the intervention table
-                'hourlyRate' => 25, // You might want to calculate this from the tache pivot table
-                'location' => $intervention->address . ', ' . $intervention->ville,
-                'status' => $this->mapStatus($intervention->status),
-                'message' => null, // You might want to add a message field
-                'materials' => $allMaterials,
+           'time' => date('H:i', strtotime($intervention->date_intervention)),
+           'duration_hours' => (float)$intervention->duration_hours,
+           'duration' => $intervention->duration_hours ? number_format($intervention->duration_hours, 1) . 'h' : 'N/A',
+           'hourlyRate' => $intervention->tache && $intervenant->id ? (\App\Models\IntervenantTache::where('tache_id', $intervention->tache_id)->where('intervenant_id', $intervenant->id)->first()->prix_tache ?? 25) : 25,
+           'location' => $intervention->address . ', ' . $intervention->ville,
+           'status' => $this->mapStatus($intervention->status),
+           'message' => $intervention->description,
+           'materials' => $allMaterials,
                 'clientProvidedMaterials' => $clientProvidedMaterials,
                 'intervenantMaterials' => $intervenantMaterials
             ];
@@ -1518,8 +1529,9 @@ class IntervenantController extends Controller
             'termine' => 'completed',
             'terminee' => 'completed',
             'terminée' => 'completed',
-            'refuse' => 'refused',
-            'refusée' => 'refused',
+            'refuse' => 'rejected',
+            'refusee' => 'rejected',
+            'refusée' => 'rejected',
             'annulee' => 'cancelled',
             'annulée' => 'cancelled',
             'planifiee' => 'accepted'

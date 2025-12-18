@@ -48,6 +48,32 @@
         </button>
       </div>
 
+      <!-- Service Filter Bar -->
+      <div class="filter-bar" v-if="allServices.length > 0">
+        <div class="filter-label">
+          <Package :size="16" />
+          <span>Filtrer par service :</span>
+        </div>
+        <div class="filter-options">
+          <button 
+            @click="selectedService = 'all'"
+            class="filter-chip"
+            :class="{ 'filter-chip-active': selectedService === 'all' }"
+          >
+            Tous les services
+          </button>
+          <button 
+            v-for="service in allServices"
+            :key="service.id"
+            @click="selectedService = service.name"
+            class="filter-chip"
+            :class="{ 'filter-chip-active': selectedService === service.name }"
+          >
+            {{ service.name }}
+          </button>
+        </div>
+      </div>
+
       <!-- Reservations List -->
       <div class="reservations-list">
         <div
@@ -56,15 +82,21 @@
           class="reservation-card"
         >
           <div class="reservation-content">
-            <img :src="reservation.clientImage" :alt="reservation.clientName" class="client-avatar" />
+            <!-- Client Info -->
+            <div class="client-info" @click="openClientProfile(reservation)" title="Voir le profil du client">
+              <img :src="reservation.clientImage" :alt="reservation.clientName" class="client-avatar clickable-avatar" />
+              <div>
+                <h4 class="clickable-name">{{ reservation.clientName }}</h4>
+                <div class="reservation-meta">
+                  <span class="service-tag">{{ reservation.service }}</span>
+                  <span class="separator">•</span>
+                  <span class="task-name">{{ reservation.task }}</span>
+                </div>
+              </div>
+            </div>
 
             <div class="reservation-details">
               <div class="reservation-header">
-                <div>
-                  <h3>{{ reservation.clientName }}</h3>
-                  <p class="task-name">{{ reservation.task }}</p>
-                </div>
-
                 <!-- Actions for Pending -->
                 <div v-if="selectedTab === 'pending'" class="action-buttons">
                   <button @click="acceptReservation(reservation.id)" class="accept-btn">
@@ -82,10 +114,41 @@
                   <span class="status-badge status-completed">
                     Terminée
                   </span>
-                  <button @click="openRatingModal(reservation)" class="rating-btn">
+                  
+                  <!-- View both evaluations (public) - HIGHEST PRIORITY -->
+                  <button 
+                    v-if="reservation.canViewPublic" 
+                    @click="openPublicEvaluations(reservation)" 
+                    class="rating-btn rating-btn-public"
+                  >
+                    <Star :size="16" />
+                    Voir les évaluations
+                  </button>
+                  
+                  <!-- Can rate -->
+                  <button 
+                    v-else-if="reservation.evaluationStatus === 'can_rate'" 
+                    @click="openRatingModal(reservation)" 
+                    class="rating-btn"
+                  >
                     <Star :size="16" />
                     Évaluer
                   </button>
+                  
+                  <!-- View own evaluation (waiting for client) -->
+                  <button 
+                    v-else-if="reservation.evaluationStatus === 'view_only'" 
+                    @click="openRatingModal(reservation)" 
+                    class="rating-btn"
+                  >
+                    <Star :size="16" />
+                    Voir mon évaluation
+                  </button>
+                  
+                  <!-- Expired -->
+                  <span v-else-if="reservation.evaluationStatus === 'expired'" class="expired-notice">
+                    Période expirée
+                  </span>
                 </div>
                 <span v-else-if="selectedTab === 'accepted'" class="status-badge status-accepted">
                   Confirmée
@@ -152,6 +215,13 @@
                   </div>
                 </div>
               </div>
+
+              <!-- Card Footer with Details Button -->
+              <div class="card-footer">
+                <button @click="openInterventionDetails(reservation.id)" class="details-link-btn">
+                  Plus de détails
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -174,6 +244,98 @@
       @close="closeRatingModal"
       @rating-submitted="onRatingSubmitted"
     />
+    
+    <!-- Client Profile Modal -->
+    <ClientProfileModal
+      :show="showClientProfile"
+      :clientId="selectedClientId"
+      @close="closeClientProfile"
+      @view-evaluation="handleViewEvaluation"
+    />
+    
+    <!-- Public Evaluations Modal -->
+    <div v-if="showPublicModal" class="modal-overlay" @click="closePublicModal">
+      <div class="public-modal-content" @click.stop>
+        <div class="public-modal-body" v-if="selectedReservation?.publicData">
+          <h2 class="public-modal-title">Évaluations Mutuelles</h2>
+          
+          <div class="evaluations-grid">
+            <!-- Intervenant Evaluation -->
+            <div class="evaluation-section">
+              <h3>Votre évaluation du client</h3>
+              <div v-if="selectedReservation.publicData.intervenant_ratings.length > 0">
+                <div v-for="rating in selectedReservation.publicData.intervenant_ratings" :key="rating.id" class="rating-item">
+                  <span class="criteria-name">{{ rating.critaire.nom_critaire }}</span>
+                  <div class="stars">
+                    <Star v-for="n in 5" :key="n" :size="24" :fill="n <= rating.note ? 'currentColor' : 'none'" class="star" :class="{ 'star-filled': n <= rating.note }" />
+                  </div>
+                </div>
+                <div class="comment-box">
+                  <strong>Commentaire personnel</strong>
+                  <p v-if="selectedReservation.publicData.intervenant_comment">{{ selectedReservation.publicData.intervenant_comment.commentaire }}</p>
+                  <p v-else class="no-comment">Aucun commentaire</p>
+                </div>
+              </div>
+              <p v-else class="no-evaluation">Pas d'évaluation</p>
+            </div>
+            
+            <!-- Client Evaluation -->
+            <div class="evaluation-section">
+              <h3>Évaluation du client</h3>
+              <div v-if="selectedReservation.publicData.client_ratings.length > 0">
+                <div v-for="rating in selectedReservation.publicData.client_ratings" :key="rating.id" class="rating-item">
+                  <span class="criteria-name">{{ rating.critaire.nom_critaire }}</span>
+                  <div class="stars">
+                    <Star v-for="n in 5" :key="n" :size="24" :fill="n <= rating.note ? 'currentColor' : 'none'" class="star" :class="{ 'star-filled': n <= rating.note }" />
+                  </div>
+                </div>
+                <div class="comment-box">
+                  <strong>Commentaire personnel</strong>
+                  <p v-if="selectedReservation.publicData.client_comment">{{ selectedReservation.publicData.client_comment.commentaire }}</p>
+                  <p v-else class="no-comment">Aucun commentaire</p>
+                </div>
+              </div>
+              <p v-else class="no-evaluation">Pas d'évaluation</p>
+            </div>
+          </div>
+          
+          <div class="visibility-info">
+            <p v-if="selectedReservation.publicData.both_parties_voted">
+              ✅ Les deux parties ont évalué
+            </p>
+            <p v-else-if="selectedReservation.publicData.window_passed">
+              ⏰ Délai de 7 jours expiré
+            </p>
+          </div>
+          
+          <div class="public-modal-actions">
+            <button @click="closePublicModal" class="close-modal-btn">Fermer</button>
+          </div>
+        </div>
+
+        <!-- Empty State -->
+        <div v-if="filteredReservations.length === 0" class="empty-state">
+          <div class="empty-icon">
+            <Clock :size="48" v-if="selectedTab === 'pending'" />
+            <Calendar :size="48" v-else />
+          </div>
+          <h3>Aucune réservation trouvée</h3>
+          <p v-if="selectedService !== 'all'">
+            Il n'y a pas de demandes pour le service <strong>"{{ selectedService }}"</strong> dans cette catégorie.
+          </p>
+          <p v-else>
+            Vous n'avez pas encore de réservations dans la catégorie {{ tabs.find(t => t.id === selectedTab)?.label }}.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Intervention Details Modal -->
+    <InterventionDetailsModal
+      :show="showDetailsModal"
+      :intervention-id="selectedInterventionId"
+      @close="closeInterventionDetails"
+    />
   </div>
 </template>
 
@@ -184,6 +346,8 @@ import reservationService from '@/services/intervenantReservationService'
 import evaluationService from '@/services/evaluationService'
 import api from '@/services/api'
 import ClientRatingModal from './ClientRatingModal.vue'
+import ClientProfileModal from './ClientProfileModal.vue'
+import InterventionDetailsModal from './InterventionDetailsModal.vue'
 
 const selectedTab = ref('pending')
 const reservations = ref([])
@@ -191,9 +355,32 @@ const loading = ref(false)
 const error = ref(null)
 const showRatingModal = ref(false)
 const selectedReservation = ref(null)
+const showPublicModal = ref(false)
+const showClientProfile = ref(false)
+const selectedClientId = ref(null)
+const selectedService = ref('all')
+const allServices = ref([])
+const showDetailsModal = ref(false)
+const selectedInterventionId = ref(null)
+
+const fetchAllServices = async () => {
+  try {
+    const response = await api.get('services')
+    allServices.value = response.data.services || []
+  } catch (err) {
+    console.error('Error fetching global services:', err)
+  }
+}
+
+// Keep availableServices if needed for internal logic or delete if replaced
+// I will keep allServices as the primary source for the UI buttons now.
 
 const filteredReservations = computed(() => {
-  return reservations.value.filter(r => r.status === selectedTab.value)
+  return reservations.value.filter(r => {
+    const matchesTab = r.status === selectedTab.value
+    const matchesService = selectedService.value === 'all' || r.service === selectedService.value
+    return matchesTab && matchesService
+  })
 })
 
 const pendingCount = computed(() => reservations.value.filter(r => r.status === 'pending').length)
@@ -227,7 +414,45 @@ const fetchReservations = async () => {
   error.value = null
   try {
     const response = await reservationService.getMyReservations()
-    reservations.value = response.data.reservations || []
+    const fetchedReservations = response.reservations || []
+    
+    // Check evaluation status for completed reservations
+    for (const reservation of fetchedReservations) {
+      if (reservation.status === 'completed') {
+        try {
+          // Get detailed evaluation status
+          const statusData = await evaluationService.canRateClient(reservation.id)
+          console.log('Evaluation status for reservation', reservation.id, statusData)
+          
+          reservation.evaluationStatus = statusData.status
+          
+          // Show public evaluations button if:
+          // 1. Both parties have rated, OR
+          // 2. 7-day window has passed (we need to try calling getPublicEvaluations to know)
+          // For now, just check if both_parties_rated is true from backend
+          reservation.canViewPublic = statusData.both_parties_rated === true
+          
+          // Also try to check if window passed by attempting to fetch public evaluations
+          if (!reservation.canViewPublic && statusData.status === 'view_only') {
+            try {
+              const publicData = await evaluationService.getPublicEvaluations(reservation.id)
+              if (publicData.can_view) {
+                reservation.canViewPublic = true
+              }
+            } catch (err) {
+              // If 403, evaluations not public yet
+              reservation.canViewPublic = false
+            }
+          }
+        } catch (err) {
+          console.error('Error checking evaluation status:', err)
+          reservation.evaluationStatus = 'unknown'
+          reservation.canViewPublic = false
+        }
+      }
+    }
+    
+    reservations.value = fetchedReservations
   } catch (err) {
     error.value = err.message || 'Erreur lors du chargement des réservations'
     console.error(err)
@@ -276,7 +501,8 @@ const openRatingModal = async (reservation) => {
     const data = await evaluationService.canRateClient(reservation.id)
     console.log('Rating permission response:', data)
     
-    if (data.can_rate) {
+    // Allow modal to open for both can_rate and can_view scenarios
+    if (data.can_rate || data.can_view) {
       selectedReservation.value = reservation
       showRatingModal.value = true
     } else {
@@ -297,12 +523,74 @@ const closeRatingModal = () => {
   selectedReservation.value = null
 }
 
+const openPublicEvaluations = async (reservation) => {
+  try {
+    console.log('Opening public evaluations for reservation:', reservation.id)
+    const data = await evaluationService.getPublicEvaluations(reservation.id)
+    console.log('Public evaluations data received:', data)
+    console.log('Intervenant ratings:', data.intervenant_ratings)
+    console.log('Client ratings:', data.client_ratings)
+    
+    if (data.can_view) {
+      selectedReservation.value = {
+        ...reservation,
+        publicData: data
+      }
+      console.log('Setting selectedReservation with publicData:', selectedReservation.value)
+      showPublicModal.value = true
+    } else {
+      alert('Les évaluations ne sont pas encore disponibles')
+    }
+  } catch (err) {
+    console.error('Error loading public evaluations:', err)
+    console.error('Error response:', err.response?.data)
+    alert(err.response?.data?.message || 'Erreur lors du chargement des évaluations')
+  }
+}
+
+const closePublicModal = () => {
+  showPublicModal.value = false
+  selectedReservation.value = null
+}
+
+const openClientProfile = (reservation) => {
+  selectedClientId.value = reservation.id
+  showClientProfile.value = true
+}
+
+const openInterventionDetails = (id) => {
+  selectedInterventionId.value = id
+  showDetailsModal.value = true
+}
+
+const closeInterventionDetails = () => {
+  showDetailsModal.value = false
+  selectedInterventionId.value = null
+}
+
+const closeClientProfile = () => {
+  showClientProfile.value = false
+  selectedClientId.value = null
+}
+
+const handleViewEvaluation = (interventionId) => {
+  // Find the reservation for this intervention
+  const reservation = reservations.value.find(r => r.id === interventionId)
+  if (reservation) {
+    closeClientProfile()
+    openRatingModal(reservation)
+  }
+}
+
 const onRatingSubmitted = async () => {
   await fetchReservations()
 }
 
-onMounted(() => {
-  fetchReservations()
+onMounted(async () => {
+  await Promise.all([
+    fetchReservations(),
+    fetchAllServices()
+  ])
 })
 </script>
 
@@ -391,6 +679,172 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-4);
+}
+
+/* Filter Bar styles */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  margin-bottom: var(--spacing-6);
+  padding: var(--spacing-3) var(--spacing-4);
+  background: white;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-gray-200);
+}
+
+.filter-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  color: var(--color-gray-600);
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.filter-options {
+  display: flex;
+  gap: var(--spacing-2);
+  flex-wrap: wrap;
+}
+
+.filter-chip {
+  padding: var(--spacing-1) var(--spacing-3);
+  border-radius: 9999px;
+  border: 1.5px solid var(--color-gray-200);
+  background: white;
+  color: var(--color-gray-700);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.filter-chip:hover {
+  border-color: #D1D5DB;
+  background: #F9FAFB;
+  color: #374151;
+}
+
+.filter-chip-active {
+  background: #E8793F;
+  border-color: #E8793F;
+  color: white;
+  box-shadow: 0 1px 3px 0 rgba(232, 121, 63, 0.4);
+}
+
+.filter-chip-active:hover {
+  background: #D16834;
+  border-color: #D16834;
+  color: white;
+}
+
+/* Empty State */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+  background: white;
+  border-radius: var(--radius-lg);
+  border: 2px dashed var(--color-gray-200);
+}
+
+.empty-icon {
+  color: var(--color-gray-300);
+  margin-bottom: 1.5rem;
+}
+
+.empty-state h3 {
+  color: var(--color-gray-700);
+  margin-bottom: 0.5rem;
+  font-size: 1.25rem;
+}
+
+.empty-state p {
+  color: var(--color-gray-500);
+  max-width: 300px;
+}
+
+.empty-state strong {
+  color: #E8793F;
+}
+
+/* Card Footer & Details Button */
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--spacing-4);
+  padding-top: var(--spacing-4);
+  border-top: 1px solid var(--color-gray-100);
+}
+
+.details-link-btn {
+  background: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  color: #4B5563;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.details-link-btn:hover {
+  background: #FFFFFF;
+  border-color: #D1D5DB;
+  color: #111827;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.details-link-btn::after {
+  content: "→";
+  font-size: 1rem;
+  transition: transform 0.2s;
+  color: #E8793F;
+}
+
+.details-link-btn:hover::after {
+  transform: translateX(2px);
+}
+
+/* Clickable Client Info */
+.client-info {
+  cursor: pointer;
+  transition: opacity 0.2s;
+  display: inline-block;
+}
+
+.client-info:hover {
+  opacity: 0.8;
+}
+
+.clickable-avatar {
+  transition: transform 0.2s;
+}
+
+.clickable-avatar:hover {
+  transform: scale(1.05);
+}
+
+.clickable-name {
+  color: var(--color-dark);
+  transition: color 0.2s;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.clickable-name:hover {
+  color: #E8793F;
 }
 
 .reservation-card {
@@ -653,6 +1107,195 @@ onMounted(() => {
   border: 1px solid #FCA5A5;
 }
 
+.error-message {
+  padding: var(--spacing-4);
+  background-color: #FEE2E2;
+  color: #DC2626;
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--spacing-4);
+  border: 1px solid #FCA5A5;
+}
+
+.rating-btn-public {
+  background-color: #4F46E5;
+}
+
+.rating-btn-public:hover {
+  background-color: #4338CA;
+}
+
+.expired-notice {
+  font-size: 0.75rem;
+  color: #9CA3AF;
+  font-style: italic;
+}
+
+/* Modal Overlay - Shared styling */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: var(--spacing-4);
+}
+
+/* Public Evaluations Modal */
+.public-modal-content {
+  background: #FEF9E6;
+  border-radius: var(--radius-xl);
+  max-width: 65rem;
+  width: 95%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  border: 3px solid #FEE347;
+}
+
+.public-modal-body {
+  padding: var(--spacing-8);
+}
+
+.public-modal-title {
+  margin: 0 0 var(--spacing-6) 0;
+  color: #E8793F;
+  font-size: 1.75rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.evaluations-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-6);
+  margin-bottom: var(--spacing-6);
+}
+
+.evaluation-section {
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-5);
+  border: 2px solid rgba(255, 159, 64, 0.3);
+}
+
+.evaluation-section h3 {
+  margin: 0 0 var(--spacing-4) 0;
+  color: #E8793F;
+  font-size: 1.125rem;
+  font-weight: 600;
+  padding-bottom: var(--spacing-2);
+  border-bottom: 2px solid #FEE347;
+}
+
+.rating-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-3) 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.rating-item:last-of-type {
+  border-bottom: none;
+}
+
+.criteria-name {
+  font-weight: 500;
+  color: var(--color-gray-700);
+  font-size: 0.9375rem;
+}
+
+.stars {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.star {
+  color: #D1D5DB;
+}
+
+.star-filled {
+  color: #FEE347;
+}
+
+.comment-box {
+  margin-top: var(--spacing-4);
+  padding: var(--spacing-3);
+  background: white;
+  border-radius: var(--radius-md);
+  border-left: 3px solid #E8793F;
+}
+
+.comment-box strong {
+  display: block;
+  margin-bottom: var(--spacing-2);
+  color: var(--color-gray-700);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.comment-box p {
+  margin: 0;
+  color: var(--color-gray-600);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+.no-comment {
+  font-style: italic;
+  color: #9CA3AF !important;
+}
+
+.no-evaluation {
+  text-align: center;
+  color: var(--color-gray-500);
+  font-style: italic;
+  padding: var(--spacing-8) var(--spacing-4);
+}
+
+.visibility-info {
+  text-align: center;
+  padding: var(--spacing-4);
+  background: rgba(219, 234, 254, 0.5);
+  border-radius: var(--radius-lg);
+  border: 1px solid #93C5FD;
+  margin-bottom: var(--spacing-4);
+}
+
+.visibility-info p {
+  margin: 0;
+  color: #1E40AF;
+  font-weight: 500;
+  font-size: 0.9375rem;
+}
+
+.public-modal-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.close-modal-btn {
+  padding: var(--spacing-3) var(--spacing-8);
+  border: 1px solid #D1D5DB;
+  background: white;
+  color: var(--color-gray-700);
+  border-radius: var(--radius-lg);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9375rem;
+}
+
+.close-modal-btn:hover {
+  background: var(--color-gray-50);
+  border-color: #9CA3AF;
+}
+
 @media (max-width: 768px) {
   .stats-grid {
     grid-template-columns: 1fr;
@@ -673,6 +1316,14 @@ onMounted(() => {
 
   .tabs {
     flex-direction: column;
+  }
+  
+  .evaluations-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .public-modal-content {
+    width: 98%;
   }
 }
 </style>

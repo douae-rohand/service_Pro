@@ -211,7 +211,7 @@ const saveEdit = async (id) => {
       hourlyRate: editData.value.hourlyRate,
     })
     
-    // Update local state
+    // Update local state with response data if available, otherwise use local data
     const service = services.value.find(s => s.id === id)
     if (service) {
       service.hourlyRate = editData.value.hourlyRate

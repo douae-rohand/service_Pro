@@ -9,6 +9,13 @@ const statsService = {
      */
     getAll() {
         return api.get('stats');
+    },
+
+    /**
+     * Récupérer les avis et statistiques d'un intervenant
+     */
+    getIntervenantReviewsStats(intervenantId) {
+        return api.get(`intervenants/${intervenantId}/reviews-stats`);
     }
 };
 

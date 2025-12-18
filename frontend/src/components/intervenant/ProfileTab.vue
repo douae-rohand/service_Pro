@@ -190,7 +190,7 @@ const formData = ref({
 const fetchCurrentUser = async () => {
   try {
     const response = await authService.getCurrentUser()
-    const user = response.data.user
+    const user = response.data
     
     if (user.intervenant) {
       // Fetch full intervenant data to get services with pivot

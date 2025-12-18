@@ -35,7 +35,8 @@ class Materiel extends Model
             'tache_materiel',
             'materiel_id',
             'tache_id'
-        )->withTimestamps();
+        )->withPivot('prix_materiel')
+            ->withTimestamps();
     }
 
     /**

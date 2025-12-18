@@ -125,18 +125,29 @@ const loading = ref(true)
 const fetchCurrentUser = async () => {
   try {
     const response = await authService.getCurrentUser()
-    const user = response.data.user
+    const user = response.data
     
-    if (user.intervenant) {
-      intervenant.value = {
-        id: user.intervenant.id,
-        name: `${user.prenom} ${user.nom}`,
-        email: user.email,
-        phone: user.telephone || '',
-        profileImage: user.profile_photo ? `http://127.0.0.1:8000/storage/${user.profile_photo}?t=${Date.now()}` : null,
-        location: user.address || 'Non spécifié',
-        memberSince: new Date(user.created_at).getFullYear().toString()
-      }
+    // Safely check if user and intervenant exist
+    if (!user) {
+      console.error('No user data received')
+      router.push('/login')
+      return
+    }
+    
+    if (!user.intervenant || !user.intervenant.id) {
+      console.error('User is not an intervenant')
+      router.push('/')
+      return
+    }
+    
+    intervenant.value = {
+      id: user.intervenant.id,
+      name: `${user.prenom || ''} ${user.nom || ''}`.trim(),
+      email: user.email || '',
+      phone: user.telephone || '',
+      profileImage: user.profile_photo ? `http://127.0.0.1:8000/storage/${user.profile_photo}?t=${Date.now()}` : null,
+      location: user.address || 'Non spécifié',
+      memberSince: user.created_at ? new Date(user.created_at).getFullYear().toString() : new Date().getFullYear().toString()
     }
   } catch (error) {
     console.error('Error fetching user data:', error)
@@ -160,9 +171,7 @@ const tabs = [
   { id: 'myservices', label: 'Sous-services Actifs', icon: ClipboardList, color: '#1A5FA3' },
   { id: 'reservations', label: 'Réservations', icon: Calendar, color: '#E8793F' },
   { id: 'availability', label: 'Disponibilités', icon: Calendar, color: '#A5D4E6'},
-  { id: 'reviewclients', label: 'Évaluer Clients', icon: MessageCircle, color: '#FEE347' },
   { id: 'reviewsstats', label: 'Mes Avis & Notes', icon: Star, color: '#E8793F' },
-  { id: 'history', label: 'Historique', icon: History, color: '#92B08B' }
 ]
 
 const isActiveTab = (tabId) => {
@@ -474,8 +483,16 @@ const handleLogout = async () => {
 /* Desktop */
 @media (min-width: 1024px) {
   .sidebar {
-    position: static;
+    position: fixed;
     transform: translateX(0);
+    width: 16rem;
+    top: 0;
+    left: 0;
+    bottom: 0;
+  }
+
+  .main-content {
+    margin-left: 16rem;
   }
 
   .close-btn {

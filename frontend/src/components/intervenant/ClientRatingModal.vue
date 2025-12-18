@@ -1,14 +1,9 @@
 <template>
   <div v-if="show" class="modal-overlay" @click="closeModal">
     <div class="modal-content" @click.stop>
-      <div class="modal-header">
-        <h2>Évaluer le client</h2>
-        <button @click="closeModal" class="close-btn">
-          <X :size="20" />
-        </button>
-      </div>
-
       <div class="modal-body">
+        <h2 class="modal-title">Votre évaluation</h2>
+        
         <div class="client-info">
           <img :src="reservation.clientImage" :alt="reservation.clientName" class="client-avatar" />
           <div>
@@ -18,6 +13,7 @@
         </div>
 
         <form @submit.prevent="submitRating">
+          <fieldset :disabled="hasExistingRatings" class="rating-fieldset">
           <div class="criteria-list">
             <div v-for="criteria in clientCriteria" :key="criteria.id" class="criteria-item">
               <label class="criteria-label">
@@ -28,28 +24,65 @@
                   v-for="star in 5"
                   :key="star"
                   type="button"
-                  @click="setRating(criteria.id, star)"
+                  @click="!hasExistingRatings && setRating(criteria.id, star)"
                   class="star-btn"
-                  :class="{ 'star-active': getRating(criteria.id) >= star }"
+                  :class="{ 
+                    'star-active': getRating(criteria.id) >= star,
+                    'star-readonly': hasExistingRatings
+                  }"
+                  :disabled="hasExistingRatings"
                 >
-                  <Star :size="20" />
+                  <Star :size="32" :fill="getRating(criteria.id) >= star ? 'currentColor' : 'none'" />
                 </button>
               </div>
             </div>
+            </div>
+          </fieldset>
+
+          <div class="comment-section">
+            <label class="comment-label">
+              Commentaire personnel
+              <span v-if="averageRating < 3 && averageRating > 0" class="required-badge">Obligatoire</span>
+              <span v-else class="optional-badge">Optionnel</span>
+            </label>
+            <textarea 
+              v-model="comment"
+              :disabled="hasExistingRatings"
+              class="comment-textarea"
+              :class="{ 'comment-readonly': hasExistingRatings, 'comment-required': averageRating < 3 && averageRating > 0 }"
+              placeholder="Partagez votre expérience avec ce client..."
+              rows="4"
+            ></textarea>
+            <p v-if="averageRating < 3 && averageRating > 0 && !hasExistingRatings" class="comment-hint">
+              💡 Une note moyenne inférieure à 3 nécessite un commentaire explicatif
+            </p>
           </div>
 
+          <div v-if="validationError" class="error-message">
+            {{ validationError }}
+          </div>
+          
           <div v-if="error" class="error-message">
             {{ error }}
           </div>
 
           <div class="modal-actions">
-            <button type="button" @click="closeModal" class="cancel-btn">
-              Annuler
-            </button>
-            <button type="submit" :disabled="loading || !isFormValid" class="submit-btn">
+            <button 
+              v-if="!hasExistingRatings" 
+              type="submit" 
+              :disabled="loading || !isFormValid" 
+              class="submit-btn"
+            >
               <span v-if="loading">Envoi en cours...</span>
-              <span v-else-if="hasExistingRatings">Mettre à jour l'évaluation</span>
-              <span v-else>Envoyer l'évaluation</span>
+              <span v-else>Envoyer l'Évaluation</span>
+            </button>
+            <button 
+              type="button" 
+              @click="closeModal" 
+              class="cancel-btn"
+              :class="{ 'cancel-btn-full': hasExistingRatings }"
+            >
+              {{ hasExistingRatings ? 'Fermer' : 'Annuler' }}
             </button>
           </div>
         </form>
@@ -60,7 +93,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { X, Star } from 'lucide-vue-next'
+import { Star } from 'lucide-vue-next'
 import evaluationService from '@/services/evaluationService'
 
 const props = defineProps({
@@ -72,16 +105,32 @@ const emit = defineEmits(['close', 'rating-submitted'])
 
 const clientCriteria = ref([])
 const ratings = ref({})
+const comment = ref('')
 const loading = ref(false)
 const error = ref(null)
 const hasExistingRatings = ref(false)
-const votingStatus = ref(null)
-const canViewOnly = ref(false)
-const daysRemaining = ref(0)
+
+const validationError = ref('')
+
+const averageRating = computed(() => {
+  const ratingValues = Object.values(ratings.value).filter(r => r > 0)
+  if (ratingValues.length === 0) return 0
+  return ratingValues.reduce((sum, rating) => sum + rating, 0) / ratingValues.length
+})
 
 const isFormValid = computed(() => {
-  return clientCriteria.value && clientCriteria.value.length > 0 && 
+  // All criteria must be rated
+  const allRated = clientCriteria.value && clientCriteria.value.length > 0 && 
          clientCriteria.value.every(criteria => ratings.value[criteria.id] > 0)
+  
+  if (!allRated) return false
+  
+  // If average rating is below 3, comment is required
+  if (averageRating.value < 3) {
+    return comment.value.trim().length > 0
+  }
+  
+  return true
 })
 
 const fetchClientCriteria = async () => {
@@ -89,14 +138,12 @@ const fetchClientCriteria = async () => {
   error.value = null
   try {
     const criteria = await evaluationService.getClientCriteria()
-    // Remove duplicates based on ID and ensure we have unique criteria
     const uniqueCriteria = Array.isArray(criteria) ? 
       criteria.filter((item, index, self) => 
         index === self.findIndex((t) => t.id === item.id)
       ) : []
     
     clientCriteria.value = uniqueCriteria
-    // Initialize ratings with 0 for each criteria
     ratings.value = {}
     clientCriteria.value.forEach(criteria => {
       ratings.value[criteria.id] = 0
@@ -104,11 +151,18 @@ const fetchClientCriteria = async () => {
 
     // Load existing ratings if any
     if (props.reservation) {
-      const existingRatings = await evaluationService.getClientEvaluations(props.reservation.id)
+      const response = await evaluationService.getClientEvaluations(props.reservation.id)
+      const existingRatings = response.evaluations || []
       hasExistingRatings.value = existingRatings.length > 0
+      
       existingRatings.forEach(rating => {
         ratings.value[rating.critaire_id] = rating.note
       })
+      
+      // Load comment if exists
+      if (response.comment) {
+        comment.value = response.comment
+      }
     }
   } catch (err) {
     error.value = 'Erreur lors du chargement des critères d\'évaluation'
@@ -129,18 +183,42 @@ const getRating = (criteriaId) => {
 }
 
 const submitRating = async () => {
-  if (!isFormValid.value) return
+  // Prevent submission if viewing existing evaluation
+  if (hasExistingRatings.value) {
+    console.warn('Cannot submit - already evaluated')
+    return
+  }
+  
+  validationError.value = ''
+  
+  // Validate all criteria are rated
+  const unratedCriteria = clientCriteria.value.filter(c => !ratings.value[c.id] || ratings.value[c.id] === 0)
+  if (unratedCriteria.length > 0) {
+    validationError.value = 'Veuillez noter tous les critères avant de soumettre'
+    return
+  }
+  
+  // Validate comment if average rating is below 3
+  if (averageRating.value < 3 && comment.value.trim().length === 0) {
+    validationError.value = 'Un commentaire est obligatoire pour une note moyenne inférieure à 3'
+    return
+  }
 
   loading.value = true
   error.value = null
 
   try {
-    const evaluations = Object.entries(ratings.value).map(([criteriaId, note]) => ({
-      critaire_id: parseInt(criteriaId),
-      note: note
-    }))
+    const evaluations = Object.entries(ratings.value)
+      .filter(([_, note]) => note > 0)
+      .map(([criteriaId, note]) => ({
+        critaire_id: parseInt(criteriaId),
+        note: note
+      }))
+    
+    console.log('Submitting evaluations:', evaluations)
+    console.log('Comment:', comment.value)
 
-    await evaluationService.storeClientEvaluation(props.reservation.id, evaluations)
+    await evaluationService.storeClientEvaluation(props.reservation.id, evaluations, comment.value)
     
     emit('rating-submitted')
     closeModal()
@@ -160,6 +238,8 @@ watch(() => props.show, (newShow) => {
   if (newShow) {
     fetchClientCriteria()
     ratings.value = {}
+    comment.value = ''
+    validationError.value = ''
   }
 })
 </script>
@@ -180,73 +260,62 @@ watch(() => props.show, (newShow) => {
 }
 
 .modal-content {
-  background: var(--color-white);
+  background: #FEF9E6;
   border-radius: var(--radius-xl);
-  max-width: 32rem;
+  max-width: 42rem;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: var(--shadow-lg);
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--spacing-6);
-  border-bottom: 1px solid var(--color-gray-200);
-}
-
-.modal-header h2 {
-  margin: 0;
-  color: var(--color-dark);
-  font-size: 1.5rem;
-}
-
-.close-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border: none;
-  background: var(--color-gray-100);
-  border-radius: var(--radius-lg);
-  color: var(--color-gray-600);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.close-btn:hover {
-  background: var(--color-gray-200);
-  color: var(--color-gray-800);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  border: 3px solid #FEE347;
 }
 
 .modal-body {
-  padding: var(--spacing-6);
+  padding: var(--spacing-8);
+}
+
+.rating-fieldset {
+  border: none;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.rating-fieldset:disabled {
+  opacity: 1;
+}
+
+.modal-title {
+  margin: 0 0 var(--spacing-6) 0;
+  color: #E8793F;
+  font-size: 1.75rem;
+  font-weight: 600;
 }
 
 .client-info {
   display: flex;
   align-items: center;
   gap: var(--spacing-4);
-  margin-bottom: var(--spacing-6);
+  margin-bottom: var(--spacing-8);
   padding: var(--spacing-4);
-  background: var(--color-gray-50);
+  background: rgba(255, 255, 255, 0.5);
   border-radius: var(--radius-lg);
+  border-left: 4px solid #E8793F;
 }
 
 .client-avatar {
-  width: 3rem;
-  height: 3rem;
+  width: 3.5rem;
+  height: 3.5rem;
   border-radius: 50%;
   object-fit: cover;
+  border: 2px solid #E8793F;
 }
 
 .client-info h3 {
   margin: 0 0 var(--spacing-1) 0;
   color: var(--color-dark);
   font-size: 1.125rem;
+  font-weight: 600;
 }
 
 .task-name {
@@ -258,7 +327,7 @@ watch(() => props.show, (newShow) => {
 .criteria-list {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-4);
+  gap: var(--spacing-5);
   margin-bottom: var(--spacing-6);
 }
 
@@ -271,37 +340,136 @@ watch(() => props.show, (newShow) => {
 .criteria-label {
   font-weight: 500;
   color: var(--color-gray-700);
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
 }
 
 .rating-stars {
   display: flex;
-  gap: var(--spacing-1);
+  gap: var(--spacing-2);
 }
 
 .star-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border: 1px solid var(--color-gray-300);
-  background: var(--color-white);
-  border-radius: var(--radius-lg);
-  color: var(--color-gray-400);
+  width: 3.25rem;
+  height: 3.25rem;
+  border: none;
+  background: transparent;
+  color: #D1D5DB;
   cursor: pointer;
   transition: all 0.2s;
+  padding: 0;
 }
 
-.star-btn:hover {
-  border-color: var(--color-orange);
-  color: var(--color-orange);
+.star-btn:hover:not(:disabled) {
+  transform: scale(1.1);
+  color: #FEE347;
 }
 
 .star-btn.star-active {
-  background: var(--color-orange);
-  border-color: var(--color-orange);
-  color: var(--color-white);
+  color: #FEE347;
+}
+
+.star-btn.star-readonly {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.star-btn.star-readonly.star-active {
+  color: #FCD34D;
+}
+
+.star-btn.star-readonly:hover {
+  transform: none;
+  color: #FCD34D;
+}
+
+.comment-section {
+  margin-bottom: var(--spacing-6);
+}
+
+.comment-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-weight: 500;
+  color: var(--color-gray-700);
+  font-size: 0.9375rem;
+  margin-bottom: var(--spacing-2);
+}
+
+.required-badge {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  background-color: #FEE2E2;
+  color: #DC2626;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.optional-badge {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  background-color: #E0E7FF;
+  color: #4F46E5;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.comment-textarea {
+  width: 100%;
+  padding: var(--spacing-3);
+  border: 1px solid #D1D5DB;
+  border-radius: var(--radius-lg);
+  font-family: inherit;
+  font-size: 0.9375rem;
+  resize: vertical;
+  background: white;
+  color: var(--color-dark);
+  transition: border-color 0.2s;
+}
+
+.comment-textarea:focus {
+  outline: none;
+  border-color: #E8793F;
+  box-shadow: 0 0 0 3px rgba(232, 121, 63, 0.1);
+}
+
+.comment-textarea.comment-readonly {
+  background: #F9FAFB;
+  cursor: default;
+  opacity: 0.7;
+}
+
+.comment-textarea.comment-required {
+  border-color: #FCA5A5;
+  background: #FEF2F2;
+}
+
+.comment-textarea.comment-required:focus {
+  border-color: #DC2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
+.comment-hint {
+  margin: var(--spacing-2) 0 0 0;
+  padding: var(--spacing-2) var(--spacing-3);
+  background: #FEF3C7;
+  border-left: 3px solid #F59E0B;
+  color: #92400E;
+  font-size: 0.875rem;
+  border-radius: var(--radius-md);
+}
+
+.comment-textarea::placeholder {
+  color: #9CA3AF;
 }
 
 .error-message {
@@ -316,37 +484,25 @@ watch(() => props.show, (newShow) => {
 .modal-actions {
   display: flex;
   gap: var(--spacing-3);
-  justify-content: flex-end;
-}
-
-.cancel-btn {
-  padding: var(--spacing-3) var(--spacing-6);
-  border: 1px solid var(--color-gray-300);
-  background: var(--color-white);
-  color: var(--color-gray-700);
-  border-radius: var(--radius-lg);
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.cancel-btn:hover {
-  background: var(--color-gray-50);
+  justify-content: flex-start;
 }
 
 .submit-btn {
   padding: var(--spacing-3) var(--spacing-6);
-  background: var(--color-orange);
+  background: #92B08B;
   color: var(--color-white);
   border: none;
   border-radius: var(--radius-lg);
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
+  font-size: 0.9375rem;
 }
 
 .submit-btn:hover:not(:disabled) {
-  background: #DC2626;
+  background: #7A9672;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 .submit-btn:disabled {
@@ -354,10 +510,36 @@ watch(() => props.show, (newShow) => {
   cursor: not-allowed;
 }
 
+.cancel-btn {
+  padding: var(--spacing-3) var(--spacing-6);
+  border: 1px solid #D1D5DB;
+  background: white;
+  color: var(--color-gray-700);
+  border-radius: var(--radius-lg);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9375rem;
+}
+
+.cancel-btn:hover {
+  background: var(--color-gray-50);
+  border-color: #9CA3AF;
+}
+
+.cancel-btn-full {
+  flex: 1;
+  text-align: center;
+}
+
 @media (max-width: 768px) {
   .modal-content {
     margin: var(--spacing-4);
     max-height: 95vh;
+  }
+  
+  .modal-body {
+    padding: var(--spacing-6);
   }
   
   .modal-actions {
@@ -367,6 +549,15 @@ watch(() => props.show, (newShow) => {
   .cancel-btn,
   .submit-btn {
     width: 100%;
+  }
+  
+  .rating-stars {
+    gap: var(--spacing-1);
+  }
+  
+  .star-btn {
+    width: 2.75rem;
+    height: 2.75rem;
   }
 }
 </style>

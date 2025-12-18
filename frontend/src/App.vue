@@ -71,11 +71,18 @@
       @login-required="showLoginModal = true"
     />
 
+    <!-- Client Dashboard -->
+    <Clientdashboard
+      v-else-if="currentPage === 'client-dashboard'"
+      @logout="handleLogout"
+    />
+
     <!-- Modals -->
     <LoginModal
       :is-open="showLoginModal"
       @close="showLoginModal = false"
       @signup-click="handleSwitchToSignup"
+      @login-success="handleLoginSuccess"
       @admin-login="handleAdminLogin"
     />
 
@@ -96,9 +103,10 @@ import Footer from './components/Footer.vue'
 import ServiceDetailPage from './components/ServiceDetailPage.vue'
 import AllIntervenantsPage from './components/AllIntervenantsPage.vue'
 import TaskIntervenantsPage from './components/TaskIntervenantsPage.vue'
-import IntervenantProfile from './components/IntervenantProfile.vue' // ✅ CORRIGÉ
+import IntervenantProfile from './components/IntervenantProfile.vue' 
 import LoginModal from './components/LoginModal.vue'
 import SignupModal from './components/SignupModal.vue'
+import Clientdashboard from './components/Clientdashboard.vue'
 import AdminDashboard from './components/Admin/AdminDashboard.vue'
 
 
@@ -159,11 +167,16 @@ onMounted(async () => {
   if (token) {
     try {
       const response = await authService.getCurrentUser()
-      currentUser.value = response.data.user
+      const user = response.data
       
-      // Si c'est un admin, rediriger vers le dashboard
-      if (currentUser.value.admin) {
-        currentPage.value = 'admin'
+      // Safely check if user exists before accessing properties
+      if (user) {
+        currentUser.value = user
+        
+        // Si c'est un admin, rediriger vers le dashboard
+        if (user.admin) {
+          currentPage.value = 'admin'
+        }
       }
     } catch (error) {
       console.error('Erreur lors de la récupération de l\'utilisateur:', error)
@@ -318,6 +331,20 @@ const handleBackFromProfile = () => {
 const handleSwitchToSignup = () => {
   showLoginModal.value = false
   showSignupModal.value = true
+}
+
+// Handle successful login
+const handleLoginSuccess = (data) => {
+  showLoginModal.value = false
+  // Navigate to client dashboard
+  currentPage.value = 'client-dashboard'
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+// Handle logout
+const handleLogout = () => {
+  currentPage.value = 'home'
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 onMounted(() => {
   // Vérifier s'il y a un token dans l'URL (retour de Google login)

@@ -161,7 +161,7 @@ const formData = ref({
 const fetchCurrentUser = async () => {
   try {
     const response = await authService.getCurrentUser()
-    const user = response.data.user
+    const user = response.data
     
     console.log('User data from backend:', user)
     console.log('Profile photo path:', user.profile_photo)

@@ -286,7 +286,7 @@ const loadAuthenticatedUser = async () => {
 
     // Get current user from API
     const response = await authService.getCurrentUser()
-    const user = response.data.user
+    const user = response.data
 
     // Check if user is an intervenant
     if (!user.intervenant) {

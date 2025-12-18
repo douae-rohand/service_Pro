@@ -209,6 +209,7 @@
     <SignupModal
       :is-open="isSignupModalOpen"
       @close="isSignupModalOpen = false"
+      @verification-success="handleVerificationSuccess"
     />
     <LoginModal
       :is-open="isLoginModalOpen"
@@ -275,6 +276,12 @@ const handleSignupClick = () => {
     isSignupModalOpen.value = true
   }
 }
+
+const handleVerificationSuccess = () => {
+  isSignupModalOpen.value = false
+  isLoginModalOpen.value = true
+}
+
 const handleNavigateHome = () => {
   // Réinitialiser tout l'état et retourner à la page d'accueil
   currentPage.value = 'home'

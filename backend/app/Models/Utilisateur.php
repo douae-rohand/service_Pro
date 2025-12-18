@@ -34,6 +34,9 @@ class Utilisateur extends Authenticatable
         'address',
         'google_id',
         'avatar',
+        'email_verification_code',
+        'email_verification_expires_at',
+        'email_verified_at',
     ];
 
     /**
@@ -51,6 +54,8 @@ class Utilisateur extends Authenticatable
     {
         return [
             'password' => 'hashed',
+            'email_verified_at' => 'datetime',
+            'email_verification_expires_at' => 'datetime',
         ];
     }
 

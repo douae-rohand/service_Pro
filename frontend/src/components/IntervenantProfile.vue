@@ -586,7 +586,7 @@ export default {
         .map(t => ({
           id: t.id,
           name: t.nom_tache || 'Service',
-          description: t.description || 'Prestation de qualité réalisée avec soin et professionnalisme.',
+          description: t.description || '',
           duration: 'Sur mesure (2h min)',
           price: t.pivot?.prix_tache || t.prix || 25
         }));

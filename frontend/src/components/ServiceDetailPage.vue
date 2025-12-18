@@ -82,7 +82,7 @@
               <button 
                 class="w-full py-3 rounded-lg text-white transition-all hover:opacity-90 flex items-center justify-center gap-2"
                 :style="{ backgroundColor: currentService.color }"
-                @click="$emit('task-click', { taskId: task.id, taskName: task.name })"
+                @click="handleReserveClick(task)"
               >
                 <CheckCircle :size="18" />
                 Réserver
@@ -195,6 +195,7 @@
 
 <script>
 import { ArrowLeft, Star, MapPin, CheckCircle } from 'lucide-vue-next';
+import authService from '@/services/authService';
 import serviceService from '@/services/serviceService';
 import intervenantService from '@/services/intervenantService';
 import { formatExperience } from '@/utils/experienceFormatter';
@@ -213,7 +214,7 @@ export default {
       required: true
     }
   },
-  emits: ['back', 'view-all-intervenants', 'view-profile', 'task-click'],
+  emits: ['back', 'view-all-intervenants', 'view-profile', 'task-click', 'login-required'],
   data() {
     return {
       hoverBackButton: false,
@@ -294,6 +295,10 @@ export default {
     }
   },
   methods: {
+    handleReserveClick(task) {
+      // Pas de vérification d'auth ici - on veut voir la liste des intervenants
+      this.$emit('task-click', { taskId: task.id, taskName: task.name });
+    },
     async loadServiceData(showLoading = true) {
       try {
         // Afficher le loading seulement si explicitement demandé (pas au montage initial)

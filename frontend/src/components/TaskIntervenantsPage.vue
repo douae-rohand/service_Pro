@@ -255,6 +255,8 @@ import intervenantService from '@/services/intervenantService';
 import serviceService from '@/services/serviceService';
 import { formatExperience } from '@/utils/experienceFormatter';
 
+import authService from '@/services/authService'; // Import authService
+
 export default {
   name: 'TaskIntervenantsPage',
   components: {
@@ -280,7 +282,7 @@ export default {
       required: true
     }
   },
-  emits: ['back', 'view-profile'],
+  emits: ['back', 'view-profile', 'login-required'], // Added login-required
   data() {
     return {
       citySearch: '',
@@ -522,10 +524,14 @@ export default {
     },
     
     handleReserve(intervenant) {
-      // Émettre un événement pour la réservation
-      // Vous pouvez ajouter une logique de réservation ici
+      // Vérifier si l'utilisateur est connecté
+      if (!authService.isAuthenticated()) {
+        this.$emit('login-required');
+        return;
+      }
+      
+      // Si connecté, procéder à la réservation (rediriger vers profil ou autre logique)
       console.log('Réserver avec:', intervenant);
-      // Pour l'instant, rediriger vers le profil
       this.viewProfile(intervenant);
     },
     formatExperience

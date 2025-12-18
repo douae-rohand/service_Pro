@@ -29,12 +29,12 @@
     <!-- Navigation rapide -->
     <div v-if="!loading" class="mb-8">
       <h3 class="text-xl mb-5" style="color: #2F4F4F">Navigation rapide</h3>
-      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-5">
+      <div class="flex flex-nowrap gap-5 overflow-x-auto pb-2">
         <button
           v-for="nav in navigationItems"
           :key="nav.section"
           @click="$emit('navigate', nav.section)"
-          class="bg-white rounded-2xl p-6 border border-gray-100 text-center transition-all group hover:scale-105 relative"
+          class="bg-white rounded-2xl p-6 border border-gray-100 text-center transition-all group hover:scale-105 relative flex-shrink-0 min-w-[185px]"
           :style="{ boxShadow: `0 4px 20px ${nav.shadowColor}` }"
           @mouseenter="(e) => e.currentTarget.style.boxShadow = `0 8px 35px ${nav.shadowColorHover}`"
           @mouseleave="(e) => e.currentTarget.style.boxShadow = `0 4px 20px ${nav.shadowColor}`"

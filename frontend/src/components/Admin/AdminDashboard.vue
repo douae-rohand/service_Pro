@@ -5,13 +5,7 @@
       <div class="max-w-7xl mx-auto px-8 py-5">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background-color: #92B08B">
-              <Sparkles :size="24" color="white" />
-            </div>
-            <div>
-              <h1 class="text-2xl" style="color: #2F4F4F">ServicePro</h1>
-              <p class="text-sm text-gray-500">Espace administrateur</p>
-            </div>
+            <img src="@/assets/logo.png" alt="Logo" class="h-16 w-auto" />
           </div>
           <button
             @click="$emit('logout')"
@@ -143,7 +137,6 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { Sparkles } from 'lucide-vue-next'
 import adminService from '@/services/adminService'
 
 // Sub-components

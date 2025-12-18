@@ -487,9 +487,9 @@
                     <p class="text-xs text-gray-500 mb-2">{{ subService.description || 'Aucune description' }}</p>
                     <span
                       class="inline-block px-2 py-0.5 rounded text-xs font-medium"
-                      :class="subService.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'"
+                      :class="subService.status === 'actif' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'"
                     >
-                      {{ subService.status === 'active' ? 'Actif' : 'Inactif' }}
+                      {{ subService.status === 'actif' ? 'Actif' : 'Inactif' }}
                     </span>
                   </div>
                 </div>
@@ -629,8 +629,8 @@
                 v-model="subServiceForm.status"
                 class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="active">Actif</option>
-                <option value="inactive">Inactif</option>
+                <option value="actif">Actif</option>
+                <option value="inactif">Inactif</option>
               </select>
             </div>
 
@@ -815,7 +815,7 @@ const selectedSubService = ref(null)
 const subServiceForm = ref({
   nom_tache: '',
   description: '',
-  status: 'active',
+  status: 'actif',
   image_url: ''
 })
 
@@ -1407,7 +1407,7 @@ const openAddModal = () => {
   subServiceForm.value = {
     nom_tache: '',
     description: '',
-    status: 'active',
+    status: 'actif',
     image_url: ''
   }
   showAddModal.value = true
@@ -1418,7 +1418,7 @@ const openEditModal = (subService) => {
   subServiceForm.value = {
     nom_tache: subService.nom_tache,
     description: subService.description || '',
-    status: subService.status || 'active',
+    status: subService.status || 'actif',
     image_url: subService.image_url || ''
   }
   showEditModal.value = true

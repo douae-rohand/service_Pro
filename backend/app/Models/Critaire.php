@@ -24,6 +24,5 @@ class Critaire extends Model
     public function evaluations()
     {
         return $this->hasMany(Evaluation::class, 'critaire_id', 'id');
-        return $this->hasMany(Evaluation::class, 'critaire_id', 'id');
     }
 }

@@ -42,7 +42,6 @@ class Service extends Model
     public function taches()
     {
         return $this->hasMany(Tache::class, 'service_id', 'id');
-        return $this->hasMany(Tache::class, 'service_id', 'id');
     }
 
     /**

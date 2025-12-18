@@ -121,7 +121,7 @@
           </div>
 
           <div class="h-[400px] rounded-xl overflow-hidden shadow-inner border border-gray-100 relative z-0">
-            <l-map ref="map" v-model:zoom="zoom" :center="center" :use-global-leaflet="false">
+            <l-map v-if="mapReady" ref="map" v-model:zoom="zoom" :center="center" :use-global-leaflet="false">
               <l-tile-layer
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 layer-type="base"
@@ -152,7 +152,7 @@
                     <img :src="iv.avatar" class="avatar-img" />
                   </div>
                 </l-icon>
-                <l-tooltip options="{offset: [0, -20], direction: 'top'}" class="custom-tooltip">
+                <l-tooltip :options="{ offset: [0, -20], direction: 'top' }" class="custom-tooltip">
                   <div class="p-2 min-w-[150px]">
                     <div class="font-bold text-gray-800 text-base mb-1">{{ iv.name }}</div>
                     <div class="text-xs font-medium uppercase tracking-wide mb-2" style="color: #1a5fa3">{{ iv.profession }}</div>
@@ -280,10 +280,15 @@ export default {
       loading: false,
       loadingActivity: false,
       selectedServiceId: '',
+      mapReady: false,
     };
   },
   async mounted() {
     console.log('PageAcceuil mounted');
+    // Ensure DOM is ready before initializing map
+    this.$nextTick(() => {
+      this.mapReady = true;
+    });
     this.getUserLocation();
     await Promise.all([
       this.fetchServices(),

@@ -21,7 +21,6 @@ class Tache extends Model
         'description',
         'status',
         'image_url',
-        'image_url',
     ];
 
     /**
@@ -42,7 +41,6 @@ class Tache extends Model
      */
     public function interventions()
     {
-        return $this->hasMany(Intervention::class, 'tache_id', 'id');
         return $this->hasMany(Intervention::class, 'tache_id', 'id');
     }
 

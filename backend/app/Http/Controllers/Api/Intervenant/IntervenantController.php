@@ -7,16 +7,12 @@ use App\Models\Intervenant;
 use App\Models\Disponibilite;
 use App\Models\Tache;
 use App\Models\Intervention;
-
-use App\Models\Intervention;
 use App\Models\Service;
-use App\Models\Materiel;
-use App\Models\Disponibilite;
-use App\Models\Tache;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
+
+
 
 class IntervenantController extends Controller
 {
@@ -27,7 +23,7 @@ class IntervenantController extends Controller
     {
         // Optimiser le chargement : ne charger que les relations nécessaires
         $query = Intervenant::with([
-            'utilisateur:id,nom,prenom,address',
+            'utilisateur:id,nom,prenom,address,url,photo',
             'taches:id,nom_tache,service_id',
             'taches.service:id,nom_service',
             'services'
@@ -118,7 +114,7 @@ class IntervenantController extends Controller
         public function show($id)
         {
             $intervenant = Intervenant::with([
-                'utilisateur:id,nom,prenom,address',
+                'utilisateur:id,nom,prenom,address,url,photo',
                 'taches:id,nom_tache,service_id',
                 'taches.service:id,nom_service',
                 'services',
@@ -396,166 +392,85 @@ class IntervenantController extends Controller
 
 
 
-        // Dans IntervenantController.php
     public function search(Request $request)
 {
     try {
-        // Load all necessary relations for the frontend
-        // Note: taches already includes service via 'taches.service', so we don't need to load taches twice
-        $query = Intervenant::with([
-            'utilisateur', 
-            'taches' => function($q) {
-                $q->with('service')
-                  ->withPivot('prix_tache', 'status');
-            },
-            'interventions' => function($q) {
-                $q->with('evaluation');
-            },
-            'services' => function($q) {
-                $q->withPivot('status');
-            },
-            'materiels'
-        ])
-                    ->withAvg('evaluations', 'note')
-                    ->withCount('evaluations');
+        Log::info('Search request params: ', $request->all());
+        
+        // Start with simple query
+        $query = Intervenant::query();
+        
+        // Filter by active status FIRST (simplest filter)
+        if ($request->has('active')) {
+            $isActive = filter_var($request->active, FILTER_VALIDATE_BOOLEAN);
+            $query->where('is_active', $isActive);
+            Log::info('Filtering by active: ' . $isActive);
+        }
+        
+        // Filter by service - using serviceId parameter
+        if ($request->has('serviceId') && $request->serviceId != 'all') {
+            $serviceId = $request->serviceId;
+            Log::info('Filtering by serviceId: ' . $serviceId);
+            
+            $query->whereHas('taches', function ($q) use ($serviceId) {
+                $q->where('service_id', $serviceId);
+            });
+        }
         
         // Filter by city
         if ($request->has('ville') && $request->ville != 'all') {
             $query->where('ville', 'like', '%' . $request->ville . '%');
         }
         
-        // Filter by service
-        if ($request->has('service_id') && $request->service_id != 'all') {
-            $query->whereHas('taches', function ($q) use ($request) {
-                $q->where('service_id', $request->service_id);
-            });
-        }
-        
-        // Filter by active status
-        if ($request->has('active')) {
-            $query->where('is_active', filter_var($request->active, FILTER_VALIDATE_BOOLEAN));
-        }
-        
-        // Search by name, city, or specialty (tache name)
+        // Search by name, city, or specialty
         if ($request->has('search') && !empty($request->search)) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
-                // Search in user name
                 $q->whereHas('utilisateur', function ($subQ) use ($search) {
                     $subQ->where('prenom', 'like', '%' . $search . '%')
                          ->orWhere('nom', 'like', '%' . $search . '%');
                 })
-                // Search in city
                 ->orWhere('ville', 'like', '%' . $search . '%')
-                // Search in taches (specialties)
                 ->orWhereHas('taches', function ($subQ) use ($search) {
                     $subQ->where('nom_tache', 'like', '%' . $search . '%');
                 });
             });
         }
         
-        // Temporairement : retirez les filtres de prix complexes
-        // if ($request->has('price_min') || $request->has('price_max')) {
-        //     $query->whereHas('taches', function ($q) use ($request) {
-        //         if ($request->has('price_min')) {
-        //             $q->where('prix_tache', '>=', $request->price_min);
-        //         }
-        //         if ($request->has('price_max')) {
-        //             $q->where('prix_tache', '<=', $request->price_max);
-        //         }
-        //     });
-        // }
-        
-        // Simplifiez le tri temporairement
+        // Simple ordering
         $query->latest();
         
         // Pagination
         $perPage = $request->get('per_page', 12);
         
-        // Check if query is valid before pagination
-        try {
-            $intervenants = $query->paginate($perPage);
-        } catch (\Exception $e) {
-            \Log::error('Pagination error: ' . $e->getMessage());
-            throw $e;
-        }
+        Log::info('Executing query...');
+        $intervenants = $query->paginate($perPage);
         
-        // Transformation simplifiée + calcul de la note moyenne par service si demandé
-        $serviceIdFilter = $request->has('service_id') && $request->service_id !== 'all'
-            ? (int) $request->service_id
-            : null;
-
-        $intervenants->getCollection()->transform(function ($intervenant) use ($serviceIdFilter) {
-            try {
-                $realRating = null;
-                $realCount  = 0;
-
-                // Si un service précis est filtré (ex: Jardinage ou Ménage),
-                // recalculer la note UNIQUEMENT à partir des interventions de ce service.
-                if ($serviceIdFilter !== null && $intervenant->relationLoaded('interventions')) {
-                    $notes = collect();
-
-                    foreach ($intervenant->interventions as $intervention) {
-                        // S'assurer que la relation tache->service est chargée
-                        if (
-                            $intervention->relationLoaded('tache') &&
-                            $intervention->tache &&
-                            (int) $intervention->tache->service_id === $serviceIdFilter
-                        ) {
-                            // Utiliser la relation evaluation (note du client) si elle existe
-                            if ($intervention->relationLoaded('evaluation') && $intervention->evaluation) {
-                                $notes->push((float) $intervention->evaluation->note);
-                            } elseif ($intervention->relationLoaded('evaluations')) {
-                                // Fallback: toutes les évaluations clients liées à cette intervention
-                                foreach ($intervention->evaluations as $eval) {
-                                    $notes->push((float) $eval->note);
-                                }
-                            }
-                        }
-                    }
-
-                    if ($notes->count() > 0) {
-                        $realRating = round($notes->avg(), 1);
-                        $realCount  = $notes->count();
-                    }
-                }
-
-                // Sinon, ou si aucune note spécifique trouvée, utiliser l'agrégat global
-                if ($realRating === null) {
-                    $realRating = $intervenant->evaluations_avg_note
-                        ? round($intervenant->evaluations_avg_note, 1)
-                        : null;
-                    $realCount = $intervenant->evaluations_count ?? 0;
-                }
-
-                $intervenant->average_rating = $realRating ?? 0.0;
-                $intervenant->review_count = $realCount;
-                
-                // Ensure utilisateur exists
-                if (!$intervenant->utilisateur) {
-                    \Log::warning("Intervenant {$intervenant->id} has no utilisateur relation");
-                }
-                
-                return $intervenant;
-            } catch (\Exception $e) {
-                \Log::error("Error transforming intervenant {$intervenant->id}: " . $e->getMessage());
-                // Return intervenant with default values
-                $intervenant->average_rating = 0.0;
-                $intervenant->review_count = 0;
-                return $intervenant;
-            }
+        Log::info('Found ' . $intervenants->total() . ' intervenants');
+        
+        // Load relationships AFTER pagination - minimal loading
+        $intervenants->load('utilisateur');
+        
+        // Simple transformation
+        $intervenants->getCollection()->transform(function ($intervenant) {
+            $intervenant->average_rating = 0;
+            $intervenant->review_count = 0;
+            
+            return $intervenant;
         });
         
         return response()->json($intervenants);
         
     } catch (\Exception $e) {
-        \Log::error('Search error: ' . $e->getMessage());
-        \Log::error('Stack trace: ' . $e->getTraceAsString());
+        Log::error('Search error: ' . $e->getMessage());
+        Log::error('File: ' . $e->getFile() . ' Line: ' . $e->getLine());
+        Log::error('Stack trace: ' . $e->getTraceAsString());
+        
         return response()->json([
             'error' => 'Server error',
-            'message' => $e->getMessage(),
-            'file' => $e->getFile(),
-            'line' => $e->getLine()
+            'message' => config('app.debug') ? $e->getMessage() : 'An error occurred while searching',
+            'file' => config('app.debug') ? $e->getFile() : null,
+            'line' => config('app.debug') ? $e->getLine() : null,
         ], 500);
     }
 }
@@ -704,7 +619,7 @@ class IntervenantController extends Controller
                 // Count completed interventions for this tache
                 $completedJobs = $intervenant->interventions()
                     ->where('tache_id', $tache->id)
-                    ->where('status', 'terminée')
+                    ->whereIn('status', ['terminée', 'terminee', 'termine', 'completed'])
                     ->count();
 
                 // Get materials names
@@ -1502,7 +1417,7 @@ class IntervenantController extends Controller
             return [
                 'id' => $intervention->id,
                 'clientName' => $clientUser ? ($clientUser->nom . ' ' . $clientUser->prenom) : 'Client inconnu',
-                'clientImage' => $clientUser->photo ?? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop',
+                'clientImage' => ($clientUser && $clientUser->photo) ? $clientUser->photo : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop',
                 'service' => $tache && $tache->service ? $tache->service->nom_service : 'Service inconnu',
                 'task' => $tache ? $tache->nom_tache : 'Tâche inconnue',
                 'date' => date('Y-m-d', strtotime($intervention->date_intervention)),
@@ -1519,11 +1434,11 @@ class IntervenantController extends Controller
         });
 
         // Calculate intervenant-specific statistics
-        $pendingCount = $interventions->where('status', 'en attend')->count();
-        $acceptedCount = $interventions->where('status', 'acceptee')->count();
-        $completedCount = $interventions->where('status', 'termine')->count();
+        $pendingCount = $interventions->whereIn('status', ['en attend', 'en_attente', 'pending'])->count();
+        $acceptedCount = $interventions->whereIn('status', ['acceptee', 'acceptée', 'accepted', 'planifiee'])->count();
+        $completedCount = $interventions->whereIn('status', ['termine', 'terminee', 'terminée', 'completed'])->count();
         $totalEarnings = $interventions
-            ->where('status', 'termine')
+            ->whereIn('status', ['termine', 'terminee', 'terminée', 'completed'])
             ->sum(function ($intervention) {
                 // Calculate based on duration and hourly rate (using default 2 hours and 25 DH/h)
                 return 2 * 25; // duration * hourlyRate
@@ -1551,10 +1466,17 @@ class IntervenantController extends Controller
     {
         $statusMap = [
             'en attend' => 'pending',
+            'en_attente' => 'pending',
             'acceptee' => 'accepted',
+            'acceptée' => 'accepted',
             'termine' => 'completed',
+            'terminee' => 'completed',
+            'terminée' => 'completed',
             'refuse' => 'refused',
-            'annulee' => 'cancelled'
+            'refusée' => 'refused',
+            'annulee' => 'cancelled',
+            'annulée' => 'cancelled',
+            'planifiee' => 'accepted'
         ];
 
         return $statusMap[$status] ?? 'pending';

@@ -167,11 +167,16 @@ onMounted(async () => {
   if (token) {
     try {
       const response = await authService.getCurrentUser()
-      currentUser.value = response.data.user
+      const user = response.data
       
-      // Si c'est un admin, rediriger vers le dashboard
-      if (currentUser.value.admin) {
-        currentPage.value = 'admin'
+      // Safely check if user exists before accessing properties
+      if (user) {
+        currentUser.value = user
+        
+        // Si c'est un admin, rediriger vers le dashboard
+        if (user.admin) {
+          currentPage.value = 'admin'
+        }
       }
     } catch (error) {
       console.error('Erreur lors de la récupération de l\'utilisateur:', error)

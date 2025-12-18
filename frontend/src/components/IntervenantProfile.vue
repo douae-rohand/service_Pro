@@ -358,8 +358,8 @@ export default {
     },
     service: {
       type: String,
-      required: true,
-      validator: (value) => ['jardinage', 'menage'].includes(value)
+      default: 'jardinage',
+      validator: (value) => ['jardinage', 'menage', 'all'].includes(value.toLowerCase())
     }
   },
   emits: ['back', 'login-required'],

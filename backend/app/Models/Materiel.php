@@ -49,9 +49,6 @@ class Materiel extends Model
             'intervenant_materiel',
             'materiel_id',
             'intervenant_id'
-            'intervenant_materiel',
-            'materiel_id',
-            'intervenant_id'
         )->withTimestamps();
     }
 
@@ -62,9 +59,6 @@ class Materiel extends Model
     {
         return $this->belongsToMany(
             Intervention::class,
-            'intervention_materiel',
-            'materiel_id',
-            'intervention_id'
             'intervention_materiel',
             'materiel_id',
             'intervention_id'

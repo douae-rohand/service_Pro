@@ -27,6 +27,6 @@ class Commentaire extends Model
     public function intervention()
     {
         return $this->belongsTo(Intervention::class, 'intervention_id', 'id');
-        return $this->belongsTo(Intervention::class, 'intervention_id', 'id');
+
     }
 }

@@ -174,8 +174,34 @@ class AuthController extends Controller
      */
     public function user(Request $request)
     {
-        $user = $request->user()->load(['client', 'intervenant', 'admin']);
-        return response()->json($user);
+        try {
+            $user = $request->user();
+            
+            if (!$user) {
+                return response()->json([
+                    'message' => 'User not authenticated'
+                ], 401);
+            }
+            
+            // Explicitly load all relationships
+            $user->load(['client', 'intervenant', 'admin']);
+            
+            // Log for debugging
+            Log::info('User data loaded', [
+                'user_id' => $user->id,
+                'has_client' => $user->client !== null,
+                'has_intervenant' => $user->intervenant !== null,
+                'has_admin' => $user->admin !== null,
+            ]);
+            
+            return response()->json($user);
+        } catch (\Exception $e) {
+            Log::error('Error fetching user: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Error fetching user data',
+                'error' => config('app.debug') ? $e->getMessage() : 'Server error'
+            ], 500);
+        }
     }
 
     /**

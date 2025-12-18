@@ -41,7 +41,6 @@ class Intervention extends Model
     public function client()
     {
         return $this->belongsTo(Client::class, 'client_id', 'id');
-        return $this->belongsTo(Client::class, 'client_id', 'id');
     }
 
     /**
@@ -49,7 +48,6 @@ class Intervention extends Model
      */
     public function intervenant()
     {
-        return $this->belongsTo(Intervenant::class, 'intervenant_id', 'id');
         return $this->belongsTo(Intervenant::class, 'intervenant_id', 'id');
     }
 
@@ -59,18 +57,13 @@ class Intervention extends Model
     public function tache()
     {
         return $this->belongsTo(Tache::class, 'tache_id', 'id');
-        return $this->belongsTo(Tache::class, 'tache_id', 'id');
     }
 
     /**
      * Get the photos for this intervention.
      */
-    /**
-     * Get the photos for this intervention.
-     */
     public function photos()
     {
-        return $this->hasMany(PhotoIntervention::class, 'intervention_id', 'id');
         return $this->hasMany(PhotoIntervention::class, 'intervention_id', 'id');
     }
 
@@ -96,7 +89,6 @@ class Intervention extends Model
     public function commentaires()
     {
         return $this->hasMany(Commentaire::class, 'intervention_id', 'id');
-        return $this->hasMany(Commentaire::class, 'intervention_id', 'id');
     }
 
     /**
@@ -117,8 +109,8 @@ class Intervention extends Model
             'intervention_information',
             'intervention_id',
             'information_id'
-        )->withPivot('information')
-            ->withTimestamps();
+        )->withPivot('information', 'created_at', 'updated_at')
+         ->withTimestamps();
     }
 
     /**
@@ -131,23 +123,7 @@ class Intervention extends Model
             'intervention_materiel',
             'intervention_id',
             'materiel_id'
-            'intervention_materiel',
-            'intervention_id',
-            'materiel_id'
         )->withTimestamps();
-    }
-
-    /**
-     * Get the informations for this intervention.
-     */
-    public function informations()
-    {
-        return $this->belongsToMany(
-            Information::class,
-            'intervention_information',
-            'intervention_id',
-            'information_id'
-        )->withPivot('information', 'created_at', 'updated_at');
     }
 
     /**

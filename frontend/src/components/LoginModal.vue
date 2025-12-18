@@ -343,7 +343,7 @@ const handleSubmit = async () => {
       } else if (user.client) {
         alert('Connexion réussie !')
        emit('login-success',user)
-       HandleClose()
+       handleClose()
       } else if (user.admin) {
         emit('admin-login', user)
         handleClose()

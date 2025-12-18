@@ -371,6 +371,7 @@
       <IntervenantProfile 
         :intervenantId="selectedIntervenantId"
         :clientId="clientId"
+        :service="getSelectedServiceName()"
         @back="backToList"
         @book="(iv) => {}" 
       />
@@ -934,6 +935,22 @@ export default {
       this.selectedIntervenantId = intervenantId;
       this.currentView = 'profile';
       window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    
+    getSelectedServiceName() {
+      if (this.serviceFilter !== 'all' && this.serviceFilter) {
+        const selected = this.services.find(s => s.id == this.serviceFilter);
+        if (selected) return selected.nom_service.toLowerCase();
+      }
+      
+      const intervenant = this.intervenants.find(iv => iv.id === this.selectedIntervenantId);
+      if (intervenant && intervenant.taches && intervenant.taches.length > 0) {
+        const tache = intervenant.taches[0];
+        const service = tache.service || this.services.find(s => s.id === (tache.service_id || tache.pivot?.service_id));
+        if (service) return service.nom_service.toLowerCase();
+      }
+      
+      return 'jardinage'; // Default fallback
     },
     
     showToastMessage(message, type = 'success') {

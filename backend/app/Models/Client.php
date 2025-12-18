@@ -46,13 +46,7 @@ class Client extends Model
         return $this->belongsTo(Admin::class, 'admin_id', 'id');
     }
 
-    /**
-     * Get the interventions for this client.
-     */
-    public function interventions()
-    {
-        return $this->hasMany(Intervention::class, 'client_id', 'id');
-    }
+
 
     /**
      * Get the intervenants favorited by this client.

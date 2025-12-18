@@ -23,7 +23,7 @@ class IntervenantController extends Controller
     {
         // Optimiser le chargement : ne charger que les relations nécessaires
         $query = Intervenant::with([
-            'utilisateur:id,nom,prenom,address,url,photo',
+            'utilisateur:id,nom,prenom,address,url,profile_photo',
             'taches:id,nom_tache,service_id',
             'taches.service:id,nom_service',
             'services'
@@ -114,7 +114,7 @@ class IntervenantController extends Controller
         public function show($id)
         {
             $intervenant = Intervenant::with([
-                'utilisateur:id,nom,prenom,address,url,photo',
+                'utilisateur:id,nom,prenom,address,url,profile_photo',
                 'taches:id,nom_tache,service_id',
                 'taches.service:id,nom_service',
                 'services',

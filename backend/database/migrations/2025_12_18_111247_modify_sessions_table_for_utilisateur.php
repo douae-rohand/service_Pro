@@ -12,20 +12,22 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('sessions', function (Blueprint $table) {
-            // Safe drop of existing foreign key if it exists
-            try {
-                $table->dropForeign(['user_id']);
-            } catch (\Exception $e) {
-                // Ignore if foreign key doesn't exist
-            }
-            
-            // Rename if column exists
+            // Rename column if it exists as 'user_id'
             if (Schema::hasColumn('sessions', 'user_id') && !Schema::hasColumn('sessions', 'utilisateur_id')) {
+                // Check if there is an index to drop first (optional but safer)
+                // $table->dropIndex(['user_id']); 
+                
                 $table->renameColumn('user_id', 'utilisateur_id');
             }
-            
-            // Re-add foreign key if column exists and utilisateur table exists
+        });
+
+        Schema::table('sessions', function (Blueprint $table) {
+            // Re-add foreign key constraint pointing to utilisateur table
             if (Schema::hasColumn('sessions', 'utilisateur_id')) {
+                // Ensure we don't have a conflict if we try to add it again
+                // utilisateur.id is created as $table->integer('id', true), which is a signed integer.
+                // We must match the type exactly.
+                $table->integer('utilisateur_id')->nullable()->change();
                 $table->foreign('utilisateur_id')->references('id')->on('utilisateur')->onDelete('cascade');
             }
         });

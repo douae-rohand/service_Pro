@@ -588,7 +588,7 @@ export default {
             reviewCount: intervenant.review_count || 0,
             hourlyRate: hourlyRate,
             location: intervenant.ville || utilisateur.address || 'Non spécifiée',
-            image: intervenant.image_url || utilisateur.photo || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=150&h=150&fit=crop',
+            image: intervenant.image_url || utilisateur.profile_photo || utilisateur.url || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=150&h=150&fit=crop',
             verified: intervenant.is_active !== false,
             specialties: specialties,
             taches: taches,

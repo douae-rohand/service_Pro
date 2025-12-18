@@ -120,6 +120,7 @@
 
               <!-- Badges & Availability -->
               <div class="mb-6 space-y-3">
+              <p class="text-xs text-gray-500 mb-2"> Autres spécialités :</p>
                  <div class="flex flex-wrap gap-2">
                     <span 
                       v-for="(specialty, index) in (intervenant.otherSpecialties || []).slice(0, 5)"

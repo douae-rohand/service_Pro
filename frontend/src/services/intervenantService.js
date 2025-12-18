@@ -53,7 +53,9 @@ const intervenantService = {
   // Récupérer un intervenant spécifique
   async getIntervenant(id) {
     try {
+      console.log(`🔍[SERVICE] getIntervenant calling API for id: ${id}`);
       const res = await api.get(`intervenants/${id}`)
+      console.log('✅[SERVICE] getIntervenant Response:', res.data);
       return res.data
     } catch (error) {
       console.error('Error fetching intervenant:', error)

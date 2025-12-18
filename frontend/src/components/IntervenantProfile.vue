@@ -495,7 +495,11 @@ export default {
         if (!id) return;
         
         const response = await intervenantService.getById(id);
-        const data = response.data;
+        const data = response.data || response;
+
+        if (!data) {
+          throw new Error("Données de l'intervenant introuvables");
+        }
         
         // --- DATA MAPPING LOGIC ---
         

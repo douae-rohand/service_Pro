@@ -136,14 +136,13 @@ class TacheController extends Controller
     try {
         \Log::info('Fetching intervenants for task ID: ' . $id);
         
+        // Load tache with intervenants relationship
         $tache = Tache::with([
             'intervenants' => function($query) {
                 $query->with('utilisateur')
                       ->withAvg('evaluations', 'note')
                       ->withCount(['evaluations', 'interventions']);
-            },
-            'intervenants.taches.service',
-            'intervenants.interventions.evaluation'
+            }
         ])->findOrFail($id);
         
         $intervenants = $tache->intervenants;
@@ -158,7 +157,7 @@ class TacheController extends Controller
             
             $realCount = $intervenant->evaluations_count ?? 0;
             
-            //only use real data, no fake fallbacks
+            // Use real data from database, no fake fallbacks
             $intervenant->note_moyenne = $realRating;
             $intervenant->nombre_avis = $realCount;
             $intervenant->missions_completees = $intervenant->interventions_count ?? 0;
@@ -167,10 +166,10 @@ class TacheController extends Controller
             return $intervenant;
         });
         
-        //Standardized success response
+        // Standardized success response - return intervenants array directly in 'data' key
         return response()->json([
             'status' => 'success',
-            'data' => $intervenants,
+            'data' => $intervenants->values(), // Use values() to reset array keys
             'meta' => [
                 'task_id' => $id,
                 'count' => $intervenants->count()
@@ -180,7 +179,7 @@ class TacheController extends Controller
     } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
         \Log::error('Task not found: ' . $id);
         
-        //Standardized 404 response
+        // Standardized 404 response
         return response()->json([
             'status' => 'error',
             'message' => 'Tâche non trouvée'
@@ -190,7 +189,7 @@ class TacheController extends Controller
         \Log::error('Error in getIntervenants: ' . $e->getMessage());
         \Log::error('Stack trace: ' . $e->getTraceAsString());
         
-        //Standardized error response
+        // Standardized error response
         return response()->json([
             'status' => 'error',
             'message' => 'Erreur lors de la récupération des intervenants',

@@ -674,6 +674,8 @@ export default {
       materials: [],
       constraints: [],
       constraintsValues: {},
+      informations: [],
+      informationsValues: {},
       dayAvailabilityResult: null,
       dayCheckLoading: false,
       urgencyLevels: [
@@ -812,6 +814,8 @@ export default {
       try {
         const response = await bookingService.getServiceTaches(service.id, this.intervenant.id);
         this.tasks = response.data.data || response.data || [];
+        // Load service information fields (like space selection)
+        await this.loadServiceInformations(service.id);
         this.currentStep = 2;
       } catch (error) {
         console.error('Error loading tasks:', error);

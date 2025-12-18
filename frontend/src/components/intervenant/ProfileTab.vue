@@ -194,20 +194,23 @@ const fetchCurrentUser = async () => {
     
     if (user.intervenant) {
       // Fetch full intervenant data to get services with pivot
-      const intResponse = await intervenantService.getById(user.intervenant.id)
-      const fullIntervenant = intResponse.data
+      const fullIntervenant = await intervenantService.getById(user.intervenant.id)
       
+      if (!fullIntervenant) {
+        console.warn('Full intervenant data missing, using basic info')
+      }
+
       intervenant.value = {
         id: user.intervenant.id,
         name: `${user.prenom} ${user.nom}`,
         email: user.email,
         phone: user.telephone || '',
         profileImage: user.profile_photo ? `http://127.0.0.1:8000/storage/${user.profile_photo}?t=${Date.now()}` : null,
-        location: fullIntervenant.ville || fullIntervenant.address || 'Non spécifié',
-        address: fullIntervenant.address || '',
-        ville: fullIntervenant.ville || '',
+        location: fullIntervenant?.ville || fullIntervenant?.address || user.address || 'Non spécifié',
+        address: fullIntervenant?.address || user.address || '',
+        ville: fullIntervenant?.ville || '',
         memberSince: new Date(user.created_at).getFullYear().toString(),
-        services: fullIntervenant.services || [] // Store services
+        services: fullIntervenant?.services || [] // Store services
       }
       
       // Initialize form data

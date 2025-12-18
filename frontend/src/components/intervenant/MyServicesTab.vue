@@ -147,19 +147,19 @@ const editData = ref({
 })
 
 const displayedServices = computed(() => {
-  return services.value
+  return services.value || []
 })
 
 const activeServices = computed(() => {
-  return services.value.filter(s => s.active).length
+  return (services.value || []).filter(s => s.active).length
 })
 
 const totalServices = computed(() => {
-  return services.value.length
+  return (services.value || []).length
 })
 
 const totalCompletedJobs = computed(() => {
-  return services.value.reduce((sum, s) => sum + s.completedJobs, 0)
+  return (services.value || []).reduce((sum, s) => sum + s.completedJobs, 0)
 })
 
 const getMaterials = (type) => {
@@ -171,10 +171,11 @@ const fetchServices = async () => {
   error.value = null
   try {
     const response = await intervenantTacheService.getMyTaches()
-    services.value = response.data
+    services.value = response || []
   } catch (err) {
     error.value = err.response?.data?.message || 'Erreur lors du chargement des sous-services'
     console.error(err)
+    services.value = []
   } finally {
     loading.value = false
   }

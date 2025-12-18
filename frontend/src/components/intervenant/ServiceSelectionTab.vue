@@ -500,6 +500,10 @@ const loadIntervenantActiveData = async (intervenantId) => {
       data.services.forEach(service => {
         if (service.status === 'active' && serviceStates.value[service.id] !== undefined) {
           serviceStates.value[service.id] = true
+        } else if (service.status === 'archive' && serviceStates.value[service.id] !== undefined) {
+          // If archived, we mark it so we can fast-reactivate
+          archivedServices.value[service.id] = true
+          serviceStates.value[service.id] = false
         }
       })
     }

@@ -5,8 +5,9 @@
       <!-- Header -->
       <div class="bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50 transition-all duration-300">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-            <div class="flex items-center gap-5">
+          <!-- Back button and Title row -->
+          <div class="flex items-center justify-between gap-6 mb-4">
+            <div class="flex items-center gap-4">
               <button
                 @click="$emit('back')"
                 @mouseenter="hoverBackButton = true"
@@ -24,28 +25,19 @@
                 <h1 class="text-3xl md:text-4xl font-bold tracking-tight" :style="{ color: currentService.color }">
                   {{ taskData.nom_tache }}
                 </h1>
-                <div class="flex items-center gap-2 mt-2">
-                  <span class="inline-flex items-center justify-center bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded-full">
-                    {{ sortedIntervenants.length }}
-                  </span>
-                  <p class="text-gray-500 font-medium">
-                    intervenant{{ sortedIntervenants.length > 1 ? 's' : '' }} disponible{{ sortedIntervenants.length > 1 ? 's' : '' }}
-                  </p>
-                </div>
               </div>
-               <!-- Skeleton Loader -->
-              <div v-else class="animate-pulse w-full">
-                <div class="h-8 bg-gray-200 rounded-lg w-64 mb-2"></div>
-                <div class="h-4 bg-gray-200 rounded-lg w-48"></div>
+              <!-- Skeleton Loader -->
+              <div v-else class="animate-pulse">
+                <div class="h-8 bg-gray-200 rounded-lg w-64"></div>
               </div>
             </div>
 
-            <!-- Sorting Dropdown -->
-            <div class="group relative flex items-center gap-3 bg-white px-5 py-2.5 rounded-full border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300">
-              <span class="text-gray-400 font-medium text-sm uppercase tracking-wide">Trier par</span>
+            <!-- Sorting Dropdown - aligned to the right -->
+            <div class="group relative flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300">
+              <span class="text-gray-400 font-medium text-xs uppercase tracking-wide">Trier par</span>
               <select
                 v-model="sortBy"
-                class="bg-transparent border-none font-bold text-gray-700 text-sm focus:ring-0 cursor-pointer outline-none pl-0 pr-8 appearance-none"
+                class="bg-transparent border-none font-bold text-gray-700 text-sm focus:ring-0 cursor-pointer outline-none pl-0 pr-6 appearance-none"
                 style="background-image: none;"
               >
                 <option value="pertinence">Pertinence</option>
@@ -53,10 +45,23 @@
                 <option value="price-asc">Prix (Croissant)</option>
                 <option value="price-desc">Prix (Décroissant)</option>
               </select>
-              <div class="absolute right-4 pointer-events-none text-gray-400">
+              <div class="absolute right-3 pointer-events-none text-gray-400">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
               </div>
             </div>
+          </div>
+
+          <!-- Counter row -->
+          <div class="flex items-center gap-2 ml-14" v-if="taskData">
+            <span class="inline-flex items-center justify-center bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded-full">
+              {{ sortedIntervenants.length }}
+            </span>
+            <p class="text-gray-500 font-medium text-sm">
+              intervenant{{ sortedIntervenants.length > 1 ? 's' : '' }} disponible{{ sortedIntervenants.length > 1 ? 's' : '' }}
+            </p>
+          </div>
+          <div v-else class="animate-pulse ml-14">
+            <div class="h-4 bg-gray-200 rounded-lg w-48"></div>
           </div>
         </div>
       </div>
@@ -265,6 +270,10 @@ export default {
       type: [String, Number],
       required: true
     },
+    taskName: {
+      type: String,
+      default: 'Sous-service'
+    },
     serviceId: {
       type: [String, Number],
       required: true
@@ -411,34 +420,14 @@ export default {
     },
     
     async loadTaskInfo() {
-      try {
-        // Récupérer les tâches du service pour trouver celle qui correspond
-        const response = await serviceService.getTaches(this.serviceId);
-        const taches = response.data || [];
-        const task = taches.find(t => t.id == this.taskId);
-        
-        if (task) {
-          this.taskData = {
-            id: task.id,
-            nom_tache: task.nom_tache || task.nomTache || 'Sous-service',
-            description: task.description || ''
-          };
-        } else {
-          // Si la tâche n'est pas trouvée, utiliser des valeurs par défaut
-          this.taskData = { 
-            id: this.taskId,
-            nom_tache: 'Sous-service', 
-            description: '' 
-          };
-        }
-      } catch (error) {
-        console.error('Erreur lors du chargement de la tâche:', error);
-        this.taskData = { 
-          id: this.taskId,
-          nom_tache: 'Sous-service', 
-          description: '' 
-        };
-      }
+      // Utiliser le nom de la tâche passé en prop
+      console.log('TaskIntervenantsPage - taskName prop:', this.taskName);
+      console.log('TaskIntervenantsPage - taskId prop:', this.taskId);
+      this.taskData = {
+        id: this.taskId,
+        nom_tache: this.taskName || 'Sous-service',
+        description: ''
+      };
     },
     
     async loadIntervenants() {

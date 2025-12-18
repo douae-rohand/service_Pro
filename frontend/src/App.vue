@@ -58,6 +58,7 @@
     <TaskIntervenantsPage
       v-else-if="currentPage === 'task-intervenants'"
       :task-id="selectedTaskId"
+      :task-name="selectedTaskName"
       :service-id="selectedService"
       @back="handleBackFromTaskIntervenants"
       @view-profile="handleViewProfileFromTask"
@@ -131,6 +132,7 @@ const currentUser = ref(null)
 // ============================================
 const selectedService = ref(null); // ID du service sélectionné (1 = Jardinage, 2 = Ménage)
 const selectedTaskId = ref(null); // ID de la tâche/sous-service sélectionné
+const selectedTaskName = ref(null); // Nom de la tâche/sous-service sélectionné
 const selectedIntervenantData = ref(null); // Données complètes de l'intervenant sélectionné
 const selectedIntervenantId = ref(null); // ID de l'intervenant (pour fallback API)
 
@@ -261,8 +263,10 @@ const handleViewProfileFromDetail = (intervenantId) => {
 
 const handleTaskClick = (taskData) => {
   console.log("Task clicked:", taskData, "for service:", selectedService.value);
+  console.log("taskData.taskName:", taskData.taskName);
   // taskData contient { taskId, taskName }
   selectedTaskId.value = taskData.taskId;
+  selectedTaskName.value = taskData.taskName;
   previousPage.value = "service-detail";
   currentPage.value = "task-intervenants";
   window.scrollTo({ top: 0, behavior: "smooth" });

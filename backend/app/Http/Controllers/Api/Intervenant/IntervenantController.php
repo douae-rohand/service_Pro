@@ -485,6 +485,7 @@ class IntervenantController extends Controller
             
             $intervenant->average_rating = round($avg, 1);
             $intervenant->review_count = $count;
+            $intervenant->interv_count = $intervenant->interventions->count();
             
             // Clean up heavy relationship data
             unset($intervenant->interventions);

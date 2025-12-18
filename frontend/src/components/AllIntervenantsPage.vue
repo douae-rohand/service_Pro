@@ -64,9 +64,9 @@
 
       <!-- Main Content with Sidebar -->
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div class="flex flex-col lg:flex-row gap-8">
+      <div class="grid grid-cols-1 md:grid-cols-[288px_1fr] lg:grid-cols-[320px_1fr] gap-8 items-start">
         <!-- Left Sidebar - Filters -->
-        <aside class="lg:w-80 flex-shrink-0">
+        <aside class="flex-shrink-0">
           <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sticky top-32">
             <!-- Header -->
             <div class="flex items-center justify-between mb-6">
@@ -169,7 +169,7 @@
         </aside>
 
         <!-- Right Content - Results -->
-        <main class="flex-1">
+        <main class="flex-1 min-w-0">
           <!-- Results header with counter and sorting -->
           <div class="flex items-center justify-between mb-6">
             <!-- Counter -->
@@ -201,7 +201,7 @@
           </div>
 
           <!-- Intervenants Grid -->
-          <div class="grid md:grid-cols-2 gap-6">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div
               v-for="intervenant in paginatedIntervenants"
               :key="intervenant.id"
@@ -225,9 +225,7 @@
                     <div class="flex justify-between items-start mb-2">
                       <div>
                         <h3 class="text-xl font-bold text-gray-900 truncate pr-2">{{ intervenant.name }}</h3>
-                        <div class="text-lg font-bold" :style="{ color: currentService.color }">
-                          {{ intervenant.hourlyRate }}DH/h
-                        </div>
+
                       </div>
                       <div class="flex flex-col items-end gap-1">
                         <div class="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-lg border border-yellow-100">
@@ -257,6 +255,7 @@
 
                 <!-- Specialties -->
                 <div class="mb-6 space-y-3">
+                <p class="text-xs text-gray-500 mb-2"> Autres spécialités :</p>
                    <div class="flex flex-wrap gap-2">
                       <span 
                         v-for="(specialty, index) in (intervenant.specialties || []).slice(0, 5)"

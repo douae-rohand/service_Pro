@@ -13,9 +13,11 @@
     <!-- Page d'accueil -->
     <div v-else-if="currentPage === 'home'">
       <Header
+        :user="currentUser"
         @login-click="showLoginModal = true"
         @signup-click="showSignupModal = true"
         @navigate-home="handleNavigateHome"
+        @dashboard-click="handleDashboardClick"
       />
       <HeroSection @search="handleSearch" />
       <StatsSection />
@@ -98,7 +100,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import authService from '@/services/authService'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import Header from "./components/Header.vue";
 import HeroSection from './components/HeroSection.vue'
 import StatsSection from './components/StatsSection.vue'
@@ -116,6 +118,7 @@ import AdminDashboard from './components/Admin/AdminDashboard.vue'
 
 
 const route = useRoute()
+const router = useRouter()
 
 // Détecte si on est sur une route dashboard
 const isDashboardRoute = computed(() => {
@@ -178,9 +181,16 @@ onMounted(async () => {
       if (user) {
         currentUser.value = user
         
-        // Si c'est un admin, rediriger vers le dashboard
+        // Redirection basée sur le rôle
         if (user.admin) {
           currentPage.value = 'admin'
+        } else if (user.intervenant) {
+          // Les intervenants utilisent le router-view, donc on reste en mode router
+          if (!isDashboardRoute.value) {
+            router.push('/dashboard')
+          }
+        } else if (user.client) {
+          currentPage.value = 'client-dashboard'
         }
       }
     } catch (error) {
@@ -339,15 +349,34 @@ const handleSwitchToSignup = () => {
 }
 
 // Handle successful login
-const handleLoginSuccess = (data) => {
+const handleLoginSuccess = (user) => {
+  currentUser.value = user
   showLoginModal.value = false
-  // Navigate to client dashboard
-  currentPage.value = 'client-dashboard'
+  
+  // Navigation basée sur le rôle
+  if (user.admin) {
+    currentPage.value = 'admin'
+  } else if (user.intervenant) {
+    router.push('/dashboard')
+  } else if (user.client) {
+    currentPage.value = 'client-dashboard'
+  } else {
+    // Fallback if role is unclear
+    currentPage.value = 'home'
+  }
+  
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 // Handle logout
-const handleLogout = () => {
+const handleLogout = async () => {
+  try {
+    await authService.logout()
+  } catch (error) {
+    console.error('Logout error:', error)
+  }
+  authService.setAuthToken(null)
+  currentUser.value = null
   currentPage.value = 'home'
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
@@ -369,6 +398,17 @@ onMounted(() => {
     window.history.replaceState({}, document.title, window.location.pathname)
   }
 })
+
+const handleDashboardClick = () => {
+  if (currentUser.value?.admin) {
+    currentPage.value = 'admin'
+  } else if (currentUser.value?.intervenant) {
+    router.push('/dashboard')
+  } else if (currentUser.value?.client) {
+    currentPage.value = 'client-dashboard'
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
 
 // Fonction pour gérer la connexion admin
 const handleAdminLogin = (user) => {

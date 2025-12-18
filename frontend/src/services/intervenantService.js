@@ -132,13 +132,13 @@ const intervenantService = {
     return api.post(`intervenants/${intervenantId}/services/${serviceId}/materials`, { materials }).then(res => res.data);
   },
 
-    getIntervenantMaterials(intervenantId, serviceId) {
-        return api.get(`intervenants/${intervenantId}/services/${serviceId}/materials`);
-    },
+  getIntervenantMaterials(intervenantId, serviceId) {
+    return api.get(`intervenants/${intervenantId}/services/${serviceId}/materials`).then(res => res.data);
+  },
 
-    deleteIntervenantMaterial(intervenantId, materialId) {
-        return api.delete(`intervenants/${intervenantId}/materials/${materialId}`);
-    },
+  deleteIntervenantMaterial(intervenantId, materialId) {
+    return api.delete(`intervenants/${intervenantId}/materials/${materialId}`).then(res => res.data);
+  },
 
   updateServiceStatus(intervenantId, serviceId, status) {
     return api.post(`intervenants/${intervenantId}/services/${serviceId}/status`, { status }).then(res => res.data);

@@ -156,22 +156,23 @@ class InterventionResource extends JsonResource
             $estimatedCost = $intervenantTache ? (float)($intervenantTache->prix_tache ?? 0) * (float)($this->duration_hours ?? 1) : 0;
         }
 
-        // Get description from intervention_information or tache
-        $description = $this->tache->description ?? '';
-        if ($this->informations && $this->informations->count() > 0) {
-            $infoParts = [];
-            foreach ($this->informations as $info) {
-                $infoParts[] = $info->pivot->information ?? '';
-            }
-            if (!empty($infoParts)) {
-                $description = implode(', ', array_filter($infoParts));
-            }
-        }
+        // Primary description is from intervention table, fallback to task description
+        $description = $this->description ?? $this->tache->description ?? '';
 
         return [
             'id' => $this->id,
             'service' => $this->tache->service->nom_service ?? 'N/A',
             'task' => $this->tache->nom_tache ?? 'N/A',
+            'client' => $this->client ? [
+                'id' => $this->client_id,
+                'utilisateur' => [
+                    'nom' => $this->client->utilisateur->nom ?? 'N/A',
+                    'prenom' => $this->client->utilisateur->prenom ?? 'N/A',
+                    'email' => $this->client->utilisateur->email ?? 'N/A',
+                    'photo' => $this->client->utilisateur->photo ?? null,
+                    'telephone' => $this->client->utilisateur->telephone ?? '',
+                ]
+            ] : null,
             'intervenant' => [
                 'id' => $this->intervenant->id ?? null,
                 'name' => trim(($this->intervenant->utilisateur->prenom ?? '') . ' ' . ($this->intervenant->utilisateur->nom ?? '')) ?: 'N/A',
@@ -182,12 +183,13 @@ class InterventionResource extends JsonResource
                 'ratingDistribution' => $ratingDistribution,
             ],
             'date' => $dateTime ? $dateTime->format('Y-m-d') : null,
-            'time' => $dateTime ? $dateTime->format('H:i') : null, // ← CHANGÉ: Heure réelle depuis datetime
-            'end_time' => $endTime ? $endTime->format('H:i') : null, // ← NOUVEAU: Heure de fin calculée
+            'time' => $dateTime ? $dateTime->format('H:i') : null,
+            'end_time' => $endTime ? $endTime->format('H:i') : null,
             'date_intervention' => $dateTime ? $dateTime->toDateTimeString() : null,
             'duration_hours' => $this->duration_hours,
             'status' => $mappedStatus,
             'address' => $this->address ?? '',
+            'ville' => $this->ville ?? '',
             'quartier' => $this->ville ?? '',
             'estimatedCost' => $estimatedCost,
             'finalCost' => $this->facture->ttc ?? null,
@@ -198,8 +200,35 @@ class InterventionResource extends JsonResource
             'intervenantResponse' => $intervenantResponse,
             'rating' => $rating,
             'invoice' => $invoice,
-            'materials' => $materials,
-            'photos' => $photos,
+            'materiels' => $this->materiels->map(function($m) {
+                return [
+                    'id' => $m->id,
+                    'nom_materiel' => $m->nom_materiel,
+                ];
+            }),
+            'informations' => $this->informations->map(function($i) {
+                // Clean up name if it starts with Contrainte_
+                $name = $i->nom;
+                if (str_starts_with($name, 'Contrainte_')) {
+                    $name = str_replace('_', ' ', $name);
+                }
+                return [
+                    'id' => $i->id,
+                    'nom' => $name,
+                    'pivot' => [
+                        'information' => $i->pivot->information ?? 'N/A'
+                    ]
+                ];
+            }),
+            'photos' => $this->photos->map(function($p) {
+                return [
+                    'id' => $p->id,
+                    'photo_path' => $p->photo_path,
+                    'description' => $p->description,
+                    'phase_prise' => $p->phase_prise,
+                ];
+            }),
+            'photo_urls' => $photos,
         ];
     }
 }

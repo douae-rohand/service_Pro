@@ -7,6 +7,7 @@ use App\Models\Intervenant;
 use App\Models\Disponibilite;
 use App\Models\Tache;
 use App\Models\Intervention;
+use App\Models\Materiel;
 use App\Models\Service;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -199,7 +200,7 @@ class IntervenantController extends Controller
         $intervenant = Intervenant::findOrFail($id);
         $interventions = $intervenant->interventions()
             ->with(['client.utilisateur', 'tache'])
-            ->orderBy('dateIntervention', 'desc')
+            ->orderBy('date_intervention', 'desc')
             ->get();
 
         return response()->json($interventions);
@@ -960,6 +961,7 @@ class IntervenantController extends Controller
             ->map(function ($tache) {
                 return [
                     'id' => $tache->id,
+                    'service_id' => $tache->service_id, // Essential for frontend grouping
                     'name' => $tache->nom_tache,
                     'price' => $tache->pivot->prix_tache,
                     'status' => $tache->pivot->status,
@@ -996,7 +998,7 @@ class IntervenantController extends Controller
         // Get intervenant's active tasks
         $activeTasks = DB::table('intervenant_tache')
             ->where('intervenant_id', $intervenantId)
-            ->where('active', true)
+            ->where('status', true)
             ->pluck('tache_id')
             ->toArray();
 

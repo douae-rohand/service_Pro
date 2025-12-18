@@ -23,16 +23,35 @@ class ServiceController extends Controller
                 $query->where('status', 'active');
             }
             
-            // Load tasks relationship with only necessary columns
-            $services = $query->with('taches:id,service_id,nom_tache,description,image_url')->get();
-
-            // Format services with tasks included
+            // Load relationships with only necessary columns
+            $services = $query->with([
+                'taches:id,service_id,nom_tache,description,image_url',
+                'materiels:id,service_id,nom_materiel'
+            ])->get();
+            
+            // Format services with tasks and materials included
             $formattedServices = $services->map(function ($service) {
                 return [
                     'id' => $service->id,
-                    'nom_service' => $service->nom_service,  // Match frontend expectation
+                    'nom_service' => $service->nom_service,
+                    'name' => $service->nom_service, // Match frontend expectation
                     'description' => $service->description,
-                    'taches' => $service->taches,  // Include tasks
+                    'tasks' => $service->taches->map(function($tache) {
+                        return [
+                            'id' => $tache->id,
+                            'service_id' => $tache->service_id,
+                            'name' => $tache->nom_tache, // Map nom_tache to name
+                            'description' => $tache->description,
+                            'image_url' => $tache->image_url
+                        ];
+                    }),
+                    'materials' => $service->materiels->map(function($m) {
+                        return [
+                            'id' => $m->id,
+                            'name' => $m->nom_materiel // Map nom_materiel to name
+                        ];
+                    }),
+                    'taches' => $service->taches // Keep for backward compatibility
                 ];
             });
 

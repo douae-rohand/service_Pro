@@ -1,286 +1,710 @@
 <template>
-  <div class="min-h-screen bg-gray-50 font-sans pb-20">
-    <!-- Header / Back Navigation -->
-    <div class="bg-white shadow-sm sticky top-0 z-10">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-        <button 
-          @click="$emit('back')" 
-          class="flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors font-medium"
+  <div class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <div class="bg-white shadow-sm sticky top-0 z-40">
+      <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <button
+          @click="$emit('back')"
+          class="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-all"
         >
-          <ArrowLeft size="20" />
+          <ArrowLeftIcon :size="20" />
+          <span>Retour</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Error State -->
+    <div v-if="error" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div class="text-center py-16">
+        <p class="text-red-600 mb-4">{{ error }}</p>
+        <button
+          @click="$emit('back')"
+          class="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all"
+        >
           Retour
         </button>
-        <div class="text-xl font-bold text-gray-800">Profil Intervenant</div>
-        <div class="w-20"></div> <!-- Spacer for balance -->
       </div>
     </div>
 
-    <div v-if="loading" class="flex justify-center items-center py-20">
-      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-    </div>
-
-    <div v-else-if="intervenant" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fade-in-up">
-      
+    <!-- Profile Content -->
+    <div v-if="!error" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <!-- Profile Header Card -->
-      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="bg-gradient-to-r from-blue-600 to-indigo-700 h-32 md:h-48 relative">
-          <!-- Favorite Button -->
-          <button 
-            @click="toggleFavorite"
-            class="absolute top-4 right-4 p-3 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-all text-white"
-            :class="{ 'text-red-500 bg-white shadow-lg': isFavorite }"
-          >
-            <Heart :fill="isFavorite ? 'currentColor' : 'none'" size="24" />
-          </button>
-        </div>
-        
-        <div class="px-8 pb-8 flex flex-col md:flex-row items-start gap-6 -mt-16 relative z-0">
-          <!-- Avatar -->
-          <div class="w-32 h-32 rounded-full p-1 bg-white shadow-lg flex-shrink-0">
-            <img 
-              :src="intervenant.utilisateur?.url || defaultAvatar" 
-              class="w-full h-full rounded-full object-cover border-4 border-white"
-              alt="Avatar"
+      <div class="bg-white rounded-2xl shadow-sm p-8 mb-6">
+        <div class="flex items-start gap-6">
+          <!-- Profile Image -->
+          <div class="flex-shrink-0 relative">
+            <ImageWithFallback
+              :src="intervenant.profileImage"
+              :alt="intervenant.name"
+              class="w-32 h-32 rounded-full object-cover"
             />
           </div>
-          
-          <!-- Info -->
-          <div class="flex-grow md:mt-16 pt-2">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-              <div>
-                <h1 class="text-3xl font-bold text-gray-800">
-                  {{ intervenant.utilisateur?.prenom }} {{ intervenant.utilisateur?.nom }}
-                </h1>
-                <div class="flex items-center gap-4 mt-2 text-gray-600">
-                  <span class="flex items-center gap-1">
-                    <MapPin size="16" />
-                    {{ intervenant.ville || intervenant.address || 'Localisation non spécifiée' }}
-                  </span>
-                  <span class="flex items-center gap-1 text-yellow-500 font-medium">
-                    <Star fill="currentColor" size="16" />
-                    {{ stats?.average_rating || 4.5 }}/5
-                  </span>
-                  <span class="text-sm text-gray-400">
-                    ({{ stats?.total_reviews || 0 }} avis)
-                  </span>
-                </div>
-              </div>
-              
 
+          <!-- Profile Info -->
+          <div class="flex-1">
+            <h1 class="text-4xl mb-2">{{ intervenant.name }}</h1>
+            <div class="flex items-center gap-3 text-gray-600 mb-3">
+              <div class="flex items-center gap-1">
+                <MapPinIcon :size="16" />
+                <span>{{ intervenant.location }}</span>
+              </div>
+              <span>•</span>
+              <span>{{ formatExperience(intervenant.experience) }} d'expérience</span>
             </div>
             
-            <p class="mt-6 text-gray-600 max-w-3xl leading-relaxed">
-              {{ intervenant.bio || "Aucune biographie disponible pour cet intervenant." }}
-            </p>
+            <!-- Rating -->
+            <div class="flex items-center gap-2 mb-4">
+              <StarIcon
+                v-for="star in 5"
+                :key="star"
+                :size="20"
+                class="fill-yellow-400 text-yellow-400"
+              />
+              <span class="text-lg ml-1">{{ intervenant.rating }}</span>
+              <span class="text-gray-600">({{ intervenant.reviewCount }} avis)</span>
+            </div>
           </div>
+
+          <!-- Favorite Button -->
+          <button
+            @click="handleFavoriteClick"
+            class="px-5 py-2.5 rounded-lg border-2 transition-all flex items-center gap-2"
+            :style="{ borderColor: primaryColor, color: primaryColor }"
+          >
+            <HeartIcon :size="18" :class="{ 'fill-current': isFavorite }" />
+            Ajouter aux favoris
+          </button>
         </div>
       </div>
-      
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <!-- Left Column: Services & Stats -->
-        <div class="space-y-8">
-          <!-- Key Stats -->
-          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <h3 class="text-lg font-bold text-gray-800 mb-6">Performance</h3>
-            <div class="grid grid-cols-2 gap-4">
-              <div class="p-4 bg-gray-50 rounded-xl text-center">
-                <div class="text-2xl font-bold text-blue-600">{{ intervenant.missions_completees || 0 }}</div>
-                <div class="text-xs text-gray-500 uppercase tracking-wide mt-1">Missions</div>
-              </div>
-              <div class="p-4 bg-gray-50 rounded-xl text-center">
-                <div class="text-2xl font-bold text-green-600">{{ stats?.average_rating || 'N/A' }}</div>
-                <div class="text-xs text-gray-500 uppercase tracking-wide mt-1">Note Moyenne</div>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Services -->
-          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <h3 class="text-lg font-bold text-gray-800 mb-6">Services Proposés</h3>
-            <div class="space-y-3">
-              <div v-for="service in services" :key="service.id" class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-lg">
-                  {{ service.nom_service.charAt(0) }}
-                </div>
-                <div>
-                  <div class="font-bold text-gray-700">{{ service.nom_service }}</div>
-                  <div class="text-xs text-gray-500">{{ service.taches_count }} tâches disponibles</div>
-                </div>
-              </div>
-              <div v-if="services.length === 0" class="text-gray-500 text-sm italic">
-                Aucun service listé.
-              </div>
-            </div>
+
+      <!-- Tabs Navigation -->
+      <div class="bg-white rounded-2xl shadow-sm mb-6">
+        <div class="border-b border-gray-200">
+          <div class="flex gap-2 px-4">
+            <button
+              v-for="tab in tabs"
+              :key="tab.id"
+              @click="activeTab = tab.id"
+              :class="[
+                'px-6 py-4 transition-all relative',
+                activeTab !== tab.id ? 'text-gray-600 hover:text-gray-900' : ''
+              ]"
+              :style="activeTab === tab.id ? { color: primaryColor } : {}"
+            >
+              {{ tab.label }}
+              <div
+                v-if="activeTab === tab.id"
+                class="absolute bottom-0 left-0 right-0 h-0.5"
+                :style="{ backgroundColor: primaryColor }"
+              />
+            </button>
           </div>
         </div>
-        
-        <!-- Right Column: Reviews -->
-        <div class="lg:col-span-2">
-          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-            <h3 class="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-              Avis et Évaluations
-              <span class="px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-600 text-sm font-normal">
-                {{ stats?.total_reviews || 0 }}
-              </span>
-            </h3>
-            
-            <div v-if="reviews.length === 0" class="text-center py-12 text-gray-500 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-              <MessageSquare size="48" class="mx-auto text-gray-300 mb-3" />
-              <p>Aucun avis pour le moment.</p>
+
+        <!-- Tab Content -->
+        <div class="p-8">
+          <!-- À propos Tab -->
+          <div v-if="activeTab === 'apropos'">
+            <h2 class="text-2xl mb-6">À propos de {{ intervenant.name.split(' ')[0] }}</h2>
+            <div class="space-y-4 text-gray-700 leading-relaxed">
+              <p v-for="(paragraph, index) in intervenant.bio" :key="index">
+                {{ paragraph }}
+              </p>
             </div>
+          </div>
+
+          <!-- Services Tab -->
+          <div v-if="activeTab === 'services'">
+            <h2 class="text-2xl mb-6">Services proposés</h2>
+            <div class="space-y-6">
+              <div
+                v-for="serviceItem in intervenant.services"
+                :key="serviceItem.id"
+                class="border border-gray-200 rounded-xl p-6"
+              >
+                <h3 class="text-xl mb-3">{{ serviceItem.name }}</h3>
+                <p class="text-gray-600 mb-4 leading-relaxed">
+                  {{ serviceItem.description }}
+                </p>
+                <div class="flex items-center gap-3 mb-4">
+                  <div class="flex items-center gap-2 text-gray-600">
+                    <ClockIcon :size="18" :style="{ color: primaryColor }" />
+                    <span>{{ serviceItem.duration }}</span>
+                  </div>
+                  <span class="text-lg font-bold" :style="{ color: primaryColor }">
+                    {{ serviceItem.price }}DH/h
+                  </span>
+                </div>
+                <div class="flex items-center justify-end">
+                  <button
+                    @click="handleBookingClick(null, serviceItem)"
+                    class="px-8 py-3 rounded-lg text-white transition-all hover:opacity-90"
+                    :style="{ backgroundColor: buttonColor }"
+                  >
+                    Réserver ce service
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Avis Tab -->
+          <div v-if="activeTab === 'avis'">
+            <h2 class="text-2xl mb-6">Avis & Évaluations</h2>
             
-            <div v-else class="space-y-6">
-              <div v-for="review in reviews" :key="review.id" class="border-b border-gray-100 last:border-0 pb-6 last:pb-0">
+            <!-- Rating Summary -->
+            <div class="flex flex-col md:flex-row gap-8 mb-8 pb-8 border-b border-gray-200">
+              <div class="text-center">
+                <div class="text-6xl mb-2">{{ intervenant.rating }}</div>
+                <div class="flex items-center justify-center gap-1 mb-2">
+                  <StarIcon
+                    v-for="star in 5"
+                    :key="star"
+                    :size="20"
+                    class="fill-yellow-400 text-yellow-400"
+                  />
+                </div>
+                <p class="text-gray-600">{{ intervenant.reviewCount }} avis</p>
+              </div>
+
+              <!-- Rating Distribution -->
+              <div class="flex-1">
+                <div
+                  v-for="item in ratingDistribution"
+                  :key="item.stars"
+                  class="flex items-center gap-3 mb-2"
+                >
+                  <span class="text-sm w-12">{{ item.stars }} ★</span>
+                  <div class="flex-1 h-3 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      class="h-full rounded-full transition-all"
+                      :style="{ 
+                        width: item.percentage + '%', 
+                        backgroundColor: primaryColor 
+                      }"
+                    />
+                  </div>
+                  <span class="text-sm text-gray-600 w-16">{{ item.percentage }}%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Reviews List -->
+            <div class="space-y-6">
+              <div
+                v-for="review in intervenant.reviews"
+                :key="review.id"
+                class="border-b border-gray-100 pb-6 last:border-0"
+              >
                 <div class="flex items-start justify-between mb-3">
                   <div class="flex items-center gap-3">
                     <img 
-                      :src="review.client_avatar || defaultAvatar" 
+                      :src="review.clientAvatar" 
                       class="w-10 h-10 rounded-full object-cover border border-gray-100"
-                      alt="Client"
                     />
                     <div>
-                      <div class="font-bold text-gray-800">{{ review.client_name }}</div>
-                      <div class="text-xs text-gray-500">{{ formatDate(review.date) }}</div>
+                      <h4 class="text-lg mb-1">{{ review.clientName }}</h4>
+                      <p class="text-sm text-gray-500">
+                        {{ formatDate(review.date) }}
+                      </p>
                     </div>
                   </div>
-                  <div class="flex items-center gap-0.5 text-yellow-500 bg-yellow-50 px-2 py-1 rounded-lg">
-                    <Star fill="currentColor" size="14" />
-                    <span class="font-bold text-sm">{{ review.rating }}</span>
+                  <div class="flex items-center gap-1">
+                    <StarIcon
+                      v-for="star in 5"
+                      :key="star"
+                      :size="16"
+                      :class="star <= review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'"
+                    />
                   </div>
                 </div>
-                
-                <p class="text-gray-600 leading-relaxed text-sm mb-3">
-                  {{ review.comment || "Pas de commentaire." }}
-                </p>
-                
-                <div class="flex items-center gap-2 text-xs text-gray-400 bg-gray-50 inline-flex px-3 py-1 rounded-md">
-                  <Tag size="12" />
-                  <span>{{ review.service_name }}</span>
-                  <span v-if="review.task_name">• {{ review.task_name }}</span>
+                <p class="text-gray-700 leading-relaxed">{{ review.comment }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Photos Tab -->
+          <div v-if="activeTab === 'photos'">
+            <h2 class="text-2xl mb-6">Photos des réalisations</h2>
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div
+                v-for="(photo, index) in intervenant.photos"
+                :key="index"
+                class="relative aspect-video rounded-xl overflow-hidden cursor-pointer group"
+                @click="selectedImage = photo"
+              >
+                <ImageWithFallback
+                  :src="photo"
+                  :alt="`Réalisation ${index + 1}`"
+                  class="w-full h-full object-cover transition-transform group-hover:scale-110"
+                />
+                <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
+                  <CameraIcon class="text-white opacity-0 group-hover:opacity-100 transition-opacity" :size="32" />
                 </div>
               </div>
             </div>
           </div>
+
+          <!-- Disponibilités Tab -->
+          <div v-if="activeTab === 'disponibilites'">
+            <h2 class="text-2xl mb-6">Disponibilités</h2>
+            <div class="space-y-3 mb-8">
+              <div
+                v-for="(day, index) in intervenant.availability"
+                :key="index"
+                class="flex items-center justify-between py-4 border-b border-gray-200 last:border-0"
+              >
+                <div class="flex flex-col">
+                  <span
+                    class="text-lg font-medium"
+                    :style="{ color: day.available ? primaryColor : '#9CA3AF' }"
+                  >
+                    {{ day.day }}
+                  </span>
+                  <span class="text-xs uppercase tracking-wider text-gray-400">
+                    {{ day.type === 'reguliere' ? 'Chaque semaine' : 'Date spécifique' }}
+                  </span>
+                </div>
+                <div class="flex items-center gap-3">
+                  <div 
+                    class="px-3 py-1 rounded-full text-xs font-bold"
+                    :style="{ 
+                      backgroundColor: day.available ? primaryColor + '15' : '#F3F4F6',
+                      color: day.available ? primaryColor : '#9CA3AF'
+                    }"
+                  >
+                    {{ day.available ? 'Ouvert' : 'Fermé' }}
+                  </div>
+                  <span
+                    class="text-lg font-bold"
+                    :style="{ color: day.available ? '#374151' : '#9CA3AF' }"
+                  >
+                    {{ day.available ? day.hours : 'Non disponible' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <button
+              class="w-full px-8 py-4 rounded-lg text-white text-lg transition-all hover:opacity-90"
+              :style="{ backgroundColor: buttonColor }"
+            >
+              Demander une disponibilité spécifique
+            </button>
+          </div>
         </div>
       </div>
+
+      <!-- Bottom CTA -->
+      <div class="bg-white rounded-2xl shadow-sm p-8 text-center">
+        <h3 class="text-2xl mb-4">Réserver maintenant</h3>
+        <p class="text-gray-600 mb-6">
+          Contactez {{ intervenant.name.split(' ')[0] }} pour discuter de vos besoins et planifier une intervention
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <button
+            @click="handleBookingClick()"
+            class="px-10 py-4 rounded-lg text-white text-lg transition-all hover:opacity-90"
+            :style="{ backgroundColor: primaryColor }"
+          >
+            Réserver
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Booking Modal -->
+    <BookingModal
+      v-if="showBookingModal"
+      :intervenant="{
+        id: intervenant.id,
+        name: intervenant.name,
+        image: intervenant.profileImage,
+        averageRating: intervenant.rating,
+        hourlyRate: intervenant.services[0]?.price || 0
+      }"
+      :clientId="effectiveClientId"
+      :preselectedService="selectedServiceForBooking"
+      :preselectedTask="selectedTaskForBooking"
+      @close="showBookingModal = false"
+      @success="handleBookingSuccess"
+    />
+
+    <!-- Image Modal -->
+    <div
+      v-if="selectedImage"
+      class="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4"
+      @click="selectedImage = null"
+    >
+      <button
+        class="absolute top-4 right-4 p-2 bg-white rounded-full hover:bg-gray-100 transition-all"
+        @click="selectedImage = null"
+      >
+        <XIcon :size="24" />
+      </button>
+      <img
+        :src="selectedImage"
+        alt="Réalisation"
+        class="max-w-full max-h-full object-contain rounded-lg"
+      />
     </div>
   </div>
 </template>
 
-<script setup>
-import { ref, onMounted, defineProps, defineEmits } from 'vue';
+<script>
 import { 
-  ArrowLeft, Heart, MapPin, Star, 
-  MessageSquare, Tag 
+  ArrowLeft as ArrowLeftIcon, 
+  Star as StarIcon, 
+  MapPin as MapPinIcon, 
+  Heart as HeartIcon, 
+  CheckCircle as CheckCircleIcon, 
+  Clock as ClockIcon,
+  Camera as CameraIcon, 
+  X as XIcon 
 } from 'lucide-vue-next';
-import intervenantService from '@/services/intervenantService';
-import api from '@/services/api';
+import ImageWithFallback from './figma/ImageWithFallback.vue';
+import BookingModal from './BookingModal.vue';
+import intervenantService from '../services/intervenantService';
+import authService from '../services/authService';
+import { formatExperience } from '@/utils/experienceFormatter';
 
-const props = defineProps({
-  intervenantId: {
-    type: Number,
-    required: true
+export default {
+  name: 'IntervenantProfilePage',
+  components: {
+    ArrowLeftIcon,
+    StarIcon,
+    MapPinIcon,
+    HeartIcon,
+    CheckCircleIcon,
+    ClockIcon,
+    CameraIcon,
+    XIcon,
+    ImageWithFallback,
+    BookingModal
   },
-  clientId: {
-    type: Number,
-    required: true
-  }
-});
-
-const emit = defineEmits(['back', 'book']);
-
-const loading = ref(true);
-const intervenant = ref(null);
-const services = ref([]);
-const reviews = ref([]);
-const stats = ref(null);
-const isFavorite = ref(false);
-const defaultAvatar = 'https://ui-avatars.com/api/?name=User&background=random';
-
-onMounted(async () => {
-  await fetchData();
-});
-
-async function fetchData() {
-  loading.value = true;
-  try {
-    // 1. Fetch intervenant details
-    intervenant.value = await intervenantService.getIntervenant(props.intervenantId);
-    
-    // 2. Fetch services
-    const servicesRes = await intervenantService.getIntervenantServices(props.intervenantId);
-    services.value = servicesRes.data || servicesRes;
-    
-    // 3. Fetch evaluations
-    const evalsRes = await intervenantService.getEvaluations(props.intervenantId);
-    reviews.value = evalsRes.data;
-    stats.value = evalsRes.stats;
-    
-    // 4. Check favorite status
-    await checkFavoriteStatus();
-    
-  } catch (error) {
-    console.error('Error fetching profile data:', error);
-  } finally {
-    loading.value = false;
-  }
-}
-
-async function checkFavoriteStatus() {
-  try {
-    const res = await api.get(`clients/${props.clientId}/favorites`);
-    const favorites = res.data?.data || res.data || [];
-    isFavorite.value = favorites.some(fav => fav.id === props.intervenantId);
-  } catch (error) {
-    console.error('Error checking favorite status:', error);
-  }
-}
-
-async function toggleFavorite() {
-  try {
-    // We need a service ID to add favorite.
-    const serviceId = services.value[0]?.id;
-    
-    if (!serviceId) {
-      alert("Impossible d'ajouter aux favoris: aucun service disponible.");
-      return;
+  props: {
+    intervenantId: {
+      type: Number,
+      required: false
+    },
+    intervenantData: {
+      type: Object,
+      required: false
+    },
+    service: {
+      type: String,
+      required: true,
+      validator: (value) => ['jardinage', 'menage'].includes(value)
+    },
+    clientId: {
+      type: Number,
+      required: false
     }
-    
-    // Optimistic UI update
-    const previousState = isFavorite.value;
-    isFavorite.value = !isFavorite.value;
-    
-    const res = await api.post(`clients/${props.clientId}/favorites`, {
-      intervenant_id: props.intervenantId,
-      service_id: serviceId
-    });
-    
-    if (res.data.is_favorite !== undefined) {
-      isFavorite.value = res.data.is_favorite;
-    }
-  } catch (error) {
-    console.error('Error toggling favorite:', error);
-    isFavorite.value = !isFavorite.value; // Revert on error
-  }
-}
+  },
+  emits: ['back', 'login-required'],
+  data() {
+    return {
+      selectedImage: null,
+      activeTab: 'apropos',
+      isFavorite: false,
+      loading: false,
+      error: null,
+      showBookingModal: false,
+      selectedServiceForBooking: null,
+      selectedTaskForBooking: null,
+      tabs: [
+        { id: 'apropos', label: 'À propos' },
+        { id: 'services', label: 'Taches' },
+        { id: 'avis', label: 'Avis' },
+        { id: 'photos', label: 'Photos' },
+        { id: 'disponibilites', label: 'Disponibilités' }
+      ],
+      intervenant: {
+        id: null,
+        name: '',
+        profileImage: '',
+        rating: 0,
+        reviewCount: 0,
+        location: '',
+        experience: 'N/A',
+        verified: false,
+        memberSince: '',
+        completedJobs: 0,
+        bio: [],
+        services: [],
+        reviews: [],
+        photos: [],
+        availability: []
+      }
+    };
+  },
+  computed: {
+    primaryColor() {
+      return this.service === 'jardinage' ? '#92B08B' : '#4682B4';
+    },
+    buttonColor() {
+      return '#609B41';
+    },
+    effectiveClientId() {
+      if (this.clientId) return this.clientId;
+      const user = authService.getUserSync();
+      // Try multiple possible locations for the client ID
+      return user?.client?.id || user?.client_id || user?.id || 1;
+    },
+    ratingDistribution() {
+      const distribution = [
+        { stars: 5, count: 0 },
+        { stars: 4, count: 0 },
+        { stars: 3, count: 0 },
+        { stars: 2, count: 0 },
+        { stars: 1, count: 0 }
+      ];
 
-function formatDate(dateString) {
-  if (!dateString) return '';
-  return new Date(dateString).toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  });
-}
+      const reviews = this.intervenant.reviews || [];
+      const total = reviews.length;
+
+      if (total === 0) {
+        return distribution.map(d => ({ ...d, percentage: 0 }));
+      }
+
+      reviews.forEach(review => {
+        let rating = Math.round(Number(review.rating));
+        if (rating < 1) rating = 1;
+        if (rating > 5) rating = 5;
+        
+        const item = distribution.find(d => d.stars === rating);
+        if (item) item.count++;
+      });
+
+      return distribution.map(d => ({
+        ...d,
+        percentage: Math.round((d.count / total) * 100)
+      }));
+    }
+  },
+  async created() {
+    if (this.intervenantData) {
+      this.loadFromProvidedData();
+    } 
+    
+    const idToFetch = this.intervenantId || (this.intervenantData ? this.intervenantData.id : null);
+    
+    if (idToFetch) {
+      await this.fetchIntervenantData(idToFetch);
+    } else {
+      if (!this.intervenantData) {
+         this.error = "Aucune donnée d'intervenant fournie.";
+      }
+    }
+  },
+  methods: {
+    loadFromProvidedData() {
+      const data = this.intervenantData;
+      
+      this.intervenant = {
+        id: data.id,
+        name: data.name,
+        profileImage: data.image,
+        rating: data.rating || 0,
+        reviewCount: data.reviewCount || 0,
+        location: data.location,
+        experience: data.experience,
+        verified: data.verified,
+        memberSince: 'Membre récent',
+        completedJobs: 0,
+        bio: [],
+        services: this.mapServices(data.taches || []),
+        reviews: [],
+        photos: [data.image].filter(Boolean),
+        availability: []
+      };
+    },
+    
+    async fetchIntervenantData(optionalId = null) {
+      try {
+        const id = optionalId || this.intervenantId;
+        if (!id) return;
+        
+        const data = await intervenantService.getById(id);
+
+        if (!data) {
+          throw new Error("Données de l'intervenant introuvables");
+        }
+        
+        const mappedPhotos = [];
+        if (data.interventions) {
+             data.interventions.forEach(intervention => {
+                 if (intervention.photos) {
+                     intervention.photos.forEach(photo => {
+                         if (photo.photo_path) mappedPhotos.push(photo.photo_path);
+                     });
+                 }
+             });
+        }
+        
+        const reviews = this.mapReviews(data.interventions);
+
+        this.intervenant = {
+          id: data.id,
+          name: data.utilisateur ? `${data.utilisateur.prenom || ''} ${data.utilisateur.nom || ''}`.trim() : 'Intervenant',
+          profileImage: data.utilisateur && data.utilisateur.url ? data.utilisateur.url : 'https://ui-avatars.com/api/?name=Intervenant&background=random',
+          rating: data.average_rating || 0,
+          reviewCount: data.review_count || 0,
+          location: data.ville || data.address || 'Localisation non spécifiée',
+          experience: this.getExperienceForService(data) || 'N/A',
+          verified: data.is_active ?? true,
+          memberSince: data.created_at ? `Membre depuis ${new Date(data.created_at).getFullYear()}` : 'N/A',
+          completedJobs: data.interv_count || 0,
+          bio: data.bio ? [data.bio] : ["Professionnel expérimenté à votre service."],
+          services: this.mapServices(data.taches),
+          reviews: reviews, 
+          photos: mappedPhotos,
+          availability: this.mapAvailability(data.disponibilites)
+        };
+      } catch (err) {
+        console.error("Erreur lors du chargement de l'intervenant:", err);
+        if (!this.intervenant.id) {
+             this.error = "Impossible de charger les informations de l'intervenant.";
+        }
+      } finally {
+        this.loading = false;
+      }
+    },
+    
+    mapServices(taches) {
+      if (!taches || !Array.isArray(taches)) return [];
+      
+      const currentServiceLabel = this.service === 'jardinage' ? 'jardin' : 'ménage';
+      
+      return taches
+        .filter(t => {
+           const serviceName = (t.service?.nom_service || '').toLowerCase();
+           return serviceName.includes(currentServiceLabel);
+        })
+        .map(t => ({
+          id: t.id,
+          name: t.nom_tache || 'Service',
+          description: t.description || 'Prestation de qualité réalisée avec soin et professionnalisme.',
+          duration: 'Sur mesure (2h min)',
+          price: t.pivot?.prix_tache || t.prix || 25
+        }));
+    },
+    
+    mapReviews(interventions) {
+      if (!interventions || !Array.isArray(interventions)) return [];
+      
+      const reviews = [];
+      
+      interventions.forEach(intervention => {
+          if (intervention.evaluations && intervention.evaluations.length > 0) {
+              // Calculer la moyenne des notes pour cette intervention
+              const totalNote = intervention.evaluations.reduce((sum, e) => sum + Number(e.note), 0);
+              const avgNote = (totalNote / intervention.evaluations.length).toFixed(1);
+              
+              const comment = intervention.commentaires && intervention.commentaires.length > 0 
+                 ? intervention.commentaires[0].commentaire 
+                 : 'Prestation satisfaisante, client n\'a pas laissé de commentaire détaillé.';
+              
+              let clientName = 'Client';
+              if (intervention.client && intervention.client.utilisateur) {
+                  clientName = `${intervention.client.utilisateur.prenom || ''} ${intervention.client.utilisateur.nom || ''}`.trim();
+              }
+
+              const clientAvatar = intervention.client?.utilisateur?.url || `https://ui-avatars.com/api/?name=${clientName}&background=random`;
+              
+              reviews.push({
+                  id: intervention.id,
+                  clientName: clientName || 'Client anonyme',
+                  clientAvatar: clientAvatar,
+                  date: this.formatDate(intervention.date_intervention),
+                  rating: Number(avgNote),
+                  comment: comment
+              });
+          }
+      });
+      
+      return reviews;
+    },
+    
+    mapAvailability(disponibilites) {
+      if (!disponibilites || !Array.isArray(disponibilites) || disponibilites.length === 0) return [];
+      
+      // Trier par jour de la semaine ou date
+      return disponibilites.map(d => {
+        let dayLabel = '';
+        if (d.type === 'reguliere' && d.jours_semaine) {
+          dayLabel = d.jours_semaine.charAt(0).toUpperCase() + d.jours_semaine.slice(1);
+        } else if (d.date_specific) {
+          dayLabel = this.formatDate(d.date_specific);
+        } else {
+          dayLabel = 'Disponible';
+        }
+        
+        return {
+          day: dayLabel,
+          available: true,
+          hours: `${this.formatTime(d.heure_debut)} - ${this.formatTime(d.heure_fin)}`,
+          type: d.type
+        };
+      });
+    },
+    
+    formatDate(dateString) {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      return date.toLocaleDateString('fr-FR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+    },
+    
+    getDayName(dateString) {
+      return new Date(dateString).toLocaleDateString('fr-FR', { weekday: 'long' });
+    },
+    
+    formatTime(timeString) {
+      if (!timeString) return '00:00';
+      if (timeString instanceof Date || timeString.includes('T') || timeString.includes('-')) {
+        return new Date(timeString).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      }
+      const [hours, minutes] = timeString.split(':');
+      return `${hours}:${minutes}`;
+    },
+    getExperienceForService(data) {
+      if (!data || !data.services) return null;
+      const targetService = this.service ? this.service.toLowerCase() : '';
+      const found = data.services.find(s => 
+        (s.nom_service || s.name || '').toLowerCase().includes(targetService)
+      );
+      if (found && found.pivot && found.pivot.experience) {
+        return found.pivot.experience;
+      }
+      const anyExp = data.services.find(s => s.pivot && s.pivot.experience);
+      return anyExp ? anyExp.pivot.experience : null;
+    },
+    handleFavoriteClick() {
+      if (!authService.isAuthenticated()) {
+        this.$emit('login-required');
+        return;
+      }
+      this.isFavorite = !this.isFavorite;
+    },
+    handleBookingClick(service = null, task = null) {
+      if (!authService.isAuthenticated()) {
+        this.$emit('login-required');
+        return;
+      }
+      this.selectedServiceForBooking = service;
+      this.selectedTaskForBooking = task;
+      this.showBookingModal = true;
+    },
+    handleBookingSuccess() {
+      this.showBookingModal = false;
+    },
+    formatExperience
+  }
+};
 </script>
 
 <style scoped>
-.animate-fade-in-up {
-  animation: fadeInUp 0.5s ease-out forwards;
-}
-
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
 </style>

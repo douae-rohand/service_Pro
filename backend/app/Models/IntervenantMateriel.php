@@ -11,11 +11,13 @@ class IntervenantMateriel extends Pivot
 
     protected $table = 'intervenant_materiel';
 
-    
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = 'updated_at';
 
     protected $fillable = [
         'intervenant_id',
         'materiel_id',
+        'prix_materiel',
     ];
 
 
@@ -26,6 +28,7 @@ class IntervenantMateriel extends Pivot
     public function intervenant()
     {
         return $this->belongsTo(Intervenant::class, 'intervenant_id', 'id');
+        return $this->belongsTo(Intervenant::class, 'intervenant_id', 'id');
     }
 
     /**
@@ -33,6 +36,7 @@ class IntervenantMateriel extends Pivot
      */
     public function materiel()
     {
+        return $this->belongsTo(Materiel::class, 'materiel_id', 'id');
         return $this->belongsTo(Materiel::class, 'materiel_id', 'id');
     }
 }

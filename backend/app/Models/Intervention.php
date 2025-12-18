@@ -11,8 +11,10 @@ class Intervention extends Model
     use HasFactory;
 
     protected $table = 'intervention';
+    protected $primaryKey = 'id';
 
-    
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = 'updated_at';
 
     protected $fillable = [
         'address',
@@ -50,7 +52,7 @@ class Intervention extends Model
     }
 
     /**
-     * Get the tache associated with this intervention.
+     * Get the tache for this intervention.
      */
     public function tache()
     {
@@ -107,8 +109,8 @@ class Intervention extends Model
             'intervention_information',
             'intervention_id',
             'information_id'
-        )->withPivot('information')
-            ->withTimestamps();
+        )->withPivot('information', 'created_at', 'updated_at')
+         ->withTimestamps();
     }
 
     /**
@@ -146,7 +148,7 @@ class Intervention extends Model
      */
     public function scopeCompleted(Builder $query): Builder
     {
-        return $query->where('status', 'terminée');
+        return $query->where('status', 'termine');
     }
 
     /**
@@ -154,6 +156,6 @@ class Intervention extends Model
      */
     public function scopePending(Builder $query): Builder
     {
-        return $query->where('status', 'en attente');
+        return $query->where('status', 'en attend');
     }
 }

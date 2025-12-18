@@ -11,7 +11,8 @@ class Information extends Model
 
     protected $table = 'information';
 
-    
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = 'updated_at';
 
     protected $fillable = [
         'nom',
@@ -28,7 +29,7 @@ class Information extends Model
             'service_information',
             'information_id',
             'service_id'
-        )->withTimestamps();
+        )->withPivot('created_at', 'updated_at');
     }
 
     /**
@@ -41,7 +42,6 @@ class Information extends Model
             'intervention_information',
             'information_id',
             'intervention_id'
-        )->withPivot('information')
-            ->withTimestamps();
+        )->withPivot('information', 'created_at', 'updated_at');
     }
 }

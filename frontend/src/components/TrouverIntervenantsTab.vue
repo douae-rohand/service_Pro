@@ -249,8 +249,13 @@
                         </div>
                       </div>
                       <div class="flex-1 min-w-0">
-                        <div class="flex justify-between items-start">
-                          <h3 class="text-xl font-bold text-gray-900 truncate pr-2">{{ getIntervenantName(intervenant) }}</h3>
+                        <div class="flex justify-between items-start mb-2">
+                          <div>
+                            <h3 class="text-xl font-bold text-gray-900 truncate pr-2">{{ getIntervenantName(intervenant) }}</h3>
+                            <div class="text-lg font-bold" :style="{ color: currentServiceColor }">
+                              {{ getIntervenantPrice(intervenant) }}DH/h
+                            </div>
+                          </div>
                           <div class="flex flex-col items-end gap-1">
                             <div class="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-lg border border-yellow-100">
                               <Star :size="14" class="fill-yellow-400 text-yellow-400" />
@@ -260,11 +265,19 @@
                           </div>
                         </div>
                         
-                        <p class="text-sm text-gray-500 font-medium mt-1 mb-3">{{ getIntervenantExperience(intervenant) }}</p>
-                        
-                        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gray-50 text-gray-600 border border-gray-100">
-                          <MapPin :size="12" />
-                          {{ intervenant.ville || intervenant.utilisateur?.address || intervenant.utilisateur?.ville || 'Ville non spécifiée' }}
+                        <div class="flex flex-wrap gap-x-4 gap-y-2 mb-3">
+                          <div class="flex items-center gap-1.5 text-sm text-gray-500 font-medium">
+                            <Briefcase :size="14" :style="{ color: currentServiceColor }" />
+                            <span>{{ intervenant.interv_count || 0 }} missions</span>
+                          </div>
+                          <div class="flex items-center gap-1.5 text-sm text-gray-500 font-medium">
+                            <MapPin :size="14" :style="{ color: currentServiceColor }" />
+                            <span>{{ intervenant.ville || intervenant.utilisateur?.address || 'Maroc' }}</span>
+                          </div>
+                        </div>
+
+                        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gray-50 text-gray-600 border border-gray-100 mb-4">
+                          {{ getIntervenantExperience(intervenant) }}
                         </div>
                       </div>
                     </div>
@@ -308,6 +321,14 @@
                           title="Ajouter aux favoris"
                         >
                           <Heart :size="18" />
+                        </button>
+                        <button
+                          @click.stop="openBookingModal(intervenant)"
+                          class="px-4 h-12 rounded-xl border-2 transition-all hover:bg-green-50 flex items-center justify-center"
+                          :style="{ borderColor: '#609B41', color: '#609B41' }"
+                          title="Réserver maintenant"
+                        >
+                          <Clock :size="18" />
                         </button>
                       </div>
                     </div>
@@ -371,10 +392,21 @@
       <IntervenantProfile 
         :intervenantId="selectedIntervenantId"
         :clientId="clientId"
+        :service="getSelectedServiceName()"
         @back="backToList"
-        @book="(iv) => {}" 
+        @book="openBookingModalById" 
       />
     </div>
+
+    <!-- Booking Modal -->
+    <BookingModal
+      v-if="showBookingModal"
+      :intervenant="selectedIntervenantForBooking"
+      :clientId="clientId"
+      :preselectedService="selectedServiceForBooking"
+      @close="showBookingModal = false"
+      @success="handleBookingSuccess"
+    />
 
     <!-- Success Toast -->
     <div v-if="showToast" class="fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in">
@@ -391,12 +423,15 @@ import {
   MapPin, 
   Star, 
   AlertCircle,
-  Heart
+  Heart,
+  Clock,
+  Briefcase
 } from 'lucide-vue-next';
 import intervenantService from '@/services/intervenantService';
 import serviceService from '@/services/serviceService';
 import favoriteService from '@/services/favoriteService';
 import IntervenantProfile from './IntervenantProfile.vue';
+import BookingModal from './BookingModal.vue';
 
 export default {
   name: 'TrouverIntervenantsTab',
@@ -408,7 +443,10 @@ export default {
     Star,
     AlertCircle,
     Heart,
-    IntervenantProfile
+    Clock,
+    Briefcase,
+    IntervenantProfile,
+    BookingModal
   },
   props: {
     clientId: {
@@ -427,6 +465,9 @@ export default {
       selectedCity: 'all',
       selectedServices: [],
       priceRange: [0, 100],
+      showBookingModal: false,
+      selectedIntervenantForBooking: null,
+      selectedServiceForBooking: null,
       minRating: 'all',
       availableNow: false,
       sortBy: 'pertinence',
@@ -701,25 +742,9 @@ export default {
     },
     
     getIntervenantImage(intervenant) {
-      // Try multiple possible image paths from database
-      if (intervenant.utilisateur?.url) {
-        return intervenant.utilisateur.url;
-      }
-      if (intervenant.utilisateur?.photo) {
-        return intervenant.utilisateur.photo;
-      }
-      if (intervenant.image_url) {
-        return intervenant.image_url;
-      }
-      
-      // Fallback to default based on gender
-      const gender = intervenant.utilisateur?.sexe || 'male';
-      const defaultImages = {
-        male: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop',
-        female: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop',
-        other: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop'
-      };
-      return defaultImages[gender] || defaultImages.male;
+      if (intervenant.utilisateur?.url) return intervenant.utilisateur.url;
+      const name = this.getIntervenantName(intervenant);
+      return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff`;
     },
     
     handleImageError(event) {
@@ -806,29 +831,20 @@ export default {
     },
     
     getIntervenantPrice(intervenant) {
-      // Get price from taches pivot table (prix_tache)
-      if (intervenant.taches && intervenant.taches.length > 0) {
-        const prices = intervenant.taches
-          .filter(tache => {
-            // Check both pivot structure and direct prix_tache
-            return (tache.pivot && tache.pivot.prix_tache) || tache.prix_tache;
-          })
-          .map(tache => {
-            // Get price from pivot or direct property
-            return parseFloat(tache.pivot?.prix_tache || tache.prix_tache || 0);
-          })
-          .filter(price => price > 0); // Only valid prices
-        
-        if (prices.length > 0) {
-          const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
-          return Math.round(avg);
-        }
+      // Prioritize the price of the filtered service if applicable
+      if (this.serviceFilter !== 'all' && intervenant.taches) {
+        const tache = intervenant.taches.find(t => t.service_id == this.serviceFilter);
+        if (tache && tache.pivot?.prix_tache) return Math.round(tache.pivot.prix_tache);
       }
       
-      // Default price if no prices found
-      const services = this.getIntervenantServices(intervenant);
-      const basePrice = services.length > 0 ? 25 : 20;
-      return basePrice;
+      // Fallback to average price
+      if (intervenant.taches && intervenant.taches.length > 0) {
+        const prices = intervenant.taches
+          .map(t => parseFloat(t.pivot?.prix_tache || t.prix_tache || 0))
+          .filter(p => p > 0);
+        if (prices.length > 0) return Math.round(prices.reduce((a, b) => a + b, 0) / prices.length);
+      }
+      return 25;
     },
     
     getExperienceYears(intervenant) {
@@ -841,23 +857,14 @@ export default {
     },
     
     getIntervenantExperience(intervenant) {
-      // Try to get experience from services pivot first
-      if (intervenant.services && Array.isArray(intervenant.services)) {
-        const serviceWithExperience = intervenant.services.find(s => s.pivot?.experience);
-        if (serviceWithExperience && serviceWithExperience.pivot.experience) {
-          const exp = serviceWithExperience.pivot.experience;
-          if (exp && exp !== 'Pas') {
-            return exp;
-          }
-        }
+      // Check services pivot for specific experience label
+      if (intervenant.services) {
+        const expService = intervenant.services.find(s => s.pivot?.experience && s.pivot.experience !== 'Pas');
+        if (expService) return expService.pivot.experience;
       }
       
-      // Fallback: calculate from created_at
       const years = this.getExperienceYears(intervenant);
-      if (years > 0) {
-        return `${years} an${years > 1 ? 's' : ''} d'expérience`;
-      }
-      return 'Nouvel intervenant';
+      return years > 0 ? `${years} an${years > 1 ? 's' : ''} d'expérience` : 'Nouvel intervenant';
     },
     
     async applyFilters() {
@@ -936,6 +943,22 @@ export default {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     },
     
+    getSelectedServiceName() {
+      if (this.serviceFilter !== 'all' && this.serviceFilter) {
+        const selected = this.services.find(s => s.id == this.serviceFilter);
+        if (selected) return selected.nom_service.toLowerCase();
+      }
+      
+      const intervenant = this.intervenants.find(iv => iv.id === this.selectedIntervenantId);
+      if (intervenant && intervenant.taches && intervenant.taches.length > 0) {
+        const tache = intervenant.taches[0];
+        const service = tache.service || this.services.find(s => s.id === (tache.service_id || tache.pivot?.service_id));
+        if (service) return service.nom_service.toLowerCase();
+      }
+      
+      return 'jardinage'; // Default fallback
+    },
+    
     showToastMessage(message, type = 'success') {
       this.toastMessage = message;
       this.showToast = true;
@@ -943,6 +966,34 @@ export default {
       setTimeout(() => {
         this.showToast = false;
       }, 3000);
+    },
+
+    openBookingModal(intervenant) {
+      if (!this.clientId) {
+         this.showToastMessage('Vous devez être connecté pour réserver.', 'error');
+         return;
+      }
+
+      this.selectedIntervenantForBooking = {
+        id: intervenant.id,
+        name: this.getIntervenantName(intervenant),
+        image: this.getIntervenantImage(intervenant),
+        averageRating: this.getIntervenantRating(intervenant),
+        hourlyRate: this.getIntervenantPrice(intervenant)
+      };
+      
+      this.selectedServiceForBooking = this.services.find(s => s.id == this.serviceFilter) || null;
+      this.showBookingModal = true;
+    },
+
+    async openBookingModalById(intervenantData) {
+      // This is called from the profile emission
+      this.openBookingModal(intervenantData);
+    },
+
+    handleBookingSuccess() {
+      this.showBookingModal = false;
+      this.showToastMessage('Réservation effectuée avec succès !');
     }
   }
 };

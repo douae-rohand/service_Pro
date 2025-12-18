@@ -11,6 +11,13 @@ class Disponibilite extends Model
 
     protected $table = 'disponibilite';
 
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = 'updated_at';
+
+    protected $primaryKey = 'id';
+    public $timestamps = true;
+
+
     protected $fillable = [
         'intervenant_id',
         'type',
@@ -20,11 +27,14 @@ class Disponibilite extends Model
         'heure_fin',
     ];
 
-    protected $casts = [
-        'date_specific' => 'date',
-        'heure_debut' => 'string',
-        'heure_fin' => 'string',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'heure_debut' => 'datetime:H:i:s',
+            'heure_fin' => 'datetime:H:i:s',
+            'date_specific' => 'date',
+        ];
+    }
 
     /**
      * Get the intervenant that owns this disponibilite.

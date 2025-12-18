@@ -19,6 +19,7 @@ return new class extends Migration
             $table->string('password');
             $table->string('telephone', 20)->nullable();
             $table->string('url')->nullable();
+            $table->string('profile_photo')->nullable();
             $table->string('google_pw')->nullable();
             $table->text('address')->nullable();
             $table->timestamp('created_at')->useCurrent();

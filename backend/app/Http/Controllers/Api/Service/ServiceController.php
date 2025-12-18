@@ -9,13 +9,64 @@ use Illuminate\Http\Request;
 class ServiceController extends Controller
 {
     /**
-     * Display a listing of services
+     * Display a listing of services with their tasks
+     * Formatted for frontend consumption
      */
     public function index()
     {
-        $services = Service::with(['taches', 'informations', 'justificatifs'])->get();
+        try {
+            // Start with basic query
+            $query = Service::query();
+            
+            // Filter only active services if status column exists
+            if (\Illuminate\Support\Facades\Schema::hasColumn('service', 'status')) {
+                $query->where('status', 'active');
+            }
+            
+            // Load relationships with only necessary columns
+            $services = $query->with([
+                'taches:id,service_id,nom_tache,description,image_url',
+                'materiels:id,service_id,nom_materiel'
+            ])->get();
+            
+            // Format services with tasks and materials included
+            $formattedServices = $services->map(function ($service) {
+                return [
+                    'id' => $service->id,
+                    'nom_service' => $service->nom_service,
+                    'name' => $service->nom_service, // Match frontend expectation
+                    'description' => $service->description,
+                    'tasks' => $service->taches->map(function($tache) {
+                        return [
+                            'id' => $tache->id,
+                            'service_id' => $tache->service_id,
+                            'name' => $tache->nom_tache, // Map nom_tache to name
+                            'description' => $tache->description,
+                            'image_url' => $tache->image_url
+                        ];
+                    }),
+                    'materials' => $service->materiels->map(function($m) {
+                        return [
+                            'id' => $m->id,
+                            'name' => $m->nom_materiel // Map nom_materiel to name
+                        ];
+                    }),
+                    'taches' => $service->taches // Keep for backward compatibility
+                ];
+            });
 
-        return response()->json($services);
+            return response()->json([
+                'data' => $formattedServices,  // Use 'data' key for consistency
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Service index error: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
+            
+            return response()->json([
+                'error' => 'Failed to load services',
+                'message' => config('app.debug') ? $e->getMessage() : 'Internal server error',
+            ], 500);
+        }
     }
 
     /**
@@ -24,7 +75,7 @@ class ServiceController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'nomService' => 'required|string|max:100',
+            'nom_service' => 'required|string|max:100',
             'description' => 'nullable|string',
         ]);
 
@@ -38,10 +89,33 @@ class ServiceController extends Controller
 
     /**
      * Display the specified service
+     * Vérifie que le service est actif avant de le retourner
      */
     public function show($id)
     {
-        $service = Service::with(['taches', 'informations', 'justificatifs'])->findOrFail($id);
+        // Check if status column exists first
+        $hasStatusColumn = \Illuminate\Support\Facades\Schema::hasColumn('service', 'status');
+        
+        // Build select columns
+        $selectColumns = ['id', 'nom_service', 'description'];
+        if ($hasStatusColumn) {
+            $selectColumns[] = 'status';
+        }
+        
+        // Optimiser : charger seulement les colonnes nécessaires des taches
+        $service = Service::with(['taches:id,service_id,nom_tache,description,image_url'])
+                          ->select($selectColumns)
+                          ->findOrFail($id);
+        
+        // Vérifier si le service est actif (si la colonne existe)
+        if ($hasStatusColumn) {
+            if ($service->status !== 'active') {
+                return response()->json([
+                    'error' => 'Ce service n\'est pas disponible',
+                    'message' => 'Le service demandé est actuellement désactivé'
+                ], 404);
+            }
+        }
 
         return response()->json($service);
     }
@@ -54,7 +128,7 @@ class ServiceController extends Controller
         $service = Service::findOrFail($id);
 
         $validated = $request->validate([
-            'nomService' => 'sometimes|string|max:100',
+            'nom_service' => 'sometimes|string|max:100',
             'description' => 'sometimes|string',
         ]);
 

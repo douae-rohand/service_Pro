@@ -9,7 +9,8 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
-  }
+  },
+  timeout: 30000, // Timeout de 30 secondes pour éviter les erreurs sur connexions lentes
 });
 
 // Intercepteur pour ajouter le token d'authentification
@@ -38,6 +39,8 @@ api.interceptors.response.use(
         // Token invalide ou expiré
         localStorage.removeItem('token');
         delete api.defaults.headers.common['Authorization'];
+        
+        // Don't automatically redirect - let components handle auth errors
       }
       
       // Retourner l'erreur avec les détails du serveur
@@ -64,4 +67,3 @@ api.interceptors.response.use(
 );
 
 export default api;
-    

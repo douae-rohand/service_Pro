@@ -10,14 +10,12 @@ class Admin extends Model
     use HasFactory;
 
     protected $table = 'admin';
-
     protected $primaryKey = 'id';
-
     public $incrementing = false;
+    public $timestamps = true;
 
-    
-
-    protected $fillable = [];
+    protected $fillable = [
+    ];
 
     /**
      * Get the utilisateur record associated with the admin.
@@ -25,21 +23,5 @@ class Admin extends Model
     public function utilisateur()
     {
         return $this->belongsTo(Utilisateur::class, 'id', 'id');
-    }
-
-    /**
-     * Get the clients managed by this admin.
-     */
-    public function clients()
-    {
-        return $this->hasMany(Client::class, 'adminId', 'id');
-    }
-
-    /**
-     * Get the intervenants managed by this admin.
-     */
-    public function intervenants()
-    {
-        return $this->hasMany(Intervenant::class, 'adminId', 'id');
     }
 }

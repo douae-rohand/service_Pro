@@ -11,26 +11,28 @@ class TacheMateriel extends Pivot
 
     protected $table = 'tache_materiel';
 
-    
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = 'updated_at';
 
     protected $fillable = [
         'tache_id',
         'materiel_id',
-        'prix_materiel',
+        // 'prix_materiel',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'prix_materiel' => 'decimal:2',
-        ];
-    }
+    // protected function casts(): array
+    // {
+    //     return [
+    //         'prix_materiel' => 'decimal:2',
+    //     ];
+    // }
 
     /**
      * Get the tache that owns this record.
      */
     public function tache()
     {
+        return $this->belongsTo(Tache::class, 'tache_id', 'id');
         return $this->belongsTo(Tache::class, 'tache_id', 'id');
     }
 
@@ -39,6 +41,7 @@ class TacheMateriel extends Pivot
      */
     public function materiel()
     {
+        return $this->belongsTo(Materiel::class, 'materiel_id', 'id');
         return $this->belongsTo(Materiel::class, 'materiel_id', 'id');
     }
 }

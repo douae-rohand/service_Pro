@@ -11,13 +11,21 @@ class Justificatif extends Model
 
     protected $table = 'justificatif';
 
-    
-
     protected $fillable = [
+        'intervenant_id',
         'nom',
         'description',
         'type',
+        'chemin_fichier',
     ];
+
+    /**
+     * Get the intervenant that owns this justificatif.
+     */
+    public function intervenant()
+    {
+        return $this->belongsTo(Intervenant::class, 'intervenant_id', 'id');
+    }
 
     /**
      * Get the services that require this justificatif.

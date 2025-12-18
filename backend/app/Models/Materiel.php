@@ -11,12 +11,19 @@ class Materiel extends Model
 
     protected $table = 'materiel';
 
-    
-
     protected $fillable = [
-        'nom',
+        'nom_materiel',
         'description',
+        'service_id',
     ];
+
+    /**
+     * Get the service that owns this materiel.
+     */
+    public function service()
+    {
+        return $this->belongsTo(Service::class, 'service_id');
+    }
 
     /**
      * Get the taches that require this materiel.

@@ -46,6 +46,8 @@ Route::get('intervenants/{id}/services-with-activation', [IntervenantController:
 Route::post('intervenants/{id}/services/{serviceId}/toggle', [IntervenantController::class, 'toggleService']);
 Route::post('intervenants/{id}/services/{serviceId}/status', [IntervenantController::class, 'updateServiceStatus']);
 Route::post('intervenants/{id}/services/{serviceId}/materials', [IntervenantController::class, 'updateServiceMaterials']);
+Route::get('intervenants/{id}/services/{serviceId}/materials', [IntervenantController::class, 'getIntervenantMaterials']);
+Route::delete('intervenants/{id}/materials/{materialId}', [IntervenantController::class, 'deleteIntervenantMaterial']);
 Route::post('intervenants/{id}/services/{serviceId}/request-activation', [IntervenantController::class, 'requestActivation']);
 
 // ======================

@@ -85,6 +85,14 @@ const intervenantService = {
         return api.post(`intervenants/${intervenantId}/services/${serviceId}/materials`, { materials });
     },
 
+    getIntervenantMaterials(intervenantId, serviceId) {
+        return api.get(`intervenants/${intervenantId}/services/${serviceId}/materials`);
+    },
+
+    deleteIntervenantMaterial(intervenantId, materialId) {
+        return api.delete(`intervenants/${intervenantId}/materials/${materialId}`);
+    },
+
     /**
      * Update service status
      */

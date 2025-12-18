@@ -119,20 +119,33 @@
 
         <!-- Boutons d'action -->
         <div class="hidden md:flex items-center space-x-3">
+          <template v-if="!user">
+            <button
+              @click="handleLoginClick"
+              class="text-gray-700 font-medium px-5 py-2.5 rounded-lg transition-all duration-300 hover:text-[#4682B4] hover:bg-gray-50"
+            >
+              Se connecter
+            </button>
+            <button
+              @click="handleSignupClick"
+              class="text-white font-medium px-6 py-2.5 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+              style="background-color: #4682B4"
+              @mouseenter="$event.currentTarget.style.backgroundColor = '#7F9A78'"
+              @mouseleave="$event.currentTarget.style.backgroundColor = '#4682B4'"
+            >
+              S'inscrire
+            </button>
+          </template>
           <button
-            @click="handleLoginClick"
-            class="text-gray-700 font-medium px-5 py-2.5 rounded-lg transition-all duration-300 hover:text-[#4682B4] hover:bg-gray-50"
+            v-else
+            @click="$emit('dashboard-click')"
+            class="text-white font-medium px-6 py-2.5 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 flex items-center gap-2"
+            style="background-color: #92B08B"
           >
-            Se connecter
-          </button>
-          <button
-            @click="handleSignupClick"
-            class="text-white font-medium px-6 py-2.5 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
-            style="background-color: #4682B4"
-            @mouseenter="$event.currentTarget.style.backgroundColor = '#7F9A78'"
-            @mouseleave="$event.currentTarget.style.backgroundColor = '#4682B4'"
-          >
-            S'inscrire
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            Mon Espace
           </button>
         </div>
 
@@ -188,34 +201,34 @@
           Devenir un intervenant
         </a>
         <div class="pt-4 space-y-2 border-t border-gray-200">
+          <template v-if="!user">
+            <button
+              @click="handleLoginClick"
+              class="block w-full text-left py-3 px-4 text-gray-700 rounded-lg transition-all hover:bg-gray-50 hover:text-[#4682B4] font-medium"
+            >
+              Se connecter
+            </button>
+            <button
+              class="block w-full text-white px-4 py-3 rounded-lg transition-all shadow-md font-medium"
+              style="background-color: #4682B4"
+              @click="handleSignupClick"
+            >
+              S'inscrire
+            </button>
+          </template>
           <button
-            @click="handleLoginClick"
-            class="block w-full text-left py-3 px-4 text-gray-700 rounded-lg transition-all hover:bg-gray-50 hover:text-[#4682B4] font-medium"
-          >
-            Se connecter
-          </button>
-          <button
+            v-else
+            @click="$emit('dashboard-click')"
             class="block w-full text-white px-4 py-3 rounded-lg transition-all shadow-md font-medium"
-            style="background-color: #4682B4"
-            @click="handleSignupClick"
+            style="background-color: #92B08B"
           >
-            S'inscrire
+            Mon Espace
           </button>
         </div>
       </nav>
     </div>
 
-    <!-- Modals -->
-    <SignupModal
-      :is-open="isSignupModalOpen"
-      @close="isSignupModalOpen = false"
-      @verification-success="handleVerificationSuccess"
-    />
-    <LoginModal
-      :is-open="isLoginModalOpen"
-      @close="isLoginModalOpen = false"
-      @signup-click="handleSignupClick"
-    />
+    <!-- Les modals sont maintenant gérés par App.vue pour une meilleure cohérence de l'état -->
   </header>
 </template>
 
@@ -225,14 +238,12 @@ import SignupModal from './SignupModal.vue'
 import LoginModal from './LoginModal.vue'
 
 const props = defineProps({
-  onLoginClick: Function,
-  onSignupClick: Function,
-  onNavigateHome: Function, // Nouvelle prop pour la navigation vers home
+  user: Object
 })
 
+const emit = defineEmits(['login-click', 'signup-click', 'navigate-home', 'dashboard-click'])
+
 const isMenuOpen = ref(false)
-const isSignupModalOpen = ref(false)
-const isLoginModalOpen = ref(false)
 const activeLink = ref('home')
 
 const handleLogoClick = () => {
@@ -261,36 +272,20 @@ const handleNavClick = (link) => {
 
 const handleLoginClick = () => {
   isMenuOpen.value = false
-  if (props.onLoginClick) {
-    props.onLoginClick()
-  } else {
-    isLoginModalOpen.value = true
-  }
+  emit('login-click')
 }
 
 const handleSignupClick = () => {
   isMenuOpen.value = false
-  if (props.onSignupClick) {
-    props.onSignupClick()
-  } else {
-    isSignupModalOpen.value = true
-  }
+  emit('signup-click')
 }
 
 const handleVerificationSuccess = () => {
-  isSignupModalOpen.value = false
-  isLoginModalOpen.value = true
+  emit('signup-click') // or just close
 }
 
 const handleNavigateHome = () => {
-  // Réinitialiser tout l'état et retourner à la page d'accueil
-  currentPage.value = 'home'
-  selectedService.value = null
-  selectedTaskId.value = null
-  selectedIntervenantData.value = null
-  selectedIntervenantId.value = null
-  previousPage.value = 'home'
-  window.scrollTo({ top: 0, behavior: 'smooth' })
+  emit('navigate-home')
 }
 </script>
 

@@ -277,7 +277,7 @@ const props = defineProps({
   onSignupClick: Function,
 })
 
-const emit = defineEmits(['close', 'signup-click', 'admin-login'])
+const emit = defineEmits(['close', 'signup-click', 'admin-login', 'login-success'])
 const router = useRouter()
 const view = ref('login') // 'login', 'forgot-email', 'forgot-code', 'forgot-password'
 
@@ -334,20 +334,8 @@ const handleSubmit = async () => {
       // Récupérer les données utilisateur
       const user = response.data.user
       
+      emit('login-success', user)
       handleClose()
-      
-      // Redirection selon le type
-      if (user.intervenant) {
-        router.push('/dashboard')
-      } else if (user.client) {
-        alert('Connexion réussie !')
-        window.location.reload()
-      } else if (user.admin) {
-        emit('admin-login', user)
-        handleClose()
-      } else {
-        alert('Connexion réussie !')
-      }
     }
   } catch (error) {
     console.error('Erreur de connexion:', error)

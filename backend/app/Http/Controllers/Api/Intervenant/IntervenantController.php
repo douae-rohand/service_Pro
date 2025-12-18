@@ -22,63 +22,57 @@ class IntervenantController extends Controller
      */
     public function index(Request $request)
     {
-        // Optimiser le chargement : ne charger que les relations nécessaires
-        $query = Intervenant::with([
-            'utilisateur:id,nom,prenom,address,url',
-            'taches',
-            'taches.service:id,nom_service',
-            'services'
-        ]);
+        try {
+            // Optimiser le chargement : charger toutes les relations nécessaires
+            $query = Intervenant::with([
+                'utilisateur',
+                'taches',
+                'taches.service:id,nom_service',
+                'services',
+                'interventions.evaluations' => function ($q) {
+                    $q->where('type_auteur', 'client');
+                }
+            ]);
 
-        // Filtrer les intervenants actifs uniquement si demandé
-        if ($request->has('active') && $request->active == 'true') {
-            $query->active();
-        }
+            // Filtrer les intervenants actifs uniquement si demandé
+            if ($request->has('active') && $request->active == 'true') {
+                $query->active();
+            }
 
-        // Filtrer par tâche spécifique (intervenants pouvant effectuer une tâche)
-        if ($request->has('tacheId')) {
-            $query->whereHas('taches', function ($q) use ($request) {
-                $q->where('id', $request->tacheId);
+            // Filtrer par tâche spécifique
+            if ($request->has('tacheId')) {
+                $query->whereHas('taches', function ($q) use ($request) {
+                    $q->where('id', $request->tacheId);
+                });
+            }
+
+            // Filtrer par service
+            $serviceId = $request->input('serviceId') ?: $request->input('service_id');
+            if ($serviceId && $serviceId != 'all') {
+                $query->whereHas('taches', function ($q) use ($serviceId) {
+                    $q->where('service_id', $serviceId);
+                });
+            }
+
+            $intervenants = $query->get();
+
+            // Transformation
+            $intervenants->transform(function ($intervenant) {
+                $ratingInfo = $intervenant->getRatingInfo();
+                $intervenant->average_rating = $ratingInfo['average_rating'];
+                $intervenant->review_count = $ratingInfo['review_count'];
+                $intervenant->interv_count = $intervenant->interventions->count();
+                
+                // Nettoyer la relation pour JSON
+                unset($intervenant->interventions);
+                return $intervenant;
             });
+
+            return response()->json($intervenants);
+        } catch (\Exception $e) {
+            Log::error('Index error: ' . $e->getMessage());
+            return response()->json(['error' => 'Server error', 'message' => $e->getMessage()], 500);
         }
-
-        // Filtrer par service si spécifié - optimisé
-        $serviceId = $request->input('serviceId') ?: $request->input('service_id');
-        if ($serviceId) {
-            $query->whereHas('taches', function ($q) use ($serviceId) {
-                $q->where('service_id', $serviceId);
-            });
-        }
-
-        // Optimisation : Eager loading des interventions et leurs évaluations pour éviter le N+1
-        $query->with(['interventions.evaluations' => function ($q) {
-            $q->where('type_auteur', 'client');
-        }]);
-
-        // Sélectionner uniquement les colonnes nécessaires
-        $intervenants = $query->select('intervenant.id', 'intervenant.ville', 'intervenant.bio', 'intervenant.is_active')
-            ->get();
-
-        // Calculer la note moyenne et le nombre d'avis en mémoire pour éviter les requêtes SQL en boucle
-        foreach ($intervenants as $intervenant) {
-            // Récupérer toutes les notes des évaluations clients de cet intervenant via ses interventions
-            // On utilise flatMap pour récupérer toutes les évaluations de toutes les interventions
-            $evaluations = $intervenant->interventions->flatMap(function ($intervention) {
-                return $intervention->evaluations;
-            });
-            
-            $count = $evaluations->count();
-            $avg = $count > 0 ? $evaluations->avg('note') : 0;
-            
-            $intervenant->average_rating = round($avg, 1);
-            $intervenant->review_count = $count;
-            $intervenant->interv_count = $intervenant->interventions->count();
-            
-            // Nettoyer la relation pour ne pas renvoyer de données inutiles en JSON
-            unset($intervenant->interventions);
-        }
-
-        return response()->json($intervenants);
     }
 
     /**
@@ -454,7 +448,7 @@ class IntervenantController extends Controller
         
         // Load relationships AFTER pagination
     $intervenants->load([
-        'utilisateur:id,nom,prenom,address,url',
+        'utilisateur',
         'taches',
         'taches.service:id,nom_service',
         'services',

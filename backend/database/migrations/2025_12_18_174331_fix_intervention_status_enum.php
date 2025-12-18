@@ -15,7 +15,7 @@ return new class extends Migration
             // Change status from enum to string to allow more flexible status values
             // and avoid "Data truncated" errors when frontend sends values not in original enum.
             $table->string('status', 50)->default('en_attente')->change();
-            $table->text('description')->nullable();
+            // $table->text('description')->nullable(); // Already added by previous migration
         });
     }
 

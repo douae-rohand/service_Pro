@@ -485,12 +485,18 @@ function backToServices() {
 async function toggleFavorite(iv, event) {
   if (event) event.stopPropagation();
   
+  console.log('❤️ Toggle favorite for:', iv.id, 'Client:', props.clientId);
+  
   try {
-    // We need service ID. We are in context of 'selectedTask' which belongs to 'selectedService'
     const serviceId = selectedService.value?.id;
-    if (!serviceId) return;
+    if (!serviceId) {
+      console.warn('⚠️ No service selected, cannot favorite');
+      return;
+    }
 
-    // Optimistic update (adding a temporary property to the list item)
+    console.log('📤 Sending favorite request for service:', serviceId);
+
+    // Optimistic update
     iv.is_favorite = !iv.is_favorite;
 
     const res = await api.post(`clients/${props.clientId}/favorites`, {

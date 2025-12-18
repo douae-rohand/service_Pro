@@ -163,6 +163,11 @@
 import { Heart, Star, MapPin, Calendar, AlertCircle } from 'lucide-vue-next';
 import favoriteService from '@/services/favoriteService';
 import BookingModal from './BookingModal.vue';
+import api from '@/services/api';
+
+// Base URL of backend (without the `/api` suffix used for API routes)
+const API_BASE_URL = (api.defaults.baseURL || '').replace(/\/+$/, '');
+const BACKEND_BASE_URL = API_BASE_URL.replace(/\/api$/, '');
 
 export default {
   name: 'MyFavoritesTab',
@@ -192,6 +197,22 @@ export default {
     this.loadFavorites();
   },
   methods: {
+    buildImageUrl(photoPath) {
+      // If nothing is provided, return a placeholder
+      if (!photoPath) {
+        return 'https://via.placeholder.com/150';
+      }
+
+      // Absolute URL: return as-is
+      if (/^https?:\/\//i.test(photoPath)) {
+        return photoPath;
+      }
+
+      // Relative path from Laravel storage/public
+      const base = BACKEND_BASE_URL || '';
+      const normalizedPath = photoPath.startsWith('/') ? photoPath : `/${photoPath}`;
+      return `${base}${normalizedPath}`;
+    },
     async loadFavorites() {
       this.loading = true;
       this.error = null;

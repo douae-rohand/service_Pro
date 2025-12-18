@@ -82,7 +82,7 @@
                 </div>
                 <div class="timing-item">
                   <span class="t-label">Durée</span>
-                  <span class="t-value">2 heures (estimé)</span>
+                  <span class="t-value">{{ intervention.duration_hours || 'N/A' }} h (estimé)</span>
                 </div>
               </div>
             </div>

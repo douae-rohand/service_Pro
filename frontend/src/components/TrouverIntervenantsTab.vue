@@ -518,31 +518,10 @@ export default {
     },
     
     filteredIntervenants() {
-      return this.intervenants.filter(intervenant => {
-        // Price filter
-        const price = this.getIntervenantPrice(intervenant);
-        if (price < this.priceRange[0] || price > this.priceRange[1]) {
-          return false;
-        }
-        
-        // Rating filter
-        if (this.minRating !== 'all' && typeof this.minRating === 'number') {
-          const rating = parseFloat(this.getIntervenantRating(intervenant));
-          if (rating < this.minRating) {
-            return false;
-          }
-        }
-        
-        // Multiple services filter
-        if (this.selectedServices.length > 0) {
-          const intervenantServiceIds = this.getIntervenantServiceIds(intervenant);
-          if (!this.selectedServices.some(serviceId => intervenantServiceIds.includes(serviceId))) {
-            return false;
-          }
-        }
-        
-        return true;
-      });
+      // Return all intervenants from the API. 
+      // Filtering is already handled by the backend request in loadIntervenants().
+      // Client-side filtering here was causing issues (e.g., hidden intervenants due to priceRange default).
+      return this.intervenants;
     },
     
     sortedIntervenants() {
@@ -600,7 +579,7 @@ export default {
       try {
         // Charger les services
         const servicesResponse = await serviceService.getAll();
-        this.services = servicesResponse.data || [];
+        this.services = servicesResponse.data?.data ?? servicesResponse.data ?? [];
         
         // Charger les intervenants
         await this.loadIntervenants(1);
@@ -944,19 +923,25 @@ export default {
     },
     
     getSelectedServiceName() {
+      let serviceName = 'jardinage'; // Default fallback
+      
       if (this.serviceFilter !== 'all' && this.serviceFilter) {
         const selected = this.services.find(s => s.id == this.serviceFilter);
-        if (selected) return selected.nom_service.toLowerCase();
+        if (selected) serviceName = selected.nom_service.toLowerCase();
+      } else {
+        const intervenant = this.intervenants.find(iv => iv.id === this.selectedIntervenantId);
+        if (intervenant && intervenant.taches && intervenant.taches.length > 0) {
+          const tache = intervenant.taches[0];
+          const service = tache.service || this.services.find(s => s.id === (tache.service_id || tache.pivot?.service_id));
+          if (service) serviceName = service.nom_service.toLowerCase();
+        }
       }
       
-      const intervenant = this.intervenants.find(iv => iv.id === this.selectedIntervenantId);
-      if (intervenant && intervenant.taches && intervenant.taches.length > 0) {
-        const tache = intervenant.taches[0];
-        const service = tache.service || this.services.find(s => s.id === (tache.service_id || tache.pivot?.service_id));
-        if (service) return service.nom_service.toLowerCase();
-      }
+      // Simplifier pour le validateur du composant profile (pas d'accents)
+      if (serviceName.includes('jardin')) return 'jardinage';
+      if (serviceName.includes('ménage') || serviceName.includes('menage')) return 'menage';
       
-      return 'jardinage'; // Default fallback
+      return 'jardinage';
     },
     
     showToastMessage(message, type = 'success') {

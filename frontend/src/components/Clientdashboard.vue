@@ -25,6 +25,7 @@
         :sidebar-visible="sidebarVisible"
         @logout="logout"
         @toggle-sidebar="toggleSidebar"
+        @nav-change="handleNavChange"
       />
 
       <!-- Main Content -->

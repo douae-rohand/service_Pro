@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Intervention;
 use App\Models\PhotoIntervention;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class InterventionController extends Controller
 {
@@ -79,6 +80,7 @@ class InterventionController extends Controller
             'client.utilisateur',
             'intervenant.utilisateur',
             'tache.service',
+            'tache.materiels', 
             'photos',
             'evaluations.critaire',
             'commentaires',
@@ -86,6 +88,38 @@ class InterventionController extends Controller
             'materiels',
             'informations'
         ])->findOrFail($id);
+
+        // Privacy Filter for evaluations and comments
+        $isPublic = $intervention->areRatingsPublic();
+        $currentUser = Auth::user();
+        
+        // Determine the role of the current user for this specific intervention
+        $isAuthorClient = $currentUser && $currentUser->userable_type === 'App\Models\Client' && $currentUser->userable_id === $intervention->client_id;
+        $isAuthorIntervenant = $currentUser && $currentUser->userable_type === 'App\Models\Intervenant' && $currentUser->userable_id === $intervention->intervenant_id;
+
+        if (!$isPublic) {
+            // Filter evaluations: Only keep ones written by current user
+            $intervention->setRelation('evaluations', $intervention->evaluations->filter(function ($e) use ($isAuthorClient, $isAuthorIntervenant) {
+                if ($isAuthorClient && $e->type_auteur === 'client') return true;
+                if ($isAuthorIntervenant && $e->type_auteur === 'intervenant') return true;
+                return false;
+            }));
+
+            // Filter comments
+            $intervention->setRelation('commentaires', $intervention->commentaires->filter(function ($c) use ($isAuthorClient, $isAuthorIntervenant) {
+                if ($isAuthorClient && $c->type_auteur === 'client') return true;
+                if ($isAuthorIntervenant && $c->type_auteur === 'intervenant') return true;
+                return false;
+            }));
+        }
+
+        // Add additional metadata for the frontend to explain the privacy state
+        $intervention->ratings_meta = [
+            'is_public' => $isPublic,
+            'client_has_rated' => \App\Models\Evaluation::where('intervention_id', $id)->where('type_auteur', 'client')->exists(),
+            'intervenant_has_rated' => \App\Models\Evaluation::where('intervention_id', $id)->where('type_auteur', 'intervenant')->exists(),
+            'window_expiry' => $intervention->status === 'termine' ? $intervention->updated_at->addDays(7)->toDateTimeString() : null
+        ];
 
         return response()->json($intervention);
     }
@@ -171,9 +205,13 @@ class InterventionController extends Controller
         $intervention = Intervention::findOrFail($id);
 
         $validated = $request->validate([
-            'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120', // Increased to 5MB
             'description' => 'nullable|string',
+            'phase_prise' => 'nullable|string|in:avant,apres',
         ]);
+
+        // Déterminer la phase par défaut si non fournie
+        $phase = $validated['phase_prise'] ?? ($intervention->status === 'termine' ? 'apres' : 'avant');
 
         // Stocker la photo
         $path = $request->file('photo')->store('interventions', 'public');
@@ -181,6 +219,7 @@ class InterventionController extends Controller
         $photo = PhotoIntervention::create([
             'intervention_id' => $intervention->id,
             'photo_path' => $path,
+            'phase_prise' => $phase,
             'description' => $validated['description'] ?? null,
         ]);
 

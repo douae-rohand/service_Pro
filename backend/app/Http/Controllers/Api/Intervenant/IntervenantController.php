@@ -1224,7 +1224,7 @@ class IntervenantController extends Controller
             return [
                 'id' => $intervention->id,
                 'clientName' => $clientUser ? ($clientUser->nom . ' ' . $clientUser->prenom) : 'Client inconnu',
-                'clientImage' => $clientUser->photo ?? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop',
+                'clientImage' => $clientUser->profile_photo ?? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop',
                 'service' => $tache && $tache->service ? $tache->service->nom_service : 'Service inconnu',
                 'task' => $tache ? $tache->nom_tache : 'Tâche inconnue',
                 'date' => date('Y-m-d', strtotime($intervention->date_intervention)),
@@ -1304,7 +1304,21 @@ class IntervenantController extends Controller
         $intervention->status = 'acceptee';
         $intervention->save();
 
-        return response()->json(['message' => 'Réservation acceptée avec succès']);
+        // Envoyer l'email de confirmation à l'intervenant avec toutes les infos
+        try {
+            $intervention->load(['client.utilisateur', 'intervenant.utilisateur', 'tache.service']);
+            \Illuminate\Support\Facades\Mail::to($intervenant->email)->send(new \App\Mail\InterventionAccepted($intervention));
+            return response()->json([
+                'message' => 'Réservation acceptée avec succès. Un email contenant les détails complets vous a été envoyé.',
+                'mail_sent' => true
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error sending intervention acceptance mail: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Réservation acceptée avec succès, mais l\'email de notification n\'a pas pu être envoyé.',
+                'mail_sent' => false
+            ]);
+        }
     }
 
     /**

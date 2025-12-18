@@ -24,7 +24,8 @@ class IntervenantController extends Controller
         $query = Intervenant::with([
             'utilisateur:id,nom,prenom,address',
             'taches:id,nom_tache,service_id',
-            'taches.service:id,nom_service'
+            'taches.service:id,nom_service',
+            'services'
         ]);
 
         // Filtrer les intervenants actifs uniquement si demandé
@@ -46,15 +47,31 @@ class IntervenantController extends Controller
             });
         }
 
+        // Optimisation : Eager loading des interventions et leurs évaluations pour éviter le N+1
+        $query->with(['interventions.evaluations' => function ($q) {
+            $q->where('type_auteur', 'client');
+        }]);
+
         // Sélectionner uniquement les colonnes nécessaires
         $intervenants = $query->select('intervenant.id', 'intervenant.ville', 'intervenant.bio', 'intervenant.is_active')
             ->get();
 
-        // Calculer la note moyenne et le nombre d'avis pour chaque intervenant
+        // Calculer la note moyenne et le nombre d'avis en mémoire pour éviter les requêtes SQL en boucle
         foreach ($intervenants as $intervenant) {
-            $ratingInfo = $intervenant->getRatingInfo();
-            $intervenant->average_rating = $ratingInfo['average_rating'];
-            $intervenant->review_count = $ratingInfo['review_count'];
+            // Récupérer toutes les notes des évaluations clients de cet intervenant via ses interventions
+            // On utilise flatMap pour récupérer toutes les évaluations de toutes les interventions
+            $evaluations = $intervenant->interventions->flatMap(function ($intervention) {
+                return $intervention->evaluations;
+            });
+            
+            $count = $evaluations->count();
+            $avg = $count > 0 ? $evaluations->avg('note') : 0;
+            
+            $intervenant->average_rating = round($avg, 1);
+            $intervenant->review_count = $count;
+            
+            // Nettoyer la relation pour ne pas renvoyer de données inutiles en JSON
+            unset($intervenant->interventions);
         }
 
         return response()->json($intervenants);
@@ -70,11 +87,19 @@ class IntervenantController extends Controller
             'address' => 'nullable|string',
             'ville' => 'nullable|string|max:100',
             'bio' => 'nullable|string',
-            'isActive' => 'nullable|boolean',
-            'adminId' => 'nullable|exists:admin,id',
+            'is_active' => 'nullable|boolean',
+            'admin_id' => 'nullable|exists:admin,id',
         ]);
 
-        $intervenant = Intervenant::create($validated);
+        // Support legacy camelCase payloads
+        $intervenant = Intervenant::create([
+            'id' => $validated['id'],
+            'address' => $validated['address'] ?? $request->input('address'),
+            'ville' => $validated['ville'] ?? $request->input('ville'),
+            'bio' => $validated['bio'] ?? $request->input('bio'),
+            'is_active' => $validated['is_active'] ?? $request->boolean('isActive'),
+            'admin_id' => $validated['admin_id'] ?? $request->input('adminId'),
+        ]);
 
         return response()->json([
             'message' => 'Intervenant créé avec succès',
@@ -85,25 +110,40 @@ class IntervenantController extends Controller
     /**
      * Display the specified intervenant
      */
-    public function show($id)
-    {
-        $intervenant = Intervenant::with([
-            'utilisateur',
-            'admin.utilisateur',
-            'interventions',
-            'disponibilites',
-            'taches',
-            'materiels',
-            'clientsFavoris.utilisateur'
-        ])->findOrFail($id);
+        public function show($id)
+        {
+            $intervenant = Intervenant::with([
+                'utilisateur:id,nom,prenom,address',
+                'taches:id,nom_tache,service_id',
+                'taches.service:id,nom_service',
+                'services',
+                'interventions' => function($q) {
+                    $q->orderBy('date_intervention', 'desc');
+                },
+                'interventions.photos',
+                'interventions.evaluations' => function($q) {
+                    $q->where('type_auteur', 'client');
+                },
+                'interventions.commentaires' => function($q) {
+                    $q->where('type_auteur', 'client');
+                },
+                'interventions.client.utilisateur:id,nom,prenom',
+                'disponibilites'
+            ])->find($id);
 
-        // Calculer la note moyenne et le nombre d'avis
-        $ratingInfo = $intervenant->getRatingInfo();
-        $intervenant->average_rating = $ratingInfo['average_rating'];
-        $intervenant->review_count = $ratingInfo['review_count'];
+            if (!$intervenant) {
+                return response()->json([
+                    'message' => 'Intervenant introuvable'
+                ], 404);
+            }
 
-        return response()->json($intervenant);
-    }
+            $ratingInfo = $intervenant->getRatingInfo();
+            $intervenant->average_rating = $ratingInfo['average_rating'];
+            $intervenant->review_count = $ratingInfo['review_count'];
+
+            return response()->json($intervenant);
+        }
+
 
     /**
      * Update the specified intervenant
@@ -116,11 +156,17 @@ class IntervenantController extends Controller
             'address' => 'nullable|string',
             'ville' => 'nullable|string|max:100',
             'bio' => 'nullable|string',
-            'isActive' => 'nullable|boolean',
-            'adminId' => 'nullable|exists:admin,id',
+            'is_active' => 'nullable|boolean',
+            'admin_id' => 'nullable|exists:admin,id',
         ]);
 
-        $intervenant->update($validated);
+        $intervenant->update([
+            'address' => $validated['address'] ?? $request->input('address'),
+            'ville' => $validated['ville'] ?? $request->input('ville'),
+            'bio' => $validated['bio'] ?? $request->input('bio'),
+            'is_active' => $validated['is_active'] ?? $request->boolean('isActive'),
+            'admin_id' => $validated['admin_id'] ?? $request->input('adminId'),
+        ]);
 
         return response()->json([
             'message' => 'Intervenant mis à jour avec succès',
@@ -394,6 +440,16 @@ class IntervenantController extends Controller
 
     $intervenant = $user->intervenant;
 
+    // Validate request first before using any validated data
+    $validated = $request->validate([
+        'description' => 'sometimes|string',
+        'hourlyRate' => 'sometimes|numeric|min:0',
+        'materials' => 'sometimes|array',
+        'materials.*.name' => 'required|string',
+        'materials.*.price' => 'required|numeric|min:0',
+        'active' => 'sometimes|boolean',
+    ]);
+
     // Check if the intervenant has this tache, if not create the relationship
     $tache = $intervenant->taches()->find($tacheId);
 
@@ -418,15 +474,6 @@ class IntervenantController extends Controller
         // Get the newly attached task
         $tache = $intervenant->taches()->find($tacheId);
     }
-
-    $validated = $request->validate([
-        'description' => 'sometimes|string',
-        'hourlyRate' => 'sometimes|numeric|min:0',
-        'materials' => 'sometimes|array',
-        'materials.*.name' => 'required|string',
-        'materials.*.price' => 'required|numeric|min:0',
-        'active' => 'sometimes|boolean',
-    ]);
 
     // Update pivot data
     $pivotData = [];

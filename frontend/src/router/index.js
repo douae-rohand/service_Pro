@@ -5,6 +5,12 @@ const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
     routes: [
         {
+            path: '/',
+            name: 'home',
+            // App.vue gère déjà la navigation manuellement, donc on ne rend rien ici
+            component: { template: '<div></div>' }
+        },
+        {
             path: '/dashboard',
             name: 'dashboard',
             component: IntervenantDashboard,

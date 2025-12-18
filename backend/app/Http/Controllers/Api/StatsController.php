@@ -20,42 +20,35 @@ class StatsController extends Controller
     public function index()
     {
         try {
-            // Compter tous les clients (Clients Satisfaits)
-            $totalClients = Client::count();
-            $activeClients = Client::where('is_active', true)->count();
-            $nullClients = Client::whereNull('is_active')->count();
-            
-            // Utiliser les clients actifs ou tous les clients si aucun n'est marqué actif
-            $satisfiedClients = $activeClients > 0 ? $activeClients : ($nullClients > 0 ? $nullClients : $totalClients);
+            // Mettre en cache les statistiques pour 60 minutes
+            $stats = \Illuminate\Support\Facades\Cache::remember('homepage_stats', 3600, function () {
+                // Compter les clients (Clients Satisfaits)
+                // Optimisation: Une seule requête pour compter
+                $satisfiedClients = Client::where('is_active', true)->count();
+                if ($satisfiedClients === 0) {
+                    $satisfiedClients = Client::count();
+                }
 
-            // Compter tous les intervenants (Intervenants Qualifiés)
-            $totalIntervenants = Intervenant::count();
-            $activeIntervenants = Intervenant::where('is_active', true)->count();
-            $nullIntervenants = Intervenant::whereNull('is_active')->count();
-            
-            // Utiliser les intervenants actifs ou tous les intervenants si aucun n'est marqué actif
-            $qualifiedIntervenants = $activeIntervenants > 0 ? $activeIntervenants : ($nullIntervenants > 0 ? $nullIntervenants : $totalIntervenants);
+                // Compter les intervenants (Intervenants Qualifiés)
+                $qualifiedIntervenants = Intervenant::where('is_active', true)->count();
+                if ($qualifiedIntervenants === 0) {
+                    $qualifiedIntervenants = Intervenant::count();
+                }
 
-            // Compter les interventions terminées (Services Complétés)
-            $completedServices = Intervention::where('status', 'terminée')->count();
-            $totalInterventions = Intervention::count();
-            
-            // Si aucune intervention terminée, compter toutes les interventions
-            if ($completedServices === 0) {
-                $completedServices = $totalInterventions;
-            }
+                // Compter les interventions terminées (Services Complétés)
+                $completedServices = Intervention::where('status', 'terminée')->count();
+                if ($completedServices === 0) {
+                    $completedServices = Intervention::count();
+                }
 
-            \Log::info('Stats calculées', [
-                'satisfied_clients' => $satisfiedClients,
-                'qualified_intervenants' => $qualifiedIntervenants,
-                'completed_services' => $completedServices,
-            ]);
+                return [
+                    'satisfied_clients' => (int) $satisfiedClients,
+                    'qualified_intervenants' => (int) $qualifiedIntervenants,
+                    'completed_services' => (int) $completedServices,
+                ];
+            });
 
-            return response()->json([
-                'satisfied_clients' => (int) $satisfiedClients,
-                'qualified_intervenants' => (int) $qualifiedIntervenants,
-                'completed_services' => (int) $completedServices,
-            ]);
+            return response()->json($stats);
         } catch (\Exception $e) {
             // En cas d'erreur, retourner des valeurs par défaut
             \Log::error('Erreur dans StatsController: ' . $e->getMessage(), [

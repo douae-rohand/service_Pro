@@ -10,15 +10,16 @@ class Evaluation extends Model
     use HasFactory;
 
     protected $table = 'evaluation';
+    protected $primaryKey = 'id';
 
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = 'updated_at';
 
     protected $fillable = [
         'note',
-        'interventionId',
-        'critaireId',
-        'typeAutheur',
+        'intervention_id',
+        'critaire_id',
+        'type_auteur',
     ];
 
     protected function casts(): array

@@ -36,7 +36,7 @@
               <h1 class="text-5xl" :style="{ color: currentService.color }">
                 Service de {{ currentService.name }}
               </h1>
-              <p class="text-gray-700 mt-2 text-lg">
+              <p class="text-gray-700 mt-2 text-lg ">
                 Découvrez toutes nos tâches et nos meilleurs intervenants
               </p>
             </div>
@@ -82,7 +82,7 @@
               <button 
                 class="w-full py-3 rounded-lg text-white transition-all hover:opacity-90 flex items-center justify-center gap-2"
                 :style="{ backgroundColor: currentService.color }"
-                @click="$emit('task-click', task.name)"
+                @click="$emit('task-click', { taskId: task.id, taskName: task.name })"
               >
                 <CheckCircle :size="18" />
                 Réserver
@@ -121,16 +121,8 @@
                 />
                 <div class="flex-1">
                   <h3 class="text-lg">{{ intervenant.name }}</h3>
-                  <span
-                    v-if="intervenant.verified"
-                    class="text-xs px-2 py-1 rounded-full inline-block mt-1"
-                    :style="{
-                      backgroundColor: currentService.color,
-                      color: 'white',
-                    }"
-                  >
-                    ✓ Vérifié
-                  </span>
+                  <p class="text-sm text-gray-600 font-medium">{{ formatExperience(intervenant.experience) }} d'expérience</p>
+                  
                   <div class="flex items-center gap-2 mt-2">
                     <Star :size="16" class="fill-yellow-400 text-yellow-400" />
                     <span>{{ intervenant.rating }}</span>
@@ -205,6 +197,7 @@
 import { ArrowLeft, Star, MapPin, CheckCircle } from 'lucide-vue-next';
 import serviceService from '@/services/serviceService';
 import intervenantService from '@/services/intervenantService';
+import { formatExperience } from '@/utils/experienceFormatter';
 
 export default {
   name: 'ServiceDetailPage',
@@ -358,6 +351,12 @@ export default {
             }
           }
           
+          // Trouver l'expérience pour ce service spécifique
+          const userServices = intervenant.services || [];
+          // this.service est l'ID du service actuel
+          const currentServiceInfo = userServices.find(s => s.id == serviceId);
+          const realExperience = currentServiceInfo?.pivot?.experience || 'Pas';
+
           return {
             id: intervenant.id,
             name: `${utilisateur.nom || ''} ${utilisateur.prenom || ''}`.trim() || 'Intervenant',
@@ -368,6 +367,7 @@ export default {
             image: intervenant.image_url || utilisateur.photo || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=150&h=150&fit=crop',
             verified: intervenant.is_active !== false,
             specialties: specialties,
+            experience: realExperience, // Ajout de l'expérience réelle
           };
         });
         
@@ -387,7 +387,8 @@ export default {
         console.error('Erreur lors du chargement des intervenants:', error);
         this.intervenants = [];
       }
-    }
+    },
+    formatExperience
   }
 };
 </script>

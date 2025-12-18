@@ -390,7 +390,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Plus, Trash2, FileText, AlertCircle, Upload, Send, X, Archive } from 'lucide-vue-next'
+import { Plus, Trash2, FileText, AlertCircle, Upload, Send, X, Archive, Check } from 'lucide-vue-next'
 import authService from '@/services/authService'
 import intervenantService from '@/services/intervenantService'
 import intervenantTacheService from '@/services/intervenantTacheService'

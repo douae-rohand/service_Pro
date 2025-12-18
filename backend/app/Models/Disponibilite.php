@@ -14,6 +14,10 @@ class Disponibilite extends Model
     const CREATED_AT = 'created_at';
     const UPDATED_AT = 'updated_at';
 
+    protected $primaryKey = 'id';
+    public $timestamps = true;
+
+
     protected $fillable = [
         'type',
         'heure_debut',
@@ -37,6 +41,10 @@ class Disponibilite extends Model
      */
     public function intervenant()
     {
-        return $this->belongsTo(Intervenant::class, 'intervenant_id', 'id');
+        return $this->belongsTo(
+            Intervenant::class,
+            'intervenant_id', // ✅ même colonne
+            'id'
+        );
     }
 }

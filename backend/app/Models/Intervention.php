@@ -11,6 +11,7 @@ class Intervention extends Model
     use HasFactory;
 
     protected $table = 'intervention';
+    protected $primaryKey = 'id';
 
     const CREATED_AT = 'created_at';
     const UPDATED_AT = 'updated_at';
@@ -49,7 +50,7 @@ class Intervention extends Model
     }
 
     /**
-     * Get the tache associated with this intervention.
+     * Get the tache for this intervention.
      */
     public function tache()
     {
@@ -59,9 +60,12 @@ class Intervention extends Model
     /**
      * Get the photos for this intervention.
      */
+    /**
+     * Get the photos for this intervention.
+     */
     public function photos()
     {
-        return $this->hasMany(PhotoIntervention::class, 'interventionId', 'id');
+        return $this->hasMany(PhotoIntervention::class, 'intervention_id', 'id');
     }
 
     /**
@@ -77,7 +81,7 @@ class Intervention extends Model
      */
     public function commentaires()
     {
-        return $this->hasMany(Commentaire::class, 'interventionId', 'id');
+        return $this->hasMany(Commentaire::class, 'intervention_id', 'id');
     }
 
     /**
@@ -85,7 +89,20 @@ class Intervention extends Model
      */
     public function facture()
     {
-        return $this->hasOne(Facture::class, 'interventionId', 'id');
+        return $this->hasOne(Facture::class, 'intervention_id', 'id');
+    }
+
+    /**
+     * Get the materiels used in this intervention.
+     */
+    public function materiels()
+    {
+        return $this->belongsToMany(
+            Materiel::class,
+            'intervention_materiel',
+            'intervention_id',
+            'materiel_id'
+        )->withTimestamps();
     }
 
     /**
@@ -99,19 +116,6 @@ class Intervention extends Model
             'intervention_id',
             'information_id'
         )->withPivot('information', 'created_at', 'updated_at');
-    }
-
-    /**
-     * Get the materiels used in this intervention.
-     */
-    public function materiels()
-    {
-        return $this->belongsToMany(
-            Materiel::class,
-            'intervention_materiel',
-            'intervention_id',
-            'materiel_id'
-        )->withPivot('created_at', 'updated_at');
     }
 
     /**
@@ -136,7 +140,7 @@ class Intervention extends Model
      */
     public function scopeCompleted(Builder $query): Builder
     {
-        return $query->where('status', 'terminée');
+        return $query->where('status', 'termine');
     }
 
     /**
@@ -144,6 +148,6 @@ class Intervention extends Model
      */
     public function scopePending(Builder $query): Builder
     {
-        return $query->where('status', 'en attente');
+        return $query->where('status', 'en attend');
     }
 }

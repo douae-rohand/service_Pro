@@ -11,12 +11,11 @@ class Critaire extends Model
 
     protected $table = 'critaire';
 
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = 'updated_at';
 
     protected $fillable = [
-        'nom',
-        'description',
+        'nom_critaire',
     ];
 
     /**

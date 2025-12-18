@@ -27,7 +27,7 @@ class IntervenantMateriel extends Pivot
      */
     public function intervenant()
     {
-        return $this->belongsTo(Intervenant::class, 'idIntervenant', 'id');
+        return $this->belongsTo(Intervenant::class, 'intervenant_id', 'id');
     }
 
     /**
@@ -35,6 +35,6 @@ class IntervenantMateriel extends Pivot
      */
     public function materiel()
     {
-        return $this->belongsTo(Materiel::class, 'idMateriel', 'id');
+        return $this->belongsTo(Materiel::class, 'materiel_id', 'id');
     }
 }

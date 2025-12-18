@@ -320,7 +320,7 @@
         <!-- Show materials form or toggle button -->
         <div v-if="!materialsFormVisible[serviceId]" class="form-actions">
           <button 
-            @click="materialsFormVisible[serviceId] = true"
+            @click="loadServiceMaterials(serviceId)"
             class="btn-save-task"
             :style="{ backgroundColor: getServiceColor(serviceId) }"
           >
@@ -335,36 +335,27 @@
             class="service-material-item"
           >
             <div class="material-header">
-              <span class="material-name">{{ material }}</span>
-              <input
-                type="number"
-                v-model="serviceMaterialPrices[`${serviceId}-${material}`]"
-                placeholder="Prix"
-                min="0"
-                step="0.01"
-                class="price-field"
-              />
-              <span class="price-suffix">DH</span>
-            </div>
-            <div class="material-tasks">
-              <label class="task-checkbox-label">
-                <span class="checkbox-title">Appliquer aux sous-services :</span>
-              </label>
-              <div class="tasks-checkboxes">
-                <label
-                  v-for="task in getTasksByService(serviceId)"
-                  :key="task.id"
-                  class="task-checkbox-item"
-                >
-                  <input
-                    type="checkbox"
-                    :value="task.id"
-                    :checked="materialTasks[`${serviceId}-${material}`]?.includes(task.id)"
-                    @change="toggleMaterialTask(serviceId, material, task.id)"
-                    :style="{ accentColor: getServiceColor(serviceId) }"
-                  />
-                  <span>{{ task.name }}</span>
-                </label>
+              <div class="material-checkbox-section">
+                <input
+                  type="checkbox"
+                  :id="`material-${serviceId}-${material}`"
+                  :checked="materialSelections[`${serviceId}-${material}`] || false"
+                  @change="toggleMaterialSelection(serviceId, material)"
+                  :style="{ accentColor: getServiceColor(serviceId) }"
+                />
+                <label :for="`material-${serviceId}-${material}`" class="material-name">{{ material }}</label>
+              </div>
+              <div class="material-price-section">
+                <input
+                  type="number"
+                  v-model="serviceMaterialPrices[`${serviceId}-${material}`]"
+                  placeholder="Prix"
+                  min="0"
+                  step="0.01"
+                  class="price-field"
+                  required
+                />
+                <span class="price-suffix">DH</span>
               </div>
             </div>
           </div>
@@ -399,7 +390,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Plus, Trash2, FileText, AlertCircle, Upload, Send, X, Archive } from 'lucide-vue-next'
+import { Plus, Trash2, FileText, AlertCircle, Upload, Send, X, Archive, Check } from 'lucide-vue-next'
 import authService from '@/services/authService'
 import intervenantService from '@/services/intervenantService'
 import intervenantTacheService from '@/services/intervenantTacheService'
@@ -461,8 +452,8 @@ const fetchServices = async () => {
     // Map services with colors
     services.value = apiServices.map(service => ({
       id: service.id,
-      name: service.name,
-      color: serviceColors[service.name] || '#92B08B', // Default color if not found
+      name: service.name || service.nom_service, // Handle both name and nom_service
+      color: serviceColors[service.name || service.nom_service] || '#92B08B',
       description: service.description
     }))
     
@@ -646,7 +637,7 @@ const activeTasksCount = computed(() => {
 
 // Add service materials state
 const serviceMaterialPrices = ref({})
-const materialTasks = ref({})
+const materialSelections = ref({})
 const materialsFormVisible = ref({})
 
 // Add archived services state
@@ -721,38 +712,73 @@ const archiveService = async (serviceId) => {
   }
 }
 
+// Load service materials with existing prices and selections
+const loadServiceMaterials = async (serviceId) => {
+  if (!currentUser.value) return
+  
+  try {
+    const response = await intervenantService.getIntervenantMaterials(
+      currentUser.value.intervenant.id,
+      serviceId
+    )
+    
+    const materials = response.data.materials || []
+    
+    // Pre-fill prices and selections
+    materials.forEach(material => {
+      const key = `${serviceId}-${material.name}`
+      
+      // Set selection status (possessed)
+      if (material.possessed) {
+        materialSelections.value[key] = true
+      }
+      
+      // Set price
+      if (material.price > 0) {
+        serviceMaterialPrices.value[key] = material.price
+      }
+    })
+    
+    // Show the form
+    materialsFormVisible.value[serviceId] = true
+  } catch (error) {
+    console.error('Error loading service materials:', error)
+    // Still show the form even if loading fails
+    materialsFormVisible.value[serviceId] = true
+  }
+}
+
 const saveServiceMaterials = async (serviceId) => {
   if (!currentUser.value) return
   
-  // Collect materials with prices and tasks
+  // Collect selected materials with prices
   const materials = []
   const serviceMaterials = getMaterialsByService(serviceId)
   
   for (const material of serviceMaterials) {
+    const isSelected = materialSelections.value[`${serviceId}-${material}`]
     const price = serviceMaterialPrices.value[`${serviceId}-${material}`]
-    const tasks = materialTasks.value[`${serviceId}-${material}`] || []
     
-    if (price && price > 0) {
+    if (isSelected) {
+      if (!price || price <= 0) {
+        alert(`Le prix est obligatoire pour le matériau : ${material}`)
+        return
+      }
       materials.push({
         name: material,
-        price: parseFloat(price),
-        tasks: tasks
+        price: parseFloat(price)
       })
     }
   }
   
-  if (materials.length === 0) {
-    alert('Veuillez spécifier au moins un matériel avec un prix')
-    return
-  }
-  
+  // Allow saving with no materials (user can have zero materials)
   try {
     console.log('Saving service materials:', {
       serviceId: serviceId,
       materials: materials
     })
     
-    // Send data to backend
+    // Send data to backend (can be empty array)
     const response = await intervenantService.updateServiceMaterials(
       currentUser.value.intervenant.id,
       serviceId,
@@ -766,27 +792,55 @@ const saveServiceMaterials = async (serviceId) => {
     
     // Show success message
     showSuccessMessage.value = true
-    successMessage.value = 'Matériaux enregistrés avec succès !'
+    successMessage.value = materials.length > 0 
+      ? 'Matériaux enregistrés avec succès !' 
+      : 'Aucun matériau sélectionné - Configuration enregistrée !'
   } catch (error) {
     console.error('Error saving service materials:', error)
     alert(`Erreur lors de l'enregistrement: ${error.response?.data?.message || error.message}`)
   }
 }
 
-const toggleMaterialTask = (serviceId, material, taskId) => {
+// Toggle material selection with price clearing and database deletion
+const toggleMaterialSelection = async (serviceId, material) => {
+  if (!currentUser.value) return
+  
   const key = `${serviceId}-${material}`
+  const currentState = materialSelections.value[key] || false
   
-  if (!materialTasks.value[key]) {
-    materialTasks.value[key] = []
-  }
+  // Toggle selection
+  materialSelections.value[key] = !currentState
   
-  const index = materialTasks.value[key].indexOf(taskId)
-  if (index > -1) {
-    // Remove task
-    materialTasks.value[key].splice(index, 1)
-  } else {
-    // Add task
-    materialTasks.value[key].push(taskId)
+  // If unchecking, clear the price and delete from database
+  if (currentState) {
+    serviceMaterialPrices.value[key] = ''
+    
+    // Find the material ID to delete from database
+    try {
+      const serviceMaterials = getMaterialsByService(serviceId)
+      const materialIndex = serviceMaterials.indexOf(material)
+      
+      if (materialIndex !== -1) {
+        // Get material details to find its ID
+        const response = await intervenantService.getIntervenantMaterials(
+          currentUser.value.intervenant.id,
+          serviceId
+        )
+        
+        const materialData = response.data.materials.find(m => m.name === material)
+        if (materialData) {
+          // Delete from database
+          await intervenantService.deleteIntervenantMaterial(
+            currentUser.value.intervenant.id,
+            materialData.id
+          )
+          console.log(`Material ${material} removed from database`)
+        }
+      }
+    } catch (error) {
+      console.error('Error removing material from database:', error)
+      // Still clear the UI even if database deletion fails
+    }
   }
 }
 
@@ -1065,11 +1119,12 @@ watch(taskMaterials, (newTaskMaterials, oldTaskMaterials) => {
 }, { deep: true })
 
 const getServiceColor = (serviceId) => {
-  return services.value.find(s => s.id === serviceId)?.color || '#92B08B'
+  return services.value.find(s => s.id == serviceId)?.color || '#92B08B'
 }
 
 const getServiceName = (serviceId) => {
-  return services.value.find(s => s.id === serviceId)?.name || ''
+  const service = services.value.find(s => s.id == serviceId)
+  return service?.name || ''
 }
 
 const getTasksByService = (serviceId) => {
@@ -1838,8 +1893,22 @@ const getMaterialsByService = (serviceId) => {
 .material-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--spacing-3);
   margin-bottom: var(--spacing-3);
+}
+
+.material-checkbox-section {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  flex: 1;
+}
+
+.material-price-section {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
 }
 
 .material-name {

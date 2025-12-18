@@ -11,13 +11,8 @@ class Intervenant extends Model
     use HasFactory;
 
     protected $table = 'intervenant';
-
     protected $primaryKey = 'id';
-
     public $incrementing = false;
-
-    const CREATED_AT = 'created_at';
-    const UPDATED_AT = 'updated_at';
 
     protected $fillable = [
         'id',
@@ -28,27 +23,12 @@ class Intervenant extends Model
         'admin_id',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'is_active' => 'boolean',
-        ];
-    }
-
     /**
      * Get the utilisateur record associated with the intervenant.
      */
     public function utilisateur()
     {
         return $this->belongsTo(Utilisateur::class, 'id', 'id');
-    }
-
-    /**
-     * Get the admin that manages this intervenant.
-     */
-    public function admin()
-    {
-        return $this->belongsTo(Admin::class, 'admin_id', 'id');
     }
 
     /**
@@ -60,11 +40,17 @@ class Intervenant extends Model
     }
 
     /**
-     * Get the disponibilites for this intervenant.
+     * Get the services that this intervenant provides.
      */
-    public function disponibilites()
+    public function services()
     {
-        return $this->hasMany(Disponibilite::class, 'intervenant_id', 'id');
+        return $this->belongsToMany(
+            Service::class,
+            'intervenant_service',
+            'intervenant_id',
+            'service_id'
+        )->withPivot('status', 'experience', 'presentation')
+         ->withTimestamps();
     }
 
     /**
@@ -78,20 +64,6 @@ class Intervenant extends Model
             'intervenant_id',
             'tache_id'
         )->withPivot('prix_tache', 'status')
-            ->withTimestamps();
-    }
-
-    /**
-     * Get the services that this intervenant offers.
-     */
-    public function services()
-    {
-        return $this->belongsToMany(
-            Service::class,
-            'intervenant_service',
-            'intervenant_id',
-            'service_id'
-        )->withPivot('status', 'presentation', 'experience')
             ->withTimestamps();
     }
 
@@ -133,6 +105,45 @@ class Intervenant extends Model
             'intervenant_id',
             'client_id'
         )->withPivot('created_at', 'updated_at');
+    }
+
+    /**
+     * Get the admin that manages this intervenant.
+     */
+    public function admin()
+    {
+        return $this->belongsTo(Admin::class, 'admin_id', 'id');
+    }
+
+    /**
+     * Get the justificatifs for this intervenant.
+     */
+    public function justificatifs()
+    {
+        return $this->hasMany(Justificatif::class, 'intervenant_id', 'id');
+    }
+
+    /**
+     * Get the disponibilites for this intervenant.
+     */
+    public function disponibilites()
+    {
+        return $this->hasMany(Disponibilite::class, 'intervenant_id', 'id');
+    }
+
+    /**
+     * Get all photos from interventions performed by this intervenant.
+     */
+    public function photosInterventions()
+    {
+        return $this->hasManyThrough(
+            PhotoIntervention::class,
+            Intervention::class,
+            'intervenant_id', // Foreign key on interventions table
+            'intervention_id', // Foreign key on photo_intervention table
+            'id', // Local key on intervenants table
+            'id' // Local key on interventions table
+        );
     }
 
     /**

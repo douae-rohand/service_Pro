@@ -11,6 +11,7 @@ class Evaluation extends Model
     use HasFactory;
 
     protected $table = 'evaluation';
+    protected $primaryKey = 'id';
 
     const CREATED_AT = 'created_at';
     const UPDATED_AT = 'updated_at';

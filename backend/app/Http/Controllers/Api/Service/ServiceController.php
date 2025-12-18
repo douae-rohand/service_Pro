@@ -14,8 +14,22 @@ class ServiceController extends Controller
      */
     public function index()
     {
-        // Load services with their direct materials and task materials
-        $services = Service::with(['materiels', 'taches.materiels'])->get();
+        // Mettre en cache la liste des services (rarement modifiée) pour 24h
+        $services = \Illuminate\Support\Facades\Cache::remember('all_services_v2', 86400, function () {
+            // Optimisation : Sélectionner uniquement les colonnes nécessaires et charger les tâches de manière légère
+            return Service::select('id', 'nom_service', 'description')
+                          ->with(['materiels', 'taches', 'taches.materiels']) // Charge materiels du service, taches, et materiels des taches
+                          ->get();
+        });
+
+        $query = Service::with(['taches', 'informations', 'justificatifs']);
+        
+        // Filtrer uniquement les services actifs si la colonne status existe
+        if (\Illuminate\Support\Facades\Schema::hasColumn('service', 'status')) {
+            $query->where('status', 'active');
+        }
+        
+        $services = $query->get();
 
         // Format data for frontend
         $formattedServices = $services->map(function ($service) {
@@ -76,13 +90,33 @@ class ServiceController extends Controller
 
     /**
      * Display the specified service
+     * Vérifie que le service est actif avant de le retourner
      */
     public function show($id)
     {
+        // Check if status column exists first
+        $hasStatusColumn = \Illuminate\Support\Facades\Schema::hasColumn('service', 'status');
+        
+        // Build select columns
+        $selectColumns = ['id', 'nom_service', 'description'];
+        if ($hasStatusColumn) {
+            $selectColumns[] = 'status';
+        }
+        
         // Optimiser : charger seulement les colonnes nécessaires des taches
         $service = Service::with(['taches:id,service_id,nom_tache,description,image_url'])
-                          ->select('id', 'nom_service', 'description')
+                          ->select($selectColumns)
                           ->findOrFail($id);
+        
+        // Vérifier si le service est actif (si la colonne existe)
+        if ($hasStatusColumn) {
+            if ($service->status !== 'active') {
+                return response()->json([
+                    'error' => 'Ce service n\'est pas disponible',
+                    'message' => 'Le service demandé est actuellement désactivé'
+                ], 404);
+            }
+        }
 
         return response()->json($service);
     }

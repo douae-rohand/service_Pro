@@ -9,7 +9,13 @@ use App\Models\Intervenant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use Laravel\Socialite\Facades\Socialite;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
+use Carbon\Carbon;
+use App\Mail\ResetPasswordCode;
 
 class AuthController extends Controller
 {
@@ -30,18 +36,12 @@ class AuthController extends Controller
 
             $validated = $request->validate([
                 'nom' => 'required|string|max:100',
-                'prenom' => 'required|string|max:100', // Requis dans le formulaire
+                'prenom' => 'required|string|max:100',
                 'email' => 'required|string|email|max:150|unique:utilisateur,email',
                 'password' => 'required|string|min:8',
                 'confirmPassword' => 'nullable|same:password',
                 'telephone' => 'nullable|string|max:20',
-                'address' => 'nullable|string',
-                'adresse' => 'nullable|string', // Alias pour address
                 'type' => 'nullable|string|in:client,intervenant',
-                // Champs spécifiques pour intervenant
-                'ville' => 'nullable|string|max:100',
-                'bio' => 'nullable|string',
-                'description' => 'nullable|string', // Alias pour bio
             ]);
         } catch (ValidationException $e) {
             return response()->json([
@@ -52,43 +52,45 @@ class AuthController extends Controller
 
         DB::beginTransaction();
         try {
-            // Utiliser adresse si fourni, sinon address
-            $address = $validated['adresse'] ?? $validated['address'] ?? null;
-
             // Créer l'utilisateur
-            $user = Utilisateur::create([
+            $userId = DB::table('utilisateur')->insertGetId([
                 'nom' => $validated['nom'],
                 'prenom' => $validated['prenom'] ?? null,
                 'email' => $validated['email'],
-                'password' => $validated['password'], // Le cast 'hashed' gère automatiquement le hashage
+                'password' => Hash::make($validated['password']),
                 'telephone' => $validated['telephone'] ?? null,
-                'address' => $address,
-            ]);
+                'created_at' => now(),
+                'updated_at' => now(),
+            ], 'id');
 
             $userType = $validated['type'] ?? 'client';
 
             // Créer le client ou l'intervenant selon le type
             if ($userType === 'client') {
-                Client::create([
-                    'id' => $user->id,
-                    'address' => $address,
-                    'ville' => $validated['ville'] ?? null,
+                DB::table('client')->insert([
+                    'id' => $userId,
                     'is_active' => true,
-                    'admin_id' => 1, // Par défaut, assigner au premier admin
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
             } elseif ($userType === 'intervenant') {
-                Intervenant::create([
-                    'id' => $user->id,
-                    'address' => $address,
-                    'ville' => $validated['ville'] ?? null,
-                    'bio' => $validated['bio'] ?? $validated['description'] ?? null,
-                    'is_active' => true,
-                    'admin_id' => 1, // Par défaut, assigner au premier admin
+                DB::table('intervenant')->insert([
+                    'id' => $userId,
+                    'is_active' => false, // Nouveau intervenant en attente de validation
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
             }
 
             DB::commit();
 
+            // Recharger l'utilisateur avec Eloquent pour avoir le modèle complet
+            $user = Utilisateur::find($userId);
+            
+            if (!$user) {
+                throw new \Exception('Utilisateur non trouvé après création');
+            }
+            
             // Charger les relations
             $user->load(['client', 'intervenant', 'admin']);
 
@@ -101,7 +103,7 @@ class AuthController extends Controller
             ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Erreur lors de l\'inscription: ' . $e->getMessage(), [
+            Log::error('Erreur lors de l\'inscription: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
             ]);
             return response()->json([
@@ -273,5 +275,160 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Mot de passe changé avec succès',
         ]);
+    }
+
+    /**
+     * Redirect to Google
+     */
+   public function redirectToGoogle()
+{
+    return Socialite::driver('google')
+        ->with([
+            'redirect_uri' => config('services.google.redirect'),
+        ])
+        ->redirect();
+}
+
+
+    /**
+     * Handle Google Callback
+     */
+    public function handleGoogleCallback()
+    {
+        try {
+            $googleUser = \Laravel\Socialite\Facades\Socialite::driver('google')->stateless()->user();
+            
+            $user = Utilisateur::where('email', $googleUser->getEmail())->first();
+
+            if (!$user) {
+                // Créer un nouvel utilisateur
+                $user = Utilisateur::create([
+                    'nom' => $googleUser->getName() ?? 'User',
+                    'prenom' => '',
+                    'email' => $googleUser->getEmail(),
+                    'password' => Hash::make(uniqid()), // Mot de passe aléatoire
+                    'google_id' => $googleUser->getId(),
+                    'avatar' => $googleUser->getAvatar(),
+                ]);
+
+                // Créer automatiquement un client pour le nouvel utilisateur
+                Client::create([
+                    'id' => $user->id,
+                    'is_active' => true,
+                    'admin_id' => 1,
+                ]);
+            } else {
+                // Mettre à jour l'utilisateur existant
+                $user->update([
+                    'google_id' => $googleUser->getId(),
+                    'avatar' => $googleUser->getAvatar(),
+                ]);
+            }
+
+            // Générer le token
+            $token = $user->createToken('auth-token')->plainTextToken;
+
+            // Rediriger vers le frontend avec le token
+            return redirect('http://localhost:5173/?token=' . $token);
+
+        } catch (\Exception $e) {
+            return redirect('http://localhost:5173/?error=auth_failed');
+        }
+    }
+
+    /**
+     * Send password reset code
+     */
+    public function forgotPassword(Request $request)
+    {
+        $request->validate(['email' => 'required|email']);
+        
+        $user = Utilisateur::where('email', $request->email)->first();
+        if (!$user) {
+            return response()->json(['message' => 'Aucun utilisateur trouvé avec cet email.'], 404);
+        }
+
+        // Generate 6-digit code
+        $code = str_pad(mt_rand(0, 999999), 6, '0', STR_PAD_LEFT);
+
+        // Delete existing valid reset tokens
+        DB::table('password_reset_tokens')->where('email', $request->email)->delete();
+
+        // Store new code
+        DB::table('password_reset_tokens')->insert([
+            'email' => $request->email,
+            'token' => Hash::make($code),
+            'created_at' => now(),
+        ]);
+
+        // Send email
+        try {
+            \Illuminate\Support\Facades\Mail::to($request->email)->send(new \App\Mail\ResetPasswordCode($code));
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Erreur lors de l\'envoi de l\'email.'], 500);
+        }
+
+        return response()->json(['message' => 'Code de vérification envoyé.']);
+    }
+
+    /**
+     * Verify reset code
+     */
+    public function verifyCode(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'code' => 'required|string|size:6',
+        ]);
+
+        $resetEntry = DB::table('password_reset_tokens')
+            ->where('email', $request->email)
+            ->first();
+
+        // Check if token exists and is valid (e.g., < 15 mins)
+        if (!$resetEntry || !Hash::check($request->code, $resetEntry->token)) {
+            return response()->json(['message' => 'Code invalide.'], 400);
+        }
+
+        if (now()->diffInMinutes($resetEntry->created_at) > 15) {
+            return response()->json(['message' => 'Code expiré.'], 400);
+        }
+
+        return response()->json(['message' => 'Code valide.']);
+    }
+
+    /**
+     * Reset password
+     */
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'code' => 'required|string|size:6',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $resetEntry = DB::table('password_reset_tokens')
+            ->where('email', $request->email)
+            ->first();
+
+        if (!$resetEntry || !Hash::check($request->code, $resetEntry->token)) {
+            return response()->json(['message' => 'Code invalide.'], 400);
+        }
+
+        if (now()->diffInMinutes($resetEntry->created_at) > 15) {
+            return response()->json(['message' => 'Code expiré.'], 400);
+        }
+
+        // Update password
+        $user = Utilisateur::where('email', $request->email)->first();
+        if ($user) {
+            $user->update(['password' => $request->password]);
+        }
+
+        // Delete token
+        DB::table('password_reset_tokens')->where('email', $request->email)->delete();
+
+        return response()->json(['message' => 'Mot de passe réinitialisé avec succès.']);
     }
 }

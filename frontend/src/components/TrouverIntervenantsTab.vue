@@ -4,9 +4,12 @@
       <!-- Header -->
       <div class="bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50 transition-all duration-300">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <h1 class="text-3xl md:text-4xl font-bold tracking-tight mb-6" :style="{ color: currentServiceColor }">
-            Trouver des intervenants
-          </h1>
+          <!-- Title Section -->
+          <div class="mb-6">
+            <h1 class="text-3xl md:text-4xl font-bold tracking-tight" :style="{ color: currentServiceColor }">
+              Trouver des intervenants
+            </h1>
+          </div>
 
           <!-- Search inputs -->
           <div class="grid md:grid-cols-3 gap-4">
@@ -51,9 +54,9 @@
 
       <!-- Main Content with Sidebar -->
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div class="flex flex-col lg:flex-row gap-8">
+        <div class="grid grid-cols-1 md:grid-cols-[288px_1fr] lg:grid-cols-[320px_1fr] gap-8 items-start">
           <!-- Left Sidebar - Filters -->
-          <aside class="lg:w-80 flex-shrink-0">
+          <aside class="flex-shrink-0">
             <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sticky top-32">
               <!-- Header -->
               <div class="flex items-center justify-between mb-6">
@@ -168,7 +171,7 @@
           </aside>
 
           <!-- Right Content - Results -->
-          <main class="flex-1">
+          <main class="flex-1 min-w-0">
             <!-- Loading State -->
             <div v-if="loading" class="text-center py-12">
               <div class="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto" :style="{ borderColor: currentServiceColor }"></div>
@@ -229,7 +232,7 @@
               </div>
 
               <!-- Intervenants Grid -->
-              <div class="grid md:grid-cols-2 gap-6">
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div
                   v-for="intervenant in sortedIntervenants"
                   :key="intervenant.id"
@@ -350,7 +353,7 @@
               </div>
 
               <!-- Pagination Controls -->
-              <div v-if="pagination.total > 0 && pagination.last_page > 1" class="flex justify-center mt-12 gap-2">
+              <div v-if="pagination.last_page > 1" class="flex justify-center mt-12 gap-2">
                 <button
                   @click="prevPage"
                   :disabled="pagination.current_page === 1"
@@ -360,7 +363,7 @@
                 </button>
                 
                 <button
-                  v-for="page in visiblePages"
+                  v-for="page in pagination.last_page"
                   :key="page"
                   @click="goToPage(page)"
                   class="w-10 h-10 rounded-lg border transition-colors flex items-center justify-center font-medium"
@@ -546,21 +549,6 @@ export default {
         default:
           return sorted;
       }
-    },
-    
-    visiblePages() {
-      const current = this.pagination.current_page;
-      const last = this.pagination.last_page;
-      const delta = 2;
-      const range = [];
-      
-      for (let i = 1; i <= last; i++) {
-        if (i === 1 || i === last || (i >= current - delta && i <= current + delta)) {
-          range.push(i);
-        }
-      }
-      
-      return range;
     }
   },
   async mounted() {

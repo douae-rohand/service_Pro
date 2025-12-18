@@ -121,6 +121,8 @@ class InterventionController extends Controller
             'tache_id' => 'required|exists:tache,id',
             'description' => 'nullable|string',
             'constraints' => 'nullable|json',
+            'materials_cost' => 'nullable|numeric|min:0',
+            'provided_materials' => 'nullable|string', // JSON array of IDs
         ]);
 
         if ($validator->fails()) {
@@ -194,6 +196,34 @@ class InterventionController extends Controller
                     }
                 } catch (\Exception $e) {
                     Log::warning('Error attaching constraints information: ' . $e->getMessage());
+                }
+            }
+
+            // Handle provided materials if provided
+            if ($request->has('provided_materials')) {
+                try {
+                    $providedMaterials = json_decode($request->provided_materials, true);
+                    if (is_array($providedMaterials)) {
+                        $intervention->materiels()->attach($providedMaterials);
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Error attaching provided materials: ' . $e->getMessage());
+                }
+            }
+
+            // Handle materials cost as information
+            if ($request->has('materials_cost') && $request->materials_cost > 0) {
+                try {
+                    $costInfo = \App\Models\Information::firstOrCreate(
+                        ['nom' => 'Coût_Matériel'],
+                        ['nom' => 'Coût_Matériel', 'description' => 'Coût total du matériel fourni par l\'intervenant']
+                    );
+                    
+                    $intervention->informations()->attach($costInfo->id, [
+                        'information' => $request->materials_cost . ' DH'
+                    ]);
+                } catch (\Exception $e) {
+                    Log::warning('Error attaching materials cost information: ' . $e->getMessage());
                 }
             }
 

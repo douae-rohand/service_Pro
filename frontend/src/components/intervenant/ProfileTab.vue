@@ -234,20 +234,48 @@ const startEdit = () => {
 
 const saveEdit = async () => {
   try {
-    const formDataToSend = new FormData()
+    // Debug: Log the form data values
+    console.log('FormData values being sent:', {
+      phone: formData.value.phone,
+      location: formData.value.location,
+      bio: formData.value.bio,
+      bioType: typeof formData.value.bio,
+      bioValue: formData.value.bio
+    })
     
-    // Add text fields
-    formDataToSend.append('address', formData.value.location)
-    formDataToSend.append('bio', formData.value.bio)
-    formDataToSend.append('telephone', formData.value.phone)
+    let response
     
-    // Add profile photo if selected
+    // Use FormData only if there's a file, otherwise use JSON
     if (selectedFile.value) {
+      const formDataToSend = new FormData()
+      
+      // Add text fields
+      formDataToSend.append('telephone', formData.value.phone || '')
+      formDataToSend.append('address', formData.value.location || '')
+      formDataToSend.append('bio', formData.value.bio || '')
+      
+      // Add profile photo
       formDataToSend.append('profile_photo', selectedFile.value)
+      
+      // Debug: Log FormData contents
+      console.log('FormData entries:')
+      for (let [key, value] of formDataToSend.entries()) {
+        console.log(`${key}:`, value, typeof value)
+      }
+      
+      response = await authService.updateProfile(formDataToSend)
+    } else {
+      // Send as JSON when no file
+      const jsonData = {
+        telephone: formData.value.phone || '',
+        address: formData.value.location || '',
+        bio: formData.value.bio || ''
+      }
+      
+      console.log('JSON data being sent:', jsonData)
+      
+      response = await authService.updateProfile(jsonData)
     }
-    
-    // Update profile using authService with FormData
-    const response = await authService.updateProfile(formDataToSend)
     
     // Refresh user data to get updated profile
     await fetchCurrentUser()

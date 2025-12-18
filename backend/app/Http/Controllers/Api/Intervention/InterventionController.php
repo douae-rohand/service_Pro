@@ -40,13 +40,16 @@ class InterventionController extends Controller
         // Filtrer par client si fourni
         if ($request->has('clientId')) {
             $query->where('client_id', $request->clientId);
+            $query->where('client_id', $request->clientId);
         }
 
         // Filtrer par intervenant si fourni
         if ($request->has('intervenantId')) {
             $query->where('intervenant_id', $request->intervenantId);
+            $query->where('intervenant_id', $request->intervenantId);
         }
 
+        $interventions = $query->orderBy('date_intervention', 'desc')->paginate(15);
         $interventions = $query->orderBy('date_intervention', 'desc')->paginate(15);
 
         // Use resource to transform data

@@ -10,14 +10,17 @@ class Tache extends Model
     use HasFactory;
 
     protected $table = 'tache';
+    protected $primaryKey = 'id';
 
-    
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = 'updated_at';
 
     protected $fillable = [
         'service_id',
         'nom_tache',
         'description',
         'status',
+        'image_url',
         'image_url',
     ];
 
@@ -39,6 +42,7 @@ class Tache extends Model
      */
     public function interventions()
     {
+        return $this->hasMany(Intervention::class, 'tache_id', 'id');
         return $this->hasMany(Intervention::class, 'tache_id', 'id');
     }
 
@@ -66,7 +70,6 @@ class Tache extends Model
             'intervenant_tache',
             'tache_id',
             'intervenant_id'
-        )->withPivot('prix_tache', 'status')
-            ->withTimestamps();
+        )->withPivot('prix_tache', 'status', 'created_at', 'updated_at');
     }
 }

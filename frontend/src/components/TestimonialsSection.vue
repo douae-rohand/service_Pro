@@ -12,7 +12,7 @@
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
       <div class="text-center mb-16">
-        <h2 class="text-4xl mt-4 mb-4">Ce Que Nos Clients Disent de Nous</h2>
+        <h2 class="text-4xl font-bold mt-4 mb-4">Ce Que Nos Clients Disent de Nous</h2>
         <p class="text-gray-600 max-w-2xl mx-auto">
           Découvrez les avis de nos clients satisfaits sur la qualité de nos intervenants.
         </p>
@@ -22,16 +22,17 @@
         <div
           v-for="(testimonial, index) in testimonials"
           :key="index"
-          class="bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-shadow"
+          class="bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-500 transform hover:-translate-y-2 animate-fade-in-up-testimonial"
+          :style="{ animationDelay: `${index * 0.2}s` }"
         >
           <div class="flex items-center gap-4 mb-6">
             <div
-              class="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-2xl"
+              class="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-2xl font-bold transform transition-all duration-500 hover:scale-110 hover:rotate-12"
             >
               {{ testimonial.initial }}
             </div>
             <div>
-              <h4>{{ testimonial.name }}</h4>
+              <h4 class="font-bold">{{ testimonial.name }}</h4>
               <p class="text-sm text-gray-500">{{ testimonial.role }}</p>
             </div>
           </div>
@@ -40,7 +41,8 @@
             <svg
               v-for="i in testimonial.rating"
               :key="i"
-              class="w-5 h-5 fill-yellow-400 text-yellow-400"
+              class="w-5 h-5 fill-yellow-400 text-yellow-400 transform transition-all duration-300 hover:scale-125"
+              :style="{ animationDelay: `${i * 0.1}s` }"
               fill="currentColor"
               viewBox="0 0 20 20"
             >
@@ -50,7 +52,7 @@
             </svg>
           </div>
 
-          <p class="text-gray-600 leading-relaxed">{{ testimonial.text }}</p>
+          <p class="text-gray-600 leading-relaxed italic transform transition-all duration-300 hover:scale-105">{{ testimonial.text }}</p>
         </div>
       </div>
     </div>
@@ -58,28 +60,66 @@
 </template>
 
 <script setup>
-const testimonials = [
-  {
-    name: 'Meryem Benali',
-    role: 'Cliente depuis 2 ans',
-    initial: 'M',
-    rating: 5,
-    text: "Service exceptionnel ! J'ai trouvé un jardinier formidable en quelques minutes. Mon jardin n'a jamais été aussi beau. Je recommande vivement cette plateforme.",
-  },
-  {
-    name: 'Karim Alaoui',
-    role: 'Client satisfait',
-    initial: 'K',
-    rating: 5,
-    text: "Excellente expérience ! Les intervenants sont professionnels et ponctuels. Le système de réservation est très simple. Parfait pour quelqu'un qui travaille beaucoup.",
-  },
-  {
-    name: 'Samira Idrissi',
-    role: 'Cliente régulière',
-    initial: 'S',
-    rating: 5,
-    text: "Je fais appel à leurs services de ménage toutes les semaines. C'est toujours impeccable et les tarifs sont très corrects. Une vraie aide au quotidien !",
-  },
-]
+import { ref, onMounted } from 'vue';
+import testimonialService from '@/services/testimonialService';
+
+const testimonials = ref([]);
+const loading = ref(true);
+const error = ref(null);
+
+onMounted(async () => {
+  try {
+    const response = await testimonialService.getTestimonials();
+    testimonials.value = response.data;
+  } catch (err) {
+    console.error('Erreur lors du chargement des témoignages:', err);
+    error.value = "Impossible de charger les témoignages.";
+    // Fallback aux données statiques en cas d'erreur ou si la BD est vide
+    if (testimonials.value.length === 0) {
+      testimonials.value = [
+        {
+          name: 'Meryem Benali',
+          role: 'Cliente depuis 2 ans',
+          initial: 'M',
+          rating: 5,
+          text: "Service exceptionnel ! J'ai trouvé un jardinier formidable en quelques minutes. Mon jardin n'a jamais été aussi beau. Je recommande vivement cette plateforme.",
+        },
+        {
+          name: 'Karim Alaoui',
+          role: 'Client satisfait',
+          initial: 'K',
+          rating: 5,
+          text: "Excellente expérience ! Les intervenants sont professionnels et ponctuels. Le système de réservation est très simple. Parfait pour quelqu'un qui travaille beaucoup.",
+        },
+        {
+          name: 'Samira Idrissi',
+          role: 'Cliente régulière',
+          initial: 'S',
+          rating: 5,
+          text: "Je fais appel à leurs services de ménage toutes les semaines. C'est toujours impeccable et les tarifs sont très corrects. Une vraie aide au quotidien !",
+        }
+      ];
+    }
+  } finally {
+    loading.value = false;
+  }
+});
 </script>
+
+<style scoped>
+@keyframes fadeInUpTestimonial {
+  from {
+    opacity: 0;
+    transform: translateY(50px) rotateX(10deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotateX(0deg);
+  }
+}
+
+.animate-fade-in-up-testimonial {
+  animation: fadeInUpTestimonial 0.8s ease-out both;
+}
+</style>
 

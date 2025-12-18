@@ -11,12 +11,19 @@ class Materiel extends Model
 
     protected $table = 'materiel';
 
-    
-
     protected $fillable = [
-        'nom',
+        'nom_materiel',
         'description',
+        'service_id',
     ];
+
+    /**
+     * Get the service that owns this materiel.
+     */
+    public function service()
+    {
+        return $this->belongsTo(Service::class, 'service_id');
+    }
 
     /**
      * Get the taches that require this materiel.
@@ -42,6 +49,9 @@ class Materiel extends Model
             'intervenant_materiel',
             'materiel_id',
             'intervenant_id'
+            'intervenant_materiel',
+            'materiel_id',
+            'intervenant_id'
         )->withTimestamps();
     }
 
@@ -52,6 +62,9 @@ class Materiel extends Model
     {
         return $this->belongsToMany(
             Intervention::class,
+            'intervention_materiel',
+            'materiel_id',
+            'intervention_id'
             'intervention_materiel',
             'materiel_id',
             'intervention_id'

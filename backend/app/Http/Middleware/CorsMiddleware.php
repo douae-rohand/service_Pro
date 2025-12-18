@@ -29,19 +29,40 @@ class CorsMiddleware
         // Handle preflight requests
         if ($request->getMethod() === 'OPTIONS') {
             $response = response('', 200);
-        } else {
+            
+            // Add CORS headers for preflight
+            if ($origin && in_array($origin, $allowedOrigins)) {
+                $response->headers->set('Access-Control-Allow-Origin', $origin);
+            } else {
+                // Allow all origins if no origin header or not in list (for development)
+                $response->headers->set('Access-Control-Allow-Origin', '*');
+            }
+            $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+            $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+            $response->headers->set('Access-Control-Allow-Credentials', 'true');
+            $response->headers->set('Access-Control-Max-Age', '86400');
+            
+            return $response;
+        }
+
+        // Process the actual request
+        try {
             $response = $next($request);
+        } catch (\Exception $e) {
+            // Even on error, we need to add CORS headers
+            $response = response()->json(['error' => $e->getMessage()], 500);
         }
 
-        // Add CORS headers
-        if (in_array($origin, $allowedOrigins)) {
+        // Add CORS headers to actual request response
+        if ($origin && in_array($origin, $allowedOrigins)) {
             $response->headers->set('Access-Control-Allow-Origin', $origin);
+        } else {
+            // Allow all origins if no origin header or not in list (for development)
+            $response->headers->set('Access-Control-Allow-Origin', '*');
         }
-
         $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
         $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
         $response->headers->set('Access-Control-Allow-Credentials', 'true');
-        $response->headers->set('Access-Control-Max-Age', '86400');
 
         return $response;
     }

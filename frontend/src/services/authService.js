@@ -11,6 +11,18 @@ const authService = {
         return api.post('auth/login', credentials);
     },
 
+    forgotPassword(email) {
+        return api.post('auth/forgot-password', { email });
+    },
+
+    verifyCode(email, code) {
+        return api.post('auth/verify-code', { email, code });
+    },
+
+    resetPassword({ email, code, password, password_confirmation }) {
+        return api.post('auth/reset-password', { email, code, password, password_confirmation });
+    },
+
     /**
      * Déconnexion utilisateur
      */
@@ -36,7 +48,14 @@ const authService = {
      * Mettre à jour le profil
      */
     updateProfile(data) {
-        return api.put('auth/profile', data);
+        // If data is FormData, don't set Content-Type header (axios will set it automatically)
+        const config = data instanceof FormData ? {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        } : {};
+        
+        return api.put('auth/profile', data, config);
     },
 
     /**
@@ -77,14 +96,18 @@ const authService = {
      * Récupérer le token du localStorage
      */
     getToken() {
-        return localStorage.getItem('token');
+        const token = localStorage.getItem('token');
+        // console.log('authService.getToken:', token ? 'Token présent' : 'Pas de token');
+        return token;
     },
 
     /**
      * Vérifier si l'utilisateur est connecté
      */
     isAuthenticated() {
-        return !!this.getToken();
+        const hasToken = !!this.getToken();
+        console.log('authService.isAuthenticated:', hasToken);
+        return hasToken;
     }
 };
 

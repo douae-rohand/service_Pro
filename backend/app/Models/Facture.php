@@ -10,8 +10,10 @@ class Facture extends Model
     use HasFactory;
 
     protected $table = 'facture';
+    protected $primaryKey = 'num_facture';
 
-    
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = 'updated_at';
 
     protected $fillable = [
         'intervention_id',
@@ -22,7 +24,7 @@ class Facture extends Model
     protected function casts(): array
     {
         return [
-            'montant' => 'decimal:2',
+            'ttc' => 'decimal:2',
         ];
     }
 
@@ -31,6 +33,7 @@ class Facture extends Model
      */
     public function intervention()
     {
+        return $this->belongsTo(Intervention::class, 'intervention_id', 'id');
         return $this->belongsTo(Intervention::class, 'intervention_id', 'id');
     }
 }

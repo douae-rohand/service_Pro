@@ -11,7 +11,13 @@ class IntervenantTache extends Pivot
 
     protected $table = 'intervenant_tache';
 
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = 'updated_at';
+
     protected $fillable = [
+        'intervenant_id',
+        'tache_id',
+        'prix_tache',
         'intervenant_id',
         'tache_id',
         'prix_tache',
@@ -21,6 +27,7 @@ class IntervenantTache extends Pivot
     protected function casts(): array
     {
         return [
+            'prix_tache' => 'decimal:2',
             'prix_tache' => 'decimal:2',
             'status' => 'boolean',
         ];
@@ -32,6 +39,7 @@ class IntervenantTache extends Pivot
     public function intervenant()
     {
         return $this->belongsTo(Intervenant::class, 'intervenant_id', 'id');
+        return $this->belongsTo(Intervenant::class, 'intervenant_id', 'id');
     }
 
     /**
@@ -39,6 +47,7 @@ class IntervenantTache extends Pivot
      */
     public function tache()
     {
+        return $this->belongsTo(Tache::class, 'tache_id', 'id');
         return $this->belongsTo(Tache::class, 'tache_id', 'id');
     }
 }

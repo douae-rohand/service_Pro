@@ -400,7 +400,7 @@ const props = defineProps({
   isOpen: Boolean,
 })
 
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'signup-success', 'open-login-modal'])
 
 const userType = ref('client')
 const router = useRouter()
@@ -477,19 +477,22 @@ const handleSubmit = async () => {
       view.value = 'verification'
       startResendTimer()
     } else if (response.data.token) {
-      authService.setAuthToken(response.data.token)
-      // alert(`Inscription ${userType.value} réussie !`)
-      //handleClose()
-      //window.location.reload()
-      // Redirection selon le type
-      emit('signup-success', { email: formData.value.email }) 
-      handleClose()      
+      // authService.setAuthToken(response.data.token) // Do not auto login
+      
+      handleClose()
+      // Emit event to open login modal
+      emit('signup-success', { email: formData.value.email }) // Keep for potential usage
+      emit('open-login-modal') 
+      
+      /* 
       if (userType.value === 'intervenant') {
         router.push('/dashboard')
       } else if (userType.value === 'client') {
-        alert('Connexion réussie !')
-        window.location.reload()
+        alert('Compte créé avec succès ! Veuillez vous connecter.')
+        // window.location.reload()
       } 
+      */
+     alert('Compte créé avec succès ! Veuillez vous connecter.') 
     }
   } catch (error) {
     console.error('Erreur d\'inscription:', error)
@@ -540,8 +543,7 @@ const handleVerifyEmail = async () => {
         const response = await authService.verifyEmail(formData.value.email, verificationCode.value)
         alert(response.data.message || 'Email vérifié avec succès !')
         handleClose()
-        // Redirection vers le login (ou ouvrir le login modal si géré par le parent)
-        // window.location.reload() ou émettre un événement
+        emit('open-login-modal')
         emit('verification-success')
     } catch (error) {
         alert(error.response?.data?.message || 'Code invalide ou expiré.')

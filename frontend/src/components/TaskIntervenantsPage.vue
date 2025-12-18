@@ -535,7 +535,7 @@ export default {
       // Émettre un événement pour la réservation
       // Vous pouvez ajouter une logique de réservation ici
       console.log('Réserver avec:', intervenant);
-      // Pour l'instant, rediriger vers le profil
+      // Rediriger vers le profil pour finaliser la réservation
       this.viewProfile(intervenant);
     },
     formatExperience

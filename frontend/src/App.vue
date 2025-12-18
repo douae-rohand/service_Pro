@@ -32,6 +32,7 @@
         @view-all-intervenants="handleViewAllIntervenants"
         @view-profile="handleViewProfileFromDetail"
         @task-click="handleTaskClick"
+        @login-required="showLoginModal = true"
       />
       
       <!-- Page de tous les intervenants -->
@@ -86,7 +87,11 @@
       @admin-login="handleAdminLogin"
     />
 
-    <SignupModal :is-open="showSignupModal" @close="showSignupModal = false" />
+    <SignupModal 
+      :is-open="showSignupModal" 
+      @close="showSignupModal = false" 
+      @open-login-modal="showLoginModal = true"
+    />
   </div>
 </template>
 

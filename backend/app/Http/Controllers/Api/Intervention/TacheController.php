@@ -131,51 +131,52 @@ class TacheController extends Controller
     /**
      * Get intervenants for a specific tache
      */
-     public function getIntervenants($id)
-{
-    try {
-        \Log::info('Fetching intervenants for task ID: ' . $id);
-        
-        $tache = Tache::with([
-            'intervenants' => function($query) {
-                $query->with('utilisateur')
-                      ->withAvg('evaluations', 'note')
-                      ->withCount(['evaluations', 'interventions']);
-            },
-            'intervenants.taches.service',
-            'intervenants.interventions.evaluation'
-        ])->findOrFail($id);
-        
-        $intervenants = $tache->intervenants;
-        
-        \Log::info('Found ' . $intervenants->count() . ' intervenants');
-        
-        // Transform data for frontend
-        $intervenants->transform(function ($intervenant) {
-            $realRating = $intervenant->evaluations_avg_note 
-                ? round($intervenant->evaluations_avg_note, 1) 
-                : null;
+    public function getIntervenants($id)
+    {
+        try {
+            \Log::info('🔍 [TacheController] Fetching intervenants for task ID: ' . $id);
             
-            $realCount = $intervenant->evaluations_count ?? 0;
+            $tache = Tache::findOrFail($id);
             
-            //only use real data, no fake fallbacks
-            $intervenant->note_moyenne = $realRating;
-            $intervenant->nombre_avis = $realCount;
-            $intervenant->missions_completees = $intervenant->interventions_count ?? 0;
-            $intervenant->tarif_tache = $intervenant->pivot->prix_tache ?? null;
+            // Query intervenants directly via the relationship
+            $intervenants = $tache->intervenants()
+                ->where('is_active', true) // Only active ones
+                ->with(['utilisateur']) // Essential
+                ->withAvg('evaluations', 'note')
+                ->withCount(['evaluations', 'interventions'])
+                ->get();
             
-            return $intervenant;
-        });
-        
-        //Standardized success response
-        return response()->json([
-            'status' => 'success',
-            'data' => $intervenants,
-            'meta' => [
-                'task_id' => $id,
-                'count' => $intervenants->count()
-            ]
-        ]);
+            \Log::info('📦 [TacheController] Found ' . $intervenants->count() . ' active intervenants for task ' . $id);
+            
+            // Transform data for frontend
+            $client = \App\Models\Client::where('id', auth()->id())->first();
+            $favoriteIds = $client ? $client->intervenantsFavoris()->pluck('intervenant_id')->toArray() : [];
+
+            $transformed = $intervenants->map(function ($intervenant) use ($favoriteIds) {
+                // Return exactly what SearchServices.vue expects
+                return [
+                    'id' => $intervenant->id,
+                    'utilisateur' => $intervenant->utilisateur,
+                    'average_rating' => $intervenant->evaluations_avg_note ? round($intervenant->evaluations_avg_note, 1) : 4.5,
+                    'review_count' => $intervenant->evaluations_count ?? 0,
+                    'missions_completees' => $intervenant->interventions_count ?? 0,
+                    'ville' => $intervenant->ville,
+                    'address' => $intervenant->address,
+                    'is_active' => $intervenant->is_active,
+                    'tarif_tache' => $intervenant->pivot->prix_tache ?? null,
+                    'status_tache' => $intervenant->pivot->status ?? 'actif',
+                    'is_favorite' => in_array($intervenant->id, $favoriteIds)
+                ];
+            });
+            
+            return response()->json([
+                'status' => 'success',
+                'data' => $transformed,
+                'meta' => [
+                    'task_id' => $id,
+                    'count' => $transformed->count()
+                ]
+            ]);
         
     } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
         \Log::error('Task not found: ' . $id);

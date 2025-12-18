@@ -85,6 +85,8 @@ class FavorisController extends Controller
      */
     public function toggle(Request $request, $clientId)
     {
+        Log::info('toggle favorite called', ['clientId' => $clientId, 'data' => $request->all()]);
+        
         $request->validate([
             'intervenant_id' => 'required|exists:intervenant,id',
             'service_id' => 'required|exists:service,id'
@@ -102,6 +104,7 @@ class FavorisController extends Controller
 
             if ($exists) {
                 // Remove from favorites
+                Log::info('Removing from favorites', ['clientId' => $clientId, 'intervenantId' => $intervenantId]);
                 DB::table('favorise')
                     ->where('client_id', $clientId)
                     ->where('intervenant_id', $intervenantId)
@@ -115,6 +118,7 @@ class FavorisController extends Controller
                 ]);
             } else {
                 // Add to favorites
+                Log::info('Adding to favorites', ['clientId' => $clientId, 'intervenantId' => $intervenantId, 'serviceId' => $serviceId]);
                 DB::table('favorise')->insert([
                     'client_id' => $clientId,
                     'intervenant_id' => $intervenantId,

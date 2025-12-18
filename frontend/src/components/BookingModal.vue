@@ -797,7 +797,8 @@ export default {
     async loadServices() {
       try {
         const response = await bookingService.getIntervenantServices(this.intervenant.id);
-        this.services = response.data.data || response.data || [];
+        this.services = response.data?.data ?? response.data ?? [];
+        if (!Array.isArray(this.services)) this.services = [];
         console.log('Loaded services:', this.services);
       } catch (error) {
         console.error('Error loading services:', error);
@@ -811,7 +812,8 @@ export default {
       this.selectedService = service;
       try {
         const response = await bookingService.getServiceTaches(service.id, this.intervenant.id);
-        this.tasks = response.data.data || response.data || [];
+        this.tasks = response.data?.data ?? response.data ?? [];
+        if (!Array.isArray(this.tasks)) this.tasks = [];
         this.currentStep = 2;
       } catch (error) {
         console.error('Error loading tasks:', error);
@@ -1029,7 +1031,15 @@ export default {
         const response = await api.get(`taches/${this.selectedTask?.id}/contraintes`);
         console.log('📦 Raw constraints response:', response);
         
-        this.constraints = response.data || [];
+        // Handle different response formats
+        this.constraints = response.data?.data ?? response.data ?? [];
+        
+        // Ensure constraints is an array before using forEach
+        if (!Array.isArray(this.constraints)) {
+          console.warn('⚠️ Constraints data is not an array:', this.constraints);
+          this.constraints = [];
+        }
+        
         console.log('✅ Constraints loaded:', this.constraints);
         
         // Initialiser les valeurs
@@ -1045,7 +1055,8 @@ export default {
     async loadMaterials() {
       try {
         const response = await api.get(`taches/${this.selectedTask?.id}/materiels`);
-        this.materials = response.data.data || response.data || [];
+        this.materials = response.data?.data ?? response.data ?? [];
+        if (!Array.isArray(this.materials)) this.materials = [];
       } catch (error) {
         this.materials = [
           { id: 1, nom_materiel: 'Taille-haie électrique ou thermique', cost: 0 },

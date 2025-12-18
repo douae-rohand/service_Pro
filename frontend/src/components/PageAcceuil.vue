@@ -313,7 +313,7 @@ export default {
     async fetchServices() {
       try {
         const res = await serviceService.getAll();
-        this.services = res.data || [];
+        this.services = res.data?.data ?? res.data ?? [];
       } catch (e) { console.error(e); }
     },
     

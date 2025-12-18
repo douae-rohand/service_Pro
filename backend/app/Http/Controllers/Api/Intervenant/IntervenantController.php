@@ -22,13 +22,14 @@ class IntervenantController extends Controller
      */
     public function index(Request $request)
     {
-        // Optimiser le chargement : ne charger que les relations nécessaires
-        $query = Intervenant::with([
-            'utilisateur:id,nom,prenom,address,url,profile_photo',
-            'taches:id,nom_tache,service_id',
-            'taches.service:id,nom_service',
-            'services'
-        ]);
+        try {
+            // Optimiser le chargement : ne charger que les relations nécessaires
+            $query = Intervenant::with([
+                'utilisateur:id,nom,prenom,address,url,profile_photo',
+                'taches:id,nom_tache,service_id',
+                'taches.service:id,nom_service',
+                'services'
+            ]);
 
             // Filtrer les intervenants actifs uniquement si demandé
             if ($request->has('active') && $request->active == 'true') {
@@ -1426,7 +1427,8 @@ class IntervenantController extends Controller
     public function myReservations(Request $request)
     {
         // Get the current authenticated intervenant
-        $intervenant = $request->user();
+        $user = $request->user();
+        $intervenant = $user->intervenant ?? $user; // Fallback to user if intervenant relation not found (though they should have same ID)
 
         if (!$intervenant) {
             return response()->json(['message' => 'Intervenant non authentifié'], 401);
@@ -1444,13 +1446,13 @@ class IntervenantController extends Controller
         ->get();
 
         // Format the data for frontend
-        $formattedInterventions = $interventions->map(function ($intervention) {
+        $formattedInterventions = $interventions->map(function ($intervention) use ($intervenant) {
             $client = $intervention->client;
             $clientUser = $client ? $client->utilisateur : null;
             $tache = $intervention->tache;
 
             // Get materials provided by client (from tache materiels)
-            $clientProvidedMaterials = [];
+            $clientProvidedMaterials = collect([]);
             if ($tache && $tache->materiels) {
                 $clientProvidedMaterials = $tache->materiels->map(function ($materiel) {
                     return [
@@ -1463,7 +1465,7 @@ class IntervenantController extends Controller
             }
 
             // Get materials used by intervenant in this intervention
-            $intervenantMaterials = [];
+            $intervenantMaterials = collect([]);
             if ($intervention->materiels) {
                 $intervenantMaterials = $intervention->materiels->map(function ($materiel) {
                     return [
@@ -1475,24 +1477,35 @@ class IntervenantController extends Controller
                 });
             }
 
-            // Combine all materials
+            // Combine all materials - merge works on Collections
             $allMaterials = $clientProvidedMaterials->merge($intervenantMaterials);
+            
+            // Get hourly rate from the pivot table (intervenant_tache)
+            $hourlyRate = 25; // Default fallback
+            if ($tache && $intervenant) {
+                $pivot = \App\Models\IntervenantTache::where('tache_id', $tache->id)
+                    ->where('intervenant_id', $intervenant->id)
+                    ->first();
+                if ($pivot) {
+                    $hourlyRate = $pivot->prix_tache;
+                }
+            }
 
             return [
                 'id' => $intervention->id,
                 'clientName' => $clientUser ? ($clientUser->nom . ' ' . $clientUser->prenom) : 'Client inconnu',
-                'clientImage' => ($clientUser && $clientUser->photo) ? $clientUser->photo : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop',
+                'clientImage' => ($clientUser && $clientUser->url) ? $clientUser->url : ($clientUser && $clientUser->profile_photo ? $clientUser->profile_photo : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop'),
                 'service' => $tache && $tache->service ? $tache->service->nom_service : 'Service inconnu',
                 'task' => $tache ? $tache->nom_tache : 'Tâche inconnue',
-                'date' => date('Y-m-d', strtotime($intervention->date_intervention)),
-           'time' => date('H:i', strtotime($intervention->date_intervention)),
-           'duration_hours' => (float)$intervention->duration_hours,
-           'duration' => $intervention->duration_hours ? number_format($intervention->duration_hours, 1) . 'h' : 'N/A',
-           'hourlyRate' => $intervention->tache && $intervenant->id ? (\App\Models\IntervenantTache::where('tache_id', $intervention->tache_id)->where('intervenant_id', $intervenant->id)->first()->prix_tache ?? 25) : 25,
-           'location' => $intervention->address . ', ' . $intervention->ville,
-           'status' => $this->mapStatus($intervention->status),
-           'message' => $intervention->description,
-           'materials' => $allMaterials,
+                'date' => $intervention->date_intervention ? $intervention->date_intervention->format('Y-m-d') : 'N/A',
+                'time' => $intervention->date_intervention ? $intervention->date_intervention->format('H:i') : 'N/A',
+                'duration_hours' => (float)$intervention->duration_hours,
+                'duration' => $intervention->duration_hours ? number_format($intervention->duration_hours, 1) . 'h' : 'N/A',
+                'hourlyRate' => (float)$hourlyRate,
+                'location' => ($intervention->address ? $intervention->address . ', ' : '') . ($intervention->ville ?? ''),
+                'status' => $this->mapStatus($intervention->status),
+                'message' => $intervention->description,
+                'materials' => $allMaterials,
                 'clientProvidedMaterials' => $clientProvidedMaterials,
                 'intervenantMaterials' => $intervenantMaterials
             ];
@@ -1502,11 +1515,11 @@ class IntervenantController extends Controller
         $pendingCount = $interventions->whereIn('status', ['en attend', 'en_attente', 'pending'])->count();
         $acceptedCount = $interventions->whereIn('status', ['acceptee', 'acceptée', 'accepted', 'planifiee'])->count();
         $completedCount = $interventions->whereIn('status', ['termine', 'terminee', 'terminée', 'completed'])->count();
-        $totalEarnings = $interventions
-            ->whereIn('status', ['termine', 'terminee', 'terminée', 'completed'])
-            ->sum(function ($intervention) {
-                // Calculate based on duration and hourly rate (using default 2 hours and 25 DH/h)
-                return 2 * 25; // duration * hourlyRate
+        
+        $totalEarnings = $formattedInterventions
+            ->where('status', 'completed')
+            ->sum(function ($item) {
+                return $item['duration_hours'] * $item['hourlyRate'];
             });
 
         return response()->json([

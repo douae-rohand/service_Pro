@@ -278,4 +278,73 @@ class ClientController extends Controller
             'comments' => $comments
         ]);
     }
+
+    /**
+     * Get client favorites with detailed information
+     */
+    public function getFavorites($id)
+    {
+        $client = Client::findOrFail($id);
+        
+        $favorites = $client->intervenantsFavoris()
+            ->with([
+                'utilisateur',
+                'services',
+                'taches.service',
+                'interventions' => function($query) use ($id) {
+                    $query->where('client_id', $id);
+                }
+            ])
+            ->get();
+
+        // Transform data for frontend
+        $favoritesData = $favorites->map(function($intervenant) use ($id) {
+            $clientInterventions = $intervenant->interventions;
+            $lastIntervention = $clientInterventions->sortByDesc('date_intervention')->first();
+            
+            // Calculate average rating
+            $evaluations = \App\Models\Evaluation::whereHas('intervention', function($query) use ($intervenant) {
+                $query->where('intervenant_id', $intervenant->id);
+            })->where('type_auteur', 'client')->get();
+            
+            $averageRating = null;
+            $totalReviews = 0;
+            if ($evaluations->count() > 0) {
+                $totalReviews = $evaluations->count();
+                $averageRating = round($evaluations->avg('note'), 1);
+            }
+
+            // Get services offered
+            $services = $intervenant->services->pluck('nom_service')->toArray();
+            
+            // Get hourly rate (from intervenant_tache)
+            $hourlyRate = null;
+            if ($intervenant->taches->count() > 0) {
+                $firstTache = $intervenant->taches->first();
+                $intervenantTache = \App\Models\IntervenantTache::where('intervenant_id', $intervenant->id)
+                    ->where('tache_id', $firstTache->id)
+                    ->first();
+                $hourlyRate = $intervenantTache ? $intervenantTache->prix_tache : null;
+            }
+
+            return [
+                'id' => $intervenant->id,
+                'name' => trim(($intervenant->utilisateur->prenom ?? '') . ' ' . ($intervenant->utilisateur->nom ?? '')),
+                'image' => $intervenant->utilisateur->url ?? 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop',
+                'phone' => $intervenant->utilisateur->telephone ?? '',
+                'location' => $intervenant->ville ?? '',
+                'averageRating' => $averageRating,
+                'totalReviews' => $totalReviews,
+                'services' => $services,
+                'hourlyRate' => $hourlyRate,
+                'servicesWithClient' => $clientInterventions->count(),
+                'totalMissions' => \App\Models\Intervention::where('intervenant_id', $intervenant->id)->count(),
+                'lastServiceDate' => $lastIntervention ? $lastIntervention->date_intervention : null,
+            ];
+        });
+
+        return response()->json([
+            'data' => $favoritesData
+        ]);
+    }
 }

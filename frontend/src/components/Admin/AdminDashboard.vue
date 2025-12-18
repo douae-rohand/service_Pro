@@ -109,6 +109,7 @@
 
     <!-- Intervenant Profile Modal -->
     <AdminIntervenantProfile
+      v-if="showIntervenantProfile && selectedIntervenant"
       :is-open="showIntervenantProfile"
       :intervenant="selectedIntervenant"
       @close="showIntervenantProfile = false"
@@ -117,6 +118,7 @@
 
     <!-- Client Details Modal -->
     <AdminClientDetails
+      v-if="showClientDetails && selectedClient"
       :is-open="showClientDetails"
       :client="selectedClient"
       @close="showClientDetails = false"
@@ -126,6 +128,7 @@
 
     <!-- Profile Modal -->
     <AdminProfileModal
+      v-if="showProfileModal && profileModalData"
       :show="showProfileModal"
       :type="profileModalType"
       :data="profileModalData"

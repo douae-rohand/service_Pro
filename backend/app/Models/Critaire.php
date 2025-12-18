@@ -15,7 +15,7 @@ class Critaire extends Model
     const UPDATED_AT = 'updated_at';
 
     protected $fillable = [
-        'nom_critaire',
+        'nom_critaire_critaire',
     ];
 
     /**

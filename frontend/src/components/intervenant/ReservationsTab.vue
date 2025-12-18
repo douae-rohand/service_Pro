@@ -428,7 +428,7 @@ const fetchReservations = async () => {
   error.value = null
   try {
     const response = await reservationService.getMyReservations()
-    const fetchedReservations = response.data.reservations || []
+    const fetchedReservations = response.reservations || []
     
     // Check evaluation status for completed reservations
     for (const reservation of fetchedReservations) {

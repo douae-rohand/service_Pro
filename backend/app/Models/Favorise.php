@@ -11,13 +11,12 @@ class Favorise extends Pivot
 
     protected $table = 'favorise';
 
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
+    
 
     protected $fillable = [
-        'idClient',
-        'idIntervenant',
-        'idService',
+        'client_id',
+        'intervenant_id',
+        'service_id',
     ];
 
     /**
@@ -25,7 +24,7 @@ class Favorise extends Pivot
      */
     public function client()
     {
-        return $this->belongsTo(Client::class, 'idClient', 'id');
+        return $this->belongsTo(Client::class, 'client_id', 'id');
     }
 
     /**
@@ -33,6 +32,6 @@ class Favorise extends Pivot
      */
     public function intervenant()
     {
-        return $this->belongsTo(Intervenant::class, 'idIntervenant', 'id');
+        return $this->belongsTo(Intervenant::class, 'intervenant_id', 'id');
     }
 }

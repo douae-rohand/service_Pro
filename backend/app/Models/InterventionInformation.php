@@ -11,8 +11,7 @@ class InterventionInformation extends Pivot
 
     protected $table = 'interventioninformation';
 
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
+    
 
     protected $fillable = [
         'idIntervention',

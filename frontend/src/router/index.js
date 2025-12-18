@@ -12,6 +12,12 @@ const router = createRouter({
             component: { template: '<div></div>' }
         },
         {
+            path: '/login',
+            name: 'login',
+            // Login is handled by modal in App.vue, redirect to home
+            redirect: '/'
+        },
+        {
             path: '/dashboard',
             name: 'dashboard',
             component: IntervenantDashboard,
@@ -52,11 +58,6 @@ const router = createRouter({
                     path: 'reviewsstats',
                     name: 'reviewsstats',
                     component: () => import('@/components/intervenant/ReviewsStatsTab.vue')
-                },
-                {
-                    path: 'history',
-                    name: 'history',
-                    component: () => import('@/components/intervenant/HistoryTab.vue')
                 }
             ]
         }

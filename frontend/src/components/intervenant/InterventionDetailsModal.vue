@@ -16,7 +16,7 @@
         <div class="modal-header">
           <div class="header-main">
             <h2>Détails de l'intervention</h2>
-            <span class="status-badge" :class="'status-' + intervention.status.replace(' ', '-')">
+            <span class="status-badge" :class="'status-' + (intervention.status || '').replace(' ', '-')">
               {{ formatStatus(intervention.status) }}
             </span>
           </div>
@@ -35,7 +35,7 @@
                 <h3>Client</h3>
               </div>
               <div class="client-mini-card">
-                <img :src="intervention.client?.utilisateur?.profile_photo || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop'" class="mini-avatar" />
+                <img :src="getImageUrl(intervention.client?.utilisateur?.photo)" class="mini-avatar" />
                 <div class="mini-info">
                   <p class="name">{{ intervention.client?.utilisateur?.nom }} {{ intervention.client?.utilisateur?.prenom }}</p>
                   
@@ -55,9 +55,9 @@
                 <h3>Service & Tâche</h3>
               </div>
               <div class="service-details">
-                <p class="service-name">{{ intervention.tache?.service?.nom_service }}</p>
-                <p class="task-name">{{ intervention.tache?.nom_tache }}</p>
-                <p class="description" v-if="intervention.tache?.description">{{ intervention.tache.description }}</p>
+                <p class="service-name">{{ intervention.service }}</p>
+                <p class="task-name">{{ intervention.task }}</p>
+                <p class="description" v-if="intervention.description">{{ intervention.description }}</p>
               </div>
             </div>
 
@@ -334,7 +334,8 @@ const fetchDetails = async () => {
   error.value = null
   try {
     const response = await api.get(`interventions/${props.interventionId}`)
-    intervention.value = response.data
+    // Laravel Resource wraps data in a 'data' property
+    intervention.value = response.data.data || response.data
   } catch (err) {
     console.error('Error fetching intervention details:', err)
     error.value = "Impossible de charger les détails de l'intervention."
@@ -348,6 +349,7 @@ const close = () => {
 }
 
 const formatDate = (dateStr) => {
+  if (!dateStr) return 'N/A'
   return new Date(dateStr).toLocaleDateString('fr-FR', {
     weekday: 'long',
     day: 'numeric',
@@ -357,6 +359,7 @@ const formatDate = (dateStr) => {
 }
 
 const formatTime = (dateStr) => {
+  if (!dateStr) return 'N/A'
   return new Date(dateStr).toLocaleTimeString('fr-FR', {
     hour: '2-digit',
     minute: '2-digit'
@@ -364,11 +367,17 @@ const formatTime = (dateStr) => {
 }
 
 const formatStatus = (status) => {
+  if (!status) return 'N/A'
   const map = {
     'en attend': 'En attente',
+    'en_attente': 'En attente',
+    'pending': 'En attente',
     'acceptee': 'Acceptée',
+    'accepted': 'Acceptée',
     'refuse': 'Refusée',
-    'termine': 'Terminée'
+    'rejected': 'Refusée',
+    'termine': 'Terminée',
+    'completed': 'Terminée'
   }
   return map[status] || status
 }
@@ -381,35 +390,16 @@ const getImageUrl = (path) => {
   return `${baseUrl}/storage/${path}`
 }
 
-const openImage = (path) => {
-  window.open(getImageUrl(path), '_blank')
+const getImageUrl = (path) => {
+  if (!path) return 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=400&h=300&fit=crop'
+  if (path.startsWith('http')) return path
+  return `http://127.0.0.1:8000/storage/${path.replace(/^\/+/, '')}`
 }
 
-const handleFileUpload = async (event) => {
-  const files = event.target.files
-  if (!files.length) return
-
-  uploading.value = true
-  try {
-    for (const file of files) {
-      const formData = new FormData()
-      formData.append('photo', file)
-      formData.append('phase_prise', 'apres')
-      
-      await api.post(`interventions/${props.interventionId}/photos`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      })
-    }
-    // Refresh details after upload
-    await fetchDetails()
-  } catch (err) {
-    console.error('Error uploading photos:', err)
-    error.value = "Erreur lors de l'envoi des photos."
-  } finally {
-    uploading.value = false
-    // Clear input
-    event.target.value = ''
-  }
+const openImage = (photo) => {
+  const path = photo.photo_path || photo.path || photo
+  if (!path) return
+  window.open(getImageUrl(path), '_blank')
 }
 </script>
 

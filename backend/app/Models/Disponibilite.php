@@ -19,12 +19,12 @@ class Disponibilite extends Model
 
 
     protected $fillable = [
+        'intervenant_id',
         'type',
+        'jours_semaine',
+        'date_specific',
         'heure_debut',
         'heure_fin',
-        'date_specific',
-        'jours_semaine',
-        'intervenant_id',
     ];
 
     protected function casts(): array
@@ -41,10 +41,6 @@ class Disponibilite extends Model
      */
     public function intervenant()
     {
-        return $this->belongsTo(
-            Intervenant::class,
-            'intervenant_id', // ✅ même colonne
-            'id'
-        );
+        return $this->belongsTo(Intervenant::class, 'intervenant_id', 'id');
     }
 }

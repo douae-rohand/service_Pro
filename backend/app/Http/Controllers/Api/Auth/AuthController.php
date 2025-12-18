@@ -76,7 +76,7 @@ class AuthController extends Controller
             } elseif ($userType === 'intervenant') {
                 DB::table('intervenant')->insert([
                     'id' => $userId,
-                    'is_active' => false, // Nouveau intervenant en attente de validation
+                    'is_active' => false,// Nouveau intervenant en attente de validation
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);

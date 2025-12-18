@@ -62,6 +62,7 @@ Route::post('intervenants/{id}/services/{serviceId}/request-activation', [Interv
 // Routes Statistiques (publiques pour consultation)
 // ======================
 Route::get('stats', [StatsController::class, 'index']);
+Route::get('intervenants/{intervenantId}/reviews-stats', [StatsController::class, 'getIntervenantReviewsStats']);
 
 // Test route to verify no auth is required
 Route::get('intervenants/test', function () {

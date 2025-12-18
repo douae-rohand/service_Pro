@@ -126,11 +126,11 @@
                   v-for="rating in [
                     { value: 'all', label: 'Toutes les notes', stars: null },
                     { value: 5, label: '5 étoiles', stars: 5 },
-                    { value: 4, label: '4 étoiles et plus', stars: 4 },
-                    { value: 3, label: '3 étoiles et plus', stars: 3 },
-                    { value: 2, label: '2 étoiles et plus', stars: 2 },
-                    { value: 1, label: '1 étoile et plus', stars: 1 },
-                    { value: 0, label: '0 étoile et plus', stars: 0 }
+                    { value: 4, label: 'Entre 4 et 5 étoiles', stars: 4 },
+                    { value: 3, label: 'Entre 3 et 4 étoiles', stars: 3 },
+                    { value: 2, label: 'Entre 2 et 3 étoiles', stars: 2 },
+                    { value: 1, label: 'Entre 1 et 2 étoiles', stars: 1 },
+                    { value: 0, label: 'Entre 0 et 1 étoile', stars: 0 }
                   ]"
                   :key="rating.value"
                   class="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
@@ -500,7 +500,12 @@ export default {
         
         let matchesRating = true;
         if (this.selectedRating !== 'all' && typeof this.selectedRating === 'number') {
-          matchesRating = intervenant.rating >= this.selectedRating;
+          const rating = Number(intervenant.rating);
+          if (this.selectedRating === 5) {
+            matchesRating = rating === 5;
+          } else {
+            matchesRating = rating >= this.selectedRating && rating < (this.selectedRating + 1);
+          }
         }
         
         const matchesMaterial = !this.bringsMaterial || intervenant.bringsMaterial;

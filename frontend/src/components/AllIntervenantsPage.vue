@@ -222,8 +222,13 @@
                   </div>
 
                   <div class="flex-1 min-w-0">
-                    <div class="flex justify-between items-start">
-                      <h3 class="text-xl font-bold text-gray-900 truncate pr-2">{{ intervenant.name }}</h3>
+                    <div class="flex justify-between items-start mb-2">
+                      <div>
+                        <h3 class="text-xl font-bold text-gray-900 truncate pr-2">{{ intervenant.name }}</h3>
+                        <div class="text-lg font-bold" :style="{ color: currentService.color }">
+                          {{ intervenant.hourlyRate }}DH/h
+                        </div>
+                      </div>
                       <div class="flex flex-col items-end gap-1">
                         <div class="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-lg border border-yellow-100">
                            <Star :size="14" class="fill-yellow-400 text-yellow-400" />
@@ -233,11 +238,19 @@
                       </div>
                     </div>
                     
-                    <p class="text-sm text-gray-500 font-medium mt-1 mb-3">{{ formatExperience(intervenant.experience) }} d'expérience</p>
-                    
-                    <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gray-50 text-gray-600 border border-gray-100">
-                      <MapPin :size="12" />
-                      {{ intervenant.location }}
+                    <div class="flex flex-wrap gap-x-4 gap-y-2 mb-3">
+                      <div class="flex items-center gap-1.5 text-sm text-gray-500 font-medium">
+                        <Briefcase :size="14" :style="{ color: currentService.color }" />
+                        <span>{{ intervenant.interv_count || 0 }} missions</span>
+                      </div>
+                      <div class="flex items-center gap-1.5 text-sm text-gray-500 font-medium">
+                        <MapPin :size="14" :style="{ color: currentService.color }" />
+                        <span>{{ intervenant.location }}</span>
+                      </div>
+                    </div>
+
+                    <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gray-50 text-gray-600 border border-gray-100 mb-4">
+                      {{ formatExperience(intervenant.experience) }} d'expérience
                     </div>
                   </div>
                 </div>
@@ -333,7 +346,7 @@
 </template>
 
 <script>
-import { ArrowLeft, Star, MapPin, Search, Filter, SlidersHorizontal, CheckCircle } from 'lucide-vue-next';
+import { ArrowLeft, Star, MapPin, Search, Filter, SlidersHorizontal, CheckCircle, Briefcase } from 'lucide-vue-next';
 import intervenantService from '@/services/intervenantService';
 import serviceService from '@/services/serviceService';
 import { formatExperience } from '@/utils/experienceFormatter';
@@ -347,7 +360,8 @@ export default {
     Search,
     Filter,
     SlidersHorizontal,
-    CheckCircle
+    CheckCircle,
+    Briefcase
   },
   props: {
     service: {
@@ -586,6 +600,7 @@ export default {
             name: `${utilisateur.nom || ''} ${utilisateur.prenom || ''}`.trim() || 'Intervenant',
             rating: intervenant.average_rating || 0,
             reviewCount: intervenant.review_count || 0,
+            interv_count: intervenant.interv_count || 0,
             hourlyRate: hourlyRate,
             location: intervenant.ville || utilisateur.address || 'Non spécifiée',
             image: intervenant.image_url || utilisateur.profile_photo || utilisateur.url || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=150&h=150&fit=crop',
@@ -595,7 +610,6 @@ export default {
             experience: realExperience,
             bringsMaterial: (intervenant.materiels && intervenant.materiels.length > 0) || false,
             ecoFriendly: Math.random() > 0.5,
-            // Données complètes pour le profil
             fullData: intervenant
           };
         });

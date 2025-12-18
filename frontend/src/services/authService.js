@@ -7,8 +7,12 @@ const authService = {
     /**
      * Connexion utilisateur
      */
-    login(credentials) {
-        return api.post('auth/login', credentials);
+    async login(credentials) {
+        const res = await api.post('auth/login', credentials);
+        if (res.data?.user) {
+            localStorage.setItem('user', JSON.stringify(res.data.user));
+        }
+        return res;
     },
 
     forgotPassword(email) {
@@ -34,22 +38,46 @@ const authService = {
     /**
      * Déconnexion utilisateur
      */
-    logout() {
-        return api.post('auth/logout');
+    async logout() {
+        const res = await api.post('auth/logout');
+        localStorage.removeItem('user');
+        return res;
+    },
+
+    async register(userData) {
+        const res = await api.post('auth/register', userData);
+        if (res.data?.user) {
+            localStorage.setItem('user', JSON.stringify(res.data.user));
+        }
+        return res;
     },
 
     /**
-     * Inscription utilisateur
+     * Récupérer l'utilisateur connecté (API)
      */
-    register(userData) {
-        return api.post('auth/register', userData);
+    async getCurrentUser() {
+        try {
+            const res = await api.get('auth/user');
+            if (res.data) {
+                localStorage.setItem('user', JSON.stringify(res.data));
+            }
+            return res;
+        } catch (error) {
+            console.error('Error fetching user:', error);
+            throw error;
+        }
     },
 
     /**
-     * Récupérer l'utilisateur connecté
+     * Récupérer l'utilisateur depuis le cache (synchrone)
      */
-    getCurrentUser() {
-        return api.get('auth/user');
+    getUserSync() {
+        try {
+            const userStr = localStorage.getItem('user');
+            return userStr ? JSON.parse(userStr) : null;
+        } catch (e) {
+            return null;
+        }
     },
 
     /**
@@ -79,7 +107,7 @@ const authService = {
     updateAvatar(file) {
         const formData = new FormData();
         formData.append('avatar', file);
-        
+
         return api.post('auth/profile/avatar', formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
@@ -97,6 +125,7 @@ const authService = {
         } else {
             delete api.defaults.headers.common['Authorization'];
             localStorage.removeItem('token');
+            localStorage.removeItem('user');
         }
     },
 

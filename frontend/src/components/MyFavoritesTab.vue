@@ -57,6 +57,7 @@
           <img
             :src="favorite.image"
             :alt="favorite.name"
+            @error="handleImageError"
             class="w-20 h-20 rounded-full object-cover border-2"
             style="border-color: #92b08b"
           />
@@ -201,16 +202,16 @@ export default {
         // Map backend data to frontend expected format
         this.favorites = rawFavorites.map(fav => ({
           ...fav,
-          name: `${fav.prenom} ${fav.nom}`,
-          image: fav.photo_url || 'https://via.placeholder.com/150',
-          services: [fav.nom_service], // Since backend returns one row per service
-          location: fav.ville || fav.adresse || 'Maroc', // Fallback
-          // Default values for missing backend data
-          averageRating: fav.note_globale || 'N/A',
+          name: `${fav.prenom || ''} ${fav.nom || ''}`.trim(),
+          image: fav.photo_url || `https://ui-avatars.com/api/?name=${fav.prenom}+${fav.nom}&background=random`,
+          services: [fav.nom_service],
+          location: fav.ville || fav.adresse || 'Non spécifiée',
+          averageRating: fav.note_globale || 0,
           totalReviews: fav.nombre_avis || 0,
-          servicesWithClient: 1,
-          totalMissions: fav.nombre_interventions || 0,
-          hourlyRate: fav.tarif_horaire || null
+          servicesWithClient: fav.services_avec_client || 0,
+          totalMissions: fav.total_missions || 0,
+          hourlyRate: fav.tarif_horaire || null,
+          lastServiceDate: fav.dernier_service || null
         }));
       } catch (error) {
         console.error('Error loading favorites:', error);
@@ -255,6 +256,9 @@ export default {
       if (!dateString) return 'N/A';
       const date = new Date(dateString);
       return date.toLocaleDateString('fr-FR');
+    },
+    handleImageError(event) {
+      event.target.src = 'https://ui-avatars.com/api/?name=User&background=random';
     }
   }
 };

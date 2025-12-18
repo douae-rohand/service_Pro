@@ -39,6 +39,8 @@ api.interceptors.response.use(
         // Token invalide ou expiré
         localStorage.removeItem('token');
         delete api.defaults.headers.common['Authorization'];
+        
+        // Don't automatically redirect - let components handle auth errors
       }
       
       // Retourner l'erreur avec les détails du serveur
@@ -65,4 +67,3 @@ api.interceptors.response.use(
 );
 
 export default api;
-    

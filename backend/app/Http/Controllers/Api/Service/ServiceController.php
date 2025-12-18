@@ -23,19 +23,40 @@ class ServiceController extends Controller
                 $query->where('status', 'active');
             }
             
-            $services = $query->get();
-
-            // Simple format without loading relationships first
+            // Load relationships with only necessary columns
+            $services = $query->with([
+                'taches:id,service_id,nom_tache,description,image_url',
+                'materiels:id,service_id,nom_materiel'
+            ])->get();
+            
+            // Format services with tasks and materials included
             $formattedServices = $services->map(function ($service) {
                 return [
                     'id' => $service->id,
-                    'name' => $service->nom_service,
+                    'nom_service' => $service->nom_service,
+                    'name' => $service->nom_service, // Match frontend expectation
                     'description' => $service->description,
+                    'tasks' => $service->taches->map(function($tache) {
+                        return [
+                            'id' => $tache->id,
+                            'service_id' => $tache->service_id,
+                            'name' => $tache->nom_tache, // Map nom_tache to name
+                            'description' => $tache->description,
+                            'image_url' => $tache->image_url
+                        ];
+                    }),
+                    'materials' => $service->materiels->map(function($m) {
+                        return [
+                            'id' => $m->id,
+                            'name' => $m->nom_materiel // Map nom_materiel to name
+                        ];
+                    }),
+                    'taches' => $service->taches // Keep for backward compatibility
                 ];
             });
 
             return response()->json([
-                'services' => $formattedServices,
+                'data' => $formattedServices,  // Use 'data' key for consistency
             ]);
         } catch (\Exception $e) {
             \Log::error('Service index error: ' . $e->getMessage());

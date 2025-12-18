@@ -7,6 +7,7 @@ use App\Models\Intervenant;
 use App\Models\Disponibilite;
 use App\Models\Tache;
 use App\Models\Intervention;
+use App\Models\Materiel;
 use App\Models\Service;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -42,9 +43,10 @@ class IntervenantController extends Controller
         }
 
         // Filtrer par service si spécifié - optimisé
-        if ($request->has('serviceId')) {
-            $query->whereHas('taches', function ($q) use ($request) {
-                $q->where('service_id', $request->serviceId);
+        $serviceId = $request->input('serviceId') ?: $request->input('service_id');
+        if ($serviceId) {
+            $query->whereHas('taches', function ($q) use ($serviceId) {
+                $q->where('service_id', $serviceId);
             });
         }
 
@@ -70,6 +72,7 @@ class IntervenantController extends Controller
             
             $intervenant->average_rating = round($avg, 1);
             $intervenant->review_count = $count;
+            $intervenant->interv_count = $intervenant->interventions->count();
             
             // Nettoyer la relation pour ne pas renvoyer de données inutiles en JSON
             unset($intervenant->interventions);
@@ -141,6 +144,7 @@ class IntervenantController extends Controller
             $ratingInfo = $intervenant->getRatingInfo();
             $intervenant->average_rating = $ratingInfo['average_rating'];
             $intervenant->review_count = $ratingInfo['review_count'];
+            $intervenant->interv_count = $intervenant->interventions()->count();
 
             return response()->json($intervenant);
         }
@@ -196,7 +200,7 @@ class IntervenantController extends Controller
         $intervenant = Intervenant::findOrFail($id);
         $interventions = $intervenant->interventions()
             ->with(['client.utilisateur', 'tache'])
-            ->orderBy('dateIntervention', 'desc')
+            ->orderBy('date_intervention', 'desc')
             ->get();
 
         return response()->json($interventions);
@@ -408,8 +412,8 @@ class IntervenantController extends Controller
         }
         
         // Filter by service - using serviceId parameter
-        if ($request->has('serviceId') && $request->serviceId != 'all') {
-            $serviceId = $request->serviceId;
+        $serviceId = $request->input('serviceId') ?: $request->input('service_id');
+        if ($serviceId && $serviceId != 'all') {
             Log::info('Filtering by serviceId: ' . $serviceId);
             
             $query->whereHas('taches', function ($q) use ($serviceId) {
@@ -985,6 +989,7 @@ class IntervenantController extends Controller
             ->map(function ($tache) {
                 return [
                     'id' => $tache->id,
+                    'service_id' => $tache->service_id, // Essential for frontend grouping
                     'name' => $tache->nom_tache,
                     'price' => $tache->pivot->prix_tache,
                     'status' => $tache->pivot->status,
@@ -1021,7 +1026,7 @@ class IntervenantController extends Controller
         // Get intervenant's active tasks
         $activeTasks = DB::table('intervenant_tache')
             ->where('intervenant_id', $intervenantId)
-            ->where('active', true)
+            ->where('status', true)
             ->pluck('tache_id')
             ->toArray();
 
@@ -1176,6 +1181,71 @@ class IntervenantController extends Controller
     }
 
     /**
+     * Delete a material from intervenant_materiel table
+     */
+    public function deleteIntervenantMaterial($intervenantId, $materialId)
+    {
+        // Verify intervenant exists
+        $intervenant = Intervenant::find($intervenantId);
+        if (!$intervenant) {
+            return response()->json(['error' => 'Intervenant not found'], 404);
+        }
+
+        // Delete the material association
+        $deleted = DB::table('intervenant_materiel')
+            ->where('intervenant_id', $intervenantId)
+            ->where('materiel_id', $materialId)
+            ->delete();
+
+        if ($deleted) {
+            return response()->json(['message' => 'Material removed successfully']);
+        } else {
+            return response()->json(['error' => 'Material not found for this intervenant'], 404);
+        }
+    }
+
+    /**
+     * Get intervenant materials for a specific service
+     */
+    public function getIntervenantMaterials($intervenantId, $serviceId)
+    {
+        // Verify intervenant exists
+        $intervenant = Intervenant::find($intervenantId);
+        if (!$intervenant) {
+            return response()->json(['error' => 'Intervenant not found'], 404);
+        }
+
+        // Get materials for this service with intervenant prices
+        $materials = DB::table('materiel')
+            ->leftJoin('intervenant_materiel', function ($join) use ($intervenantId) {
+                $join->on('materiel.id', '=', 'intervenant_materiel.materiel_id')
+                     ->where('intervenant_materiel.intervenant_id', '=', $intervenantId);
+            })
+            ->where('materiel.service_id', '=', $serviceId)
+            ->select([
+                'materiel.id as material_id',
+                'materiel.nom_materiel as material_name',
+                'intervenant_materiel.prix_materiel'
+            ])
+            ->get();
+
+        // Format materials with possession status and price
+        $formattedMaterials = [];
+        foreach ($materials as $material) {
+            $formattedMaterials[] = [
+                'id' => $material->material_id,
+                'name' => $material->material_name,
+                'price' => $material->prix_materiel ?: 0,
+                'possessed' => $material->prix_materiel !== null // Material is possessed if price exists
+            ];
+        }
+
+        return response()->json([
+            'materials' => $formattedMaterials
+        ]);
+    }
+
+    /**
      * Update service materials
      */
     public function updateServiceMaterials(Request $request, $intervenantId, $serviceId)
@@ -1194,23 +1264,21 @@ class IntervenantController extends Controller
 
         // Validate request
         $validated = $request->validate([
-            'materials' => 'required|array|min:1',
+            'materials' => 'sometimes|array', // Allow empty array
             'materials.*.name' => 'required|string',
-            'materials.*.price' => 'required|numeric|min:0',
-            'materials.*.tasks' => 'required|array',
-            'materials.*.tasks.*' => 'integer'
+            'materials.*.price' => 'required|numeric|min:0'
         ]);
 
         try {
             DB::beginTransaction();
 
-            // Process each material
+            // Process each material (only if materials array is not empty)
+        if (!empty($validated['materials'])) {
             foreach ($validated['materials'] as $materialData) {
                 $materialName = $materialData['name'];
                 $materialPrice = $materialData['price'];
-                $taskIds = $materialData['tasks'];
 
-                // Find or create the material
+                // Find the material
                 $material = Materiel::where('nom_materiel', $materialName)->first();
                 if (!$material) {
                     return response()->json([
@@ -1218,7 +1286,7 @@ class IntervenantController extends Controller
                     ], 404);
                 }
 
-                // Store price in intervenant_materiel table
+                // Store or update price in intervenant_materiel table
                 DB::table('intervenant_materiel')
                     ->updateOrInsert(
                         [
@@ -1230,31 +1298,8 @@ class IntervenantController extends Controller
                             'updated_at' => now()
                         ]
                     );
-
-                // Store relations in tache_materiel table for each selected task
-                if (!empty($taskIds)) {
-                    foreach ($taskIds as $taskId) {
-                        // Verify task belongs to this service
-                        $task = Tache::where('id', $taskId)
-                            ->where('service_id', $serviceId)
-                            ->first();
-
-                        if ($task) {
-                            DB::table('tache_materiel')
-                                ->updateOrInsert(
-                                    [
-                                        'tache_id' => $taskId,
-                                        'materiel_id' => $material->id
-                                    ],
-                                    [
-                                        'created_at' => now(),
-                                        'updated_at' => now()
-                                    ]
-                                );
-                        }
-                    }
-                }
             }
+        }
 
             DB::commit();
 

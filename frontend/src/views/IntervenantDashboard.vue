@@ -151,8 +151,12 @@ const fetchCurrentUser = async () => {
     }
   } catch (error) {
     console.error('Error fetching user data:', error)
-    // Redirect to home (which will show login modal if not authenticated)
-    router.push('/')
+    // Handle authentication errors gracefully
+    if (error.status === 401) {
+      // Clear token and redirect to login
+      localStorage.removeItem('token')
+      router.push('/login')
+    }
   } finally {
     loading.value = false
   }
@@ -481,8 +485,16 @@ const handleLogout = async () => {
 /* Desktop */
 @media (min-width: 1024px) {
   .sidebar {
-    position: static;
+    position: fixed;
     transform: translateX(0);
+    width: 16rem;
+    top: 0;
+    left: 0;
+    bottom: 0;
+  }
+
+  .main-content {
+    margin-left: 16rem;
   }
 
   .close-btn {

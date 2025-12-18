@@ -18,32 +18,64 @@ class FavorisController extends Controller
         try {
             $client = Client::findOrFail($clientId);
             
-            // Allow getting favorites with service details
-            $favoris = DB::table('favorise')
-                ->join('intervenant', 'favorise.intervenant_id', '=', 'intervenant.id')
-                ->join('utilisateur', 'intervenant.id', '=', 'utilisateur.id')
-                ->join('service', 'favorise.service_id', '=', 'service.id')
-                ->where('favorise.client_id', $clientId)
-                ->select(
-                    'intervenant.*', 
-                    'utilisateur.nom', 
-                    'utilisateur.prenom', 
-                    'utilisateur.email', 
-                    'utilisateur.url as photo_url',
-                    'service.id as service_id',
-                    'service.nom_service'
-                )
+            // Get all favorite records for this client
+            $favorisRecords = DB::table('favorise')
+                ->where('client_id', $clientId)
                 ->get();
+                
+            $favoritesData = $favorisRecords->map(function($record) use ($clientId) {
+                $intervenant = \App\Models\Intervenant::with('utilisateur')->find($record->intervenant_id);
+                $service = \App\Models\Service::find($record->service_id);
+                
+                if (!$intervenant || !$service) return null;
+                
+                // Get real rating info using the model's existing logic
+                $ratingInfo = $intervenant->getRatingInfo();
+                
+                // Intervention statistics specific to this client
+                $clientInterventions = \App\Models\Intervention::where('client_id', $clientId)
+                    ->where('intervenant_id', $intervenant->id);
+                
+                $servicesWithClient = (clone $clientInterventions)->count();
+                $lastIntervention = (clone $clientInterventions)->orderBy('date_intervention', 'desc')->first();
+                
+                // Total missions for all clients
+                $totalMissions = \App\Models\Intervention::where('intervenant_id', $intervenant->id)->count();
+
+                // Calculate average hourly rate from assigned tasks
+                $hourlyRate = DB::table('intervenant_tache')
+                    ->where('intervenant_id', $intervenant->id)
+                    ->avg('prix_tache');
+
+                return [
+                    'id' => $intervenant->id,
+                    'nom' => $intervenant->utilisateur->nom,
+                    'prenom' => $intervenant->utilisateur->prenom,
+                    'email' => $intervenant->utilisateur->email,
+                    'photo_url' => $intervenant->utilisateur->url,
+                    'ville' => $intervenant->ville,
+                    'adresse' => $intervenant->address,
+                    'service_id' => $record->service_id,
+                    'nom_service' => $service->nom_service,
+                    // Real data fields
+                    'note_globale' => $ratingInfo['average_rating'],
+                    'nombre_avis' => $ratingInfo['review_count'],
+                    'services_avec_client' => $servicesWithClient,
+                    'dernier_service' => $lastIntervention ? $lastIntervention->date_intervention : null,
+                    'total_missions' => $totalMissions,
+                    'tarif_horaire' => $hourlyRate ? round($hourlyRate, 0) : 25
+                ];
+            })->filter()->values();
                 
             return response()->json([
                 'status' => 'success',
-                'data' => $favoris
+                'data' => $favoritesData
             ]);
         } catch (\Exception $e) {
             Log::error('Error fetching favorites: ' . $e->getMessage());
             return response()->json([
                 'status' => 'error',
-                'message' => 'Erreur lors de la récupération des favoris'
+                'message' => 'Erreur lors de la récupération des favoris: ' . $e->getMessage()
             ], 500);
         }
     }

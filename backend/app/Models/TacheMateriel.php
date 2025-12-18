@@ -17,15 +17,15 @@ class TacheMateriel extends Pivot
     protected $fillable = [
         'tache_id',
         'materiel_id',
-        'prix_materiel',
+        // 'prix_materiel',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'prix_materiel' => 'decimal:2',
-        ];
-    }
+    // protected function casts(): array
+    // {
+    //     return [
+    //         'prix_materiel' => 'decimal:2',
+    //     ];
+    // }
 
     /**
      * Get the tache that owns this record.

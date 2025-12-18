@@ -449,12 +449,25 @@ class IntervenantController extends Controller
         Log::info('Found ' . $intervenants->total() . ' intervenants');
         
         // Load relationships AFTER pagination - minimal loading
-        $intervenants->load('utilisateur');
+        $intervenants->load(['utilisateur', 'interventions.evaluations' => function ($q) {
+            $q->where('type_auteur', 'client');
+        }]);
         
         // Simple transformation
         $intervenants->getCollection()->transform(function ($intervenant) {
-            $intervenant->average_rating = 0;
-            $intervenant->review_count = 0;
+            // Calculate rating fromloaded evaluations
+            $evaluations = $intervenant->interventions->flatMap(function ($intervention) {
+                return $intervention->evaluations;
+            });
+            
+            $count = $evaluations->count();
+            $avg = $count > 0 ? $evaluations->avg('note') : 0;
+            
+            $intervenant->average_rating = round($avg, 1);
+            $intervenant->review_count = $count;
+            
+            // Clean up heavy relationship data
+            unset($intervenant->interventions);
             
             return $intervenant;
         });

@@ -14,60 +14,40 @@ class ServiceController extends Controller
      */
     public function index()
     {
-        // Mettre en cache la liste des services (rarement modifiée) pour 24h
-        $services = \Illuminate\Support\Facades\Cache::remember('all_services_v2', 86400, function () {
-            // Optimisation : Sélectionner uniquement les colonnes nécessaires et charger les tâches de manière légère
-            return Service::select('id', 'nom_service', 'description')
-                          ->with(['materiels', 'taches', 'taches.materiels']) // Charge materiels du service, taches, et materiels des taches
-                          ->get();
-        });
+        try {
+            // Start with basic query
+            $query = Service::query();
+            
+            // Filter only active services if status column exists
+            if (\Illuminate\Support\Facades\Schema::hasColumn('service', 'status')) {
+                $query->where('status', 'active');
+            }
+            
+            // Load tasks relationship with only necessary columns
+            $services = $query->with('taches:id,service_id,nom_tache,description,image_url')->get();
 
-        $query = Service::with(['taches', 'informations', 'justificatifs']);
-        
-        // Filtrer uniquement les services actifs si la colonne status existe
-        if (\Illuminate\Support\Facades\Schema::hasColumn('service', 'status')) {
-            $query->where('status', 'active');
-        }
-        
-        $services = $query->get();
-
-        // Format data for frontend
-        $formattedServices = $services->map(function ($service) {
-            // Get direct materials for this service
-            $directMaterials = $service->materiels->map(function ($materiel) {
+            // Format services with tasks included
+            $formattedServices = $services->map(function ($service) {
                 return [
-                    'id' => $materiel->id,
-                    'name' => $materiel->nom_materiel,
-                    'description' => $materiel->description,
+                    'id' => $service->id,
+                    'nom_service' => $service->nom_service,  // Match frontend expectation
+                    'description' => $service->description,
+                    'taches' => $service->taches,  // Include tasks
                 ];
             });
 
-            return [
-                'id' => $service->id,
-                'name' => $service->nom_service,
-                'description' => $service->description,
-                'materials' => $directMaterials, // Direct service materials
-                'tasks' => $service->taches->map(function ($tache) {
-                    return [
-                        'id' => $tache->id,
-                        'name' => $tache->nom_tache,
-                        'description' => $tache->description,
-                        'status' => $tache->status,
-                        'materials' => $tache->materiels->map(function ($materiel) {
-                            return [
-                                'id' => $materiel->id,
-                                'name' => $materiel->nom_materiel,
-                                'description' => $materiel->description,
-                            ];
-                        }),
-                    ];
-                }),
-            ];
-        });
-
-        return response()->json([
-            'services' => $formattedServices,
-        ]);
+            return response()->json([
+                'data' => $formattedServices,  // Use 'data' key for consistency
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Service index error: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
+            
+            return response()->json([
+                'error' => 'Failed to load services',
+                'message' => config('app.debug') ? $e->getMessage() : 'Internal server error',
+            ], 500);
+        }
     }
 
     /**
@@ -157,12 +137,24 @@ class ServiceController extends Controller
     /**
      * Get taches for a specific service
      */
-    public function getTaches($id)
+    public function getTaches(Request $request, $id)
     {
         $service = Service::findOrFail($id);
-        // Ne charger que les taches sans relations supplémentaires pour éviter les erreurs
-        $taches = $service->taches()->get();
+        
+        $query = $service->taches()->with(['materiels', 'intervenants']);
+        
+        // Filter by intervenant if provided
+        if ($request->has('intervenantId')) {
+            $intervenantId = $request->intervenantId;
+            $query->whereHas('intervenants', function($q) use ($intervenantId) {
+                $q->where('intervenant_id', $intervenantId);
+            });
+        }
+        
+        $taches = $query->get();
 
-        return response()->json($taches);
+        return response()->json([
+            'data' => $taches
+        ]);
     }
 }

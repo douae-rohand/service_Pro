@@ -569,10 +569,17 @@ const loadAuthenticatedUser = async () => {
 
     // Get current user from API
     const response = await authService.getCurrentUser()
-    const user = response.data.user
+    const user = response.data
+
+    // Safely check if user exists and has data
+    if (!user) {
+      authError.value = 'Impossible de charger les données utilisateur'
+      isLoadingUser.value = false
+      return
+    }
 
     // Check if user is an intervenant
-    if (!user.intervenant) {
+    if (!user.intervenant || !user.intervenant.id) {
       authError.value = 'Cette page est réservée aux intervenants'
       isLoadingUser.value = false
       return
@@ -592,7 +599,7 @@ const loadAuthenticatedUser = async () => {
     console.error('Erreur lors du chargement de l\'utilisateur:', error)
     
     // Handle authentication errors
-    if (error.status === 401) {
+    if (error.status === 401 || error.response?.status === 401) {
       authError.value = 'Session expirée. Veuillez vous reconnecter'
       // Remove invalid token
       authService.setAuthToken(null)

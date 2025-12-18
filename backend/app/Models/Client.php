@@ -46,6 +46,8 @@ class Client extends Model
         return $this->belongsTo(Admin::class, 'admin_id', 'id');
     }
 
+
+
     /**
      * Get the intervenants favorited by this client.
      */
@@ -56,7 +58,7 @@ class Client extends Model
             'favorise',
             'client_id',
             'intervenant_id'
-        )->withPivot('created_at', 'updated_at');
+        )->withTimestamps();
     }
 
     /**

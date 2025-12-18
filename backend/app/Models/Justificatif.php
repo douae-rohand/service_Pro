@@ -13,6 +13,8 @@ class Justificatif extends Model
 
     protected $fillable = [
         'intervenant_id',
+        'nom',
+        'description',
         'type',
         'chemin_fichier',
     ];
@@ -35,6 +37,6 @@ class Justificatif extends Model
             'service_justificatif',
             'justificatif_id',
             'service_id'
-        )->withPivot('created_at', 'updated_at');
+        )->withTimestamps();
     }
 }

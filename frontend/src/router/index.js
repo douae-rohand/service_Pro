@@ -12,6 +12,12 @@ const router = createRouter({
             component: { template: '<div></div>' }
         },
         {
+            path: '/login',
+            name: 'login',
+            // Login is handled by modal in App.vue, redirect to home
+            redirect: '/'
+        },
+        {
             path: '/dashboard',
             name: 'dashboard',
             component: IntervenantDashboard,

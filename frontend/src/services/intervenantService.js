@@ -1,89 +1,136 @@
-import api from './api';
+import api from './api'
 
-/**
- * Service pour gérer les intervenants
- */
 const intervenantService = {
-    /**
-     * Récupérer tous les intervenants
-     */
-    getAll(params = {}) {
-        return api.get('intervenants', { params });
-    },
+  // Récupérer tous les intervenants avec pagination et filtres
+  async getAllIntervenants(params = {}) {
+    try {
+      console.log('🔍 Calling API with params:', params);
+      const res = await api.get('intervenants/search', { params });
+      return res.data;
+    } catch (error) {
+      console.error('❌ API Error:', error);
+      throw error;
+    }
+  },
 
-    /**
-     * Récupérer un intervenant par ID
-     */
-    getById(id) {
-        return api.get(`intervenants/${id}`);
-    },
+  // Récupérer un intervenant spécifique
+  async getIntervenant(id) {
+    try {
+      console.log(`🔍[SERVICE] getIntervenant calling API for id: ${id}`);
+      const res = await api.get(`intervenants/${id}`)
+      console.log('✅[SERVICE] getIntervenant Response:', res.data);
+      return res.data
+    } catch (error) {
+      console.error('Error fetching intervenant:', error)
+      throw error
+    }
+  },
 
-    /**
-     * Récupérer les interventions d'un intervenant
-     */
-    getInterventions(id) {
-        return api.get(`intervenants/${id}/interventions`);
-    },
+  // Récupérer les services d'un intervenant
+  async getIntervenantServices(intervenantId) {
+    try {
+      const res = await api.get(`intervenants/${intervenantId}/services`)
+      return res.data
+    } catch (error) {
+      console.error('Error fetching intervenant services:', error)
+      throw error
+    }
+  },
 
-    /**
-     * Récupérer les disponibilités d'un intervenant
-     */
-    getDisponibilites(id) {
-        return api.get(`intervenants/${id}/disponibilites`);
-    },
+  // Récupérer les tâches d'un intervenant
+  async getIntervenantTaches(intervenantId) {
+    try {
+      const res = await api.get(`intervenants/${intervenantId}/taches`)
+      return res.data
+    } catch (error) {
+      console.error('Error fetching intervenant taches:', error)
+      throw error
+    }
+  },
 
-    /**
-     * Récupérer les tâches d'un intervenant
-     */
-    getTaches(id) {
-        return api.get(`intervenants/${id}/taches`);
-    },
+  async getByTask(taskId) {
+    try {
+      const res = await api.get(`taches/${taskId}`)
+      const intervenants = res.data?.intervenants ?? []
+      return { data: intervenants }
+    } catch (error) {
+      console.error('Error in getByTask:', error)
+      throw error
+    }
+  },
 
-    /**
-     * Récupérer les services et tâches actifs d'un intervenant
-     */
-    getActiveServicesAndTasks(id) {
-        return api.get(`intervenants/${id}/active-services-tasks`);
-    },
+  async getIntervenantByTask(taskId) {
+    try {
+      const res = await api.get(`taches/${taskId}/intervenants`);
+      return {
+        data: res.data?.intervenants || [],
+        rawResponse: res.data
+      };
+    } catch (error) {
+      console.error('Error in getIntervenantByTask:', error)
+      throw error;
+    }
+  },
 
-    /**
-     * Demander l'activation d'un service avec documents
-     */
-    requestActivation(intervenantId, serviceId, formData) {
-        return api.post(`intervenants/${intervenantId}/services/${serviceId}/request-activation`, formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data'
-            }
-        });
-    },
+  list(params = {}) {
+    return api.get('intervenants', { params }).then(res => res.data)
+  },
 
-    /**
-     * Créer un nouvel intervenant
-     */
-    create(data) {
-        return api.post('intervenants', data);
-    },
+  async getEvaluations(intervenantId) {
+    try {
+      const res = await api.get(`intervenants/${intervenantId}/evaluations`)
+      return res.data
+    } catch (error) {
+      console.error('Error fetching evaluations:', error)
+      throw error
+    }
+  },
 
-    /**
-     * Mettre à jour un intervenant
-     */
-    update(id, data) {
-        return api.put(`intervenants/${id}`, data);
-    },
+  getAll(params = {}) {
+    return this.getAllIntervenants(params);
+  },
 
-    /**
-     * Supprimer un intervenant
-     */
-    delete(id) {
-        return api.delete(`intervenants/${id}`);
-    },
+  getById(id) {
+    return this.getIntervenant(id);
+  },
 
-    /**
-     * Update service materials
-     */
-    updateServiceMaterials(intervenantId, serviceId, materials) {
-        return api.post(`intervenants/${intervenantId}/services/${serviceId}/materials`, { materials });
-    },
+  getInterventions(id) {
+    return api.get(`intervenants/${id}/interventions`).then(res => res.data);
+  },
+
+  getDisponibilites(id) {
+    return api.get(`intervenants/${id}/disponibilites`).then(res => res.data);
+  },
+
+  getTaches(id) {
+    return this.getIntervenantTaches(id);
+  },
+
+  getActiveServicesAndTasks(id) {
+    return api.get(`intervenants/${id}/active-services-tasks`).then(res => res.data);
+  },
+
+  requestActivation(intervenantId, serviceId, formData) {
+    return api.post(`intervenants/${intervenantId}/services/${serviceId}/request-activation`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }).then(res => res.data);
+  },
+
+  create(data) {
+    return api.post('intervenants', data).then(res => res.data);
+  },
+
+  update(id, data) {
+    return api.put(`intervenants/${id}`, data).then(res => res.data);
+  },
+
+  delete(id) {
+    return api.delete(`intervenants/${id}`).then(res => res.data);
+  },
+
+  updateServiceMaterials(intervenantId, serviceId, materials) {
+    return api.post(`intervenants/${intervenantId}/services/${serviceId}/materials`, { materials }).then(res => res.data);
+  },
 
     getIntervenantMaterials(intervenantId, serviceId) {
         return api.get(`intervenants/${intervenantId}/services/${serviceId}/materials`);
@@ -93,19 +140,13 @@ const intervenantService = {
         return api.delete(`intervenants/${intervenantId}/materials/${materialId}`);
     },
 
-    /**
-     * Update service status
-     */
-    updateServiceStatus(intervenantId, serviceId, status) {
-        return api.post(`intervenants/${intervenantId}/services/${serviceId}/status`, { status });
-    },
+  updateServiceStatus(intervenantId, serviceId, status) {
+    return api.post(`intervenants/${intervenantId}/services/${serviceId}/status`, { status }).then(res => res.data);
+  },
 
-    /**
-     * Toggle service activation
-     */
-    toggleService(intervenantId, serviceId) {
-        return api.post(`intervenants/${intervenantId}/services/${serviceId}/toggle`);
-    }
-};
+  toggleService(intervenantId, serviceId) {
+    return api.post(`intervenants/${intervenantId}/services/${serviceId}/toggle`).then(res => res.data);
+  }
+}
 
 export default intervenantService;

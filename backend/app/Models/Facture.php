@@ -16,9 +16,9 @@ class Facture extends Model
     const UPDATED_AT = 'updated_at';
 
     protected $fillable = [
+        'intervention_id',
         'fichier_path',
         'ttc',
-        'intervention_id',
     ];
 
     protected function casts(): array
@@ -33,6 +33,7 @@ class Facture extends Model
      */
     public function intervention()
     {
+        return $this->belongsTo(Intervention::class, 'intervention_id', 'id');
         return $this->belongsTo(Intervention::class, 'intervention_id', 'id');
     }
 }

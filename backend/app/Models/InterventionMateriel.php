@@ -9,14 +9,13 @@ class InterventionMateriel extends Pivot
 {
     use HasFactory;
 
-    protected $table = 'interventionmateriel';
+    protected $table = 'intervention_materiel';
 
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
+    
 
     protected $fillable = [
-        'idIntervention',
-        'idMateriel',
+        'intervention_id',
+        'materiel_id',
     ];
 
     /**
@@ -24,7 +23,7 @@ class InterventionMateriel extends Pivot
      */
     public function intervention()
     {
-        return $this->belongsTo(Intervention::class, 'idIntervention', 'id');
+        return $this->belongsTo(Intervention::class, 'intervention_id', 'id');
     }
 
     /**
@@ -32,6 +31,6 @@ class InterventionMateriel extends Pivot
      */
     public function materiel()
     {
-        return $this->belongsTo(Materiel::class, 'idMateriel', 'id');
+        return $this->belongsTo(Materiel::class, 'materiel_id', 'id');
     }
 }

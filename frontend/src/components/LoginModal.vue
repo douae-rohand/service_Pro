@@ -271,13 +271,14 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import authService from '@/services/authService'
+import { Hand } from 'lucide-vue-next'
 
 const props = defineProps({
   isOpen: Boolean,
   onSignupClick: Function,
 })
 
-const emit = defineEmits(['close', 'signup-click', 'admin-login'])
+const emit = defineEmits(['close', 'signup-click', 'login-success', 'admin-login'])
 const router = useRouter()
 const view = ref('login') // 'login', 'forgot-email', 'forgot-code', 'forgot-password'
 
@@ -341,7 +342,8 @@ const handleSubmit = async () => {
         router.push('/dashboard')
       } else if (user.client) {
         alert('Connexion réussie !')
-        window.location.reload()
+       emit('login-success',user)
+       handleClose()
       } else if (user.admin) {
         emit('admin-login', user)
         handleClose()

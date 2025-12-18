@@ -1,14 +1,21 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import IntervenantDashboard from '@/views/IntervenantDashboard.vue'
+import authService from '@/services/authService'
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
     routes: [
         {
+            path: '/login',
+            name: 'login',
+            component: () => import('@/views/LoginPage.vue')
+        },
+        {
             path: '/dashboard',
             name: 'dashboard',
             component: IntervenantDashboard,
             redirect: '/dashboard/services',
+            meta: { requiresAuth: true },
             children: [
                 {
                     path: 'profile',
@@ -53,6 +60,15 @@ const router = createRouter({
             ]
         }
     ]
+})
+
+// Navigation guard for authentication
+router.beforeEach((to, from, next) => {
+    if (to.meta.requiresAuth && !authService.isAuthenticated()) {
+        next('/login')
+    } else {
+        next()
+    }
 })
 
 export default router

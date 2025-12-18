@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 
 class Evaluation extends Model
 {
@@ -11,14 +12,14 @@ class Evaluation extends Model
 
     protected $table = 'evaluation';
 
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = 'updated_at';
 
     protected $fillable = [
         'note',
-        'interventionId',
-        'critaireId',
-        'typeAutheur',
+        'intervention_id',
+        'critaire_id',
+        'type_auteur',
     ];
 
     protected function casts(): array
@@ -42,5 +43,30 @@ class Evaluation extends Model
     public function critaire()
     {
         return $this->belongsTo(Critaire::class, 'critaire_id', 'id');
+    }
+
+    /**
+     * Scope a query to only include evaluations by intervenants.
+     */
+    public function scopeByIntervenant(Builder $query): Builder
+    {
+        return $query->where('type_auteur', 'intervenant');
+    }
+
+    /**
+     * Scope a query to only include evaluations by clients.
+     */
+    public function scopeByClient(Builder $query): Builder
+    {
+        return $query->where('type_auteur', 'client');
+    }
+
+    /**
+     * Check if evaluation can be created by intervenant for this intervention.
+     */
+    public static function canIntervenantRate(int $interventionId): bool
+    {
+        $intervention = Intervention::find($interventionId);
+        return $intervention && $intervention->status === 'termine';
     }
 }

@@ -8,6 +8,8 @@ use App\Http\Controllers\Api\Intervention\TacheController;
 use App\Http\Controllers\Api\Client\ClientController;
 use App\Http\Controllers\Api\Intervenant\IntervenantController;
 use App\Http\Controllers\Api\StatsController;
+use App\Http\Controllers\Api\Evaluation\EvaluationController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -137,6 +139,67 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('intervenants/me/reservations', [IntervenantController::class, 'myReservations']);
     Route::post('intervenants/me/reservations/{id}/accept', [IntervenantController::class, 'acceptReservation']);
     Route::post('intervenants/me/reservations/{id}/refuse', [IntervenantController::class, 'refuseReservation']);
+
+    // ======================
+    // Routes Évaluations
+    // ======================
+    Route::get('evaluations/client-criteria', [EvaluationController::class, 'getClientCriteria']);
+    Route::get('evaluations/intervenant-criteria', [EvaluationController::class, 'getIntervenantCriteria']);
+    Route::post('evaluations/interventions/{interventionId}/rate-client', [EvaluationController::class, 'storeClientEvaluation']);
+    Route::get('evaluations/interventions/{interventionId}/client-ratings', [EvaluationController::class, 'getClientEvaluations']);
+    Route::get('evaluations/interventions/{interventionId}/can-rate-client', [EvaluationController::class, 'canRateClient']);
+    Route::get('evaluations/interventions/{interventionId}/public', [EvaluationController::class, 'getPublicEvaluations']);
+    Route::get('evaluations/clients/{clientId}/average-rating', [EvaluationController::class, 'getClientAverageRating']);
+    Route::get('debug/auth', function () {
+        $user = Auth::user();
+        return response()->json([
+            'authenticated' => !!$user,
+            'user' => $user ? [
+                'id' => $user->id,
+                'email' => $user->email,
+                'userable_type' => $user->userable_type,
+                'userable_id' => $user->userable_id,
+            ] : null
+        ]);
+    });
+    Route::get('debug/intervention/{id}', function ($id) {
+        $intervention = \App\Models\Intervention::find($id);
+        $user = Auth::user();
+        return response()->json([
+            'intervention' => $intervention ? [
+                'id' => $intervention->id,
+                'status' => $intervention->status,
+                'intervenant_id' => $intervention->intervenant_id,
+                'client_id' => $intervention->client_id,
+            ] : null,
+            'current_user' => $user ? [
+                'id' => $user->id,
+                'email' => $user->email,
+                'userable_type' => $user->userable_type,
+                'userable_id' => $user->userable_id,
+                'matches_intervenant' => $user->userable_type === 'App\\Models\\Intervenant' && $user->userable_id === $intervention->intervenant_id
+            ] : null
+        ]);
+    });
+    Route::get('debug/all-interventions', function () {
+        $user = Auth::user();
+        $interventions = \App\Models\Intervention::where('intervenant_id', $user->userable_id ?? -1)->get();
+        return response()->json([
+            'user' => [
+                'id' => $user->id,
+                'email' => $user->email,
+                'userable_type' => $user->userable_type,
+                'userable_id' => $user->userable_id,
+            ],
+            'user_interventions' => $interventions->map(function ($intervention) {
+                return [
+                    'id' => $intervention->id,
+                    'status' => $intervention->status,
+                    'intervenant_id' => $intervention->intervenant_id,
+                ];
+            })
+        ]);
+    });
 
     Route::get('intervenants/me/taches', [IntervenantController::class, 'myTaches']);
     Route::put('intervenants/me/taches/{tacheId}', [IntervenantController::class, 'updateMyTache']);

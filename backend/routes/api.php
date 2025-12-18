@@ -42,6 +42,8 @@ Route::post('auth/login', [AuthController::class, 'login']);
 Route::post('auth/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('auth/verify-code', [AuthController::class, 'verifyCode']);
 Route::post('auth/reset-password', [AuthController::class, 'resetPassword']);
+Route::post('auth/verify-email', [AuthController::class, 'verifyEmailCode']);
+Route::post('auth/resend-verification', [AuthController::class, 'resendVerificationCode']);
 
 // Google Auth
 Route::middleware('web')->group(function () {

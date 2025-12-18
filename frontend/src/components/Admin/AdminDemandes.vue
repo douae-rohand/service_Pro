@@ -272,11 +272,11 @@
                   <span
                     class="px-2 py-1 rounded-full text-xs font-medium"
                     :style="{
-                      backgroundColor: getStatutColor(selectedDemande.statut || 'demande').bg,
-                      color: getStatutColor(selectedDemande.statut || 'demande').text
+                      backgroundColor: getStatutColor(selectedDemande.statut || 'demmande').bg,
+                      color: getStatutColor(selectedDemande.statut || 'demmande').text
                     }"
                   >
-                    {{ getStatutLabel(selectedDemande.statut || 'demande') }}
+                    {{ getStatutLabel(selectedDemande.statut || 'demmande') }}
                   </span>
                 </div>
               </div>
@@ -459,8 +459,8 @@ const getServiceCount = (serviceName) => {
 // Filtered Demandes
 const filteredDemandes = computed(() => {
   return demandes.value.filter(demande => {
-    // Filtrer uniquement les demandes avec status='demande' pour les intervenants actifs
-    const matchesStatus = demande.statut === 'demande'
+    // Filtrer uniquement les demandes avec status='demmande' pour les intervenants actifs
+    const matchesStatus = demande.statut === 'demmande'
     const matchesSearch = (demande.nom || '').toLowerCase().includes(searchTerm.value.toLowerCase()) ||
                          (demande.prenom || '').toLowerCase().includes(searchTerm.value.toLowerCase()) ||
                          (demande.email || '').toLowerCase().includes(searchTerm.value.toLowerCase())
@@ -550,7 +550,7 @@ const loadDemandes = async () => {
     const response = await adminService.getPendingRequests()
     demandes.value = (response.data || []).map(demande => ({
       ...demande,
-      statut: demande.statut || 'demande' // Par défaut "demande" si non défini
+      statut: demande.statut || 'demmande' // Par défaut "demmande" si non défini
     }))
     
     // Demandes chargées avec succès
@@ -597,7 +597,7 @@ const uniqueJustificatifs = computed(() => {
 const viewDemandeDetails = (demande) => {
   selectedDemande.value = {
     ...demande,
-    statut: demande.statut || 'demande' // S'assurer que le statut est initialisé
+    statut: demande.statut || 'demmande' // S'assurer que le statut est initialisé
   }
   showDetailModal.value = true
 }
@@ -774,7 +774,8 @@ const getFileSize = (filePath) => {
 // Obtenir le label du statut
 const getStatutLabel = (statut) => {
   const labels = {
-    'demande': 'Demande',
+    'demmande': 'Demande',
+    'demande': 'Demande', // Support pour compatibilité
     'active': 'Active',
     'desactive': 'Désactivée'
   }
@@ -784,7 +785,11 @@ const getStatutLabel = (statut) => {
 // Obtenir la couleur du statut
 const getStatutColor = (statut) => {
   const colors = {
-    'demande': {
+    'demmande': {
+      bg: '#FEF3C7',
+      text: '#92400E'
+    },
+    'demande': { // Support pour compatibilité
       bg: '#FEF3C7',
       text: '#92400E'
     },
@@ -797,7 +802,7 @@ const getStatutColor = (statut) => {
       text: '#991B1B'
     }
   }
-  return colors[statut] || colors['demande']
+  return colors[statut] || colors['demmande']
 }
 
 onMounted(async () => {

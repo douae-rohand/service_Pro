@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 use App\Mail\ResetPasswordCode;
+use App\Mail\VerificationCode;
 
 class AuthController extends Controller
 {
@@ -43,6 +44,8 @@ class AuthController extends Controller
                 'confirmPassword' => 'nullable|same:password',
                 'telephone' => 'nullable|string|max:20',
                 'type' => 'nullable|string|in:client,intervenant',
+                'adresse' => 'nullable|string|max:255',
+                'ville' => 'nullable|string|max:100',
             ]);
         } catch (ValidationException $e) {
             return response()->json([
@@ -53,6 +56,9 @@ class AuthController extends Controller
 
         DB::beginTransaction();
         try {
+            // Générer un code de vérification à 6 chiffres
+            $verificationCode = str_pad(mt_rand(0, 999999), 6, '0', STR_PAD_LEFT);
+            
             // Créer l'utilisateur
             $userId = DB::table('utilisateur')->insertGetId([
                 'nom' => $validated['nom'],
@@ -60,6 +66,8 @@ class AuthController extends Controller
                 'email' => $validated['email'],
                 'password' => Hash::make($validated['password']),
                 'telephone' => $validated['telephone'] ?? null,
+                'email_verification_code' => $verificationCode,
+                'email_verification_expires_at' => now()->addMinutes(15),
                 'created_at' => now(),
                 'updated_at' => now(),
             ], 'id');
@@ -70,6 +78,8 @@ class AuthController extends Controller
             if ($userType === 'client') {
                 DB::table('client')->insert([
                     'id' => $userId,
+                    'address' => $validated['adresse'] ?? null,
+                    'ville' => $validated['ville'] ?? null,
                     'is_active' => true,
                     'created_at' => now(),
                     'updated_at' => now(),
@@ -77,6 +87,8 @@ class AuthController extends Controller
             } elseif ($userType === 'intervenant') {
                 DB::table('intervenant')->insert([
                     'id' => $userId,
+                    'address' => $validated['adresse'] ?? null,
+                    'ville' => $validated['ville'] ?? null,
                     'is_active' => false, // Nouveau intervenant en attente de validation
                     'created_at' => now(),
                     'updated_at' => now(),
@@ -85,22 +97,18 @@ class AuthController extends Controller
 
             DB::commit();
 
-            // Recharger l'utilisateur avec Eloquent pour avoir le modèle complet
-            $user = Utilisateur::find($userId);
-            
-            if (!$user) {
-                throw new \Exception('Utilisateur non trouvé après création');
+            // Envoyer l'email de vérification
+            try {
+                Mail::to($validated['email'])->send(new VerificationCode($verificationCode));
+            } catch (\Exception $e) {
+                Log::error('Erreur lors de l\'envoi de l\'email de vérification: ' . $e->getMessage());
+                // Ne pas bloquer l'inscription si l'email échoue
             }
-            
-            // Charger les relations
-            $user->load(['client', 'intervenant', 'admin']);
-
-            $token = $user->createToken('auth-token')->plainTextToken;
 
             return response()->json([
-                'message' => 'Utilisateur créé avec succès',
-                'user' => $user,
-                'token' => $token,
+                'message' => 'Inscription réussie. Un code de vérification a été envoyé à votre adresse email.',
+                'email' => $validated['email'],
+                'requires_verification' => true,
             ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -500,5 +508,87 @@ class AuthController extends Controller
         DB::table('password_reset_tokens')->where('email', $request->email)->delete();
 
         return response()->json(['message' => 'Mot de passe réinitialisé avec succès.']);
+    }
+
+    /**
+     * Verify email with code
+     */
+    public function verifyEmailCode(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'code' => 'required|string|size:6',
+        ]);
+
+        $user = Utilisateur::where('email', $request->email)->first();
+
+        if (!$user) {
+            return response()->json(['message' => 'Utilisateur non trouvé.'], 404);
+        }
+
+        // Vérifier si l'email est déjà vérifié
+        if ($user->email_verified_at) {
+            return response()->json(['message' => 'Email déjà vérifié.'], 400);
+        }
+
+        // Vérifier le code
+        if ($user->email_verification_code !== $request->code) {
+            return response()->json(['message' => 'Code de vérification invalide.'], 400);
+        }
+
+        // Vérifier l'expiration
+        if ($user->email_verification_expires_at && now()->isAfter($user->email_verification_expires_at)) {
+            return response()->json(['message' => 'Code de vérification expiré.'], 400);
+        }
+
+        // Marquer l'email comme vérifié
+        $user->update([
+            'email_verified_at' => now(),
+            'email_verification_code' => null,
+            'email_verification_expires_at' => null,
+        ]);
+
+        return response()->json([
+            'message' => 'Email vérifié avec succès. Vous pouvez maintenant vous connecter.',
+            'verified' => true,
+        ]);
+    }
+
+    /**
+     * Resend verification code
+     */
+    public function resendVerificationCode(Request $request)
+    {
+        $request->validate(['email' => 'required|email']);
+
+        $user = Utilisateur::where('email', $request->email)->first();
+
+        if (!$user) {
+            return response()->json(['message' => 'Utilisateur non trouvé.'], 404);
+        }
+
+        // Vérifier si l'email est déjà vérifié
+        if ($user->email_verified_at) {
+            return response()->json(['message' => 'Email déjà vérifié.'], 400);
+        }
+
+        // Générer un nouveau code
+        $verificationCode = str_pad(mt_rand(0, 999999), 6, '0', STR_PAD_LEFT);
+
+        // Mettre à jour le code et l'expiration
+        $user->update([
+            'email_verification_code' => $verificationCode,
+            'email_verification_expires_at' => now()->addMinutes(15),
+        ]);
+
+        // Envoyer l'email
+        try {
+            Mail::to($request->email)->send(new VerificationCode($verificationCode));
+        } catch (\Exception $e) {
+            Log::error('Erreur lors de l\'envoi de l\'email de vérification: ' . $e->getMessage());
+            return response()->json(['message' => 'Erreur lors de l\'envoi de l\'email.'], 500);
+        }
+
+        return response()->json(['message' => 'Un nouveau code de vérification a été envoyé.']);
     }
 }

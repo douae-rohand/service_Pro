@@ -524,11 +524,14 @@ export default {
         const id = optionalId || this.intervenantId;
         if (!id) return;
         
-        const data = await intervenantService.getById(id);
+        const response = await intervenantService.getById(id);
+        const data = response.data || response;
 
         if (!data) {
           throw new Error("Données de l'intervenant introuvables");
         }
+        
+        // --- DATA MAPPING LOGIC ---
         
         const mappedPhotos = [];
         if (data.interventions) {

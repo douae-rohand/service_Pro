@@ -16,7 +16,7 @@ return new class extends Migration
             $table->integer('service_id')->nullable()->index('service_id');
             $table->string('nom_tache', 150)->nullable();
             $table->text('description')->nullable();
-            $table->string('status', 50)->nullable();
+            $table->enum('status', ['actif', 'inactif'])->default('actif');
             $table->string('image_url', 255)->nullable();
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrentOnUpdate()->useCurrent();

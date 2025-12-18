@@ -22,17 +22,13 @@ class IntervenantController extends Controller
      */
     public function index(Request $request)
     {
-        try {
-            // Optimiser le chargement : charger toutes les relations nécessaires
-            $query = Intervenant::with([
-                'utilisateur',
-                'taches',
-                'taches.service:id,nom_service',
-                'services',
-                'interventions.evaluations' => function ($q) {
-                    $q->where('type_auteur', 'client');
-                }
-            ]);
+        // Optimiser le chargement : ne charger que les relations nécessaires
+        $query = Intervenant::with([
+            'utilisateur:id,nom,prenom,address,url,profile_photo',
+            'taches:id,nom_tache,service_id',
+            'taches.service:id,nom_service',
+            'services'
+        ]);
 
             // Filtrer les intervenants actifs uniquement si demandé
             if ($request->has('active') && $request->active == 'true') {
@@ -111,23 +107,23 @@ class IntervenantController extends Controller
         public function show($id)
         {
             $intervenant = Intervenant::with([
-                'utilisateur:id,nom,prenom,address,url,avatar',
-            'taches',
-            'taches.service:id,nom_service',
-            'services',
-            'interventions' => function($q) {
-                $q->orderBy('date_intervention', 'desc');
-            },
-            'interventions.photos',
-            'interventions.evaluations' => function($q) {
-                $q->where('type_auteur', 'client');
-            },
-            'interventions.commentaires' => function($q) {
-                $q->where('type_auteur', 'client');
-            },
-            'interventions.client.utilisateur:id,nom,prenom,url,avatar',
-            'disponibilites'
-        ])->find($id);
+                'utilisateur:id,nom,prenom,address,url,profile_photo',
+                'taches:id,nom_tache,service_id',
+                'taches.service:id,nom_service',
+                'services',
+                'interventions' => function($q) {
+                    $q->orderBy('date_intervention', 'desc');
+                },
+                'interventions.photos',
+                'interventions.evaluations' => function($q) {
+                    $q->where('type_auteur', 'client');
+                },
+                'interventions.commentaires' => function($q) {
+                    $q->where('type_auteur', 'client');
+                },
+                'interventions.client.utilisateur:id,nom,prenom',
+                'disponibilites'
+            ])->find($id);
 
             if (!$intervenant) {
                 return response()->json([
@@ -414,6 +410,16 @@ class IntervenantController extends Controller
                 $q->where('service_id', $serviceId);
             });
         }
+
+        // Filter by specific sub-service (tache)
+        if ($request->has('tacheId') && $request->tacheId != 'all') {
+            $tacheId = $request->tacheId;
+            Log::info('Filtering by tacheId: ' . $tacheId);
+            
+            $query->whereHas('taches', function ($q) use ($tacheId) {
+                $q->where('tache.id', $tacheId); // Explicit table name to avoid ambiguity if joined
+            });
+        }
         
         // Filter by city
         if ($request->has('ville') && $request->ville != 'all') {
@@ -446,27 +452,35 @@ class IntervenantController extends Controller
         
         Log::info('Found ' . $intervenants->total() . ' intervenants');
         
-        // Load relationships AFTER pagination
-    $intervenants->load([
-        'utilisateur',
-        'taches',
-        'taches.service:id,nom_service',
-        'services',
-        'interventions'
-    ]);
-    
-    // Transform to include rating info and interv_count
-    $intervenants->getCollection()->transform(function ($intervenant) {
-        $ratingInfo = $intervenant->getRatingInfo();
-        $intervenant->average_rating = $ratingInfo['average_rating'];
-        $intervenant->review_count = $ratingInfo['review_count'];
-        $intervenant->interv_count = $intervenant->interventions->count();
+        // Load relationships AFTER pagination - minimal loading
+        $intervenants->load([
+            'utilisateur',
+            'taches',
+            'services',
+            'materiels',
+            'interventions.evaluations' => function ($q) {
+                $q->where('type_auteur', 'client');
+            }
+        ]);
         
-        // Clean up to keep response size manageable
-        unset($intervenant->interventions);
-        
-        return $intervenant;
-    });
+        // Simple transformation
+        $intervenants->getCollection()->transform(function ($intervenant) {
+            // Calculate rating fromloaded evaluations
+            $evaluations = $intervenant->interventions->flatMap(function ($intervention) {
+                return $intervention->evaluations;
+            });
+            
+            $count = $evaluations->count();
+            $avg = $count > 0 ? $evaluations->avg('note') : 0;
+            
+            $intervenant->average_rating = round($avg, 1);
+            $intervenant->review_count = $count;
+            
+            // Clean up heavy relationship data
+            unset($intervenant->interventions);
+            
+            return $intervenant;
+        });
         
         return response()->json($intervenants);
         

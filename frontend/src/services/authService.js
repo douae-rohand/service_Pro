@@ -27,6 +27,14 @@ const authService = {
         return api.post('auth/reset-password', { email, code, password, password_confirmation });
     },
 
+    verifyEmail(email, code) {
+        return api.post('auth/verify-email', { email, code });
+    },
+
+    resendVerification(email) {
+        return api.post('auth/resend-verification', { email });
+    },
+
     /**
      * Déconnexion utilisateur
      */

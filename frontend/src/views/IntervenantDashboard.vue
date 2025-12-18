@@ -140,8 +140,12 @@ const fetchCurrentUser = async () => {
     }
   } catch (error) {
     console.error('Error fetching user data:', error)
-    // Redirect to login if authentication fails
-    router.push('/login')
+    // Handle authentication errors gracefully
+    if (error.status === 401) {
+      // Clear token and redirect to login
+      localStorage.removeItem('token')
+      router.push('/login')
+    }
   } finally {
     loading.value = false
   }

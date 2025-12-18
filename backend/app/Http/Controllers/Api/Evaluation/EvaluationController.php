@@ -1,0 +1,329 @@
+<?php
+
+namespace App\Http\Controllers\Api\Evaluation;
+
+use App\Http\Controllers\Controller;
+use App\Models\Evaluation;
+use App\Models\Critaire;
+use App\Models\Intervention;
+use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
+
+class EvaluationController extends Controller
+{
+    /**
+     * Get client evaluation criteria for intervenant rating.
+     */
+    public function getClientCriteria(): JsonResponse
+    {
+        $criteria = Critaire::where('type', 'client')->get();
+
+        return response()->json($criteria);
+    }
+
+    /**
+     * Get intervenant evaluation criteria for client rating.
+     */
+    public function getIntervenantCriteria(): JsonResponse
+    {
+        $criteria = Critaire::where('type', 'intervenant')->get();
+
+        return response()->json($criteria);
+    }
+
+    /**
+     * Store client evaluation by intervenant.
+     */
+    public function storeClientEvaluation(Request $request, int $interventionId): JsonResponse
+    {
+        try {
+            $request->validate([
+                'evaluations' => 'required|array|min:1',
+                'evaluations.*.critaire_id' => 'required|integer|exists:critaire,id',
+                'evaluations.*.note' => 'required|integer|min:1|max:5',
+                'comment' => 'nullable|string|max:500'
+            ]);
+
+            $intervention = Intervention::findOrFail($interventionId);
+
+            // Check if intervention is finished
+            if ($intervention->status !== 'termine') {
+                return response()->json([
+                    'message' => 'Vous ne pouvez évaluer que les interventions terminées'
+                ], 403);
+            }
+
+            // Check if within 7-day voting window
+            $interventionDate = $intervention->updated_at;
+            $sevenDaysAgo = now()->subDays(7);
+            if (!$interventionDate->greaterThan($sevenDaysAgo)) {
+                return response()->json([
+                    'message' => 'Délai de 7 jours dépassé - Impossible d\'évaluer'
+                ], 403);
+            }
+
+            // Check if current user is the intervenant of this intervention
+            $currentUser = Auth::user();
+            $intervenant = $currentUser->intervenant;
+            if (!$intervenant || $intervenant->id !== $intervention->intervenant_id) {
+                return response()->json([
+                    'message' => 'Seul l\'intervenant assigné peut évaluer le client'
+                ], 403);
+            }
+
+            // Check if already rated (prevent re-rating after initial submission)
+            $existingRatings = Evaluation::where('intervention_id', $interventionId)
+                ->where('type_auteur', 'intervenant')
+                ->count();
+
+            if ($existingRatings > 0) {
+                return response()->json([
+                    'message' => 'Vous avez déjà évalué cette intervention'
+                ], 403);
+            }
+
+            // Store evaluations
+            foreach ($request->evaluations as $evaluation) {
+                Evaluation::create([
+                    'intervention_id' => $interventionId,
+                    'critaire_id' => $evaluation['critaire_id'],
+                    'note' => $evaluation['note'],
+                    'type_auteur' => 'intervenant'
+                ]);
+            }
+
+            // Store comment if provided
+            if ($request->has('comment') && !empty($request->comment)) {
+                \DB::table('comente')->insert([
+                    'intervention_id' => $interventionId,
+                    'commentaire' => $request->comment,
+                    'type_auteur' => 'intervenant',
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+            }
+
+            return response()->json([
+                'message' => 'Évaluation du client enregistrée avec succès'
+            ]);
+
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => 'Erreur de validation',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Erreur lors de l\'enregistrement de l\'évaluation',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get client evaluations for a specific intervention.
+     */
+    public function getClientEvaluations(int $interventionId): JsonResponse
+    {
+        $evaluations = Evaluation::where('intervention_id', $interventionId)
+            ->where('type_auteur', 'intervenant')
+            ->with('critaire')
+            ->get();
+
+        return response()->json($evaluations);
+    }
+
+    /**
+     * Check if intervenant can rate client for this intervention.
+     */
+    public function canRateClient(int $interventionId): JsonResponse
+    {
+        try {
+            $intervention = Intervention::find($interventionId);
+            
+            if (!$intervention) {
+                return response()->json(['can_rate' => false, 'reason' => 'Intervention non trouvée']);
+            }
+
+            if ($intervention->status !== 'termine') {
+                return response()->json(['can_rate' => false, 'reason' => 'Intervention non terminée. Statut actuel: ' . $intervention->status]);
+            }
+
+            $currentUser = Auth::user();
+            if (!$currentUser) {
+                return response()->json(['can_rate' => false, 'reason' => 'Utilisateur non authentifié']);
+            }
+
+            // Get the intervenant record associated with this user
+            $intervenant = $currentUser->intervenant;
+            if (!$intervenant) {
+                return response()->json(['can_rate' => false, 'reason' => 'Utilisateur n\'est pas un intervenant']);
+            }
+
+            if ($intervenant->id !== $intervention->intervenant_id) {
+                return response()->json(['can_rate' => false, 'reason' => 'Non autorisé - Vous n\'êtes pas l\'intervenant assigné']);
+            }
+
+            // Check if within 7-day voting window
+            $interventionDate = $intervention->updated_at; // Assuming this is when intervention was marked as completed
+            $sevenDaysAgo = now()->subDays(7);
+            $isWithinWindow = $interventionDate->greaterThan($sevenDaysAgo);
+
+            // Check existing ratings
+            $existingRatings = Evaluation::where('intervention_id', $interventionId)
+                ->where('type_auteur', 'intervenant')
+                ->count();
+
+            // Check if client has also rated
+            $clientHasRated = Evaluation::where('intervention_id', $interventionId)
+                ->where('type_auteur', 'client')
+                ->count() > 0;
+
+            // Determine voting status
+            if (!$isWithinWindow && $existingRatings === 0) {
+                return response()->json([
+                    'can_rate' => false, 
+                    'can_view' => false,
+                    'reason' => 'Délai de 7 jours dépassé - Impossible d\'évaluer',
+                    'status' => 'expired'
+                ]);
+            }
+
+            if ($existingRatings > 0) {
+                return response()->json([
+                    'can_rate' => false, 
+                    'can_view' => true,
+                    'reason' => 'Déjà évalué',
+                    'status' => 'view_only',
+                    'client_has_rated' => $clientHasRated,
+                    'both_parties_rated' => $clientHasRated && $existingRatings > 0
+                ]);
+            }
+
+            if (!$isWithinWindow) {
+                return response()->json([
+                    'can_rate' => false, 
+                    'can_view' => false,
+                    'reason' => 'Délai de 7 jours dépassé',
+                    'status' => 'expired'
+                ]);
+            }
+
+            return response()->json([
+                'can_rate' => true, 
+                'can_view' => false,
+                'status' => 'can_rate',
+                'days_remaining' => $interventionDate->diffInDays(now())
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error in canRateClient:', ['error' => $e->getMessage()]);
+            return response()->json([
+                'can_rate' => false, 
+                'reason' => 'Erreur technique: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get public evaluations for an intervention (when both parties have voted).
+     */
+    public function getPublicEvaluations(int $interventionId): JsonResponse
+    {
+        try {
+            $intervention = Intervention::findOrFail($interventionId);
+
+            // Check if both parties have voted
+            $intervenantRatings = Evaluation::where('intervention_id', $interventionId)
+                ->where('type_auteur', 'intervenant')
+                ->with('critaire')
+                ->get();
+
+            $clientRatings = Evaluation::where('intervention_id', $interventionId)
+                ->where('type_auteur', 'client')
+                ->with('critaire')
+                ->get();
+
+            $bothPartiesVoted = $intervenantRatings->count() > 0 && $clientRatings->count() > 0;
+
+            // Check if 7-day window has passed
+            $interventionDate = $intervention->updated_at;
+            $sevenDaysAgo = now()->subDays(7);
+            $windowPassed = !$interventionDate->greaterThan($sevenDaysAgo);
+
+            // Only show evaluations if both parties voted OR window passed
+            if (!$bothPartiesVoted && !$windowPassed) {
+                return response()->json([
+                    'message' => 'Les évaluations ne sont pas encore publiques',
+                    'can_view' => false
+                ], 403);
+            }
+
+            // Get comments
+            $intervenantComment = \DB::table('comente')
+                ->where('intervention_id', $interventionId)
+                ->where('type_auteur', 'intervenant')
+                ->first();
+
+            $clientComment = \DB::table('comente')
+                ->where('intervention_id', $interventionId)
+                ->where('type_auteur', 'client')
+                ->first();
+
+            return response()->json([
+                'can_view' => true,
+                'both_parties_voted' => $bothPartiesVoted,
+                'window_passed' => $windowPassed,
+                'intervenant_ratings' => $intervenantRatings,
+                'client_ratings' => $clientRatings,
+                'intervenant_comment' => $intervenantComment,
+                'client_comment' => $clientComment
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Erreur lors de la récupération des évaluations publiques',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get average client rating for a specific client.
+     */
+    public function getClientAverageRating(int $clientId): JsonResponse
+    {
+        $clientInterventions = Intervention::where('client_id', $clientId)
+            ->where('status', 'termine')
+            ->pluck('id');
+
+        $evaluations = Evaluation::whereIn('intervention_id', $clientInterventions)
+            ->where('type_auteur', 'intervenant')
+            ->get();
+
+        if ($evaluations->isEmpty()) {
+            return response()->json([
+                'average_rating' => 0,
+                'total_evaluations' => 0,
+                'ratings_by_criteria' => []
+            ]);
+        }
+
+        $ratingsByCriteria = $evaluations->groupBy('critaire_id')
+            ->map(function ($group) {
+                return [
+                    'criteria' => $group->first()->critaire->nom_critaire,
+                    'average' => $group->avg('note'),
+                    'count' => $group->count()
+                ];
+            });
+
+        return response()->json([
+            'average_rating' => $evaluations->avg('note'),
+            'total_evaluations' => $evaluations->count(),
+            'ratings_by_criteria' => $ratingsByCriteria
+        ]);
+    }
+}

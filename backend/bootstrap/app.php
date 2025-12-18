@@ -13,11 +13,16 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->api(prepend: [
-            \App\Http\Middleware\CorsMiddleware::class,
+            \Illuminate\Http\Middleware\HandleCors::class,
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
         ]);
         $middleware->web(prepend: [
-            \App\Http\Middleware\CorsMiddleware::class,
+            \Illuminate\Http\Middleware\HandleCors::class,
+        ]);
+        
+        // Enregistrer le middleware admin
+        $middleware->alias([
+            'admin' => \App\Http\Middleware\EnsureAdmin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -77,12 +77,18 @@
                   </button>
                 </div>
 
-                <!-- Status Badges -->
+                <!-- Status Badges and Actions -->
+                <div v-else-if="selectedTab === 'completed'" class="completed-actions">
+                  <span class="status-badge status-completed">
+                    Terminée
+                  </span>
+                  <button @click="openRatingModal(reservation)" class="rating-btn">
+                    <Star :size="16" />
+                    Évaluer
+                  </button>
+                </div>
                 <span v-else-if="selectedTab === 'accepted'" class="status-badge status-accepted">
                   Confirmée
-                </span>
-                <span v-else-if="selectedTab === 'completed'" class="status-badge status-completed">
-                  Terminée
                 </span>
                 <span v-else-if="selectedTab === 'refused'" class="status-badge status-refused">
                   Refusée
@@ -160,18 +166,31 @@
         }}</p>
       </div>
     </div>
+
+    <!-- Client Rating Modal -->
+    <ClientRatingModal
+      :show="showRatingModal"
+      :reservation="selectedReservation"
+      @close="closeRatingModal"
+      @rating-submitted="onRatingSubmitted"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Check, X, Clock, MapPin, Calendar, MessageSquare, Coins, Package } from 'lucide-vue-next'
+import { Check, X, Clock, MapPin, Calendar, MessageSquare, Coins, Package, Star } from 'lucide-vue-next'
 import reservationService from '@/services/intervenantReservationService'
+import evaluationService from '@/services/evaluationService'
+import api from '@/services/api'
+import ClientRatingModal from './ClientRatingModal.vue'
 
 const selectedTab = ref('pending')
 const reservations = ref([])
 const loading = ref(false)
 const error = ref(null)
+const showRatingModal = ref(false)
+const selectedReservation = ref(null)
 
 const filteredReservations = computed(() => {
   return reservations.value.filter(r => r.status === selectedTab.value)
@@ -239,6 +258,47 @@ const refuseReservation = async (id) => {
       console.error(err)
     }
   }
+}
+
+const openRatingModal = async (reservation) => {
+  try {
+    console.log('Checking rating permissions for intervention:', reservation.id)
+    console.log('Reservation data:', reservation)
+    
+    // First check current auth status
+    const authResponse = await api.get('debug/auth')
+    console.log('Current auth status:', authResponse.data)
+    
+    // Then check specific intervention
+    const interventionResponse = await api.get(`debug/intervention/${reservation.id}`)
+    console.log('Intervention debug:', interventionResponse.data)
+    
+    const data = await evaluationService.canRateClient(reservation.id)
+    console.log('Rating permission response:', data)
+    
+    if (data.can_rate) {
+      selectedReservation.value = reservation
+      showRatingModal.value = true
+    } else {
+      alert(data.reason || 'Vous ne pouvez pas évaluer ce client')
+    }
+  } catch (err) {
+    console.error('Rating permission error:', err)
+    const errorMessage = err.response?.data?.reason || 
+                        err.response?.data?.message || 
+                        err.message || 
+                        'Erreur lors de la vérification des permissions d\'évaluation'
+    alert(errorMessage)
+  }
+}
+
+const closeRatingModal = () => {
+  showRatingModal.value = false
+  selectedReservation.value = null
+}
+
+const onRatingSubmitted = async () => {
+  await fetchReservations()
 }
 
 onMounted(() => {
@@ -435,6 +495,31 @@ onMounted(() => {
 .status-refused {
   background-color: #FEE2E2;
   color: #991B1B;
+}
+
+.completed-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.rating-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  padding: var(--spacing-2) var(--spacing-3);
+  background-color: var(--color-orange);
+  color: var(--color-white);
+  border: none;
+  border-radius: var(--radius-lg);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rating-btn:hover {
+  background-color: #DC2626;
 }
 
 .details-grid {

@@ -7,7 +7,10 @@ use App\Http\Controllers\Api\Service\ServiceController;
 use App\Http\Controllers\Api\Intervention\TacheController;
 use App\Http\Controllers\Api\Client\ClientController;
 use App\Http\Controllers\Api\Intervenant\IntervenantController;
+use App\Http\Controllers\Api\Admin\AdminController;
 use App\Http\Controllers\Api\StatsController;
+use App\Http\Controllers\Api\Evaluation\EvaluationController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -20,6 +23,13 @@ use App\Http\Controllers\Api\StatsController;
 // Routes publiques (sans authentification)
 Route::post('auth/register', [AuthController::class, 'register']);
 Route::post('auth/login', [AuthController::class, 'login']);
+Route::middleware('web')->group(function () {
+    Route::get('auth/google/redirect', [AuthController::class, 'redirectToGoogle']);
+    Route::get('auth/google/callback', [AuthController::class, 'handleGoogleCallback']);
+});
+Route::post('auth/forgot-password', [AuthController::class, 'forgotPassword']);
+Route::post('auth/verify-code', [AuthController::class, 'verifyCode']);
+Route::post('auth/reset-password', [AuthController::class, 'resetPassword']);
 
 // Route de test (à supprimer en production)
 Route::get('/test', function () {
@@ -46,6 +56,8 @@ Route::get('intervenants/{id}/services-with-activation', [IntervenantController:
 Route::post('intervenants/{id}/services/{serviceId}/toggle', [IntervenantController::class, 'toggleService']);
 Route::post('intervenants/{id}/services/{serviceId}/status', [IntervenantController::class, 'updateServiceStatus']);
 Route::post('intervenants/{id}/services/{serviceId}/materials', [IntervenantController::class, 'updateServiceMaterials']);
+Route::get('intervenants/{id}/services/{serviceId}/materials', [IntervenantController::class, 'getIntervenantMaterials']);
+Route::delete('intervenants/{id}/materials/{materialId}', [IntervenantController::class, 'deleteIntervenantMaterial']);
 Route::post('intervenants/{id}/services/{serviceId}/request-activation', [IntervenantController::class, 'requestActivation']);
 
 // ======================
@@ -58,6 +70,11 @@ Route::get('intervenants/test', function () {
     return response()->json(['message' => 'Test route works without auth', 'intervenant_id' => 5]);
 });
 
+
+// ======================
+// Routes Témoignages (publiques pour consultation)
+// ======================
+Route::get('testimonials', [\App\Http\Controllers\Api\CommentaireController::class, 'landingTestimonials']);
 
 // Routes protégées (nécessitent une authentification)
 Route::middleware('auth:sanctum')->group(function () {
@@ -77,6 +94,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('intervenants/me/taches/{tacheId}', [IntervenantController::class, 'updateMyTache']);
     Route::post('intervenants/me/taches/{tacheId}/toggle-active', [IntervenantController::class, 'toggleActiveMyTache']);
     Route::delete('intervenants/me/taches/{tacheId}', [IntervenantController::class, 'deleteMyTache']);
+    Route::post('auth/forgot-password', [AuthController::class, 'forgotPassword']);
+    Route::post('auth/verify-code', [AuthController::class, 'verifyCode']);
+    Route::post('auth/reset-password', [AuthController::class, 'resetPassword']);
 
     // ======================
     // Routes Interventions
@@ -126,6 +146,53 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('intervenants/{id}/disponibilites', [IntervenantController::class, 'disponibilites']);
     Route::get('intervenants/{id}/taches', [IntervenantController::class, 'taches']);
 
+    // ======================
+    // Routes Admin
+    // ======================
+    Route::prefix('admin')->middleware('admin')->group(function () {
+        // Dashboard Stats
+        Route::get('stats', [AdminController::class, 'stats']);
+
+        // Clients Management
+        Route::get('clients', [AdminController::class, 'getClients']);
+        Route::get('clients/{id}', [AdminController::class, 'getClientDetails']);
+        Route::post('clients/{id}/toggle-status', [AdminController::class, 'toggleClientStatus']);
+
+        // Intervenants Management
+        Route::get('intervenants', [AdminController::class, 'getIntervenants']);
+        Route::get('intervenants/{id}', [AdminController::class, 'getIntervenantDetails']);
+        Route::post('intervenants/{id}/toggle-status', [AdminController::class, 'toggleIntervenantStatus']);
+        
+        // Justificatifs Download
+        Route::get('justificatifs/{id}/download', [AdminController::class, 'downloadJustificatif']);
+
+        // Demandes Management
+        Route::get('demandes', [AdminController::class, 'getPendingRequests']);
+        Route::post('demandes/{id}/approve', [AdminController::class, 'approveRequest']);
+        Route::post('demandes/{id}/reject', [AdminController::class, 'rejectRequest']);
+
+        // Services Management
+        Route::get('services', [AdminController::class, 'getServices']);
+        Route::post('services', [AdminController::class, 'createService']);
+        Route::post('services/{id}/toggle-status', [AdminController::class, 'toggleServiceStatus']);
+        Route::get('services/{id}/stats', [AdminController::class, 'getServiceStats']);
+        
+        // Taches (Sub-services) Management
+        Route::get('services/{serviceId}/taches', [AdminController::class, 'getServiceTaches']);
+        Route::post('services/{serviceId}/taches', [AdminController::class, 'createTache']);
+        Route::put('taches/{tacheId}', [AdminController::class, 'updateTache']);
+        Route::delete('taches/{tacheId}', [AdminController::class, 'deleteTache']);
+
+        // Reclamations Management
+        Route::get('reclamations', [AdminController::class, 'getReclamations']);
+        Route::post('reclamations/{id}/handle', [AdminController::class, 'handleReclamation']);
+
+        // Historique
+        Route::get('historique', [AdminController::class, 'getHistorique']);
+        Route::get('historique/export/csv', [AdminController::class, 'exportHistoriqueCSV']);
+        Route::get('historique/export/pdf', [AdminController::class, 'exportHistoriquePDF']);
+    });
+
     // Routes for current intervenant's taches
     // TODO: Uncomment these routes when authentication is implemented and remove the temporary routes above
     // Route::get('intervenants/me/taches', [IntervenantController::class, 'myTaches']);
@@ -137,6 +204,67 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('intervenants/me/reservations', [IntervenantController::class, 'myReservations']);
     Route::post('intervenants/me/reservations/{id}/accept', [IntervenantController::class, 'acceptReservation']);
     Route::post('intervenants/me/reservations/{id}/refuse', [IntervenantController::class, 'refuseReservation']);
+
+    // ======================
+    // Routes Évaluations
+    // ======================
+    Route::get('evaluations/client-criteria', [EvaluationController::class, 'getClientCriteria']);
+    Route::get('evaluations/intervenant-criteria', [EvaluationController::class, 'getIntervenantCriteria']);
+    Route::post('evaluations/interventions/{interventionId}/rate-client', [EvaluationController::class, 'storeClientEvaluation']);
+    Route::get('evaluations/interventions/{interventionId}/client-ratings', [EvaluationController::class, 'getClientEvaluations']);
+    Route::get('evaluations/interventions/{interventionId}/can-rate-client', [EvaluationController::class, 'canRateClient']);
+    Route::get('evaluations/interventions/{interventionId}/public', [EvaluationController::class, 'getPublicEvaluations']);
+    Route::get('evaluations/clients/{clientId}/average-rating', [EvaluationController::class, 'getClientAverageRating']);
+    Route::get('debug/auth', function () {
+        $user = Auth::user();
+        return response()->json([
+            'authenticated' => !!$user,
+            'user' => $user ? [
+                'id' => $user->id,
+                'email' => $user->email,
+                'userable_type' => $user->userable_type,
+                'userable_id' => $user->userable_id,
+            ] : null
+        ]);
+    });
+    Route::get('debug/intervention/{id}', function ($id) {
+        $intervention = \App\Models\Intervention::find($id);
+        $user = Auth::user();
+        return response()->json([
+            'intervention' => $intervention ? [
+                'id' => $intervention->id,
+                'status' => $intervention->status,
+                'intervenant_id' => $intervention->intervenant_id,
+                'client_id' => $intervention->client_id,
+            ] : null,
+            'current_user' => $user ? [
+                'id' => $user->id,
+                'email' => $user->email,
+                'userable_type' => $user->userable_type,
+                'userable_id' => $user->userable_id,
+                'matches_intervenant' => $user->userable_type === 'App\\Models\\Intervenant' && $user->userable_id === $intervention->intervenant_id
+            ] : null
+        ]);
+    });
+    Route::get('debug/all-interventions', function () {
+        $user = Auth::user();
+        $interventions = \App\Models\Intervention::where('intervenant_id', $user->userable_id ?? -1)->get();
+        return response()->json([
+            'user' => [
+                'id' => $user->id,
+                'email' => $user->email,
+                'userable_type' => $user->userable_type,
+                'userable_id' => $user->userable_id,
+            ],
+            'user_interventions' => $interventions->map(function ($intervention) {
+                return [
+                    'id' => $intervention->id,
+                    'status' => $intervention->status,
+                    'intervenant_id' => $intervention->intervenant_id,
+                ];
+            })
+        ]);
+    });
 
     Route::get('intervenants/me/taches', [IntervenantController::class, 'myTaches']);
     Route::put('intervenants/me/taches/{tacheId}', [IntervenantController::class, 'updateMyTache']);

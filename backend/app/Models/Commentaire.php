@@ -10,13 +10,15 @@ class Commentaire extends Model
     use HasFactory;
 
     protected $table = 'commentaire';
+    protected $primaryKey = 'id';
 
-    const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
+    // La migration utilise created_at et updated_at par défaut, donc pas besoin de redéfinir les constantes si on suit la convention Laravel
+    // Si la migration a explicitement créé created_at et updated_at, Eloquent les gérera automatiquement.
 
     protected $fillable = [
-        'contenu',
-        'interventionId',
+        'commentaire',
+        'intervention_id',
+        'type_auteur',
     ];
 
     /**
@@ -24,6 +26,6 @@ class Commentaire extends Model
      */
     public function intervention()
     {
-        return $this->belongsTo(Intervention::class, 'interventionId', 'id');
+        return $this->belongsTo(Intervention::class, 'intervention_id', 'id');
     }
 }

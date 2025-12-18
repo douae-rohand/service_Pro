@@ -416,6 +416,16 @@ class IntervenantController extends Controller
                 $q->where('service_id', $serviceId);
             });
         }
+
+        // Filter by specific sub-service (tache)
+        if ($request->has('tacheId') && $request->tacheId != 'all') {
+            $tacheId = $request->tacheId;
+            Log::info('Filtering by tacheId: ' . $tacheId);
+            
+            $query->whereHas('taches', function ($q) use ($tacheId) {
+                $q->where('tache.id', $tacheId); // Explicit table name to avoid ambiguity if joined
+            });
+        }
         
         // Filter by city
         if ($request->has('ville') && $request->ville != 'all') {
@@ -449,9 +459,15 @@ class IntervenantController extends Controller
         Log::info('Found ' . $intervenants->total() . ' intervenants');
         
         // Load relationships AFTER pagination - minimal loading
-        $intervenants->load(['utilisateur', 'interventions.evaluations' => function ($q) {
-            $q->where('type_auteur', 'client');
-        }]);
+        $intervenants->load([
+            'utilisateur',
+            'taches',
+            'services',
+            'materiels',
+            'interventions.evaluations' => function ($q) {
+                $q->where('type_auteur', 'client');
+            }
+        ]);
         
         // Simple transformation
         $intervenants->getCollection()->transform(function ($intervenant) {

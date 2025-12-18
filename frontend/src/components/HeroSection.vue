@@ -18,7 +18,7 @@
               100% Satisfaction Garantie
             </span>
           </div>
-          <h1 class="text-5xl md:text-6xl font-bold animate-fade-in-up-delayed">
+          <h1 class="text-5xl md:text-6xl font-bold animate-fade-in-up-delayed" style="color: #305C7D">
             <span class="inline-block animate-slide-in-right">Trouvez Votre Intervenant</span>
             <span class="relative inline-block animate-slide-in-right-delayed">
               Parfait

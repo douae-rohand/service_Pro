@@ -66,7 +66,7 @@
             >
               <a
                 href="#services"
-                @click.prevent="handleNavClick('services')"
+                @click.prevent="handleServiceClick(1)"
                 class="block px-5 py-4 transition-all duration-200 hover:bg-[#F3E293] hover:pl-7 border-l-4 border-transparent hover:border-[#92B08B]"
               >
                 <div class="flex items-center gap-3">
@@ -75,7 +75,7 @@
               </a>
               <a
                 href="#services"
-                @click.prevent="handleNavClick('services')"
+                @click.prevent="handleServiceClick(2)"
                 class="block px-5 py-4 transition-all duration-200 hover:bg-[#F3E293] hover:pl-7 border-l-4 border-transparent hover:border-[#4682B4]"
               >
                 <div class="flex items-center gap-3">
@@ -236,7 +236,7 @@ const props = defineProps({
   user: Object
 })
 
-const emit = defineEmits(['login-click', 'signup-click', 'navigate-home', 'dashboard-click'])
+const emit = defineEmits(['login-click', 'signup-click', 'navigate-home', 'dashboard-click', 'service-click'])
 
 const isMenuOpen = ref(false)
 const activeLink = ref('home')
@@ -251,6 +251,12 @@ const handleLogoClick = () => {
 const handleContactClick = () => {
   activeLink.value = 'contact'
   isMenuOpen.value = false
+}
+
+const handleServiceClick = (serviceId) => {
+  isMenuOpen.value = false
+  activeLink.value = 'services'
+  emit('service-click', serviceId)
 }
 
 const handleNavClick = (link) => {

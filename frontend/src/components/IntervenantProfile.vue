@@ -133,7 +133,6 @@
             </button>
           </div>
         </div>
-      </div>
 
       <!-- Tabs Navigation -->
       <div class="bg-white rounded-3xl shadow-lg mb-8 overflow-hidden">
@@ -154,7 +153,7 @@
                 v-if="activeTab === tab.id"
                 class="absolute bottom-0 left-0 right-0 h-1 rounded-t-full transition-all"
                 :style="{ backgroundColor: primaryColor }"
-              />
+              ></div>
             </button>
           </div>
         </div>
@@ -237,7 +236,7 @@
                         width: item.percentage + '%', 
                         backgroundColor: primaryColor 
                       }"
-                    />
+                    ></div>
                   </div>
                   <span class="text-sm text-gray-600 w-16 text-right font-medium">{{ item.percentage }}%</span>
                 </div>
@@ -337,7 +336,6 @@
               </div>
             </div>
           
-          </div>
         </div>
       </div>
 
@@ -358,9 +356,8 @@
           </button>
         </div>
       </div>
-    </div>
 
-    <!-- Booking Modal -->
+      <!-- Booking Modal -->
     <BookingModal
       v-if="showBookingModal"
       :intervenant="{
@@ -403,6 +400,7 @@
       @close="showReclamationModal = false"
       @success="handleReclamationSuccess"
     />
+    </div>
   </div>
 </template>
 

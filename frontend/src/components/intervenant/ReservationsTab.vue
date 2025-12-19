@@ -114,6 +114,10 @@
                   <span class="status-badge status-completed">
                     Terminée
                   </span>
+                  <button @click="generateInvoice(reservation.id)" class="invoice-btn">
+                    <FileText :size="16" />
+                    Facture
+                  </button>
                   
                   <!-- View both evaluations (public) - HIGHEST PRIORITY -->
                   <button 
@@ -150,9 +154,15 @@
                     Période expirée
                   </span>
                 </div>
-                <span v-else-if="selectedTab === 'accepted'" class="status-badge status-accepted">
-                  Confirmée
-                </span>
+                <div v-else-if="selectedTab === 'accepted'" class="accepted-actions">
+                  <span class="status-badge status-accepted">
+                    Confirmée
+                  </span>
+                  <button @click="generateInvoice(reservation.id)" class="invoice-btn">
+                    <FileText :size="16" />
+                    Facture
+                  </button>
+                </div>
                 <span v-else-if="selectedTab === 'refused'" class="status-badge status-refused">
                   Refusée
                 </span>
@@ -341,7 +351,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Check, X, Clock, MapPin, Calendar, MessageSquare, Coins, Package, Star } from 'lucide-vue-next'
+import { Check, X, Clock, MapPin, Calendar, MessageSquare, Coins, Package, Star, FileText } from 'lucide-vue-next'
 import reservationService from '@/services/intervenantReservationService'
 import evaluationService from '@/services/evaluationService'
 import api from '@/services/api'
@@ -458,6 +468,20 @@ const fetchReservations = async () => {
     console.error(err)
   } finally {
     loading.value = false
+  }
+}
+
+const generateInvoice = async (id) => {
+  try {
+    const data = await reservationService.generateInvoice(id)
+    if (data.url) {
+      window.open(data.url, '_blank')
+    } else {
+      alert('Erreur: URL de facture manquante')
+    }
+  } catch (err) {
+    alert(err.message || 'Erreur lors de la génération de la facture')
+    console.error(err)
   }
 }
 
@@ -1325,5 +1349,31 @@ onMounted(async () => {
   .public-modal-content {
     width: 98%;
   }
+}
+.invoice-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: white;
+  border: 1px solid #E5E7EB;
+  color: #4B5563;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.invoice-btn:hover {
+  background: #F9FAFB;
+  border-color: #D1D5DB;
+  color: #111827;
+}
+
+.accepted-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 </style>

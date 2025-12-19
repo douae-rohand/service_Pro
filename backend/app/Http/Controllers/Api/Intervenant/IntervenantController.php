@@ -12,6 +12,7 @@ use App\Models\Service;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 
 
@@ -816,6 +817,64 @@ class IntervenantController extends Controller
         'updatedMaterials' => isset($validated['materials']) ? $intervenant->materiels()->get()->pluck('nom_materiel')->toArray() : null,
     ]);
 }
+
+    /**
+     * Generate invoice for a specific intervention
+     */
+    public function generateInvoice(Request $request, $id)
+    {
+        $user = $request->user();
+        if (!$user || !$user->intervenant) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $intervenant = $user->intervenant;
+        
+        // Find intervention and ensure it belongs to this intervenant
+        $intervention = Intervention::where('id', $id)
+            ->where('intervenant_id', $intervenant->id)
+            ->firstOrFail();
+
+        // Check status - allow for accepted or completed
+        // normalize status for check
+        $status = strtolower($intervention->status);
+        if (!in_array($status, ['acceptee', 'accepted', 'termine', 'terminee', 'completed'])) {
+            return response()->json(['message' => 'Invoice can only be generated for accepted or completed interventions'], 400);
+        }
+
+        // Check if invoice already exists
+        $existingFacture = \App\Models\Facture::where('intervention_id', $intervention->id)->first();
+        if ($existingFacture && Storage::disk('public')->exists($existingFacture->fichier_path)) {
+             return response()->json([
+                'message' => 'Invoice retrieved successfully',
+                'url' => asset('storage/' . $existingFacture->fichier_path),
+                'path' => $existingFacture->fichier_path
+            ]);
+        }
+
+        try {
+            $pdfService = new \App\Services\PDFService();
+            $result = $pdfService->generateInvoice($intervention);
+            
+            $facture = \App\Models\Facture::updateOrCreate(
+                ['intervention_id' => $intervention->id],
+                [
+                    'fichier_path' => $result['path'],
+                    'ttc' => $result['ttc']
+                ]
+            );
+
+            return response()->json([
+                'message' => 'Invoice generated successfully',
+                'url' => asset('storage/' . $result['path']),
+                'path' => $result['path']
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Invoice generation error: ' . $e->getMessage());
+            return response()->json(['message' => 'Error generating invoice: ' . $e->getMessage()], 500);
+        }
+    }
 
     /**
      * Configure task with price and materials

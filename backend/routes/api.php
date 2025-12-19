@@ -253,6 +253,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('intervenants/me/reservations', [IntervenantController::class, 'myReservations']);
     Route::post('intervenants/me/reservations/{id}/accept', [IntervenantController::class, 'acceptReservation']);
     Route::post('intervenants/me/reservations/{id}/refuse', [IntervenantController::class, 'refuseReservation']);
+    Route::post('intervenants/me/reservations/{id}/invoice', [IntervenantController::class, 'generateInvoice']);
 
     // ======================
     // Routes Évaluations

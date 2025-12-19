@@ -604,11 +604,12 @@ export default {
         }
         
         const reviews = this.mapReviews(data.interventions);
+        const fullName = data.utilisateur ? `${data.utilisateur.prenom || ''} ${data.utilisateur.nom || ''}`.trim() : 'Intervenant';
 
         this.intervenant = {
           id: data.id,
-          name: data.utilisateur ? `${data.utilisateur.prenom || ''} ${data.utilisateur.nom || ''}`.trim() : 'Intervenant',
-          profileImage: data.utilisateur && data.utilisateur.url ? data.utilisateur.url : 'https://ui-avatars.com/api/?name=Intervenant&background=random',
+          name: fullName,
+          profileImage: data.utilisateur && data.utilisateur.url ? data.utilisateur.url : `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=random`,
           rating: data.average_rating || 0,
           reviewCount: data.review_count || 0,
           location: data.ville || data.address || 'Localisation non spécifiée',

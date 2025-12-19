@@ -12,23 +12,26 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('sessions', function (Blueprint $table) {
-            // Rename column if it exists as 'user_id'
-            if (Schema::hasColumn('sessions', 'user_id') && !Schema::hasColumn('sessions', 'utilisateur_id')) {
-                // Check if there is an index to drop first (optional but safer)
-                // $table->dropIndex(['user_id']); 
-                
-                $table->renameColumn('user_id', 'utilisateur_id');
+            // We MUST keep 'user_id' because Laravel's session driver expects it.
+            // But we want it to point to our 'utilisateur' table instead of 'users'.
+            
+            // 1. If 'utilisateur_id' exists (from previous bad migration), rename it back to 'user_id'
+            if (Schema::hasColumn('sessions', 'utilisateur_id') && !Schema::hasColumn('sessions', 'user_id')) {
+                $table->renameColumn('utilisateur_id', 'user_id');
             }
         });
 
         Schema::table('sessions', function (Blueprint $table) {
-            // Re-add foreign key constraint pointing to utilisateur table
-            if (Schema::hasColumn('sessions', 'utilisateur_id')) {
-                // Ensure we don't have a conflict if we try to add it again
-                // utilisateur.id is created as $table->integer('id', true), which is a signed integer.
-                // We must match the type exactly.
-                $table->integer('utilisateur_id')->nullable()->change();
-                $table->foreign('utilisateur_id')->references('id')->on('utilisateur')->onDelete('cascade');
+            if (Schema::hasColumn('sessions', 'user_id')) {
+                // 2. Ensure type matches 'utilisateur.id' (integer)
+                $table->integer('user_id')->nullable()->change();
+                
+                // 3. Add foreign key to 'utilisateur' table
+                // Note: We might need to drop existing foreign keys first if they point to 'users'
+                // $table->dropForeign(['user_id']); // Uncomment if needed/known
+                
+                // Add the correct FK
+                $table->foreign('user_id')->references('id')->on('utilisateur')->onDelete('cascade');
             }
         });
     }
@@ -39,11 +42,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('sessions', function (Blueprint $table) {
-            // Drop the foreign key
-            $table->dropForeign(['utilisateur_id']);
-            
-            // Rename utilisateur_id back to user_id
-            $table->renameColumn('utilisateur_id', 'user_id');
+            $table->dropForeign(['user_id']);
         });
     }
 };

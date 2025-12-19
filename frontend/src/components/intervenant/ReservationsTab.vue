@@ -528,22 +528,7 @@ const acceptReservation = async (id) => {
   }
 }
 
-const refuseReservation = async (id) => {
-  if (confirm('Êtes-vous sûr de vouloir refuser cette réservation ?')) {
-    try {
-      await reservationService.refuseReservation(id)
-      
-      // Optimistic Update: Update status locally without refresh
-      const index = reservations.value.findIndex(r => r.id === id)
-      if (index !== -1) {
-        reservations.value[index].status = 'refused'
-      }
-    } catch (err) {
-      alert(err.message || 'Erreur lors du refus de la réservation')
-      console.error(err)
-    }
-  }
-}
+
 
 const openRatingModal = async (reservation) => {
   try {

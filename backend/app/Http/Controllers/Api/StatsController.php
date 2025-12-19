@@ -20,29 +20,23 @@ class StatsController extends Controller
     public function index()
     {
         try {
-            // Compter les clients (Clients Satisfaits)
-            $satisfiedClients = Client::where('is_active', true)->count();
-            if ($satisfiedClients === 0) {
-                $satisfiedClients = Client::count();
-            }
+            // Compter tous les clients
+            $allClients = Client::count();
 
-            // Compter les intervenants (Intervenants Qualifiés)
-            $qualifiedIntervenants = Intervenant::where('is_active', true)->count();
-            if ($qualifiedIntervenants === 0) {
-                $qualifiedIntervenants = Intervenant::count();
-            }
+            // Compter tous les intervenants
+            $allIntervenants = Intervenant::count();
 
-            // Compter les interventions terminées (Services Complétés)
-            $completedServices = Intervention::where('status', 'terminée')->count();
-            if ($completedServices === 0) {
-                // Si aucune terminée, compter toutes pour la démo
-                $completedServices = Intervention::count();
-            }
+            // Compter tous les sous-services (Taches)
+            // Note: On suppose que "sous services" correspond au modèle Tache
+            $allSubServices = \App\Models\Tache::count();
 
             $stats = [
-                'satisfied_clients' => (int) $satisfiedClients,
-                'qualified_intervenants' => (int) $qualifiedIntervenants,
-                'completed_services' => (int) $completedServices,
+                'satisfied_clients' => (int) $allClients,
+                'qualified_intervenants' => (int) $allIntervenants,
+                'completed_services' => (int) $allSubServices, // Keeping key for compatibility, but value is Taches
+                'clients_count' => (int) $allClients,
+                'intervenants_count' => (int) $allIntervenants,
+                'subservices_count' => (int) $allSubServices
             ];
 
             return response()->json($stats);

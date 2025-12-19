@@ -354,7 +354,8 @@ class EvaluationController extends Controller
                     'reason' => 'Déjà évalué',
                     'status' => 'view_only',
                     'client_has_rated' => $clientHasRated,
-                    'both_parties_rated' => $clientHasRated && $existingRatings > 0
+                    'both_parties_rated' => $clientHasRated && $existingRatings > 0,
+                    'is_public' => $intervention->areRatingsPublic()
                 ]);
             }
 
@@ -391,7 +392,14 @@ class EvaluationController extends Controller
         try {
             $intervention = Intervention::findOrFail($interventionId);
 
-            // Check if both parties have voted
+            // Logic centralized in model: Both parties voted OR 7-day window passed
+            if (!$intervention->areRatingsPublic()) {
+                return response()->json([
+                    'message' => 'Les évaluations ne sont pas encore publiques',
+                    'can_view' => false
+                ], 403);
+            }
+
             $intervenantRatings = Evaluation::where('intervention_id', $interventionId)
                 ->where('type_auteur', 'intervenant')
                 ->with('critaire')
@@ -403,19 +411,7 @@ class EvaluationController extends Controller
                 ->get();
 
             $bothPartiesVoted = $intervenantRatings->count() > 0 && $clientRatings->count() > 0;
-
-            // Check if 7-day window has passed
-            $interventionDate = $intervention->updated_at;
-            $sevenDaysAgo = now()->subDays(7);
-            $windowPassed = !$interventionDate->greaterThan($sevenDaysAgo);
-
-            // Only show evaluations if both parties voted OR window passed
-            if (!$bothPartiesVoted && !$windowPassed) {
-                return response()->json([
-                    'message' => 'Les évaluations ne sont pas encore publiques',
-                    'can_view' => false
-                ], 403);
-            }
+            $windowPassed = $intervention->updated_at->addDays(7)->isPast();
 
             // Get comments
             $intervenantComment = \DB::table('commentaire')
@@ -453,6 +449,10 @@ class EvaluationController extends Controller
     {
         $clientInterventions = Intervention::where('client_id', $clientId)
             ->where('status', 'termine')
+            ->get()
+            ->filter(function ($i) {
+                return $i->areRatingsPublic();
+            })
             ->pluck('id');
 
         $evaluations = Evaluation::whereIn('intervention_id', $clientInterventions)

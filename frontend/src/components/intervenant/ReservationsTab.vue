@@ -114,7 +114,11 @@
                   <span class="status-badge status-completed">
                     Terminée
                   </span>
-                  
+                  <button @click="generateInvoice(reservation.id)" class="invoice-btn">
+                    <FileText :size="16" />
+                    Facture
+                  </button>
+
                   <!-- View both evaluations (public) - HIGHEST PRIORITY -->
                   <button 
                     v-if="reservation.canViewPublic" 
@@ -150,9 +154,15 @@
                     Période expirée
                   </span>
                 </div>
-                <span v-else-if="selectedTab === 'accepted'" class="status-badge status-accepted">
-                  Confirmée
-                </span>
+                <div v-else-if="selectedTab === 'accepted'" class="accepted-actions">
+                  <span class="status-badge status-accepted">
+                    Confirmée
+                  </span>
+                  <button @click="generateInvoice(reservation.id)" class="invoice-btn">
+                    <FileText :size="16" />
+                    Facture
+                  </button>
+                </div>
                 <span v-else-if="selectedTab === 'refused'" class="status-badge status-refused">
                   Refusée
                 </span>
@@ -336,12 +346,25 @@
       :intervention-id="selectedInterventionId"
       @close="closeInterventionDetails"
     />
+
+    <!-- Small Mail Notification -->
+    <Transition name="fade-slide">
+      <div v-if="notification" class="mail-notification">
+        <div class="notif-icon">
+          <Mail :size="20" />
+        </div>
+        <div class="notif-content">
+          <p class="notif-msg">{{ notification }}</p>
+        </div>
+        <button @click="notification = null" class="notif-close">×</button>
+      </div>
+    </Transition>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Check, X, Clock, MapPin, Calendar, MessageSquare, Coins, Package, Star } from 'lucide-vue-next'
+import { Check, X, Clock, MapPin, Calendar, MessageSquare, Coins, Package, Star, FileText, Mail } from 'lucide-vue-next'
 import reservationService from '@/services/intervenantReservationService'
 import evaluationService from '@/services/evaluationService'
 import api from '@/services/api'
@@ -362,11 +385,12 @@ const selectedService = ref('all')
 const allServices = ref([])
 const showDetailsModal = ref(false)
 const selectedInterventionId = ref(null)
+const notification = ref(null)
 
 const fetchAllServices = async () => {
   try {
     const response = await api.get('services')
-    allServices.value = response.data.services || []
+    allServices.value = response.data.data || response.data.services || []
   } catch (err) {
     console.error('Error fetching global services:', err)
   }
@@ -427,22 +451,12 @@ const fetchReservations = async () => {
           reservation.evaluationStatus = statusData.status
           
           // Show public evaluations button if:
-          // 1. Both parties have rated, OR
-          // 2. 7-day window has passed (we need to try calling getPublicEvaluations to know)
-          // For now, just check if both_parties_rated is true from backend
-          reservation.canViewPublic = statusData.both_parties_rated === true
+          // 1. Backend says it is public (both parties rated OR 7-day window passed)
+          reservation.canViewPublic = statusData.is_public === true
           
-          // Also try to check if window passed by attempting to fetch public evaluations
+          // No need to try/catch anymore since backend tells us explicitly
           if (!reservation.canViewPublic && statusData.status === 'view_only') {
-            try {
-              const publicData = await evaluationService.getPublicEvaluations(reservation.id)
-              if (publicData.can_view) {
-                reservation.canViewPublic = true
-              }
-            } catch (err) {
-              // If 403, evaluations not public yet
-              reservation.canViewPublic = false
-            }
+             // Logic for handling private viewing if needed locally, but for "Public" button rely on flag
           }
         } catch (err) {
           console.error('Error checking evaluation status:', err)
@@ -461,11 +475,34 @@ const fetchReservations = async () => {
   }
 }
 
+const generateInvoice = async (id) => {
+  try {
+    const data = await reservationService.generateInvoice(id)
+    if (data.url) {
+      window.open(data.url, '_blank')
+    } else {
+      alert('Erreur: URL de facture manquante')
+    }
+  } catch (err) {
+    alert(err.message || 'Erreur lors de la génération de la facture')
+    console.error(err)
+  }
+}
+
 const acceptReservation = async (id) => {
   try {
-    await reservationService.acceptReservation(id)
+    const response = await api.post(`intervenants/me/reservations/${id}/accept`)
+
     // Refresh the data to get updated status
     await fetchReservations()
+
+    // Show notification
+    if (response.data.message) {
+      notification.value = response.data.message
+      setTimeout(() => {
+        notification.value = null
+      }, 5000)
+    }
   } catch (err) {
     alert(err.message || 'Erreur lors de l\'acceptation de la réservation')
     console.error(err)
@@ -1130,6 +1167,66 @@ onMounted(async () => {
   font-style: italic;
 }
 
+/* Mail Notification */
+.mail-notification {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  z-index: 99999;
+  background: white;
+  border-radius: 1rem;
+  padding: 1rem 1.5rem;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  border: 1px solid #E5E7EB;
+  border-left: 4px solid #E8793F;
+  max-width: 400px;
+}
+
+.notif-icon {
+  background: #FFF7ED;
+  color: #E8793F;
+  padding: 0.5rem;
+  border-radius: 0.75rem;
+  display: flex;
+}
+
+.notif-msg {
+  font-size: 0.875rem;
+  color: #374151;
+  font-weight: 500;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.notif-close {
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  color: #9CA3AF;
+  cursor: pointer;
+  padding: 0 0.5rem;
+  margin-left: 0.5rem;
+}
+
+.notif-close:hover {
+  color: #374151;
+}
+
+/* Animations */
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fade-slide-enter-from,
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(20px) scale(0.95);
+}
+
 /* Modal Overlay - Shared styling */
 .modal-overlay {
   position: fixed;
@@ -1325,5 +1422,31 @@ onMounted(async () => {
   .public-modal-content {
     width: 98%;
   }
+}
+.invoice-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: white;
+  border: 1px solid #E5E7EB;
+  color: #4B5563;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.invoice-btn:hover {
+  background: #F9FAFB;
+  border-color: #D1D5DB;
+  color: #111827;
+}
+
+.accepted-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 </style>

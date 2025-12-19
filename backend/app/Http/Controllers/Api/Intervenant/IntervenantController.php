@@ -12,6 +12,7 @@ use App\Models\Service;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 
 
@@ -178,9 +179,22 @@ class IntervenantController extends Controller
             'admin_id' => $validated['admin_id'] ?? $request->input('adminId'),
         ]);
 
+        // Update service experience if provided
+        if ($request->has('services') && is_array($request->services)) {
+            foreach ($request->services as $serviceData) {
+                if (isset($serviceData['id']) && isset($serviceData['experience'])) {
+                    // Update existing pivot
+                    $intervenant->services()->updateExistingPivot(
+                        $serviceData['id'], 
+                        ['experience' => $serviceData['experience']]
+                    );
+                }
+            }
+        }
+
         return response()->json([
             'message' => 'Intervenant mis à jour avec succès',
-            'intervenant' => $intervenant->load('utilisateur'),
+            'intervenant' => $intervenant->load('utilisateur', 'services'), // Reload services to return updated data
         ]);
     }
 
@@ -647,11 +661,19 @@ class IntervenantController extends Controller
 
         $intervenant = $user->intervenant;
 
-        // Get taches with pivot data, service, materials, and completed jobs count
-        $taches = $intervenant->taches()
-            ->with(['service', 'materiels'])
-            ->get()
-            ->map(function ($tache) use ($intervenant) {
+    // Get IDs of active services only (exclude archived/inactive)
+    $activeServiceIds = $intervenant->services()
+        ->wherePivot('status', 'active')
+        ->pluck('service.id')
+        ->toArray();
+
+    // Get taches with pivot data, service, materials, and completed jobs count
+    // Only for active services
+    $taches = $intervenant->taches()
+        ->whereIn('service_id', $activeServiceIds)
+        ->with(['service', 'materiels'])
+        ->get()
+        ->map(function ($tache) use ($intervenant) {
                 // Get pivot data (tarif, experience, archived, active)
                 $pivot = $tache->pivot;
 
@@ -661,8 +683,16 @@ class IntervenantController extends Controller
                     ->whereIn('status', ['terminée', 'terminee', 'termine', 'completed'])
                     ->count();
 
-                // Get materials names
-                $materials = $tache->materiels->pluck('nom_materiel')->toArray();
+                // Get all materials for this task
+                $taskMaterials = $tache->materiels;
+                
+                // Get IDs of materials owned by the intervenant
+                $intervenantMaterialIds = $intervenant->materiels->pluck('id')->toArray();
+
+                // Filter task materials to include only those owned by the intervenant
+                $ownedMaterials = $taskMaterials->filter(function ($material) use ($intervenantMaterialIds) {
+                    return in_array($material->id, $intervenantMaterialIds);
+                })->pluck('nom_materiel')->toArray();
 
                 // Determine service type (menage or jardinage) from service name
                 $serviceType = 'menage'; // default
@@ -681,7 +711,7 @@ class IntervenantController extends Controller
                     'hourlyRate' => (float) ($pivot->prix_tache ?? 0),
                     'active' => $pivot->status ?? true,
                     'completedJobs' => $completedJobs,
-                    'materials' => $materials,
+                    'materials' => $ownedMaterials,
                 ];
             });
 
@@ -796,10 +826,23 @@ class IntervenantController extends Controller
             }
         }
 
-        // Sync materials for this intervenant with prices
-        $intervenant->materiels()->sync($materialSyncData);
+        
+        // Get all materials that are relevant to this task (offered as options)
+        $taskMaterials = $tache->materiels->pluck('id')->toArray();
+        
+        // Identify materials that were unchecked (in Task but not in Request)
+        // These should be removed from the intervenant's inventory
+        $materialsToDetach = array_diff($taskMaterials, $materialIds);
+        
+        if (!empty($materialsToDetach)) {
+             $intervenant->materiels()->detach($materialsToDetach);
+        }
 
-        Log::info("Syncing materials with prices for intervenant {$intervenant->id}: " . json_encode($materialSyncData));
+        // Sync materials for this intervenant with prices (without detaching others)
+        // This updates existing pivots and attaches new ones
+        $intervenant->materiels()->sync($materialSyncData, false);
+
+        Log::info("Updated materials for intervenant {$intervenant->id} via task {$tacheId}");
     }
 
     return response()->json([
@@ -808,6 +851,64 @@ class IntervenantController extends Controller
         'updatedMaterials' => isset($validated['materials']) ? $intervenant->materiels()->get()->pluck('nom_materiel')->toArray() : null,
     ]);
 }
+
+    /**
+     * Generate invoice for a specific intervention
+     */
+    public function generateInvoice(Request $request, $id)
+    {
+        $user = $request->user();
+        if (!$user || !$user->intervenant) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $intervenant = $user->intervenant;
+        
+        // Find intervention and ensure it belongs to this intervenant
+        $intervention = Intervention::where('id', $id)
+            ->where('intervenant_id', $intervenant->id)
+            ->firstOrFail();
+
+        // Check status - allow for accepted or completed
+        // normalize status for check
+        $status = strtolower($intervention->status);
+        if (!in_array($status, ['acceptee', 'accepted', 'termine', 'terminee', 'completed'])) {
+            return response()->json(['message' => 'Invoice can only be generated for accepted or completed interventions'], 400);
+        }
+
+        // Check if invoice already exists
+        $existingFacture = \App\Models\Facture::where('intervention_id', $intervention->id)->first();
+        if ($existingFacture && Storage::disk('public')->exists($existingFacture->fichier_path)) {
+             return response()->json([
+                'message' => 'Invoice retrieved successfully',
+                'url' => asset('storage/' . $existingFacture->fichier_path),
+                'path' => $existingFacture->fichier_path
+            ]);
+        }
+
+        try {
+            $pdfService = new \App\Services\PDFService();
+            $result = $pdfService->generateInvoice($intervention);
+            
+            $facture = \App\Models\Facture::updateOrCreate(
+                ['intervention_id' => $intervention->id],
+                [
+                    'fichier_path' => $result['path'],
+                    'ttc' => $result['ttc']
+                ]
+            );
+
+            return response()->json([
+                'message' => 'Invoice generated successfully',
+                'url' => asset('storage/' . $result['path']),
+                'path' => $result['path']
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Invoice generation error: ' . $e->getMessage());
+            return response()->json(['message' => 'Error generating invoice: ' . $e->getMessage()], 500);
+        }
+    }
 
     /**
      * Configure task with price and materials
@@ -977,9 +1078,9 @@ class IntervenantController extends Controller
             return response()->json(['error' => 'Intervenant not found'], 404);
         }
 
-        // Get active services
+        // Get active and archived services
         $activeServices = $intervenant->services()
-            ->wherePivot('status', 'active')
+            ->wherePivotIn('status', ['active', 'archive'])
             ->get()
             ->map(function ($service) {
                 return [
@@ -989,16 +1090,26 @@ class IntervenantController extends Controller
                 ];
             });
 
+        // Get IDs of materials owned by the intervenant
+        $intervenantMaterialIds = $intervenant->materiels->pluck('id')->toArray();
+
         // Get all tasks (active and inactive) with their status
         $allTasks = $intervenant->taches()
+            ->with('materiels')
             ->get()
-            ->map(function ($tache) {
+            ->map(function ($tache) use ($intervenantMaterialIds) {
+                // Filter task materials to include only those owned by the intervenant
+                $ownedMaterials = $tache->materiels->filter(function ($material) use ($intervenantMaterialIds) {
+                    return in_array($material->id, $intervenantMaterialIds);
+                })->pluck('nom_materiel')->toArray();
+
                 return [
                     'id' => $tache->id,
                     'service_id' => $tache->service_id, // Essential for frontend grouping
                     'name' => $tache->nom_tache,
                     'price' => $tache->pivot->prix_tache,
                     'status' => $tache->pivot->status,
+                    'materials' => $ownedMaterials,
                 ];
             });
 
@@ -1598,7 +1709,21 @@ class IntervenantController extends Controller
         $intervention->status = 'acceptee';
         $intervention->save();
 
-        return response()->json(['message' => 'Réservation acceptée avec succès']);
+        // Envoyer l'email de confirmation à l'intervenant avec toutes les infos
+        try {
+            $intervention->load(['client.utilisateur', 'intervenant.utilisateur', 'tache.service']);
+            \Illuminate\Support\Facades\Mail::to($intervenant->email)->send(new \App\Mail\InterventionAccepted($intervention));
+            return response()->json([
+                'message' => 'Réservation acceptée avec succès. Un email contenant les détails complets vous a été envoyé.',
+                'mail_sent' => true
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error sending intervention acceptance mail: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Réservation acceptée avec succès, mais l\'email de notification n\'a pas pu être envoyé.',
+                'mail_sent' => false
+            ]);
+        }
     }
 
     /**

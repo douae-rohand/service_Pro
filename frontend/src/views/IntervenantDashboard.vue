@@ -171,9 +171,7 @@ const tabs = [
   { id: 'myservices', label: 'Sous-services Actifs', icon: ClipboardList, color: '#1A5FA3' },
   { id: 'reservations', label: 'Réservations', icon: Calendar, color: '#E8793F' },
   { id: 'availability', label: 'Disponibilités', icon: Calendar, color: '#A5D4E6'},
-  { id: 'reviewclients', label: 'Évaluer Clients', icon: MessageCircle, color: '#FEE347' },
   { id: 'reviewsstats', label: 'Mes Avis & Notes', icon: Star, color: '#E8793F' },
-  { id: 'history', label: 'Historique', icon: History, color: '#92B08B' }
 ]
 
 const isActiveTab = (tabId) => {

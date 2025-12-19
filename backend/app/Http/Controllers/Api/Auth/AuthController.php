@@ -58,7 +58,7 @@ class AuthController extends Controller
         try {
             // Générer un code de vérification à 6 chiffres
             $verificationCode = str_pad(mt_rand(0, 999999), 6, '0', STR_PAD_LEFT);
-            
+
             // Créer l'utilisateur
             $userId = DB::table('utilisateur')->insertGetId([
                 'nom' => $validated['nom'],
@@ -184,16 +184,16 @@ class AuthController extends Controller
     {
         try {
             $user = $request->user();
-            
+
             if (!$user) {
                 return response()->json([
                     'message' => 'User not authenticated'
                 ], 401);
             }
-            
+
             // Explicitly load all relationships
             $user->load(['client', 'intervenant', 'admin']);
-            
+
             // Log for debugging
             Log::info('User data loaded', [
                 'user_id' => $user->id,
@@ -201,7 +201,7 @@ class AuthController extends Controller
                 'has_intervenant' => $user->intervenant !== null,
                 'has_admin' => $user->admin !== null,
             ]);
-            
+
             return response()->json($user);
         } catch (\Exception $e) {
             Log::error('Error fetching user: ' . $e->getMessage());
@@ -218,7 +218,7 @@ class AuthController extends Controller
     public function updateProfile(Request $request)
     {
         $user = $request->user();
-        
+
         // Debug logging
         \Log::info('Update profile request received', [
             'user_id' => $user->id,
@@ -244,22 +244,22 @@ class AuthController extends Controller
         // Handle profile photo upload
         if ($request->hasFile('profile_photo')) {
             $file = $request->file('profile_photo');
-            
+
             \Log::info('Processing profile photo', [
                 'original_name' => $file->getClientOriginalName(),
                 'size' => $file->getSize(),
                 'mime_type' => $file->getMimeType()
             ]);
-            
+
             // Generate unique filename
             $filename = time() . '_' . $file->getClientOriginalName();
-            
+
             // Store file in public/storage/profiles directory
             $path = $file->storeAs('profiles', $filename, 'public');
-            
+
             // Store just the filename, not the full path
             $validated['profile_photo'] = 'profiles/' . $filename;
-            
+
             \Log::info('Profile photo uploaded', ['path' => $validated['profile_photo']]);
         }
 
@@ -306,7 +306,7 @@ class AuthController extends Controller
             // Extract filename from URL
             $filename = basename(parse_url($user->url, PHP_URL_PATH));
             $oldPath = 'avatars/' . $filename;
-            
+
             if (Storage::disk('public')->exists($oldPath)) {
                 Storage::disk('public')->delete($oldPath);
             }
@@ -375,7 +375,7 @@ class AuthController extends Controller
     {
         try {
             $googleUser = \Laravel\Socialite\Facades\Socialite::driver('google')->stateless()->user();
-            
+
             $user = Utilisateur::where('email', $googleUser->getEmail())->first();
 
             if (!$user) {
@@ -420,7 +420,7 @@ class AuthController extends Controller
     public function forgotPassword(Request $request)
     {
         $request->validate(['email' => 'required|email']);
-        
+
         $user = Utilisateur::where('email', $request->email)->first();
         if (!$user) {
             return response()->json(['message' => 'Aucun utilisateur trouvé avec cet email.'], 404);

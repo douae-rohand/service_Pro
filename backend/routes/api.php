@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Intervention\InterventionController;
+use App\Http\Controllers\Api\Intervention\InterventionControllerIntervenant;
 use App\Http\Controllers\Api\Service\ServiceController;
 use App\Http\Controllers\Api\Intervention\TacheController;
 use App\Http\Controllers\Api\Client\ClientController;
@@ -78,6 +79,7 @@ Route::post('intervenants/{id}/services/{serviceId}/request-activation', [Interv
 // Routes Statistiques (publiques pour consultation)
 // ======================
 Route::get('stats', [StatsController::class, 'index']);
+Route::get('intervenants/{intervenantId}/reviews-stats', [StatsController::class, 'getIntervenantReviewsStats']);
 Route::get('testimonials', [\App\Http\Controllers\Api\CommentaireController::class, 'landingTestimonials']);
 
 
@@ -85,7 +87,7 @@ Route::get('testimonials', [\App\Http\Controllers\Api\CommentaireController::cla
 // Routes Protégées (Auth Sanctuim)
 // ======================
 Route::middleware('auth:sanctum')->group(function () {
-    
+
     // Auth User
     Route::post('auth/logout', [AuthController::class, 'logout']);
     Route::get('auth/user', [AuthController::class, 'user']);
@@ -108,7 +110,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('intervenants', [IntervenantController::class, 'store']);
     Route::put('intervenants/{id}', [IntervenantController::class, 'update']);
     Route::delete('intervenants/{id}', [IntervenantController::class, 'destroy']);
-    
+
     // Intervenant Actuel (Me)
     Route::get('intervenants/me/taches', [IntervenantController::class, 'myTaches']);
     Route::put('intervenants/me/taches/{tacheId}', [IntervenantController::class, 'updateMyTache']);
@@ -166,6 +168,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('intervenants/me/reservations/{id}/accept', [IntervenantController::class, 'acceptReservation']);
     Route::post('intervenants/me/reservations/{id}/refuse', [IntervenantController::class, 'refuseReservation']);
 
+    // Reclamations
+    Route::post('/reclamations', [App\Http\Controllers\Api\ReclamationController::class, 'store']);
+
     // Actions sur Intervenant par ID (pour Admin ou autres)
     Route::put('intervenants/{id}/taches/{tacheId}/configure', [IntervenantController::class, 'configureTask']);
     Route::get('intervenants/{id}/services-with-activation', [IntervenantController::class, 'getServicesWithActivation']);
@@ -181,6 +186,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Interventions
     Route::apiResource('interventions', InterventionController::class);
+    
+    // Intervenant Specific Interventions
+    Route::apiResource('intervenant-interventions', InterventionControllerIntervenant::class);
+    Route::get('intervenant-interventions/filter/upcoming', [InterventionControllerIntervenant::class, 'upcoming']);
+    Route::get('intervenant-interventions/filter/completed', [InterventionControllerIntervenant::class, 'completed']);
+
     Route::get('interventions/index', [InterventionController::class, 'index']); // legacy?
     Route::get('interventions/filter/upcoming', [InterventionController::class, 'upcoming']);
     Route::get('interventions/filter/completed', [InterventionController::class, 'completed']);
@@ -198,7 +209,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('clients/{id}/profile/statistics', [ClientProfileController::class, 'getStatistics']);
     Route::get('clients/{id}/profile/history', [ClientProfileController::class, 'getHistory']);
     Route::get('clients/{id}/profile/evaluations', [ClientProfileController::class, 'getEvaluations']);
-    
+
     // Favoris
     Route::get('clients/{id}/favorites', [\App\Http\Controllers\Api\Client\FavorisController::class, 'index']);
     Route::post('clients/{id}/favorites', [\App\Http\Controllers\Api\Client\FavorisController::class, 'toggle']);
@@ -234,7 +245,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('services', [AdminController::class, 'createService']);
         Route::post('services/{id}/toggle-status', [AdminController::class, 'toggleServiceStatus']);
         Route::get('services/{id}/stats', [AdminController::class, 'getServiceStats']);
-        
+
         Route::get('services/{serviceId}/taches', [AdminController::class, 'getServiceTaches']);
         Route::post('services/{serviceId}/taches', [AdminController::class, 'createTache']);
         Route::put('taches/{tacheId}', [AdminController::class, 'updateTache']);
@@ -259,6 +270,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('intervenants/me/reservations', [IntervenantController::class, 'myReservations']);
     Route::post('intervenants/me/reservations/{id}/accept', [IntervenantController::class, 'acceptReservation']);
     Route::post('intervenants/me/reservations/{id}/refuse', [IntervenantController::class, 'refuseReservation']);
+    Route::post('intervenants/me/reservations/{id}/invoice', [IntervenantController::class, 'generateInvoice']);
 
     // ======================
     // Routes Évaluations

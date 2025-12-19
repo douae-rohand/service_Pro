@@ -75,7 +75,7 @@
       </div>
 
       <!-- Reservations List -->
-      <div class="reservations-list">
+      <TransitionGroup name="list" tag="div" class="reservations-list">
         <div
           v-for="reservation in filteredReservations"
           :key="reservation.id"
@@ -105,7 +105,7 @@
                   </button>
                   <button @click="refuseReservation(reservation.id)" class="refuse-btn">
                     <X :size="18" />
-                    Refuser
+                    Reyyfuser
                   </button>
                 </div>
 
@@ -114,7 +114,11 @@
                   <span class="status-badge status-completed">
                     Terminée
                   </span>
-                  
+                  <button @click="generateInvoice(reservation.id)" class="invoice-btn">
+                    <FileText :size="16" />
+                    Facture
+                  </button>
+
                   <!-- View both evaluations (public) - HIGHEST PRIORITY -->
                   <button 
                     v-if="reservation.canViewPublic" 
@@ -150,10 +154,16 @@
                     Période expirée
                   </span>
                 </div>
-                <span v-else-if="selectedTab === 'accepted'" class="status-badge status-accepted">
-                  Confirmée
-                </span>
-                <span v-else-if="selectedTab === 'rejected'" class="status-badge status-refused">
+                <div v-else-if="selectedTab === 'accepted'" class="accepted-actions">
+                  <span class="status-badge status-accepted">
+                    Confirmée
+                  </span>
+                  <button @click="generateInvoice(reservation.id)" class="invoice-btn">
+                    <FileText :size="16" />
+                    Facture
+                  </button>
+                </div>
+                <span v-else-if="selectedTab === 'refused'" class="status-badge status-refused">
                   Refusée
                 </span>
               </div>
@@ -225,7 +235,7 @@
             </div>
           </div>
         </div>
-      </div>
+      </TransitionGroup>
 
       <div v-if="filteredReservations.length === 0" class="empty-state">
         <p>Aucune réservation {{ 
@@ -336,12 +346,60 @@
       :intervention-id="selectedInterventionId"
       @close="closeInterventionDetails"
     />
+
+    <!-- Small Mail Notification -->
+    <Transition name="fade-slide">
+      <div v-if="notification" class="mail-notification">
+        <div class="notif-icon">
+          <Mail :size="20" />
+        </div>
+        <div class="notif-content">
+          <p class="notif-msg">{{ notification }}</p>
+        </div>
+        <button @click="notification = null" class="notif-close">×</button>
+      </div>
+    </Transition>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Check, X, Clock, MapPin, Calendar, MessageSquare, Coins, Package, Star } from 'lucide-vue-next'
+import { Check, X, Clock, MapPin, Calendar, MessageSquare, Coins, Package, Star, Mail, AlertTriangle, FileText } from 'lucide-vue-next'
+// ... existing imports ...
+
+const showRefuseModal = ref(false)
+const refusalId = ref(null)
+// ... existing refs ...
+
+const refuseReservation = (id) => {
+  refusalId.value = id
+  showRefuseModal.value = true
+}
+
+const confirmRefusal = async () => {
+  if (!refusalId.value) return
+
+  try {
+    await reservationService.refuseReservation(refusalId.value)
+
+    // Optimistic Update
+    const index = reservations.value.findIndex(r => r.id === refusalId.value)
+    if (index !== -1) {
+      reservations.value[index].status = 'refused'
+    }
+  } catch (err) {
+    alert(err.message || 'Erreur lors du refus de la réservation')
+    console.error(err)
+  } finally {
+    closeRefuseModal()
+  }
+}
+
+const closeRefuseModal = () => {
+  showRefuseModal.value = false
+  refusalId.value = null
+}
+
 import reservationService from '@/services/intervenantReservationService'
 import evaluationService from '@/services/evaluationService'
 import api from '@/services/api'
@@ -362,11 +420,12 @@ const selectedService = ref('all')
 const allServices = ref([])
 const showDetailsModal = ref(false)
 const selectedInterventionId = ref(null)
+const notification = ref(null)
 
 const fetchAllServices = async () => {
   try {
     const response = await api.get('services')
-    allServices.value = response.data.services || []
+    allServices.value = response.data.data || response.data.services || []
   } catch (err) {
     console.error('Error fetching global services:', err)
   }
@@ -386,13 +445,13 @@ const filteredReservations = computed(() => {
 const pendingCount = computed(() => reservations.value.filter(r => r.status === 'pending').length)
 const acceptedCount = computed(() => reservations.value.filter(r => r.status === 'accepted').length)
 const completedCount = computed(() => reservations.value.filter(r => r.status === 'completed').length)
-const refusedCount = computed(() => reservations.value.filter(r => r.status === 'rejected').length)
+const refusedCount = computed(() => reservations.value.filter(r => r.status === 'refused').length)
 
 const tabs = computed(() => [
   { id: 'pending', label: 'En Attente', color: '#E8793F', count: pendingCount.value },
   { id: 'accepted', label: 'Acceptées', color: '#92B08B', count: acceptedCount.value },
   { id: 'completed', label: 'Complétées', color: '#4682B4', count: completedCount.value },
-  { id: 'rejected', label: 'Refusées', color: '#EF4444', count: refusedCount.value },
+  { id: 'refused', label: 'Refusées', color: '#EF4444', count: refusedCount.value },
 ])
 
 const formatDate = (dateStr) => {
@@ -405,13 +464,15 @@ const formatDate = (dateStr) => {
 }
 
 const calculateTotal = (reservation) => {
-  const hours = reservation.duration_hours || 0
+  const hours = parseInt(reservation.duration)
   return reservation.hourlyRate * hours
 }
 
-const fetchReservations = async () => {
-  loading.value = true
-  error.value = null
+const fetchReservations = async (silent = false) => {
+  if (!silent) loading.value = true
+  // Don't clear error on silent refresh to avoid flickering error messages
+  if (!silent) error.value = null
+
   try {
     const response = await reservationService.getMyReservations()
     const fetchedReservations = response.reservations || []
@@ -420,30 +481,9 @@ const fetchReservations = async () => {
     for (const reservation of fetchedReservations) {
       if (reservation.status === 'completed') {
         try {
-          // Get detailed evaluation status
           const statusData = await evaluationService.canRateClient(reservation.id)
-          console.log('Evaluation status for reservation', reservation.id, statusData)
-          
           reservation.evaluationStatus = statusData.status
-          
-          // Show public evaluations button if:
-          // 1. Both parties have rated, OR
-          // 2. 7-day window has passed (we need to try calling getPublicEvaluations to know)
-          // For now, just check if both_parties_rated is true from backend
-          reservation.canViewPublic = statusData.both_parties_rated === true
-          
-          // Also try to check if window passed by attempting to fetch public evaluations
-          if (!reservation.canViewPublic && statusData.status === 'view_only') {
-            try {
-              const publicData = await evaluationService.getPublicEvaluations(reservation.id)
-              if (publicData.can_view) {
-                reservation.canViewPublic = true
-              }
-            } catch (err) {
-              // If 403, evaluations not public yet
-              reservation.canViewPublic = false
-            }
-          }
+          reservation.canViewPublic = statusData.is_public === true
         } catch (err) {
           console.error('Error checking evaluation status:', err)
           reservation.evaluationStatus = 'unknown'
@@ -454,36 +494,51 @@ const fetchReservations = async () => {
     
     reservations.value = fetchedReservations
   } catch (err) {
-    error.value = err.message || 'Erreur lors du chargement des réservations'
+    if (!silent) error.value = err.message || 'Erreur lors du chargement des réservations'
     console.error(err)
   } finally {
-    loading.value = false
+    if (!silent) loading.value = false
+  }
+}
+
+const generateInvoice = async (id) => {
+  try {
+    const data = await reservationService.generateInvoice(id)
+    if (data.url) {
+      window.open(data.url, '_blank')
+    } else {
+      alert('Erreur: URL de facture manquante')
+    }
+  } catch (err) {
+    alert(err.message || 'Erreur lors de la génération de la facture')
+    console.error(err)
   }
 }
 
 const acceptReservation = async (id) => {
   try {
-    await reservationService.acceptReservation(id)
-    // Refresh the data to get updated status
-    await fetchReservations()
+    const response = await api.post(`intervenants/me/reservations/${id}/accept`)
+
+    // Optimistic Update: Update status locally without refresh
+    const index = reservations.value.findIndex(r => r.id === id)
+    if (index !== -1) {
+      reservations.value[index].status = 'accepted'
+    }
+
+    // Show notification
+    if (response.data.message) {
+      notification.value = response.data.message
+      setTimeout(() => {
+        notification.value = null
+      }, 5000)
+    }
   } catch (err) {
     alert(err.message || 'Erreur lors de l\'acceptation de la réservation')
     console.error(err)
   }
 }
 
-const refuseReservation = async (id) => {
-  if (confirm('Êtes-vous sûr de vouloir refuser cette réservation ?')) {
-    try {
-      await reservationService.refuseReservation(id)
-      // Refresh the data to get updated status
-      await fetchReservations()
-    } catch (err) {
-      alert(err.message || 'Erreur lors du refus de la réservation')
-      console.error(err)
-    }
-  }
-}
+
 
 const openRatingModal = async (reservation) => {
   try {
@@ -586,11 +641,23 @@ const onRatingSubmitted = async () => {
   await fetchReservations()
 }
 
+const pollInterval = ref(null)
+
 onMounted(async () => {
   await Promise.all([
     fetchReservations(),
     fetchAllServices()
   ])
+
+  // Poll for updates every 30 seconds (Silent Refresh)
+  pollInterval.value = setInterval(() => {
+    fetchReservations(true)
+  }, 30000)
+})
+
+import { onUnmounted } from 'vue' // Ensure this is imported
+onUnmounted(() => {
+  if (pollInterval.value) clearInterval(pollInterval.value)
 })
 </script>
 
@@ -679,6 +746,7 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-4);
+  position: relative;
 }
 
 /* Filter Bar styles */
@@ -803,6 +871,25 @@ onMounted(async () => {
   border-color: #D1D5DB;
   color: #111827;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+/* List Transitions */
+.list-move,
+.list-enter-active,
+.list-leave-active {
+  transition: all 0.5s ease;
+}
+
+.list-enter-from,
+.list-leave-to {
+  opacity: 0;
+  transform: translateX(30px);
+}
+
+/* Ensure leaving items are taken out of layout flow so others can move up */
+.list-leave-active {
+  position: absolute;
+  width: 100%; /* Maintain width during leave */
 }
 
 .details-link-btn::after {
@@ -1130,6 +1217,66 @@ onMounted(async () => {
   font-style: italic;
 }
 
+/* Mail Notification */
+.mail-notification {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  z-index: 99999;
+  background: white;
+  border-radius: 1rem;
+  padding: 1rem 1.5rem;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  border: 1px solid #E5E7EB;
+  border-left: 4px solid #E8793F;
+  max-width: 400px;
+}
+
+.notif-icon {
+  background: #FFF7ED;
+  color: #E8793F;
+  padding: 0.5rem;
+  border-radius: 0.75rem;
+  display: flex;
+}
+
+.notif-msg {
+  font-size: 0.875rem;
+  color: #374151;
+  font-weight: 500;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.notif-close {
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  color: #9CA3AF;
+  cursor: pointer;
+  padding: 0 0.5rem;
+  margin-left: 0.5rem;
+}
+
+.notif-close:hover {
+  color: #374151;
+}
+
+/* Animations */
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fade-slide-enter-from,
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(20px) scale(0.95);
+}
+
 /* Modal Overlay - Shared styling */
 .modal-overlay {
   position: fixed;
@@ -1325,5 +1472,112 @@ onMounted(async () => {
   .public-modal-content {
     width: 98%;
   }
+}
+/* New Modal Styles */
+.confirmation-modal-content {
+  background: white;
+  padding: 0;
+  border-radius: var(--radius-xl);
+  max-width: 450px;
+  width: 90%;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.modal-header.warning-header {
+  background-color: #FEF2F2;
+  border-bottom: 1px solid #FEE2E2;
+  padding: var(--spacing-6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-3);
+  text-align: center;
+}
+
+.warning-icon {
+  color: #DC2626;
+  background: #FEE2E2;
+  padding: 8px;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+}
+
+.modal-header h2 {
+  color: #991B1B;
+  font-size: 1.25rem;
+  margin: 0;
+}
+
+.modal-body-text {
+  padding: var(--spacing-6);
+  text-align: center;
+  color: var(--color-gray-600);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-3);
+  padding: var(--spacing-4) var(--spacing-6);
+  background-color: var(--color-gray-50);
+  border-top: 1px solid var(--color-gray-100);
+}
+
+.btn-cancel {
+  padding: 0.5rem 1rem;
+  background: white;
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--radius-lg);
+  color: var(--color-gray-700);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-cancel:hover {
+  background: var(--color-gray-50);
+}
+
+.btn-confirm-danger {
+  padding: 0.5rem 1rem;
+  background: #DC2626;
+  color: white;
+  border: none;
+  border-radius: var(--radius-lg);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-confirm-danger:hover {
+  background: #B91C1C;
+}
+.invoice-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: white;
+  border: 1px solid #E5E7EB;
+  color: #4B5563;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.invoice-btn:hover {
+  background: #F9FAFB;
+  border-color: #D1D5DB;
+  color: #111827;
+}
+
+.accepted-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 </style>

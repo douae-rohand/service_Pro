@@ -12,9 +12,35 @@ use App\Models\PhotoIntervention;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
+use App\Models\Client;
+
 
 class InterventionController extends Controller
 {
+    /**
+     * Helper to scope queries to the authenticated user
+     */
+    private function scopeQueryProprety($query)
+    {
+        $user = Auth::guard('sanctum')->user();
+
+        if (!$user) {
+            return $query;
+        }
+
+        if ($user->isClient()) {
+            $query->where('client_id', $user->id);
+        } elseif ($user->isIntervenant()) {
+            $query->where('intervenant_id', $user->id);
+        } else {
+            // Unknown role? limit access
+            $query->where('id', -1);
+        }
+
+        return $query;
+    }
+
     /**
      * Display a listing of interventions
      */
@@ -37,19 +63,16 @@ class InterventionController extends Controller
             $query->where('status', $request->status);
         }
 
-        // Filtrer par client si fourni
+        // Additional filters are fine as long as they don't broaden the scope beyond the user's rights
         if ($request->has('clientId')) {
             $query->where('client_id', $request->clientId);
             $query->where('client_id', $request->clientId);
         }
 
-        // Filtrer par intervenant si fourni
         if ($request->has('intervenantId')) {
-            $query->where('intervenant_id', $request->intervenantId);
             $query->where('intervenant_id', $request->intervenantId);
         }
 
-        $interventions = $query->orderBy('date_intervention', 'desc')->paginate(15);
         $interventions = $query->orderBy('date_intervention', 'desc')->paginate(15);
 
         // Use resource to transform data
@@ -59,13 +82,13 @@ class InterventionController extends Controller
         {
             try {
                 \Log::info('Fetching disponibilites for intervenant: ' . $id . ', date: ' . $request->date);
-                
+
                 $intervenant = Intervenant::findOrFail($id);
-                
+
                 // Vérifiez si une date est fournie
                 if ($request->has('date')) {
                     $date = $request->date;
-                    
+
                     // Récupérer les disponibilités qui couvrent cette date
                     $disponibilites = Disponibilite::where('intervenant_id', $id)
                         ->where(function($query) use ($date) {
@@ -83,18 +106,18 @@ class InterventionController extends Controller
                     // Récupérer toutes les disponibilités
                     $disponibilites = Disponibilite::where('intervenant_id', $id)->get();
                 }
-                
+
                 \Log::info('Found ' . $disponibilites->count() . ' disponibilites');
-                
+
                 return response()->json([
                     'status' => 'success',
                     'data' => $disponibilites
                 ]);
-                
+
             } catch (\Exception $e) {
                 \Log::error('Error fetching disponibilites: ' . $e->getMessage());
                 \Log::error('Stack trace: ' . $e->getTraceAsString());
-                
+
                 return response()->json([
                     'status' => 'error',
                     'message' => 'Erreur lors de la récupération des disponibilités',
@@ -109,7 +132,7 @@ class InterventionController extends Controller
     public function store(Request $request)
     {
         Log::info('Creating intervention with data: ' . json_encode($request->all()));
-        
+
         $validator = Validator::make($request->all(), [
             'address' => 'required|string|max:255',
             'ville' => 'required|string|max:100',
@@ -148,7 +171,7 @@ class InterventionController extends Controller
             ];
 
             Log::info('Intervention data to create: ' . json_encode($interventionData));
-            
+
             $intervention = Intervention::create($interventionData);
             Log::info('Intervention created with ID: ' . $intervention->id);
 
@@ -188,7 +211,7 @@ class InterventionController extends Controller
                                 ['nom' => 'Contrainte_' . $constraintId],
                                 ['nom' => 'Contrainte_' . $constraintId, 'description' => 'Valeur de contrainte']
                             );
-                            
+
                             $intervention->informations()->attach($constraintInfo->id, [
                                 'information' => $value
                             ]);
@@ -218,7 +241,7 @@ class InterventionController extends Controller
                         ['nom' => 'Coût_Matériel'],
                         ['nom' => 'Coût_Matériel', 'description' => 'Coût total du matériel fourni par l\'intervenant']
                     );
-                    
+
                     $intervention->informations()->attach($costInfo->id, [
                         'information' => $request->materials_cost . ' DH'
                     ]);
@@ -243,7 +266,7 @@ class InterventionController extends Controller
             Log::error('Error creating intervention: ' . $e->getMessage());
             Log::error('File: ' . $e->getFile() . ':' . $e->getLine());
             Log::error('Stack trace: ' . $e->getTraceAsString());
-            
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Erreur lors de la création de l\'intervention',
@@ -261,6 +284,7 @@ class InterventionController extends Controller
             'client.utilisateur',
             'intervenant.utilisateur',
             'tache.service',
+            'tache.materiels',
             'photos',
             'evaluations.critaire',
             'commentaires',
@@ -269,7 +293,47 @@ class InterventionController extends Controller
             'informations'
         ])->findOrFail($id);
 
-        return new InterventionResource($intervention);
+        // Privacy Filter
+        $isPublic = $intervention->areRatingsPublic();
+        $currentUser = Auth::user();
+
+        // Access Control
+        if ($currentUser) {
+            $canAccess = ($currentUser->isClient() && $currentUser->id == $intervention->client_id) ||
+                         ($currentUser->isIntervenant() && $currentUser->id == $intervention->intervenant_id);
+
+            if (!$canAccess) {
+                 abort(403, 'Accès non autorisé.');
+            }
+        } else {
+            abort(401, 'Non authentifié.');
+        }
+
+        $isAuthorClient = $currentUser && $currentUser->isClient() && $currentUser->id === $intervention->client_id;
+        $isAuthorIntervenant = $currentUser && $currentUser->isIntervenant() && $currentUser->id === $intervention->intervenant_id;
+
+        if (!$isPublic) {
+            $intervention->setRelation('evaluations', $intervention->evaluations->filter(function ($e) use ($isAuthorClient, $isAuthorIntervenant) {
+                if ($isAuthorClient && $e->type_auteur === 'client') return true;
+                if ($isAuthorIntervenant && $e->type_auteur === 'intervenant') return true;
+                return false;
+            }));
+
+            $intervention->setRelation('commentaires', $intervention->commentaires->filter(function ($c) use ($isAuthorClient, $isAuthorIntervenant) {
+                if ($isAuthorClient && $c->type_auteur === 'client') return true;
+                if ($isAuthorIntervenant && $c->type_auteur === 'intervenant') return true;
+                return false;
+            }));
+        }
+
+        $intervention->ratings_meta = [
+            'is_public' => $isPublic,
+            'client_has_rated' => \App\Models\Evaluation::where('intervention_id', $id)->where('type_auteur', 'client')->exists(),
+            'intervenant_has_rated' => \App\Models\Evaluation::where('intervention_id', $id)->where('type_auteur', 'intervenant')->exists(),
+            'window_expiry' => $intervention->status === 'termine' ? $intervention->updated_at->addDays(7)->toDateTimeString() : null
+        ];
+
+        return response()->json($intervention);
     }
 
     /**
@@ -278,42 +342,49 @@ class InterventionController extends Controller
     public function update(Request $request, $id)
     {
         $intervention = Intervention::findOrFail($id);
+        $user = Auth::guard('sanctum')->user();
 
-        $validator = Validator::make($request->all(), [
-            'address' => 'sometimes|string|max:255',
-            'ville' => 'sometimes|string|max:100',
-            'status' => 'sometimes|string|in:en_attente,confirmée,en_cours,terminée,annulée',
-            'date_intervention' => 'sometimes|date',
-            'duration_hours' => 'sometimes|numeric|min:0.5|max:24',
-            'client_id' => 'sometimes|exists:client,id',
-            'intervenant_id' => 'sometimes|exists:intervenant,id',
-            'tache_id' => 'sometimes|exists:tache,id',
-            'description' => 'nullable|string',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Erreur de validation',
-                'errors' => $validator->errors()
-            ], 422);
+        // Check ownership
+        if (!$user) {
+            abort(401);
         }
 
-        $intervention->update($request->only([
-            'address', 'ville', 'status', 'date_intervention', 'duration_hours',
-            'client_id', 'intervenant_id', 'tache_id', 'description'
-        ]));
+        $canEdit = ($user->isClient() && $user->id == $intervention->client_id) ||
+                   ($user->isIntervenant() && $user->id == $intervention->intervenant_id);
+
+        if (!$canEdit) {
+             abort(403, "Vous n'êtes pas autorisé à modifier cette intervention.");
+        }
+
+        $validated = $request->validate([
+            'address' => 'sometimes|string',
+            'ville' => 'sometimes|string|max:100',
+            'status' => 'sometimes|in:en attend,acceptee,refuse,termine',
+            'dateIntervention' => 'sometimes|date',
+            'clientId' => 'sometimes|exists:client,id',
+            'intervenantId' => 'sometimes|exists:intervenant,id',
+            'tacheId' => 'sometimes|exists:tache,id',
+        ]);
+
+        $data = [];
+        if (isset($validated['address'])) $data['address'] = $validated['address'];
+        if (isset($validated['ville'])) $data['ville'] = $validated['ville'];
+        if (isset($validated['status'])) $data['status'] = $validated['status'];
+        if (isset($validated['dateIntervention'])) $data['date_intervention'] = $validated['dateIntervention'];
+        if (isset($validated['clientId'])) $data['client_id'] = $validated['clientId'];
+        if (isset($validated['intervenantId'])) $data['intervenant_id'] = $validated['intervenantId'];
+        if (isset($validated['tacheId'])) $data['tache_id'] = $validated['tacheId'];
+
+        if (empty($data)) {
+            return response()->json(['message' => 'Aucune modification détectée'], 200);
+        }
+
+        $intervention->update($data);
 
         return response()->json([
             'status' => 'success',
             'message' => 'Intervention mise à jour avec succès',
-            'data' => new InterventionResource($intervention->load([
-                'client.utilisateur',
-                'intervenant.utilisateur',
-                'tache.service',
-                'photos',
-                'informations'
-            ])),
+            'intervention' => $intervention->load(['client.utilisateur', 'intervenant.utilisateur', 'tache']),
         ]);
     }
 
@@ -323,6 +394,13 @@ class InterventionController extends Controller
     public function destroy($id)
     {
         $intervention = Intervention::findOrFail($id);
+        $user = Auth::guard('sanctum')->user();
+
+        // Only owner can delete (or admin)
+        if (!$user || !($user->isClient() && $user->id == $intervention->client_id)) {
+            abort(403, "Action non autorisée");
+        }
+
         $intervention->delete();
 
         return response()->json([
@@ -336,12 +414,12 @@ class InterventionController extends Controller
      */
     public function upcoming()
     {
-        $interventions = Intervention::upcoming()
-            ->with(['client.utilisateur', 'intervenant.utilisateur', 'tache'])
-            ->orderBy('date_intervention', 'asc')
-            ->get();
+        $query = Intervention::upcoming()
+            ->with(['client.utilisateur', 'intervenant.utilisateur', 'tache']);
 
-        return InterventionResource::collection($interventions);
+        $this->scopeQueryProprety($query);
+
+        return response()->json($query->get());
     }
 
     /**
@@ -364,10 +442,10 @@ class InterventionController extends Controller
     {
         try {
             Log::info('Fetching interventions for client_id: ' . $clientId);
-            
+
             $count = Intervention::where('client_id', $clientId)->count();
             Log::info('Total interventions found for client_id ' . $clientId . ': ' . $count);
-            
+
             $interventions = Intervention::with([
                 'client.utilisateur',
                 'intervenant.utilisateur',
@@ -444,7 +522,7 @@ class InterventionController extends Controller
         foreach ($interventions as $intervention) {
             $status = strtolower($intervention->status ?? 'en_attente');
             $mappedStatus = $statusMap[$status] ?? 'pending';
-            
+
             if (isset($stats[$mappedStatus])) {
                 $stats[$mappedStatus]++;
             }
@@ -507,35 +585,35 @@ class InterventionController extends Controller
     public function addPhoto(Request $request, $id)
     {
         $intervention = Intervention::findOrFail($id);
+        $user = Auth::guard('sanctum')->user();
 
-        $validator = Validator::make($request->all(), [
-            'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'description' => 'nullable|string',
-            'phase_prise' => 'nullable|in:avant,pendant,apres',
-        ]);
+        $canEdit = ($user->isClient() && $user->id == $intervention->client_id) ||
+                   ($user->isIntervenant() && $user->id == $intervention->intervenant_id);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Erreur de validation',
-                'errors' => $validator->errors()
-            ], 422);
+        if (!$canEdit) {
+             abort(403, "Accès refusé.");
         }
 
-        // Stocker la photo
-        $path = $request->file('photo')->store('intervention-photos', 'public');
+        $validated = $request->validate([
+            'photo' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120',
+            'description' => 'nullable|string',
+            'phase_prise' => 'nullable|string|in:avant,apres',
+        ]);
+
+        $phase = $validated['phase_prise'] ?? ($intervention->status === 'termine' ? 'apres' : 'avant');
+        $path = $request->file('photo')->store('interventions', 'public');
 
         $photo = PhotoIntervention::create([
             'intervention_id' => $intervention->id,
             'photo_path' => $path,
-            'description' => $request->description,
-            'phase_prise' => $request->phase_prise ?? 'apres',
+            'phase_prise' => $phase,
+            'description' => $validated['description'] ?? null,
         ]);
 
         return response()->json([
-            'status' => 'success',
             'message' => 'Photo ajoutée avec succès',
-            'data' => $photo,
+            'photo' => $photo,
         ], 201);
     }
 }
+

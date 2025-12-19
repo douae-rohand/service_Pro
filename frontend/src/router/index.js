@@ -58,11 +58,6 @@ const router = createRouter({
                     path: 'reviewsstats',
                     name: 'reviewsstats',
                     component: () => import('@/components/intervenant/ReviewsStatsTab.vue')
-                },
-                {
-                    path: 'history',
-                    name: 'history',
-                    component: () => import('@/components/intervenant/HistoryTab.vue')
                 }
             ]
         }

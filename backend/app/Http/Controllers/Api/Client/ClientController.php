@@ -160,36 +160,42 @@ class ClientController extends Controller
         }
 
         // Helper to find public intervention IDs for this client
-        // Rule: Only public if BOTH parties have rated OR 7 days have passed
+        // Rule: Only public if BOTH parties have rated OR 7 days have passed (Logic centralized in model)
         $publicInterventionIds = Intervention::where('client_id', $clientId)
             ->where('status', 'termine')
             ->get()
             ->filter(function($i) {
-                // Check if both parties have rated
-                $ratingsCount = Evaluation::where('intervention_id', $i->id)->count();
-                $bothRated = $ratingsCount >= 2; // Assuming 2 authors: client & intervenant
-                
-                // OR check if 7 days have passed
-                $windowPassed = \Carbon\Carbon::parse($i->date_intervention)->addDays(7)->isPast();
-                
-                return $bothRated || $windowPassed;
+                return $i->areRatingsPublic();
             })
             ->pluck('id');
 
-        // Get past interventions between this SPECIFIC intervenant and client
+        // Get ALL past interventions for this client from ALL intervenants
         $pastInterventions = Intervention::where('client_id', $clientId)
-            ->where('intervenant_id', $intervenant->id)
             ->where('status', 'termine')
-            ->with(['tache.service'])
+            ->with(['tache.service', 'intervenant.utilisateur', 'evaluations' => function($q) {
+                // We only want the ratings given BY the intervenant to the client
+                $q->where('type_auteur', 'intervenant');
+            }])
             ->orderBy('date_intervention', 'desc')
             ->get()
-            ->map(function ($i) use ($publicInterventionIds) {
-                // Check if evaluation exists AND is public
-                $hasEvaluation = Evaluation::where('intervention_id', $i->id)
-                    ->where('type_auteur', 'intervenant')
-                    ->exists();
+            ->filter(function ($i) use ($publicInterventionIds) {
+                // STRICT RULE: Only show interventions in the history list that are PUBLIC.
+                // This means even my own private ratings won't show up here until they are public.
+                return $publicInterventionIds->contains($i->id);
+            })
+            ->map(function ($i) use ($publicInterventionIds, $intervenant) {
+                $isPublic = true; // By definition, since we filtered above
+                $isMine = $i->intervenant_id === $intervenant->id;
                 
-                $isPublic = $publicInterventionIds->contains($i->id);
+                // Get the ratings given by the intervenant for this specific intervention
+                $ratings = $i->evaluations->map(function($e) {
+                    return [
+                        'criteria' => $e->critaire->nom_critaire,
+                        'note' => $e->note
+                    ];
+                });
+                
+                $ratingAvg = $i->evaluations->avg('note') ?? 0;
 
                 return [
                     'id' => $i->id,
@@ -197,10 +203,15 @@ class ClientController extends Controller
                     'service' => $i->tache->service->nom_service ?? 'Service',
                     'task' => $i->tache->nom_tache ?? 'Tâche',
                     'status' => $i->status,
-                    'has_evaluation' => $hasEvaluation,
+                    'intervenant_name' => $isMine ? 'Vous' : ($i->intervenant->utilisateur->nom . ' ' . $i->intervenant->utilisateur->prenom),
+                    'is_me' => $isMine,
+                    'rating' => round($ratingAvg, 1),
+                    'detailed_ratings' => $ratings,
+                    'has_evaluation' => $i->evaluations->isNotEmpty(),
                     'is_public' => $isPublic
                 ];
-            });
+            })
+            ->values(); // Reset keys after filter
 
         // Get all PUBLIC evaluations made by ANY intervenant for this client
         $allClientEvaluations = Evaluation::whereIn('intervention_id', $publicInterventionIds)

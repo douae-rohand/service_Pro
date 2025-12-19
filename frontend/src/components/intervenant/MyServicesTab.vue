@@ -48,29 +48,8 @@
           <!-- Edit Mode -->
           <div v-if="editingService === service.id" class="edit-mode">
             <div class="form-group">
-              <label>Description</label>
-              <textarea v-model="editData.description" rows="3"></textarea>
-            </div>
-            <div class="form-group">
               <label>Tarif horaire (DH/h)</label>
               <input v-model.number="editData.hourlyRate" type="number" min="1" />
-            </div>
-            <div class="form-group">
-              <label>Matériaux nécessaires</label>
-              <div class="materials-grid">
-                <label
-                  v-for="material in getMaterials(service.type)"
-                  :key="material"
-                  class="checkbox-label"
-                >
-                  <input
-                    type="checkbox"
-                    :checked="editData.materials.includes(material)"
-                    @change="toggleEditMaterial(material)"
-                  />
-                  <span>{{ material }}</span>
-                </label>
-              </div>
             </div>
             <div class="button-group">
               <button @click="saveEdit(service.id)" class="save-btn">Enregistrer</button>
@@ -99,25 +78,12 @@
               </div>
 
               <div class="service-actions">
-                <button
-                  @click="toggleActive(service.id)"
-                  class="toggle-switch"
-                  :style="{
-                    backgroundColor: service.active ? '#92B08B' : '#E0E0E0'
-                  }"
-                  title="Activer/Désactiver"
-                >
-                  <span
-                    class="toggle-slider"
-                    :class="{ 'toggle-slider-active': service.active }"
-                  ></span>
-                </button>
-                <button @click="startEdit(service)" class="icon-btn">
+                <button v-if="service.active" @click="startEdit(service)" class="icon-btn">
                   <Edit2 :size="18" />
                 </button>
-                <button @click="deleteService(service.id)" class="icon-btn icon-btn-danger">
-                  <Trash2 :size="18" />
-                </button>
+<!--                <button @click="deleteService(service.id)" class="icon-btn icon-btn-danger">-->
+<!--                  <Trash2 :size="18" />-->
+<!--                </button>-->
               </div>
             </div>
 
@@ -177,25 +143,23 @@ const materialsByService = {
 
 const editingService = ref(null)
 const editData = ref({
-  description: '',
-  hourlyRate: 0,
-  materials: []
+  hourlyRate: 0
 })
 
 const displayedServices = computed(() => {
-  return services.value
+  return services.value || []
 })
 
 const activeServices = computed(() => {
-  return services.value.filter(s => s.active).length
+  return (services.value || []).filter(s => s.active).length
 })
 
 const totalServices = computed(() => {
-  return services.value.length
+  return (services.value || []).length
 })
 
 const totalCompletedJobs = computed(() => {
-  return services.value.reduce((sum, s) => sum + s.completedJobs, 0)
+  return (services.value || []).reduce((sum, s) => sum + s.completedJobs, 0)
 })
 
 const getMaterials = (type) => {
@@ -207,10 +171,11 @@ const fetchServices = async () => {
   error.value = null
   try {
     const response = await intervenantTacheService.getMyTaches()
-    services.value = response
+    services.value = response || []
   } catch (err) {
     error.value = err.response?.data?.message || 'Erreur lors du chargement des sous-services'
     console.error(err)
+    services.value = []
   } finally {
     loading.value = false
   }
@@ -237,32 +202,20 @@ const toggleActive = async (id) => {
 const startEdit = (service) => {
   editingService.value = service.id
   editData.value = {
-    description: service.description,
-    hourlyRate: service.hourlyRate,
-    materials: [...service.materials]
+    hourlyRate: service.hourlyRate
   }
 }
 
 const saveEdit = async (id) => {
   try {
-    const response = await intervenantTacheService.updateMyTache(id, {
-      description: editData.value.description,
+    await intervenantTacheService.updateMyTache(id, {
       hourlyRate: editData.value.hourlyRate,
-      materials: editData.value.materials,
     })
     
     // Update local state with response data if available, otherwise use local data
     const service = services.value.find(s => s.id === id)
     if (service) {
-      service.description = editData.value.description
       service.hourlyRate = editData.value.hourlyRate
-      
-      // Use the updated materials from backend response if available
-      if (response && response.updatedMaterials) {
-        service.materials = response.updatedMaterials
-      } else {
-        service.materials = [...editData.value.materials]
-      }
     }
     editingService.value = null
   } catch (err) {
@@ -271,14 +224,6 @@ const saveEdit = async (id) => {
   }
 }
 
-const toggleEditMaterial = (material) => {
-  const index = editData.value.materials.indexOf(material)
-  if (index > -1) {
-    editData.value.materials.splice(index, 1)
-  } else {
-    editData.value.materials.push(material)
-  }
-}
 
 const deleteService = async (id) => {
   if (confirm('Êtes-vous sûr de vouloir supprimer définitivement ce sous-service ?')) {

@@ -500,6 +500,10 @@ const loadIntervenantActiveData = async (intervenantId) => {
       data.services.forEach(service => {
         if (service.status === 'active' && serviceStates.value[service.id] !== undefined) {
           serviceStates.value[service.id] = true
+        } else if (service.status === 'archive' && serviceStates.value[service.id] !== undefined) {
+          // If archived, we mark it so we can fast-reactivate
+          archivedServices.value[service.id] = true
+          serviceStates.value[service.id] = false
         }
       })
     }
@@ -528,17 +532,39 @@ const loadIntervenantActiveData = async (intervenantId) => {
             tasksByService.value[task.service_id].push(task)
           }
           
-          // If task is active, handle price and form visibility
+          // Store price regardless of active status (for smart reactivation)
+          if (task.price) {
+            taskPrices.value[task.id] = task.price
+          }
+
+          // If task is active, handle form visibility
           if (task.status === true || task.status === 1) {
-            // Set the price if available
+            // Check if price is set
             if (task.price) {
-              taskPrices.value[task.id] = task.price
-              // Hide the form for already configured tasks
+              // Hide the form for already configured active tasks
               taskFormVisible.value[task.id] = false
             } else {
               // Show the form for active tasks without price
               taskFormVisible.value[task.id] = true
+            }
+            
+            // Initialize materials
+            if (task.materials && task.materials.length > 0) {
+              taskMaterials.value[task.id] = task.materials
+              // Initialize prices for existing materials
+              task.materials.forEach(m => {
+                 // Try to keep existing price if already set locally, else 0
+                 if (!taskMaterialPrices.value[`${task.id}-${m}`]) {
+                    taskMaterialPrices.value[`${task.id}-${m}`] = 0
+                 }
+              })
+            } else {
               taskMaterials.value[task.id] = []
+            }
+          } else {
+            // For inactive tasks, also load materials so they are available on reactivation
+             if (task.materials && task.materials.length > 0) {
+              taskMaterials.value[task.id] = task.materials
             }
           }
         }
@@ -999,6 +1025,23 @@ const submitActivationRequest = async () => {
 
 const toggleTask = async (taskId) => {
   try {
+    // If activating check if we already have a price configured
+    if (!taskStates.value[taskId] && taskPrices.value[taskId] && taskPrices.value[taskId] > 0) {
+        // Direct reactivation (no form needed)
+        const response = await intervenantTacheService.toggleActive(taskId)
+        console.log('Task reactivated directly:', response.data)
+        
+        taskStates.value[taskId] = true
+        // Ensure form is hidden
+        taskFormVisible.value[taskId] = false
+        
+        // Show lightweight success message
+        // showSuccessMessage.value = true
+        // successMessage.value = 'Service réactivé avec succès !'
+        return
+    }
+
+    // Standard toggle logic
     // Call API to toggle the status in database
     const response = await intervenantTacheService.toggleActive(taskId)
     console.log('Task toggle response:', response)
@@ -1012,15 +1055,16 @@ const toggleTask = async (taskId) => {
     }
     
     if (!taskStates.value[taskId]) {
-      // Désactiver : supprimer les données et masquer le formulaire
-      delete taskPrices.value[taskId]
-      delete taskDescriptions.value[taskId]
-      delete taskMaterials.value[taskId]
+      // Désactiver : masquer le formulaire
+      // NOTE: We do NOT delete the price/materials data here anymore, so it can be restored on reactivation
       delete taskFormVisible.value[taskId]
     } else {
-      // Activer : afficher le formulaire et initialiser les matériaux
+      // Activer : afficher le formulaire
       taskFormVisible.value[taskId] = true
-      taskMaterials.value[taskId] = [] // Initialiser comme tableau vide
+      // Ne pas écraser les matériaux existants si déjà chargés
+      if (!taskMaterials.value[taskId]) {
+        taskMaterials.value[taskId] = []
+      }
     }
   } catch (error) {
     console.error('Error toggling task:', error)
@@ -1029,7 +1073,6 @@ const toggleTask = async (taskId) => {
     alert('Erreur lors de la modification du statut de la tâche')
   }
 }
-
 // Save task configuration and hide form
 const saveTaskConfig = async (taskId) => {
   if (!currentUser.value) return

@@ -169,8 +169,8 @@ class Intervenant extends Model
             ->where('type_auteur', 'client')
             ->get();
         
-        $reviewCount = $evaluations->count();
-        $averageRating = $reviewCount > 0 ? round($evaluations->avg('note'), 1) : 0;
+        $reviewCount = $evaluations->pluck('intervention_id')->unique()->count();
+        $averageRating = $evaluations->count() > 0 ? round($evaluations->avg('note'), 1) : 0;
         
         return [
             'average_rating' => $averageRating,

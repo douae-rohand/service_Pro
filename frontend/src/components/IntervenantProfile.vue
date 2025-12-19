@@ -1,20 +1,26 @@
 <template>
   <div class="min-h-screen bg-gray-50">
-    <!-- Header -->
-    <div class="bg-white shadow-sm sticky top-0 z-40">
-      <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+    <!-- Modern Header with Gradient -->
+    <div class="bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50 transition-all duration-300">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <button
           @click="$emit('back')"
-          class="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-all"
+          @mouseenter="hoverBackButton = true"
+          @mouseleave="hoverBackButton = false"
+          class="flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 hover:scale-110 shadow-sm"
+          :style="{ 
+            backgroundColor: hoverBackButton ? primaryColor : 'white',
+            color: hoverBackButton ? 'white' : '#4B5563',
+            border: `1px solid ${hoverBackButton ? primaryColor : '#E5E7EB'}`
+          }"
         >
           <ArrowLeftIcon :size="20" />
-          <span>Retour</span>
         </button>
       </div>
     </div>
 
     <!-- Error State -->
-    <div v-if="error" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div v-if="error" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div class="text-center py-16">
         <p class="text-red-600 mb-4">{{ error }}</p>
         <button
@@ -27,66 +33,109 @@
     </div>
 
     <!-- Profile Content -->
-    <div v-if="!error" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <!-- Profile Header Card -->
-      <div class="bg-white rounded-2xl shadow-sm p-8 mb-6">
-        <div class="flex items-start gap-6">
-          <!-- Profile Image -->
-          <div class="flex-shrink-0 relative">
-            <ImageWithFallback
-              :src="intervenant.profileImage"
-              :alt="intervenant.name"
-              class="w-32 h-32 rounded-full object-cover"
-            />
-          </div>
-
-          <!-- Profile Info -->
-          <div class="flex-1">
-            <h1 class="text-4xl mb-2">{{ intervenant.name }}</h1>
-            <div class="flex items-center gap-3 text-gray-600 mb-3">
-              <div class="flex items-center gap-1">
-                <MapPinIcon :size="16" />
-                <span>{{ intervenant.location }}</span>
+    <div v-if="!error" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <!-- Hero Section - Horizontal Layout -->
+      <div class="bg-white rounded-3xl shadow-lg p-8 mb-8">
+        <div class="flex flex-col md:flex-row gap-8">
+          <!-- Left: Profile Image and Info -->
+          <div class="flex gap-6 items-start">
+            <!-- Profile Image with Verified Badge -->
+            <div class="flex-shrink-0 relative">
+              <div class="w-28 h-28 rounded-full overflow-hidden shadow-lg border-4 border-white" :style="{ borderColor: primaryColor + '20' }">
+                <ImageWithFallback
+                  :src="intervenant.profileImage"
+                  :alt="intervenant.name"
+                  class="w-full h-full object-cover"
+                />
               </div>
-              <span>•</span>
-              <span>{{ formatExperience(intervenant.experience) }} d'expérience</span>
             </div>
-            
-            <!-- Rating -->
-            <div class="flex items-center gap-2 mb-4">
-              <StarIcon
-                v-for="star in 5"
-                :key="star"
-                :size="20"
-                class="fill-yellow-400 text-yellow-400"
-              />
-              <span class="text-lg ml-1">{{ intervenant.rating }}</span>
-              <span class="text-gray-600">({{ intervenant.reviewCount }} avis)</span>
+
+            <!-- Name, Location, Rating -->
+            <div class="flex-1">
+              <h1 class="text-3xl font-bold mb-2" :style="{ color: '#305C7D' }">
+                {{ intervenant.name }}
+              </h1>
+              
+              <div class="flex items-center gap-2 text-gray-600 mb-3">
+                <MapPinIcon :size="16" class="text-gray-400" />
+                <span class="text-sm">{{ intervenant.location }}</span>
+              </div>
+
+              <div class="flex items-center gap-2 text-gray-600 mb-4">
+                <span class="text-sm">{{ formatExperience(intervenant.experience) }} d'expérience</span>
+              </div>
+              
+              <!-- Rating Display -->
+              <div class="flex items-center gap-2">
+                <div class="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-lg">
+                  <StarIcon :size="16" class="fill-yellow-400 text-yellow-400" />
+                  <span class="font-bold text-gray-800">{{ intervenant.rating }}</span>
+                </div>
+                <span class="text-sm text-gray-500">({{ intervenant.reviewCount }} avis)</span>
+              </div>
             </div>
           </div>
 
-          <!-- Favorite Button -->
+          <!-- Right: Stats in Horizontal Row -->
+          <div class="flex-1 flex items-center justify-center gap-8">
+            <!-- Missions -->
+            <div class="text-center">
+              <div class="text-4xl font-bold mb-1" :style="{ color: primaryColor }">{{ intervenant.completedJobs }}</div>
+              <div class="text-xs text-gray-500 uppercase tracking-wide">Missions</div>
+            </div>
+
+            <!-- Divider -->
+            <div class="h-12 w-px bg-gray-200"></div>
+
+            <!-- Note Moyenne -->
+            <div class="text-center">
+              <div class="text-4xl font-bold mb-1" :style="{ color: primaryColor }">{{ intervenant.rating }}</div>
+              <div class="text-xs text-gray-500 uppercase tracking-wide">Note Moyenne</div>
+            </div>
+
+            <!-- Divider -->
+            <div class="h-12 w-px bg-gray-200"></div>
+
+            <!-- Avis -->
+            <div class="text-center">
+              <div class="text-4xl font-bold mb-1" :style="{ color: primaryColor }">{{ intervenant.reviewCount }}</div>
+              <div class="text-xs text-gray-500 uppercase tracking-wide">Avis</div>
+            </div>
+
+            <!-- Divider -->
+            <div class="h-12 w-px bg-gray-200"></div>
+
+            <!-- Membre Depuis -->
+            <div class="text-center">
+              <div class="text-sm font-bold mb-1 text-gray-800">Depuis {{ new Date(intervenant.memberSince).getFullYear() || '2025' }}</div>
+              <div class="text-xs text-gray-500 uppercase tracking-wide">Membre</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Favorite Button at Bottom Left -->
+        <div class="mt-6">
           <button
             @click="handleFavoriteClick"
-            class="px-5 py-2.5 rounded-lg border-2 transition-all flex items-center gap-2"
-            :style="{ borderColor: primaryColor, color: primaryColor }"
+            class="flex items-center gap-2 text-sm font-semibold transition-all"
+            :style="{ color: primaryColor }"
           >
             <HeartIcon :size="18" :class="{ 'fill-current': isFavorite }" />
-            Ajouter aux favoris
+            <span>{{ isFavorite ? 'Retiré des favoris' : 'Ajouter' }}</span>
           </button>
         </div>
       </div>
 
       <!-- Tabs Navigation -->
-      <div class="bg-white rounded-2xl shadow-sm mb-6">
-        <div class="border-b border-gray-200">
-          <div class="flex gap-2 px-4">
+      <div class="bg-white rounded-3xl shadow-lg mb-8 overflow-hidden">
+        <div class="border-b border-gray-100">
+          <div class="flex gap-2 px-6 overflow-x-auto">
             <button
               v-for="tab in tabs"
               :key="tab.id"
               @click="activeTab = tab.id"
               :class="[
-                'px-6 py-4 transition-all relative',
+                'px-6 py-4 transition-all relative whitespace-nowrap font-semibold',
                 activeTab !== tab.id ? 'text-gray-600 hover:text-gray-900' : ''
               ]"
               :style="activeTab === tab.id ? { color: primaryColor } : {}"
@@ -94,7 +143,7 @@
               {{ tab.label }}
               <div
                 v-if="activeTab === tab.id"
-                class="absolute bottom-0 left-0 right-0 h-0.5"
+                class="absolute bottom-0 left-0 right-0 h-1 rounded-t-full transition-all"
                 :style="{ backgroundColor: primaryColor }"
               />
             </button>
@@ -104,9 +153,11 @@
         <!-- Tab Content -->
         <div class="p-8">
           <!-- À propos Tab -->
-          <div v-if="activeTab === 'apropos'">
-            <h2 class="text-2xl mb-6">À propos de {{ intervenant.name.split(' ')[0] }}</h2>
-            <div class="space-y-4 text-gray-700 leading-relaxed">
+          <div v-if="activeTab === 'apropos'" class="animate-fade-in">
+            <h2 class="text-3xl font-bold mb-6" :style="{ color: primaryColor }">
+              À propos de {{ intervenant.name.split(' ')[0] }}
+            </h2>
+            <div class="space-y-4 text-gray-700 leading-relaxed text-lg">
               <p v-for="(paragraph, index) in intervenant.bio" :key="index">
                 {{ paragraph }}
               </p>
@@ -114,77 +165,72 @@
           </div>
 
           <!-- Services Tab -->
-          <div v-if="activeTab === 'services'">
-            <h2 class="text-2xl mb-6">Services proposés</h2>
-            <div class="space-y-6">
+          <div v-if="activeTab === 'services'" class="animate-fade-in">
+            <h2 class="text-3xl font-bold mb-6" :style="{ color: primaryColor }">Services proposés</h2>
+            <div class="grid md:grid-cols-2 gap-6">
               <div
                 v-for="serviceItem in intervenant.services"
                 :key="serviceItem.id"
-                class="border border-gray-200 rounded-xl p-6"
+                class="bg-gray-50 border border-gray-200 rounded-2xl p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
               >
-                <h3 class="text-xl mb-3">{{ serviceItem.name }}</h3>
-                <p class="text-gray-600 mb-4 leading-relaxed">
-                  {{ serviceItem.description }}
-                </p>
-                <div class="flex items-center gap-3 mb-4">
-                  <div class="flex items-center gap-2 text-gray-600">
-                    <ClockIcon :size="18" :style="{ color: primaryColor }" />
-                    <span>{{ serviceItem.duration }}</span>
-                  </div>
-                  <span class="text-lg font-bold" :style="{ color: primaryColor }">
+                <h3 class="text-2xl font-bold mb-3" :style="{ color: primaryColor }">
+                  {{ serviceItem.name }}
+                </h3>
+                
+                <div class="flex items-center justify-between mb-4">
+                  
+                  <span class="text-2xl font-bold text-gray-800">
                     {{ serviceItem.price }}DH/h
                   </span>
                 </div>
-                <div class="flex items-center justify-end">
-                  <button
-                    @click="handleBookingClick(null, serviceItem)"
-                    class="px-8 py-3 rounded-lg text-white transition-all hover:opacity-90"
-                    :style="{ backgroundColor: buttonColor }"
-                  >
-                    Réserver ce service
-                  </button>
-                </div>
+                <button
+                  @click="handleBookingClick(null, serviceItem)"
+                  class="w-full px-6 py-3 rounded-xl text-white font-semibold transition-all hover:shadow-lg transform hover:scale-105"
+                  :style="{ backgroundColor: primaryColor }"
+                >
+                  Réserver ce service
+                </button>
               </div>
             </div>
           </div>
 
           <!-- Avis Tab -->
-          <div v-if="activeTab === 'avis'">
-            <h2 class="text-2xl mb-6">Avis & Évaluations</h2>
+          <div v-if="activeTab === 'avis'" class="animate-fade-in">
+            <h2 class="text-3xl font-bold mb-6" :style="{ color: primaryColor }">Avis & Évaluations</h2>
             
             <!-- Rating Summary -->
-            <div class="flex flex-col md:flex-row gap-8 mb-8 pb-8 border-b border-gray-200">
-              <div class="text-center">
-                <div class="text-6xl mb-2">{{ intervenant.rating }}</div>
-                <div class="flex items-center justify-center gap-1 mb-2">
+            <div class="grid md:grid-cols-2 gap-8 mb-8 pb-8 border-b border-gray-200">
+              <div class="text-center bg-gray-50 rounded-2xl p-8">
+                <div class="text-7xl font-bold mb-3" :style="{ color: primaryColor }">{{ intervenant.rating }}</div>
+                <div class="flex items-center justify-center gap-1 mb-3">
                   <StarIcon
                     v-for="star in 5"
                     :key="star"
-                    :size="20"
+                    :size="24"
                     class="fill-yellow-400 text-yellow-400"
                   />
                 </div>
-                <p class="text-gray-600">{{ intervenant.reviewCount }} avis</p>
+                <p class="text-gray-600 font-medium">Basé sur {{ intervenant.reviewCount }} avis</p>
               </div>
 
               <!-- Rating Distribution -->
-              <div class="flex-1">
+              <div class="space-y-3">
                 <div
                   v-for="item in ratingDistribution"
                   :key="item.stars"
-                  class="flex items-center gap-3 mb-2"
+                  class="flex items-center gap-3"
                 >
-                  <span class="text-sm w-12">{{ item.stars }} ★</span>
-                  <div class="flex-1 h-3 bg-gray-200 rounded-full overflow-hidden">
+                  <span class="text-sm font-semibold w-12">{{ item.stars }} ★</span>
+                  <div class="flex-1 h-4 bg-gray-200 rounded-full overflow-hidden">
                     <div
-                      class="h-full rounded-full transition-all"
+                      class="h-full rounded-full transition-all duration-500"
                       :style="{ 
                         width: item.percentage + '%', 
                         backgroundColor: primaryColor 
                       }"
                     />
                   </div>
-                  <span class="text-sm text-gray-600 w-16">{{ item.percentage }}%</span>
+                  <span class="text-sm text-gray-600 w-16 text-right font-medium">{{ item.percentage }}%</span>
                 </div>
               </div>
             </div>
@@ -194,89 +240,86 @@
               <div
                 v-for="review in intervenant.reviews"
                 :key="review.id"
-                class="border-b border-gray-100 pb-6 last:border-0"
+                class="bg-gray-50 rounded-2xl p-6 border border-gray-100 hover:shadow-lg transition-all"
               >
-                <div class="flex items-start justify-between mb-3">
-                  <div class="flex items-center gap-3">
+                <div class="flex items-start justify-between mb-4">
+                  <div class="flex items-center gap-4">
                     <img 
                       :src="review.clientAvatar" 
-                      class="w-10 h-10 rounded-full object-cover border border-gray-100"
+                      class="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md"
                     />
                     <div>
-                      <h4 class="text-lg mb-1">{{ review.clientName }}</h4>
+                      <h4 class="text-lg font-bold text-gray-900">{{ review.clientName }}</h4>
                       <p class="text-sm text-gray-500">
                         {{ formatDate(review.date) }}
                       </p>
                     </div>
                   </div>
-                  <div class="flex items-center gap-1">
-                    <StarIcon
-                      v-for="star in 5"
-                      :key="star"
-                      :size="16"
-                      :class="star <= review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'"
-                    />
+                  <div class="flex items-center gap-1 bg-yellow-50 px-3 py-1 rounded-lg">
+                    <StarIcon :size="16" class="fill-yellow-400 text-yellow-400" />
+                    <span class="font-bold text-gray-800">{{ review.rating }}</span>
                   </div>
                 </div>
-                <p class="text-gray-700 leading-relaxed">{{ review.comment }}</p>
+                <p v-if="review.comment" class="text-gray-700 leading-relaxed">{{ review.comment }}</p>
+                <p v-else class="text-gray-400 italic">Aucun commentaire laissé</p>
               </div>
             </div>
           </div>
 
           <!-- Photos Tab -->
-          <div v-if="activeTab === 'photos'">
-            <h2 class="text-2xl mb-6">Photos des réalisations</h2>
-            <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div v-if="activeTab === 'photos'" class="animate-fade-in">
+            <h2 class="text-3xl font-bold mb-6" :style="{ color: primaryColor }">Photos des réalisations</h2>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               <div
                 v-for="(photo, index) in intervenant.photos"
                 :key="index"
-                class="relative aspect-video rounded-xl overflow-hidden cursor-pointer group"
+                class="relative aspect-square rounded-2xl overflow-hidden cursor-pointer group shadow-md hover:shadow-2xl transition-all"
                 @click="selectedImage = photo"
               >
                 <ImageWithFallback
                   :src="photo"
                   :alt="`Réalisation ${index + 1}`"
-                  class="w-full h-full object-cover transition-transform group-hover:scale-110"
+                  class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                 />
-                <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
-                  <CameraIcon class="text-white opacity-0 group-hover:opacity-100 transition-opacity" :size="32" />
+                <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center">
+                  <CameraIcon class="text-white opacity-0 group-hover:opacity-100 transition-opacity" :size="40" />
                 </div>
               </div>
             </div>
           </div>
 
           <!-- Disponibilités Tab -->
-          <div v-if="activeTab === 'disponibilites'">
-            <h2 class="text-2xl mb-6">Disponibilités</h2>
+          <div v-if="activeTab === 'disponibilites'" class="animate-fade-in">
+            <h2 class="text-3xl font-bold mb-6" :style="{ color: primaryColor }">Disponibilités</h2>
             <div class="space-y-3 mb-8">
               <div
                 v-for="(day, index) in intervenant.availability"
                 :key="index"
-                class="flex items-center justify-between py-4 border-b border-gray-200 last:border-0"
+                class="flex items-center justify-between py-5 px-6 bg-gray-50 rounded-2xl border border-gray-100 hover:shadow-md transition-all"
               >
                 <div class="flex flex-col">
                   <span
-                    class="text-lg font-medium"
+                    class="text-xl font-bold"
                     :style="{ color: day.available ? primaryColor : '#9CA3AF' }"
                   >
                     {{ day.day }}
                   </span>
-                  <span class="text-xs uppercase tracking-wider text-gray-400">
+                  <span class="text-xs uppercase tracking-wider text-gray-400 mt-1">
                     {{ day.type === 'reguliere' ? 'Chaque semaine' : 'Date spécifique' }}
                   </span>
                 </div>
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-4">
                   <div 
-                    class="px-3 py-1 rounded-full text-xs font-bold"
+                    class="px-4 py-2 rounded-full text-sm font-bold"
                     :style="{ 
-                      backgroundColor: day.available ? primaryColor + '15' : '#F3F4F6',
+                      backgroundColor: day.available ? primaryColor + '20' : '#F3F4F6',
                       color: day.available ? primaryColor : '#9CA3AF'
                     }"
                   >
-                    {{ day.available ? 'Ouvert' : 'Fermé' }}
+                    {{ day.available ? 'Disponible' : 'Fermé' }}
                   </div>
                   <span
-                    class="text-lg font-bold"
+                    class="text-lg font-bold min-w-[120px] text-right"
                     :style="{ color: day.available ? '#374151' : '#9CA3AF' }"
                   >
                     {{ day.available ? day.hours : 'Non disponible' }}
@@ -284,29 +327,25 @@
                 </div>
               </div>
             </div>
-            <button
-              class="w-full px-8 py-4 rounded-lg text-white text-lg transition-all hover:opacity-90"
-              :style="{ backgroundColor: buttonColor }"
-            >
-              Demander une disponibilité spécifique
-            </button>
+          
           </div>
         </div>
       </div>
 
-      <!-- Bottom CTA -->
-      <div class="bg-white rounded-2xl shadow-sm p-8 text-center">
-        <h3 class="text-2xl mb-4">Réserver maintenant</h3>
-        <p class="text-gray-600 mb-6">
-          Contactez {{ intervenant.name.split(' ')[0] }} pour discuter de vos besoins et planifier une intervention
-        </p>
-        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+      <!-- Bottom CTA with Gradient -->
+      <div class="relative bg-white rounded-3xl shadow-lg overflow-hidden">
+        <div class="absolute inset-0 opacity-5" :style="{ background: `linear-gradient(135deg, ${primaryColor} 0%, white 100%)` }"></div>
+        <div class="relative p-12 text-center">
+          <h3 class="text-3xl font-bold mb-4" :style="{ color: primaryColor }">Prêt à réserver ?</h3>
+          <p class="text-gray-600 mb-8 text-lg max-w-2xl mx-auto">
+            Contactez {{ intervenant.name.split(' ')[0] }} pour discuter de vos besoins et planifier une intervention
+          </p>
           <button
             @click="handleBookingClick()"
-            class="px-10 py-4 rounded-lg text-white text-lg transition-all hover:opacity-90"
+            class="px-12 py-4 rounded-xl text-white text-lg font-bold transition-all hover:shadow-2xl transform hover:scale-105"
             :style="{ backgroundColor: primaryColor }"
           >
-            Réserver
+            Réserver maintenant
           </button>
         </div>
       </div>
@@ -332,11 +371,11 @@
     <!-- Image Modal -->
     <div
       v-if="selectedImage"
-      class="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4"
+      class="fixed inset-0 bg-black bg-opacity-95 z-50 flex items-center justify-center p-4"
       @click="selectedImage = null"
     >
       <button
-        class="absolute top-4 right-4 p-2 bg-white rounded-full hover:bg-gray-100 transition-all"
+        class="absolute top-4 right-4 p-3 bg-white rounded-full hover:bg-gray-100 transition-all shadow-lg"
         @click="selectedImage = null"
       >
         <XIcon :size="24" />
@@ -344,7 +383,7 @@
       <img
         :src="selectedImage"
         alt="Réalisation"
-        class="max-w-full max-h-full object-contain rounded-lg"
+        class="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
       />
     </div>
   </div>
@@ -411,6 +450,7 @@ export default {
       showBookingModal: false,
       selectedServiceForBooking: null,
       selectedTaskForBooking: null,
+      hoverBackButton: false,
       tabs: [
         { id: 'apropos', label: 'À propos' },
         { id: 'services', label: 'Taches' },
@@ -447,7 +487,6 @@ export default {
     effectiveClientId() {
       if (this.clientId) return this.clientId;
       const user = authService.getUserSync();
-      // Try multiple possible locations for the client ID
       return user?.client?.id || user?.client_id || user?.id || 1;
     },
     ratingDistribution() {
@@ -531,8 +570,6 @@ export default {
           throw new Error("Données de l'intervenant introuvables");
         }
         
-        // --- DATA MAPPING LOGIC ---
-        
         const mappedPhotos = [];
         if (data.interventions) {
              data.interventions.forEach(intervention => {
@@ -557,7 +594,7 @@ export default {
           verified: data.is_active ?? true,
           memberSince: data.created_at ? `Membre depuis ${new Date(data.created_at).getFullYear()}` : 'N/A',
           completedJobs: data.interv_count || 0,
-          bio: data.bio ? [data.bio] : ["Professionnel expérimenté à votre service."],
+          bio: data.bio ? [data.bio] : [],
           services: this.mapServices(data.taches),
           reviews: reviews, 
           photos: mappedPhotos,
@@ -587,8 +624,8 @@ export default {
           id: t.id,
           name: t.nom_tache || 'Service',
           description: t.description || '',
-          duration: 'Sur mesure (2h min)',
-          price: t.pivot?.prix_tache || t.prix || 25
+          duration: t.duree || '',
+          price: t.pivot?.prix_tache || t.prix || 0
         }));
     },
     
@@ -598,14 +635,20 @@ export default {
       const reviews = [];
       
       interventions.forEach(intervention => {
-          if (intervention.evaluations && intervention.evaluations.length > 0) {
-              // Calculer la moyenne des notes pour cette intervention
-              const totalNote = intervention.evaluations.reduce((sum, e) => sum + Number(e.note), 0);
-              const avgNote = (totalNote / intervention.evaluations.length).toFixed(1);
+          // Vérifier s'il y a des évaluations OU des commentaires
+          const hasEvaluations = intervention.evaluations && intervention.evaluations.length > 0;
+          const hasComments = intervention.commentaires && intervention.commentaires.length > 0;
+          
+          if (hasEvaluations || hasComments) {
+              // Calculer la note moyenne si des évaluations existent
+              let avgNote = 0;
+              if (hasEvaluations) {
+                  const totalNote = intervention.evaluations.reduce((sum, e) => sum + Number(e.note), 0);
+                  avgNote = (totalNote / intervention.evaluations.length).toFixed(1);
+              }
               
-              const comment = intervention.commentaires && intervention.commentaires.length > 0 
-                 ? intervention.commentaires[0].commentaire 
-                 : 'Prestation satisfaisante, client n\'a pas laissé de commentaire détaillé.';
+              // Récupérer le commentaire s'il existe
+              const comment = hasComments ? intervention.commentaires[0].commentaire : '';
               
               let clientName = 'Client';
               if (intervention.client && intervention.client.utilisateur) {
@@ -631,7 +674,6 @@ export default {
     mapAvailability(disponibilites) {
       if (!disponibilites || !Array.isArray(disponibilites) || disponibilites.length === 0) return [];
       
-      // Trier par jour de la semaine ou date
       return disponibilites.map(d => {
         let dayLabel = '';
         if (d.type === 'reguliere' && d.jours_semaine) {
@@ -659,10 +701,6 @@ export default {
         month: 'long',
         year: 'numeric'
       });
-    },
-    
-    getDayName(dateString) {
-      return new Date(dateString).toLocaleDateString('fr-FR', { weekday: 'long' });
     },
     
     formatTime(timeString) {
@@ -710,4 +748,18 @@ export default {
 </script>
 
 <style scoped>
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
 </style>

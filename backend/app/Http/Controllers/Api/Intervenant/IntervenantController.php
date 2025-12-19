@@ -67,8 +67,8 @@ class IntervenantController extends Controller
                 return $intervention->evaluations;
             });
             
-            $count = $evaluations->count();
-            $avg = $count > 0 ? $evaluations->avg('note') : 0;
+            $count = $evaluations->pluck('intervention_id')->unique()->count();
+            $avg = $evaluations->count() > 0 ? $evaluations->avg('note') : 0;
             
             $intervenant->average_rating = round($avg, 1);
             $intervenant->review_count = $count;
@@ -480,8 +480,8 @@ class IntervenantController extends Controller
                 return $intervention->evaluations;
             });
             
-            $count = $evaluations->count();
-            $avg = $count > 0 ? $evaluations->avg('note') : 0;
+            $count = $evaluations->pluck('intervention_id')->unique()->count();
+            $avg = $evaluations->count() > 0 ? $evaluations->avg('note') : 0;
             
             $intervenant->average_rating = round($avg, 1);
             $intervenant->review_count = $count;

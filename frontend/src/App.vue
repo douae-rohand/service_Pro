@@ -18,6 +18,7 @@
         @signup-click="showSignupModal = true"
         @navigate-home="handleNavigateHome"
         @dashboard-click="handleDashboardClick"
+        @service-click="handleServiceClick"
       />
       <HeroSection @search="handleSearch" />
       <StatsSection />

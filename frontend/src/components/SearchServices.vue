@@ -423,82 +423,50 @@ async function fetchIntervenantsForTask(taskId) {
   intervenants.value = [];
   
   try {
-    console.log('🔍[DEBUG] fetchIntervenantsForTask called for task:', taskId);
+    console.log('🔍 Fetching intervenants for task:', taskId);
     
-    // ⭐ ESSAYEZ D'ABORD LA BONNE MÉTHODE
+    // Get intervenants from API
     const res = await intervenantService.getIntervenantByTask(taskId);
     
-    console.log('📦[DEBUG] Raw API Response:', res);
-    console.log('📦[DEBUG] Response data structure:', {
-      data: res.data,
-      dataType: typeof res.data,
-      isArray: Array.isArray(res.data),
-      keys: res.data ? Object.keys(res.data) : 'no data',
-      hasIntervenants: !!res.data?.intervenants,
-      intervenantsType: typeof res.data?.intervenants
-    });
-    
-    // ⭐⭐ CORRECTION CRUCIALE - Votre API retourne {intervenants: [...]}
-    // Mais votre service getIntervenantByTask() retourne {data: intervenants}
+    // Service returns {data: array, rawResponse: {...}}
+    // Handle different response formats for compatibility
     let intervenantsData = [];
     
-    if (res.data?.intervenants) {
-      // Si la réponse a une clé 'intervenants'
-      intervenantsData = res.data.intervenants;
-      console.log('✅ Using res.data.intervenants, count:', intervenantsData.length);
-    } else if (Array.isArray(res.data)) {
-      // Si c'est directement un tableau
+    if (Array.isArray(res.data)) {
+      // Direct array from service
       intervenantsData = res.data;
-      console.log('✅ Using res.data (array), count:', intervenantsData.length);
-    } else if (res.data?.data) {
-      // Si c'est paginé {data: [...]}
+    } else if (res.data?.data && Array.isArray(res.data.data)) {
+      // Nested data structure
       intervenantsData = res.data.data;
-      console.log('✅ Using res.data.data, count:', intervenantsData.length);
+    } else if (res.data?.intervenants && Array.isArray(res.data.intervenants)) {
+      // Alternative format with intervenants key
+      intervenantsData = res.data.intervenants;
+    } else if (res.rawResponse?.data && Array.isArray(res.rawResponse.data)) {
+      // Fallback to raw response
+      intervenantsData = res.rawResponse.data;
     }
     
-    console.log('👥[DEBUG] First intervenant sample:', intervenantsData[0]);
+    console.log('✅ Found', intervenantsData.length, 'intervenants');
     
-    // Transformation des données
+    // Transform data for display - use real data from database
     intervenants.value = intervenantsData.map(iv => {
-      console.log('📊 Intervenant raw:', iv);
-      
       return {
         ...iv,
-        // ⭐ VOTRE API RETOURNE DÉJÀ note_moyenne, nombre_avis, etc.
-        // Pas besoin de les créer si elles existent déjà
-        note_moyenne: iv.average_rating || iv.note_moyenne || 4.5,
-        nombre_avis: iv.review_count || iv.nombre_avis || 12,
-        missions_completees: iv.interventions_count || iv.missions_completees || 0,
-        ville: iv.ville || iv.utilisateur?.ville || 'Non spécifié',
-        // Use top-level mapped field first, then fallback to pivot
+        // Use real data from backend, fallback only if null/undefined
+        note_moyenne: iv.note_moyenne ?? iv.average_rating ?? null,
+        nombre_avis: iv.nombre_avis ?? iv.review_count ?? 0,
+        missions_completees: iv.missions_completees ?? iv.interventions_count ?? 0,
+        ville: iv.ville ?? iv.utilisateur?.ville ?? 'Non spécifié',
+        // Use tarif_tache from backend transformation, fallback to pivot
         tarif: (iv.tarif_tache || iv.pivot?.prix_tache) 
           ? Math.round(Number(iv.tarif_tache || iv.pivot.prix_tache)) 
           : 'Sur devis'
       };
     });
     
-    console.log('✅[DEBUG] Final intervenants:', intervenants.value);
-    
   } catch (error) {
-    console.error('❌[DEBUG] Error:', error);
-    
-    // FALLBACK : Testez avec une URL directe
-    try {
-      console.log('🔄[DEBUG] Testing direct API call...');
-      const testRes = await fetch(`http://127.0.0.1:8000/api/taches/${taskId}/intervenants`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      const testData = await testRes.json();
-      console.log('📡[DEBUG] Direct API result:', testData);
-      
-      if (testData.intervenants) {
-        intervenants.value = testData.intervenants;
-      }
-    } catch (directError) {
-      console.error('❌[DEBUG] Direct call also failed:', directError);
-    }
+    console.error('❌ Error fetching intervenants:', error);
+    // Show empty state - intervenants.value is already []
   } finally {
     loadingIntervenants.value = false;
   }

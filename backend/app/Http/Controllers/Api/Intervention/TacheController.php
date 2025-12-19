@@ -181,7 +181,7 @@ class TacheController extends Controller
     } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
         \Log::error('Task not found: ' . $id);
         
-        //Standardized 404 response
+        // Standardized 404 response
         return response()->json([
             'status' => 'error',
             'message' => 'Tâche non trouvée'
@@ -191,7 +191,7 @@ class TacheController extends Controller
         \Log::error('Error in getIntervenants: ' . $e->getMessage());
         \Log::error('Stack trace: ' . $e->getTraceAsString());
         
-        //Standardized error response
+        // Standardized error response
         return response()->json([
             'status' => 'error',
             'message' => 'Erreur lors de la récupération des intervenants',

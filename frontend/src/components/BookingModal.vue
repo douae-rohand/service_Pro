@@ -649,6 +649,8 @@ export default {
       materials: [],
       constraints: [],
       constraintsValues: {},
+      informations: [],
+      informationsValues: {},
       dayAvailabilityResult: null,
       dayCheckLoading: false,
       loading: false

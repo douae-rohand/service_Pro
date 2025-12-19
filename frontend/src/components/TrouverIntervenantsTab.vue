@@ -318,14 +318,6 @@
                           Voir le profil
                         </button>
                         <button
-                          @click.stop="addToFavorites(intervenant)"
-                          class="px-4 h-12 rounded-xl border-2 transition-all hover:bg-red-50 flex items-center justify-center"
-                          :style="{ borderColor: currentServiceColor, color: currentServiceColor }"
-                          title="Ajouter aux favoris"
-                        >
-                          <Heart :size="18" />
-                        </button>
-                        <button
                           @click.stop="openBookingModal(intervenant)"
                           class="px-4 h-12 rounded-xl border-2 transition-all hover:bg-green-50 flex items-center justify-center"
                           :style="{ borderColor: '#609B41', color: '#609B41' }"

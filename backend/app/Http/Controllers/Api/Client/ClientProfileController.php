@@ -23,9 +23,9 @@ class ClientProfileController extends Controller
         try {
             $client = Client::findOrFail($clientId);
 
-            // Get completed interventions count
+            // Get completed interventions count - use flexible statuses
             $completedInterventions = Intervention::where('client_id', $clientId)
-                ->whereIn('status', ['terminée', 'terminee', 'terminées', 'terminees'])
+                ->whereIn('status', ['terminée', 'terminee', 'terminées', 'terminees', 'termine'])
                 ->count();
 
             // Get average rating from intervenants (evaluations where type_auteur = 'intervenant')
@@ -33,7 +33,7 @@ class ClientProfileController extends Controller
                 $query->where('client_id', $clientId);
             })->where('type_auteur', 'intervenant')->get();
 
-            $averageRating = null;
+            $averageRating = 0;
             if ($intervenantEvaluations->count() > 0) {
                 $averageRating = round($intervenantEvaluations->avg('note'), 1);
             }
@@ -44,12 +44,12 @@ class ClientProfileController extends Controller
             })->sum('ttc') ?? 0;
 
             // Get favorites count
-            $favoritesCount = Favorise::where('client_id', $clientId)->count();
+            $favoritesCount = DB::table('favorise')->where('client_id', $clientId)->count();
 
             return response()->json([
-                'averageRating' => $averageRating ?? 0,
+                'averageRating' => $averageRating,
                 'servicesCount' => $completedInterventions,
-                'totalDH' => $totalDH,
+                'totalDH' => round($totalDH),
                 'favoritesCount' => $favoritesCount
             ]);
         } catch (\Exception $e) {
@@ -67,21 +67,20 @@ class ClientProfileController extends Controller
     {
         try {
             $interventions = Intervention::where('client_id', $clientId)
-                ->whereIn('status', ['terminée', 'terminee', 'terminées', 'terminees'])
+                ->whereIn('status', ['terminée', 'terminee', 'terminées', 'terminees', 'termine'])
                 ->with([
                     'intervenant.utilisateur',
                     'tache.service',
                     'facture',
                     'evaluations' => function($query) {
                         $query->where('type_auteur', 'client');
-                    },
-                    'evaluations.critaire'
+                    }
                 ])
                 ->orderBy('date_intervention', 'desc')
                 ->get();
 
             $history = $interventions->map(function($intervention) {
-                // Calculate client's rating for this intervention
+                // Calculate client's average rating for this intervention
                 $clientEvaluations = $intervention->evaluations;
                 $overallRating = null;
                 
@@ -90,15 +89,15 @@ class ClientProfileController extends Controller
                 }
 
                 // Get service name
-                $serviceName = $intervention->tache->service->nom_service ?? '';
+                $serviceName = $intervention->tache->service->nom_service ?? 'Service';
                 $taskName = $intervention->tache->nom_tache ?? '';
-                $fullServiceName = $serviceName ? ($serviceName . ' - ' . $taskName) : $taskName;
+                $fullServiceName = $serviceName . ($taskName ? ' - ' . $taskName : '');
 
                 return [
                     'id' => $intervention->id,
                     'serviceName' => $fullServiceName,
                     'providerName' => trim(($intervention->intervenant->utilisateur->prenom ?? '') . ' ' . ($intervention->intervenant->utilisateur->nom ?? '')),
-                    'date' => $intervention->date_intervention->format('d/m/Y'),
+                    'date' => $intervention->date_intervention ? $intervention->date_intervention->format('d/m/Y') : 'N/A',
                     'price' => $intervention->facture->ttc ?? 0,
                     'rating' => $overallRating
                 ];

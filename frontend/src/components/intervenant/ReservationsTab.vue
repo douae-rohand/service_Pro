@@ -114,6 +114,10 @@
                   <span class="status-badge status-completed">
                     Terminée
                   </span>
+                  <button @click="generateInvoice(reservation.id)" class="invoice-btn">
+                    <FileText :size="16" />
+                    Facture
+                  </button>
                   
                   <!-- View both evaluations (public) - HIGHEST PRIORITY -->
                   <button 
@@ -150,9 +154,15 @@
                     Période expirée
                   </span>
                 </div>
-                <span v-else-if="selectedTab === 'accepted'" class="status-badge status-accepted">
-                  Confirmée
-                </span>
+                <div v-else-if="selectedTab === 'accepted'" class="accepted-actions">
+                  <span class="status-badge status-accepted">
+                    Confirmée
+                  </span>
+                  <button @click="generateInvoice(reservation.id)" class="invoice-btn">
+                    <FileText :size="16" />
+                    Facture
+                  </button>
+                </div>
                 <span v-else-if="selectedTab === 'refused'" class="status-badge status-refused">
                   Refusée
                 </span>
@@ -354,7 +364,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Check, X, Clock, MapPin, Calendar, MessageSquare, Coins, Package, Star, Mail, AlertTriangle } from 'lucide-vue-next'
+import { Check, X, Clock, MapPin, Calendar, MessageSquare, Coins, Package, Star, Mail, AlertTriangle, FileText } from 'lucide-vue-next'
 // ... existing imports ...
 
 const showRefuseModal = ref(false)

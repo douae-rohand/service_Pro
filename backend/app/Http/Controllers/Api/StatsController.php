@@ -110,24 +110,28 @@ class StatsController extends Controller
                     $user = $client ? $client->utilisateur : null;
 
                     // Build details array
-                    $details = $evaluations->map(function ($eval) {
-                        return [
-                            'criteria' => $eval->critaire ? $eval->critaire->nom_critaire : 'Critère',
+                    $clientEvaluations = $evaluations; // Re-use the filtered validations
+                    $criteriaDetails = [];
+
+                    foreach ($clientEvaluations as $eval) {
+                        $criteriaDetails[] = [
+                            'criteriaName' => $eval->critaire ? $eval->critaire->nom_critaire : 'Critère',
                             'rating' => $eval->note
                         ];
-                    })->values();
+                    }
 
                     $reviews[] = [
-                        'id' => $intervention->id, // Use intervention ID to avoid duplicates
+                        'id' => $intervention->id,
+                        'intervention_id' => $intervention->id, // Explicit ID for complaints
                         'clientName' => $user ? ($user->prenom . ' ' . $user->nom) : 'Client Anonyme',
-                        'clientImage' => null, // TODO: Add client image if available
+                        'clientImage' => $user && $user->profile_photo ? url('storage/' . $user->profile_photo) : null,
                         'rating' => $interventionAvgRating,
-                        'date' => $intervention->updated_at, // Use intervention date
+                        'date' => $intervention->updated_at,
                         'service' => $intervention->tache ? $intervention->tache->nom_tache : 'Service',
                         'mainService' => $intervention->tache && $intervention->tache->service ? $intervention->tache->service->nom_service : 'Service',
                         'location' => $intervention->address ? ($intervention->address . ($intervention->ville ? ', ' . $intervention->ville : '')) : 'Lieu non spécifié',
                         'comment' => $comment ? $comment->commentaire : '',
-                        'details' => $details
+                        'details' => $criteriaDetails
                     ];
                 }
             }

@@ -37,8 +37,9 @@ class DatabaseSeeder extends Seeder
             JustificatifSeeder::class,
         ]);
 
-        // Relationship tables
+        // Relationship and Constraint tables
         $this->call([
+            ContrainteSeeder::class,
             DisponibiliteSeeder::class,
             IntervenantServiceSeeder::class,
             IntervenantTacheSeeder::class,

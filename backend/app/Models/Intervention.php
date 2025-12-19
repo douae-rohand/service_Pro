@@ -20,6 +20,7 @@ class Intervention extends Model
         'address',
         'ville',
         'status',
+        'description',
         'date_intervention',
         'duration_hours',  
         'client_id',

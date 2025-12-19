@@ -65,8 +65,8 @@ class EvaluationController extends Controller
 
         DB::beginTransaction();
         try {
-            // Get all criteria
-            $criteria = Critaire::all();
+            // Get all criteria for mapping if needed
+            $criteria = Critaire::where('type', 'intervenant')->get();
             $criteriaMap = [];
             foreach ($criteria as $c) {
                 $key = strtolower(str_replace(' ', '_', $c->nom_critaire ?? ''));
@@ -84,8 +84,16 @@ class EvaluationController extends Controller
             }
 
             // Create evaluations for each criteria
-            foreach ($validated['criteriaRatings'] as $criteriaName => $note) {
-                $critaireId = $criteriaMap[$criteriaName] ?? null;
+            foreach ($validated['criteriaRatings'] as $criteriaKey => $note) {
+                $critaireId = null;
+                
+                // Check if the key is numeric (new format with IDs)
+                if (is_numeric($criteriaKey)) {
+                    $critaireId = (int)$criteriaKey;
+                } else {
+                    // Old format with string keys (quality, punctuality, etc.)
+                    $critaireId = $criteriaMap[$criteriaKey] ?? null;
+                }
                 
                 if ($critaireId) {
                     Evaluation::create([
@@ -113,6 +121,11 @@ class EvaluationController extends Controller
             ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
+            \Log::error('Error storing evaluation:', [
+                'intervention_id' => $interventionId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'message' => 'Erreur lors de la soumission de l\'évaluation',
                 'error' => $e->getMessage()

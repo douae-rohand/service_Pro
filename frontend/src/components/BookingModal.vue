@@ -155,38 +155,15 @@
 
         <!-- Step 3: Details -->
         <div v-if="currentStep === 3" class="space-y-6">
-          <!-- Urgency Level -->
-          <div class="bg-white rounded-lg p-6 border-2 border-gray-200">
-            <h4 class="text-lg font-bold mb-4 flex items-center gap-2" style="color: #2f4f4f">
-              <AlertCircle :size="20" class="text-orange-500" />
-              Niveau d'urgence
-            </h4>
-            <div class="flex gap-4">
-              <button
-                v-for="urgency in urgencyLevels"
-                :key="urgency.value"
-                @click="bookingData.urgency = urgency.value"
-                class="flex-1 p-4 border-2 rounded-lg transition-all"
-                :class="
-                  bookingData.urgency === urgency.value
-                    ? urgency.class
-                    : 'border-gray-200 bg-white'
-                "
-              >
-                <component :is="urgency.icon" :size="20" class="mb-2" :class="urgency.iconClass" />
-                <span class="font-medium">{{ urgency.label }}</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Address -->
+          <!-- Address & City -->
           <div class="bg-white rounded-lg p-6 border-2 border-gray-200">
             <h4 class="text-lg font-bold mb-4 flex items-center gap-2" style="color: #2f4f4f">
               <MapPin :size="20" style="color: #92b08b" />
-              Adresse du service
+              Adresse & Ville du service
             </h4>
-            <div class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
+                <label class="block mb-2 font-medium">Adresse</label>
                 <input
                   v-model="bookingData.address"
                   type="text"
@@ -196,16 +173,14 @@
                 />
               </div>
               <div>
-                <label class="block mb-2 font-medium">Quartier</label>
-                <select
-                  v-model="bookingData.quartier"
-                  class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                >
-                  <option value="">Sélectionnez un quartier</option>
-                  <option value="Tetouan Centre">Tetouan Centre</option>
-                  <option value="Martil">Martil</option>
-                  <option value="Fnideq">Fnideq</option>
-                </select>
+                <label class="block mb-2 font-medium">Ville</label>
+                <input
+                  v-model="bookingData.ville"
+                  type="text"
+                  placeholder="Ex: Tétouan, Martil..."
+                  class="w-full px-4 py-2 border-2 rounded-lg focus:ring-2 focus:ring-green-500"
+                  style="border-color: #92b08b"
+                />
               </div>
             </div>
           </div>
@@ -624,6 +599,7 @@ import {
   Package, Info, Camera, Upload, DollarSign, ArrowLeft, ArrowRight
 } from 'lucide-vue-next';
 import bookingService from '@/services/bookingService';
+import authService from '@/services/authService';
 import api from '@/services/api';
 
 export default {
@@ -661,9 +637,8 @@ export default {
       bookingData: {
         date: '',
         time: '',
-        urgency: 'normal',
         address: '',
-        quartier: '',
+        ville: '',
         materials: [],
         description: '',
         photos: []
@@ -674,31 +649,10 @@ export default {
       materials: [],
       constraints: [],
       constraintsValues: {},
+      informations: [],
+      informationsValues: {},
       dayAvailabilityResult: null,
       dayCheckLoading: false,
-      urgencyLevels: [
-        {
-          value: 'normal',
-          label: 'Normal',
-          icon: 'Clock',
-          class: 'border-green-500 bg-green-50',
-          iconClass: 'text-green-600'
-        },
-        {
-          value: 'urgent',
-          label: 'Urgent (24-48h)',
-          icon: 'AlertCircle',
-          class: 'border-orange-500 bg-orange-50',
-          iconClass: 'text-orange-600'
-        },
-        {
-          value: 'emergency',
-          label: 'Urgence (Aujourd\'hui)',
-          icon: 'AlertCircle',
-          class: 'border-red-500 bg-red-50',
-          iconClass: 'text-red-600'
-        }
-      ],
       loading: false
     };
   },
@@ -715,7 +669,7 @@ export default {
           return this.selectedTask !== null;
         case 3:
           return this.bookingData.address.trim() !== '' &&
-                 this.bookingData.quartier !== '' &&
+                 this.bookingData.ville.trim() !== '' &&
                  this.bookingData.description.trim() !== '' &&
                  this.estimatedHours > 0;
         case 4:
@@ -761,6 +715,15 @@ export default {
   async mounted() {
     await this.loadServices();
     
+    // Initialiser l'adresse et la ville depuis le profil client
+    const user = authService.getUserSync();
+    if (user) {
+      if (user.address) this.bookingData.address = user.address;
+      // Parfois la ville est dans le modèle client lié
+      const city = user.ville || (user.client ? user.client.ville : null);
+      if (city) this.bookingData.ville = city;
+    }
+    
     // Handle preselection
     if (this.preselectedService) {
       // Find the service in our loaded list to ensure it's valid, or just use the prop
@@ -797,7 +760,8 @@ export default {
     async loadServices() {
       try {
         const response = await bookingService.getIntervenantServices(this.intervenant.id);
-        this.services = response.data.data || response.data || [];
+        this.services = response.data?.data ?? response.data ?? [];
+        if (!Array.isArray(this.services)) this.services = [];
         console.log('Loaded services:', this.services);
       } catch (error) {
         console.error('Error loading services:', error);
@@ -811,7 +775,8 @@ export default {
       this.selectedService = service;
       try {
         const response = await bookingService.getServiceTaches(service.id, this.intervenant.id);
-        this.tasks = response.data.data || response.data || [];
+        this.tasks = response.data?.data ?? response.data ?? [];
+        if (!Array.isArray(this.tasks)) this.tasks = [];
         this.currentStep = 2;
       } catch (error) {
         console.error('Error loading tasks:', error);
@@ -1029,7 +994,15 @@ export default {
         const response = await api.get(`taches/${this.selectedTask?.id}/contraintes`);
         console.log('📦 Raw constraints response:', response);
         
-        this.constraints = response.data || [];
+        // Handle different response formats
+        this.constraints = response.data?.data ?? response.data ?? [];
+        
+        // Ensure constraints is an array before using forEach
+        if (!Array.isArray(this.constraints)) {
+          console.warn('⚠️ Constraints data is not an array:', this.constraints);
+          this.constraints = [];
+        }
+        
         console.log('✅ Constraints loaded:', this.constraints);
         
         // Initialiser les valeurs
@@ -1045,7 +1018,8 @@ export default {
     async loadMaterials() {
       try {
         const response = await api.get(`taches/${this.selectedTask?.id}/materiels`);
-        this.materials = response.data.data || response.data || [];
+        this.materials = response.data?.data ?? response.data ?? [];
+        if (!Array.isArray(this.materials)) this.materials = [];
       } catch (error) {
         this.materials = [
           { id: 1, nom_materiel: 'Taille-haie électrique ou thermique', cost: 0 },
@@ -1170,7 +1144,14 @@ export default {
         
         // Autres informations
         formData.append('address', this.bookingData.address);
-        formData.append('ville', this.bookingData.quartier);
+        formData.append('ville', this.bookingData.ville);
+        formData.append('materials_cost', this.materialsCost);
+        
+        // Liste des matériels à fournir par l'intervenant
+        const providedMaterials = this.materials
+          .filter(m => !this.bookingData.materials.includes(m.id))
+          .map(m => m.id);
+        formData.append('provided_materials', JSON.stringify(providedMaterials));
         formData.append('status', 'en_attente');
         formData.append('description', this.bookingData.description || '');
         
@@ -1189,7 +1170,8 @@ export default {
           date_intervention: dateTime,
           duration_hours: this.estimatedHours,
           address: this.bookingData.address,
-          ville: this.bookingData.quartier
+          ville: this.bookingData.ville,
+          materials_cost: this.materialsCost
         });
 
         const response = await bookingService.createIntervention(formData);

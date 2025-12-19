@@ -17,12 +17,15 @@ class TacheController extends Controller
 
         // Filtrer par service si fourni
         if ($request->has('service_id')) {
-            $query->where('service_id', $request->serviceId);
+            $query->where('service_id', $request->service_id);
         }
 
         $taches = $query->get();
 
-        return response()->json($taches);
+        return response()->json([
+        'status' => 'success',
+        'data' => $taches
+    ]);
     }
 
     /**
@@ -40,9 +43,10 @@ class TacheController extends Controller
         $tache = Tache::create($validated);
 
         return response()->json([
-            'message' => 'Tâche créée avec succès',
-            'tache' => $tache->load('service'),
-        ], 201);
+        'status' => 'success',
+        'message' => 'Tâche créée avec succès',
+        'data' => $tache->load('service')
+    ], 201);
     }
 
     /**
@@ -52,13 +56,19 @@ class TacheController extends Controller
     {
         $tache = Tache::with(['service', 'materiels', 'intervenants', 'interventions'])->findOrFail($id);
 
-        return response()->json($tache);
+        return response()->json([
+        'status' => 'success',
+        'data' => $tache
+    ]);
     }
 
     public function getContraintes($id)
     {
         $tache = Tache::with('contraintes')->findOrFail($id);
-        return response()->json($tache->contraintes);
+        return response()->json([
+        'status' => 'success',
+        'data' => $tache->contraintes
+    ]);
     }
 
     /**
@@ -78,9 +88,10 @@ class TacheController extends Controller
         $tache->update($validated);
 
         return response()->json([
-            'message' => 'Tâche mise à jour avec succès',
-            'tache' => $tache->load('service'),
-        ]);
+        'status' => 'success',
+        'message' => 'Tâche mise à jour avec succès',
+        'data' => $tache->load('service')
+    ]);
     }
 
     /**
@@ -92,14 +103,15 @@ class TacheController extends Controller
         $tache->delete();
 
         return response()->json([
-            'message' => 'Tâche supprimée avec succès',
-        ]);
+        'status' => 'success',
+        'message' => 'Tâche supprimée avec succès'
+    ]);
     }
 
     public function getMateriels($id)
     {
         try {
-            $tache = Tache::findOrFail($id);
+            $tache = Tache::with('materiels')->findOrFail($id);
             // Utilisez la relation belongsToMany sans parenthèses get()
             $materiels = $tache->materiels;
             
@@ -119,59 +131,72 @@ class TacheController extends Controller
     /**
      * Get intervenants for a specific tache
      */
-     public function getIntervenants($id)
+    public function getIntervenants($id)
     {
         try {
-            \Log::info('📋 Fetching intervenants for task ID: ' . $id);
+            \Log::info('🔍 [TacheController] Fetching intervenants for task ID: ' . $id);
             
-            // ⭐ CORRECTION CRUCIALE : Retirez ".evaluation" des relations
-            $tache = Tache::with([
-                'intervenants' => function($query) {
-                    $query->with('utilisateur')
-                          ->withAvg('evaluations', 'note')
-                          ->withCount('evaluations');
-                },
-                'intervenants.taches.service',
-                'intervenants.interventions.evaluation'
-            ])->findOrFail($id);
+            $tache = Tache::findOrFail($id);
             
-            $intervenants = $tache->intervenants;
+            // Query intervenants directly via the relationship
+            $intervenants = $tache->intervenants()
+                ->where('is_active', true) // Only active ones
+                ->with(['utilisateur']) // Essential
+                ->withAvg('evaluations', 'note')
+                ->withCount(['evaluations', 'interventions'])
+                ->get();
             
-            \Log::info('✅ Found ' . $intervenants->count() . ' intervenants');
+            \Log::info('📦 [TacheController] Found ' . $intervenants->count() . ' active intervenants for task ' . $id);
             
-            // Ajoutez des données calculées pour le frontend
-            $intervenants->transform(function ($intervenant) {
-                // Use real aggregates if available, fallback to defaults
-                // 'evaluations_avg_note' is automatically added by withAvg
-                // 'evaluations_count' is automatically added by withCount
-                
-                $realRating = $intervenant->evaluations_avg_note ? round($intervenant->evaluations_avg_note, 1) : null;
-                $realCount = $intervenant->evaluations_count;
+            // Transform data for frontend
+            $client = \App\Models\Client::where('id', auth()->id())->first();
+            $favoriteIds = $client ? $client->intervenantsFavoris()->pluck('intervenant_id')->toArray() : [];
 
-                $intervenant->note_moyenne = $realRating ?? $intervenant->average_rating ?? 4.5;
-                $intervenant->nombre_avis = $realCount ?? $intervenant->review_count ?? 12;
-                $intervenant->missions_completees = $intervenant->interventions_count ?? 0;
-                // Expose pivot price at top level
-                $intervenant->tarif_tache = $intervenant->pivot->prix_tache ?? null;
-                
-                return $intervenant;
+            $transformed = $intervenants->map(function ($intervenant) use ($favoriteIds) {
+                // Return exactly what SearchServices.vue expects
+                return [
+                    'id' => $intervenant->id,
+                    'utilisateur' => $intervenant->utilisateur,
+                    'average_rating' => $intervenant->evaluations_avg_note ? round($intervenant->evaluations_avg_note, 1) : 4.5,
+                    'review_count' => $intervenant->evaluations_count ?? 0,
+                    'missions_completees' => $intervenant->interventions_count ?? 0,
+                    'ville' => $intervenant->ville,
+                    'address' => $intervenant->address,
+                    'is_active' => $intervenant->is_active,
+                    'tarif_tache' => $intervenant->pivot->prix_tache ?? null,
+                    'status_tache' => $intervenant->pivot->status ?? 'actif',
+                    'is_favorite' => in_array($intervenant->id, $favoriteIds)
+                ];
             });
             
             return response()->json([
-                'intervenants' => $intervenants,
-                'task_id' => $id,
-                'count' => $intervenants->count()
+                'status' => 'success',
+                'data' => $transformed,
+                'meta' => [
+                    'task_id' => $id,
+                    'count' => $transformed->count()
+                ]
             ]);
-            
-        } catch (\Exception $e) {
-            \Log::error('❌ Error in getIntervenants: ' . $e->getMessage());
-            \Log::error('Stack trace: ' . $e->getTraceAsString());
-            
-            return response()->json([
-                'error' => 'Server error',
-                'message' => $e->getMessage(),
-                'details' => 'Check the logs for more information'
-            ], 500);
-        }
+        
+    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        \Log::error('Task not found: ' . $id);
+        
+        // Standardized 404 response
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Tâche non trouvée'
+        ], 404);
+        
+    } catch (\Exception $e) {
+        \Log::error('Error in getIntervenants: ' . $e->getMessage());
+        \Log::error('Stack trace: ' . $e->getTraceAsString());
+        
+        // Standardized error response
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Erreur lors de la récupération des intervenants',
+            'details' => config('app.debug') ? $e->getMessage() : null
+        ], 500);
     }
+}
 }

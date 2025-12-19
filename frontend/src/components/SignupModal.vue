@@ -149,9 +149,67 @@
               </svg>
             </div>
           </div>
+          
+          <!-- Verification View -->
+          <div v-if="view === 'verification'" class="p-6 md:p-8 flex-1 flex flex-col justify-center">
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center p-4 rounded-full bg-green-50 mb-4">
+                    <svg class="w-12 h-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002-2z" />
+                    </svg>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-800 mb-2">Vérifiez votre email</h3>
+                <p class="text-gray-600">Un code de vérification à 6 chiffres a été envoyé à <strong>{{ formData.email }}</strong></p>
+            </div>
+
+            <form @submit.prevent="handleVerifyEmail" class="space-y-6">
+                <div class="relative group">
+                    <label class="block text-sm font-medium mb-2 text-gray-700 text-center">Entrez le code de vérification</label>
+                    <input
+                        v-model="verificationCode"
+                        type="text"
+                        required
+                        maxlength="6"
+                        class="w-full px-4 py-4 text-3xl font-bold border-2 border-gray-200 rounded-2xl focus:outline-none transition-all focus:border-[#92B08B] tracking-[0.5em] text-center"
+                        placeholder="000000"
+                    />
+                </div>
+
+                <div class="space-y-3">
+                    <button
+                        type="submit"
+                        :disabled="isLoading"
+                        class="w-full text-white py-4 text-lg rounded-xl transition-all transform hover:scale-[1.02] relative overflow-hidden group shadow-lg"
+                        style="background: linear-gradient(135deg, #92B08B 0%, #B8D99C 100%)"
+                    >
+                        <span v-if="!isLoading" class="font-bold">Vérifier le code</span>
+                        <span v-else class="flex items-center justify-center gap-2">
+                            <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Vérification...
+                        </span>
+                    </button>
+
+                    <button
+                        type="button"
+                        @click="handleResendVerification"
+                        :disabled="isLoading || resendDisabled"
+                        class="w-full py-3 text-sm font-semibold text-gray-600 hover:text-[#92B08B] transition-colors"
+                    >
+                        {{ resendDisabled ? `Renvoyer le code (${resendTimer}s)` : "Je n'ai pas reçu de code ? Renvoyer" }}
+                    </button>
+                </div>
+            </form>
+            
+            <button @click="view = 'signup'" class="mt-8 text-sm text-gray-500 hover:underline text-center">
+                Retour à l'inscription
+            </button>
+          </div>
 
           <!-- Form -->
-          <div class="overflow-y-auto flex-1">
+          <div v-else class="overflow-y-auto flex-1">
             <form @submit.prevent="handleSubmit" class="p-4 space-y-3">
               <!-- Common Fields -->
               <div class="grid md:grid-cols-2 gap-3">
@@ -215,8 +273,8 @@
                 />
               </div>
 
-              <!-- Adresse / Ville uniquement pour Intervenant -->
-              <template v-if="userType === 'intervenant'">
+              <!-- Adresse / Ville -->
+              <template v-if="true">
                 <div class="grid md:grid-cols-2 gap-3">
                   <div class="relative">
                     <label class="block text-xs font-medium mb-1.5 text-gray-700">
@@ -342,10 +400,28 @@ const props = defineProps({
   isOpen: Boolean,
 })
 
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'signup-success', 'open-login-modal'])
 
 const userType = ref('client')
 const router = useRouter()
+const view = ref('signup') // 'signup' or 'verification'
+const verificationCode = ref('')
+const isLoading = ref(false)
+const resendDisabled = ref(false)
+const resendTimer = ref(60)
+let timerId = null
+
+const startResendTimer = () => {
+  resendDisabled.value = true
+  resendTimer.value = 60
+  timerId = setInterval(() => {
+    resendTimer.value--
+    if (resendTimer.value <= 0) {
+      clearInterval(timerId)
+      resendDisabled.value = false
+    }
+  }, 1000)
+}
 
 const formData = ref({
   nom: '',
@@ -390,28 +466,33 @@ const handleSubmit = async () => {
       confirmPassword: formData.value.confirmPassword,
       type: userType.value,
     }
-    // Ajouter adresse/ville seulement pour intervenant
-    if (userType.value === 'intervenant') {
-      registrationData.adresse = cleanValue(formData.value.adresse)
-      registrationData.ville = cleanValue(formData.value.ville)
-    }
+    // Ajouter adresse/ville
+    registrationData.adresse = cleanValue(formData.value.adresse)
+    registrationData.ville = cleanValue(formData.value.ville)
 
+    isLoading.value = true
     const response = await authService.register(registrationData)
     
-    if (response.data.token) {
-      authService.setAuthToken(response.data.token)
-      // alert(`Inscription ${userType.value} réussie !`)
-      //handleClose()
-      //window.location.reload()
-      // Redirection selon le type
-      emit('signup-success', { email: formData.value.email }) 
-      handleClose()      
+    if (response.data.requires_verification) {
+      view.value = 'verification'
+      startResendTimer()
+    } else if (response.data.token) {
+      // authService.setAuthToken(response.data.token) // Do not auto login
+      
+      handleClose()
+      // Emit event to open login modal
+      emit('signup-success', { email: formData.value.email }) // Keep for potential usage
+      emit('open-login-modal') 
+      
+      /* 
       if (userType.value === 'intervenant') {
         router.push('/dashboard')
       } else if (userType.value === 'client') {
-        alert('Connexion réussie !')
-        window.location.reload()
+        alert('Compte créé avec succès ! Veuillez vous connecter.')
+        // window.location.reload()
       } 
+      */
+     alert('Compte créé avec succès ! Veuillez vous connecter.') 
     }
   } catch (error) {
     console.error('Erreur d\'inscription:', error)
@@ -446,8 +527,41 @@ const handleSubmit = async () => {
     }
     
     alert(errorMessage)
+  } finally {
+    isLoading.value = false
   }
 }
+
+const handleVerifyEmail = async () => {
+    if (verificationCode.value.length !== 6) {
+        alert('Veuillez entrer un code à 6 chiffres')
+        return
+    }
+
+    isLoading.value = true
+    try {
+        const response = await authService.verifyEmail(formData.value.email, verificationCode.value)
+        alert(response.data.message || 'Email vérifié avec succès !')
+        handleClose()
+        emit('open-login-modal')
+        emit('verification-success')
+    } catch (error) {
+        alert(error.response?.data?.message || 'Code invalide ou expiré.')
+    } finally {
+        isLoading.value = false
+    }
+}
+
+const handleResendVerification = async () => {
+    try {
+        await authService.resendVerification(formData.value.email)
+        alert('Un nouveau code a été envoyé.')
+        startResendTimer()
+    } catch (error) {
+        alert(error.response?.data?.message || 'Erreur lors du renvoi du code.')
+    }
+}
+
 
 const handleInputFocus = (e) => {
   e.currentTarget.style.borderColor = '#92B08B'

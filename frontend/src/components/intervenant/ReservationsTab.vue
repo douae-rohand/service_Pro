@@ -118,7 +118,7 @@
                     <FileText :size="16" />
                     Facture
                   </button>
-                  
+
                   <!-- View both evaluations (public) - HIGHEST PRIORITY -->
                   <button 
                     v-if="reservation.canViewPublic" 
@@ -378,10 +378,10 @@ const refuseReservation = (id) => {
 
 const confirmRefusal = async () => {
   if (!refusalId.value) return
-  
+
   try {
     await reservationService.refuseReservation(refusalId.value)
-    
+
     // Optimistic Update
     const index = reservations.value.findIndex(r => r.id === refusalId.value)
     if (index !== -1) {
@@ -472,7 +472,7 @@ const fetchReservations = async (silent = false) => {
   if (!silent) loading.value = true
   // Don't clear error on silent refresh to avoid flickering error messages
   if (!silent) error.value = null
-  
+
   try {
     const response = await reservationService.getMyReservations()
     const fetchedReservations = response.reservations || []
@@ -518,7 +518,7 @@ const generateInvoice = async (id) => {
 const acceptReservation = async (id) => {
   try {
     const response = await api.post(`intervenants/me/reservations/${id}/accept`)
-    
+
     // Optimistic Update: Update status locally without refresh
     const index = reservations.value.findIndex(r => r.id === id)
     if (index !== -1) {

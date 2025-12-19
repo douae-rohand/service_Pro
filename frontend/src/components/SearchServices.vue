@@ -37,9 +37,10 @@
               :class="[
                 'px-6 py-2 rounded-lg font-medium transition-colors whitespace-nowrap',
                 selectedCategory === cat 
-                  ? 'bg-blue-700 text-white' 
+                  ? 'text-white' 
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               ]"
+              :style="selectedCategory === cat ? { backgroundColor: serviceColors[cat] || '#1a5fa3' } : {}"
             >
               {{ cat }}
             </button>
@@ -102,7 +103,7 @@
       <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 pb-6 border-b border-gray-200">
         <div>
           <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            Intervenants disponibles pour : <span class="text-teal-700">{{ selectedTask?.nom_tache }}</span>
+            Intervenants disponibles pour : <span :style="{ color: currentServiceColor }">{{ selectedTask?.nom_tache }}</span>
           </h2>
           <p class="text-gray-500 mt-1">Service: {{ selectedService?.nom_service }}</p>
         </div>
@@ -116,97 +117,113 @@
 
       <!-- Intervenants Grid -->
       <div v-if="loadingIntervenants" class="flex justify-center py-20">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2" :style="{ borderColor: currentServiceColor }"></div>
       </div>
 
-      <div v-if="intervenants.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div v-if="intervenants.length > 0" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div 
           v-for="iv in intervenants" 
-          :key="iv.id" 
+          :key="iv.id"
           @click="viewProfile(iv)"
-          class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col items-center p-6 text-center relative cursor-pointer group"
+          class="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden flex flex-col cursor-pointer"
         >
-          <!-- Badges -->
-          <div class="absolute top-4 left-4 flex flex-col gap-2 z-10">
-             <span v-if="iv.is_active" class="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded-full shadow-sm">
-               ✓ Vérifié
-             </span>
-             <span v-if="iv.note_moyenne >= 4.5" class="bg-yellow-400 text-white text-xs font-bold px-2 py-1 rounded-full shadow-sm">
-               ⭐ Top
-             </span>
-          </div>
+          <div class="p-8 flex-1 flex flex-col">
+            <!-- Top Section: Image & Main Info -->
+            <div class="flex gap-6 mb-6">
+              <div class="relative">
+                <div class="w-24 h-24 rounded-2xl overflow-hidden shadow-lg border-2 border-blue-100">
+                  <img
+                    :src="iv.utilisateur?.url || defaultAvatar"
+                    :alt="`${iv.utilisateur?.nom} ${iv.utilisateur?.prenom}`"
+                    class="w-full h-full object-cover transform transition-transform duration-500 group-hover:scale-110"
+                  />
+                </div>
+              </div>
 
-          <!-- Favorite Button -->
-          <button 
-            @click.stop="toggleFavorite(iv, $event)"
-            class="absolute top-4 right-4 p-2 rounded-full bg-white shadow-sm hover:shadow text-gray-400 hover:text-red-500 transition-all z-10"
-            :class="{ 'text-red-500 fill-current': iv.is_favorite }"
-          >
-            <Heart :fill="iv.is_favorite ? 'currentColor' : 'none'" size="20" />
-          </button>
-          
-          <!-- Avatar -->
-          <div class="relative mb-4">
-            <div class="w-28 h-28 rounded-full p-1 bg-gradient-to-tr from-green-400 to-blue-500">
-              <img 
-                :src="iv.utilisateur?.url || defaultAvatar" 
-                class="w-full h-full rounded-full object-cover border-4 border-white"
-                alt="Avatar"
-              />
-            </div>
-            <!-- Online Indicator (Simulated) -->
-            <div class="absolute bottom-2 right-2 w-5 h-5 bg-green-500 border-4 border-white rounded-full"></div>
-          </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex justify-between items-start mb-2">
+                  <div>
+                    <h3 class="text-xl font-bold text-gray-900 truncate pr-2">
+                      {{ iv.utilisateur?.prenom }} {{ iv.utilisateur?.nom }}
+                    </h3>
+                  </div>
+                  <div class="flex flex-col items-end gap-1">
+                    <div class="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-lg border border-yellow-100">
+                      <span class="text-yellow-500">⭐</span>
+                      <span class="font-bold text-gray-800 text-sm">{{ iv.note_moyenne }}</span>
+                    </div>
+                    <span class="text-gray-500 text-xs">{{ iv.nombre_avis }} avis</span>
+                  </div>
+                </div>
+                
+                <div class="flex flex-wrap gap-x-4 gap-y-2 mb-3">
+                  <div class="flex items-center gap-1.5 text-sm text-gray-500 font-medium">
+                    <Briefcase :size="14" class="text-blue-500" />
+                    <span>{{ iv.missions_completees || 0 }} missions</span>
+                  </div>
+                  <div class="flex items-center gap-1.5 text-sm text-gray-500 font-medium">
+                    <MapPin :size="14" class="text-blue-500" />
+                    <span>{{ iv.ville }}</span>
+                  </div>
+                </div>
 
-          <!-- Info -->
-          <h3 class="text-xl font-bold text-gray-800 mb-1">{{ iv.utilisateur?.nom }} {{ iv.utilisateur?.prenom }}</h3>
-          <p class="text-sm text-gray-500 line-clamp-2 px-2 mb-3 h-10">{{ iv.bio || 'Professionnel expérimenté à votre service.' }}</p>
-          
-          <div class="flex items-center gap-1 mb-4 text-yellow-500 font-medium bg-yellow-50 px-3 py-1 rounded-full">
-            <span>⭐ {{ iv.note_moyenne }}</span>
-            <span class="text-gray-400 text-sm font-normal">({{ iv.nombre_avis }} avis)</span>
-          </div>
-          
-          <!-- Details Grid -->
-          <div class="w-full grid grid-cols-2 gap-y-3 gap-x-2 text-sm text-gray-600 mb-6 px-4">
-            <div class="flex items-center gap-2">
-              <MapPin :size="16" class="text-blue-500" />
-              <span class="truncate">{{ iv.ville }}</span>
+                <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gray-50 text-gray-600 border border-gray-100 mb-4">
+                  {{ getExperienceLabel(iv) }}
+                </div>
+              </div>
             </div>
-            <div class="flex items-center gap-2">
-              <Briefcase :size="16" class="text-blue-500" />
-              <span>{{ getExperienceLabel(iv) }}</span>
-            </div>
-            <div v-if="iv.utilisateur?.telephone" class="flex items-center gap-2 col-span-2 justify-center">
-              <Phone :size="16" class="text-green-500" />
-              <span>{{ iv.utilisateur.telephone }}</span>
-            </div>
-          </div>
 
-        
-         <!-- Stats Footer -->
-        <div class="w-full flex justify-between items-center border-t border-gray-100 pt-4 mb-4 text-sm px-2">
-          <div class="flex flex-col items-start bg-gray-50 px-3 py-2 rounded-lg">
-            <span class="text-xs text-gray-400 uppercase font-bold">Missions</span>
-            <span class="font-bold text-gray-700">{{ iv.missions_completees }} complétées</span>
-          </div>
-          <div class="flex flex-col items-end">
-            <span class="text-xs text-gray-400 uppercase font-bold mb-1">Tarif horaire</span>
-            <span class="bg-blue-600 text-white px-3 py-1 rounded-lg font-bold text-sm shadow-sm">
-              {{ iv.tarif }}
-              <span v-if="iv.tarif !== 'Sur devis'" class="text-xs ml-0.5">DH/h</span>
-            </span>
-          </div>
-        </div>
+            <!-- Bio -->
+            <div v-if="iv.bio" class="mb-6">
+              <p class="text-sm text-gray-600 line-clamp-2">{{ iv.bio }}</p>
+            </div>
+            
+            <div class="h-px bg-gray-100 w-full mb-6"></div>
 
-      <!-- Action Button -->
-      <button 
-        @click.stop="openBookingModal(iv)"
-        class="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold rounded-xl transition-all shadow-md hover:shadow-lg transform active:scale-95 flex items-center justify-center gap-2"
-      >
-        <span>Demander ce service</span>
-        <ArrowRight :size="18" />
-      </button>
+            <!-- Tarif  -->
+            <div class="mb-6">
+              <div class="flex items-center justify-between">
+                <span class="text-sm text-gray-500 font-medium">Tarif horaire</span>
+                <div class="text-xl font-bold text-blue-600">
+                  {{ iv.tarif }}
+                  <span v-if="iv.tarif !== 'Sur devis'" class="text-sm"> DH/h</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="mt-auto">
+              <div class="flex gap-2">
+                 <button
+                  @click.stop="viewProfile(iv)"
+                  class="flex-1 h-12 flex items-center justify-center rounded-xl transition-all duration-300 hover:opacity-90 font-bold text-sm text-white"
+                  :style="{ backgroundColor: currentServiceColor }"
+                >
+                  Voir le profil
+                </button>
+                <button
+                  @click.stop="toggleFavorite(iv, $event)"
+                  class="px-4 h-12 rounded-xl border-2 transition-all flex items-center justify-center"
+                  :style="{ 
+                    borderColor: iv.is_favorite ? '#EF4444' : currentServiceColor, 
+                    color: iv.is_favorite ? '#EF4444' : currentServiceColor,
+                    backgroundColor: iv.is_favorite ? '#FEF2F2' : 'transparent'
+                  }"
+                  title="Ajouter aux favoris"
+                >
+                  <Heart :size="18" :fill="iv.is_favorite ? 'currentColor' : 'none'" />
+                </button>
+                <button
+                  @click.stop="openBookingModal(iv)"
+                  class="px-4 h-12 rounded-xl border-2 transition-all hover:bg-green-50 flex items-center justify-center"
+                  :style="{ borderColor: '#609B41', color: '#609B41' }"
+                  title="Réserver maintenant"
+                >
+                  <ArrowRight :size="18" />
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       
@@ -218,10 +235,11 @@
     </div>
     
     <!-- VIEW 3: PROFILE -->
-    <div v-else-if="currentView === 'profile'">
+    <div v-else-if="currentView === 'profile'" class="py-6">
       <IntervenantProfile 
-        :intervenantId="viewingIntervenantId"
+        :intervenantId="selectedIntervenantId"
         :clientId="clientId"
+        :service="getSelectedServiceName()"
         @back="closeProfile"
         @book="chooseIntervenant"
       />
@@ -271,7 +289,7 @@ const props = defineProps({ clientId: { type: Number, required: true } })
 
 // State
 const currentView = ref('services') // 'services' | 'intervenants' | 'profile'
-const viewingIntervenantId = ref(null)
+const selectedIntervenantId = ref(null)
 const services = ref([])
 const loadingServices = ref(false)
 const searchQuery = ref('')
@@ -317,7 +335,7 @@ function setCategory(cat) {
       name: `${intervenant.utilisateur?.prenom || ''} ${intervenant.utilisateur?.nom || ''}`.trim(),
       image: intervenant.utilisateur?.url || defaultAvatar,
       averageRating: intervenant.note_moyenne || 4.5,
-      hourlyRate: intervenant.pivot?.prix_tache || 25,
+      hourlyRate: typeof intervenant.tarif === 'number' ? intervenant.tarif : (intervenant.pivot?.prix_tache || 25),
       // Données supplémentaires utiles
       ville: intervenant.ville,
       bio: intervenant.bio
@@ -340,7 +358,26 @@ function onBookingSuccess() {
   backToServices();
 }
 
+const serviceColors = {
+  'Jardinage': '#92B08B',
+  'Ménage': '#4682B4',
+  'Bricolage': '#E8793F',
+};
+
+const serviceIdToColor = {
+  1: '#92B08B', // Jardinage
+  2: '#4682B4', // Ménage
+};
+
 // Computed
+const currentServiceColor = computed(() => {
+  if (selectedService.value) {
+    const s = selectedService.value;
+    return serviceColors[s.nom_service] || serviceIdToColor[s.id] || '#1a5fa3';
+  }
+  return '#1a5fa3';
+});
+
 const filteredServices = computed(() => {
   return services.value.filter(s => {
     // Search
@@ -380,87 +417,56 @@ async function fetchServices() {
   }
 }
 
+
 async function fetchIntervenantsForTask(taskId) {
   loadingIntervenants.value = true;
   intervenants.value = [];
   
   try {
-    console.log('🔍[DEBUG] fetchIntervenantsForTask called for task:', taskId);
+    console.log('🔍 Fetching intervenants for task:', taskId);
     
-    // ⭐ ESSAYEZ D'ABORD LA BONNE MÉTHODE
+    // Get intervenants from API
     const res = await intervenantService.getIntervenantByTask(taskId);
     
-    console.log('📦[DEBUG] Raw API Response:', res);
-    console.log('📦[DEBUG] Response data structure:', {
-      data: res.data,
-      dataType: typeof res.data,
-      isArray: Array.isArray(res.data),
-      keys: res.data ? Object.keys(res.data) : 'no data',
-      hasIntervenants: !!res.data?.intervenants,
-      intervenantsType: typeof res.data?.intervenants
-    });
-    
-    // ⭐⭐ CORRECTION CRUCIALE - Votre API retourne {intervenants: [...]}
-    // Mais votre service getIntervenantByTask() retourne {data: intervenants}
+    // Service returns {data: array, rawResponse: {...}}
+    // Handle different response formats for compatibility
     let intervenantsData = [];
     
-    if (res.data?.intervenants) {
-      // Si la réponse a une clé 'intervenants'
-      intervenantsData = res.data.intervenants;
-      console.log('✅ Using res.data.intervenants, count:', intervenantsData.length);
-    } else if (Array.isArray(res.data)) {
-      // Si c'est directement un tableau
+    if (Array.isArray(res.data)) {
+      // Direct array from service
       intervenantsData = res.data;
-      console.log('✅ Using res.data (array), count:', intervenantsData.length);
-    } else if (res.data?.data) {
-      // Si c'est paginé {data: [...]}
+    } else if (res.data?.data && Array.isArray(res.data.data)) {
+      // Nested data structure
       intervenantsData = res.data.data;
-      console.log('✅ Using res.data.data, count:', intervenantsData.length);
+    } else if (res.data?.intervenants && Array.isArray(res.data.intervenants)) {
+      // Alternative format with intervenants key
+      intervenantsData = res.data.intervenants;
+    } else if (res.rawResponse?.data && Array.isArray(res.rawResponse.data)) {
+      // Fallback to raw response
+      intervenantsData = res.rawResponse.data;
     }
     
-    console.log('👥[DEBUG] First intervenant sample:', intervenantsData[0]);
+    console.log('✅ Found', intervenantsData.length, 'intervenants');
     
-    // Transformation des données
+    // Transform data for display - use real data from database
     intervenants.value = intervenantsData.map(iv => {
-      console.log('📊 Intervenant raw:', iv);
-      
       return {
         ...iv,
-        // ⭐ VOTRE API RETOURNE DÉJÀ note_moyenne, nombre_avis, etc.
-        // Pas besoin de les créer si elles existent déjà
-        note_moyenne: iv.average_rating || iv.note_moyenne || 4.5,
-        nombre_avis: iv.review_count || iv.nombre_avis || 12,
-        missions_completees: iv.interventions_count || iv.missions_completees || 0,
-        ville: iv.ville || iv.utilisateur?.ville || 'Non spécifié',
-        // Use top-level mapped field first, then fallback to pivot
+        // Use real data from backend, fallback only if null/undefined
+        note_moyenne: iv.note_moyenne ?? iv.average_rating ?? null,
+        nombre_avis: iv.nombre_avis ?? iv.review_count ?? 0,
+        missions_completees: iv.missions_completees ?? iv.interventions_count ?? 0,
+        ville: iv.ville ?? iv.utilisateur?.ville ?? 'Non spécifié',
+        // Use tarif_tache from backend transformation, fallback to pivot
         tarif: (iv.tarif_tache || iv.pivot?.prix_tache) 
           ? Math.round(Number(iv.tarif_tache || iv.pivot.prix_tache)) 
           : 'Sur devis'
       };
     });
     
-    console.log('✅[DEBUG] Final intervenants:', intervenants.value);
-    
   } catch (error) {
-    console.error('❌[DEBUG] Error:', error);
-    
-    // FALLBACK : Testez avec une URL directe
-    try {
-      console.log('🔄[DEBUG] Testing direct API call...');
-      const testRes = await fetch(`http://127.0.0.1:8000/api/taches/${taskId}/intervenants`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      const testData = await testRes.json();
-      console.log('📡[DEBUG] Direct API result:', testData);
-      
-      if (testData.intervenants) {
-        intervenants.value = testData.intervenants;
-      }
-    } catch (directError) {
-      console.error('❌[DEBUG] Direct call also failed:', directError);
-    }
+    console.error('❌ Error fetching intervenants:', error);
+    // Show empty state - intervenants.value is already []
   } finally {
     loadingIntervenants.value = false;
   }
@@ -480,17 +486,30 @@ function backToServices() {
   selectedTask.value = null
 }
 
-
+function getSelectedServiceName() {
+  if (selectedService.value) {
+    const name = selectedService.value.nom_service.toLowerCase();
+    if (name.includes('jardin')) return 'jardinage';
+    if (name.includes('ménage') || name.includes('menage')) return 'menage';
+  }
+  return 'jardinage'; // Default
+}
 
 async function toggleFavorite(iv, event) {
   if (event) event.stopPropagation();
   
+  console.log('❤️ Toggle favorite for:', iv.id, 'Client:', props.clientId);
+  
   try {
-    // We need service ID. We are in context of 'selectedTask' which belongs to 'selectedService'
     const serviceId = selectedService.value?.id;
-    if (!serviceId) return;
+    if (!serviceId) {
+      console.warn('⚠️ No service selected, cannot favorite');
+      return;
+    }
 
-    // Optimistic update (adding a temporary property to the list item)
+    console.log('📤 Sending favorite request for service:', serviceId);
+
+    // Optimistic update
     iv.is_favorite = !iv.is_favorite;
 
     const res = await api.post(`clients/${props.clientId}/favorites`, {
@@ -512,13 +531,13 @@ function chooseIntervenant(iv) {
 }
 
 function viewProfile(iv) {
-  viewingIntervenantId.value = iv.id;
+  selectedIntervenantId.value = iv.id;
   currentView.value = 'profile';
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function closeProfile() {
-  viewingIntervenantId.value = null;
+  selectedIntervenantId.value = null;
   currentView.value = 'intervenants';
 }
 

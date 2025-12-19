@@ -60,17 +60,17 @@ const stats = ref([
   {
     icon: UsersIcon,
     number: '0',
-    label: 'Clients Satisfaits',
+    label: 'Clients',
   },
   {
     icon: UserCheckIcon,
     number: '0',
-    label: 'Intervenants Qualifiés',
+    label: 'Intervenants',
   },
   {
     icon: BriefcaseIcon,
     number: '0',
-    label: 'Services Complétés',
+    label: 'Sous-Services',
   },
 ])
 
@@ -111,9 +111,9 @@ onMounted(async () => {
 
     // Préparer les données cibles
     const targets = [
-      data.satisfied_clients || 0,
-      data.qualified_intervenants || 0,
-      data.completed_services || 0
+      data.clients_count || data.satisfied_clients || 0,
+      data.intervenants_count || data.qualified_intervenants || 0,
+      data.subservices_count || data.completed_services || 0
     ];
 
     // Mettre à jour les labels (on garde '0+' au début)

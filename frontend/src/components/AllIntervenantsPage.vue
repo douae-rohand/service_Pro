@@ -64,9 +64,9 @@
 
       <!-- Main Content with Sidebar -->
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div class="flex flex-col lg:flex-row gap-8">
+      <div class="grid grid-cols-1 md:grid-cols-[288px_1fr] lg:grid-cols-[320px_1fr] gap-8 items-start">
         <!-- Left Sidebar - Filters -->
-        <aside class="lg:w-80 flex-shrink-0">
+        <aside class="flex-shrink-0">
           <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sticky top-32">
             <!-- Header -->
             <div class="flex items-center justify-between mb-6">
@@ -126,11 +126,11 @@
                   v-for="rating in [
                     { value: 'all', label: 'Toutes les notes', stars: null },
                     { value: 5, label: '5 étoiles', stars: 5 },
-                    { value: 4, label: '4 étoiles et plus', stars: 4 },
-                    { value: 3, label: '3 étoiles et plus', stars: 3 },
-                    { value: 2, label: '2 étoiles et plus', stars: 2 },
-                    { value: 1, label: '1 étoile et plus', stars: 1 },
-                    { value: 0, label: '0 étoile et plus', stars: 0 }
+                    { value: 4, label: 'Entre 4 et 5 étoiles', stars: 4 },
+                    { value: 3, label: 'Entre 3 et 4 étoiles', stars: 3 },
+                    { value: 2, label: 'Entre 2 et 3 étoiles', stars: 2 },
+                    { value: 1, label: 'Entre 1 et 2 étoiles', stars: 1 },
+                    { value: 0, label: 'Entre 0 et 1 étoile', stars: 0 }
                   ]"
                   :key="rating.value"
                   class="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
@@ -169,7 +169,7 @@
         </aside>
 
         <!-- Right Content - Results -->
-        <main class="flex-1">
+        <main class="flex-1 min-w-0">
           <!-- Results header with counter and sorting -->
           <div class="flex items-center justify-between mb-6">
             <!-- Counter -->
@@ -201,7 +201,7 @@
           </div>
 
           <!-- Intervenants Grid -->
-          <div class="grid md:grid-cols-2 gap-6">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div
               v-for="intervenant in paginatedIntervenants"
               :key="intervenant.id"
@@ -225,9 +225,7 @@
                     <div class="flex justify-between items-start mb-2">
                       <div>
                         <h3 class="text-xl font-bold text-gray-900 truncate pr-2">{{ intervenant.name }}</h3>
-                        <div class="text-lg font-bold" :style="{ color: currentService.color }">
-                          {{ intervenant.hourlyRate }}DH/h
-                        </div>
+
                       </div>
                       <div class="flex flex-col items-end gap-1">
                         <div class="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-lg border border-yellow-100">
@@ -257,6 +255,7 @@
 
                 <!-- Specialties -->
                 <div class="mb-6 space-y-3">
+                <p class="text-xs text-gray-500 mb-2"> Autres spécialités :</p>
                    <div class="flex flex-wrap gap-2">
                       <span 
                         v-for="(specialty, index) in (intervenant.specialties || []).slice(0, 5)"
@@ -514,7 +513,12 @@ export default {
         
         let matchesRating = true;
         if (this.selectedRating !== 'all' && typeof this.selectedRating === 'number') {
-          matchesRating = intervenant.rating >= this.selectedRating;
+          const rating = Number(intervenant.rating);
+          if (this.selectedRating === 5) {
+            matchesRating = rating === 5;
+          } else {
+            matchesRating = rating >= this.selectedRating && rating < (this.selectedRating + 1);
+          }
         }
         
         const matchesMaterial = !this.bringsMaterial || intervenant.bringsMaterial;
@@ -598,7 +602,7 @@ export default {
             interv_count: intervenant.interv_count || 0,
             hourlyRate: hourlyRate,
             location: intervenant.ville || utilisateur.address || 'Non spécifiée',
-            image: intervenant.image_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(utilisateur.prenom + ' ' + utilisateur.nom)}&background=random&color=fff`,
+            image: intervenant.image_url || utilisateur.profile_photo || utilisateur.url || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=150&h=150&fit=crop',
             verified: intervenant.is_active !== false,
             specialties: specialties,
             taches: taches,

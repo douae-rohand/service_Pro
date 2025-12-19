@@ -37,29 +37,43 @@
           <h3 class="font-bold text-lg mb-4" style="color: #2f4f4f">
             Évaluez les différents aspects
           </h3>
-          <div class="space-y-4">
+          
+          <!-- Loading State -->
+          <div v-if="loading" class="text-center py-8">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+            <p class="mt-2 text-gray-600 text-sm">Chargement des critères...</p>
+          </div>
+          
+          <!-- Error State -->
+          <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-600 text-sm">
+            {{ error }}
+          </div>
+          
+          <!-- Criteria List -->
+          <div v-else class="space-y-4">
             <div
-              v-for="(label, key) in ratingCriteria"
-              :key="key"
+              v-for="criteria in intervenantCriteria"
+              :key="criteria.id"
               class="bg-gray-50 rounded-lg p-4"
             >
               <div class="flex items-center justify-between mb-2">
-                <label class="font-bold text-gray-700">{{ label }}</label>
+                <label class="font-bold text-gray-700">{{ criteria.nom_critaire }}</label>
                 <span class="text-2xl font-bold" style="color: #fee347">
-                  {{ ratings[key] }}/5
+                  {{ getRating(criteria.id) }}/5
                 </span>
               </div>
               <div class="flex gap-2">
                 <button
                   v-for="star in 5"
                   :key="star"
-                  @click="ratings[key] = star"
+                  type="button"
+                  @click="setRating(criteria.id, star)"
                   class="p-2 hover:scale-110 transition-transform"
                 >
                   <Star
                     :size="32"
-                    :fill="star <= ratings[key] ? '#FEE347' : 'none'"
-                    :color="star <= ratings[key] ? '#FEE347' : '#D1D5DB'"
+                    :fill="star <= getRating(criteria.id) ? '#FEE347' : 'none'"
+                    :color="star <= getRating(criteria.id) ? '#FEE347' : '#D1D5DB'"
                   />
                 </button>
               </div>
@@ -118,8 +132,11 @@
         </div>
 
         <!-- Validation Message -->
-        <div v-if="!isValid" class="bg-red-50 border border-red-200 rounded-lg p-3 text-red-600 text-sm">
-          Veuillez noter tous les critères avant de soumettre votre évaluation.
+        <div v-if="!isValid && intervenantCriteria.length > 0" class="bg-red-50 border border-red-200 rounded-lg p-3 text-red-600 text-sm">
+          <p class="font-semibold mb-1">Veuillez noter tous les critères avant de soumettre votre évaluation.</p>
+          <p v-if="unratedCriteria.length > 0" class="text-xs">
+            Critères manquants : {{ unratedCriteria.map(c => c.nom_critaire).join(', ') }}
+          </p>
         </div>
       </div>
 
@@ -145,78 +162,116 @@
   </div>
 </template>
 
-<script>
+<script setup>
+import { ref, computed, watch, onMounted } from 'vue';
 import { X, Star } from 'lucide-vue-next';
+import evaluationService from '@/services/evaluationService';
 
-export default {
-  name: 'RateIntervenantModal',
-  components: {
-    X,
-    Star
+const props = defineProps({
+  intervenant: {
+    type: Object,
+    required: true
   },
-  props: {
-    intervenant: {
-      type: Object,
-      required: true
-    },
-    service: {
-      type: String,
-      required: true
-    },
-    task: {
-      type: String,
-      required: true
-    },
-    demandId: {
-      type: Number,
-      required: false
-    }
+  service: {
+    type: String,
+    required: true
   },
-  emits: ['close', 'submit'],
-  data() {
-    return {
-      ratingCriteria: {
-        quality: 'Qualité du travail',
-        punctuality: 'Ponctualité',
-        professionalism: 'Professionnalisme',
-        cleanup: 'Propreté / Nettoyage',
-        equipment: 'Matériel / Équipement'
-      },
-      ratings: {
-        quality: 0,
-        punctuality: 0,
-        professionalism: 0,
-        cleanup: 0,
-        equipment: 0
-      },
-      comment: '',
-      wouldRecommend: false
-    };
+  task: {
+    type: String,
+    required: true
   },
-  computed: {
-    overallRating() {
-      const values = Object.values(this.ratings);
-      const sum = values.reduce((acc, val) => acc + val, 0);
-      const count = values.filter(val => val > 0).length;
-      return count > 0 ? sum / values.length : 0;
-    },
-    isValid() {
-      return Object.values(this.ratings).every(rating => rating > 0);
-    }
-  },
-  methods: {
-    submitRating() {
-      if (!this.isValid) return;
+  demandId: {
+    type: Number,
+    required: false
+  }
+});
 
-      const ratingData = {
-        criteriaRatings: { ...this.ratings },
-        overallRating: parseFloat(this.overallRating.toFixed(1)),
-        comment: this.comment.trim(),
-        wouldRecommend: this.wouldRecommend
-      };
+const emit = defineEmits(['close', 'submit']);
 
-      this.$emit('submit', ratingData);
-    }
+// State
+const intervenantCriteria = ref([]);
+const ratings = ref({});
+const comment = ref('');
+const wouldRecommend = ref(false);
+const loading = ref(false);
+const error = ref(null);
+
+// Computed
+const overallRating = computed(() => {
+  const ratingValues = Object.values(ratings.value).filter(r => r > 0);
+  if (ratingValues.length === 0) return 0;
+  return ratingValues.reduce((sum, rating) => sum + rating, 0) / ratingValues.length;
+});
+
+const isValid = computed(() => {
+  // All criteria must be rated
+  return intervenantCriteria.value.length > 0 && 
+         intervenantCriteria.value.every(criteria => ratings.value[criteria.id] > 0);
+});
+
+const unratedCriteria = computed(() => {
+  return intervenantCriteria.value.filter(c => !ratings.value[c.id] || ratings.value[c.id] === 0);
+});
+
+// Methods
+const fetchIntervenantCriteria = async () => {
+  loading.value = true;
+  error.value = null;
+  try {
+    const criteria = await evaluationService.getIntervenantCriteria();
+    const uniqueCriteria = Array.isArray(criteria) ? 
+      criteria.filter((item, index, self) => 
+        index === self.findIndex((t) => t.id === item.id)
+      ) : [];
+    
+    intervenantCriteria.value = uniqueCriteria;
+    
+    // Initialize ratings object
+    ratings.value = {};
+    intervenantCriteria.value.forEach(criteria => {
+      ratings.value[criteria.id] = 0;
+    });
+    
+    console.log('✅ Loaded intervenant criteria:', intervenantCriteria.value);
+  } catch (err) {
+    error.value = 'Erreur lors du chargement des critères d\'évaluation';
+    intervenantCriteria.value = [];
+    ratings.value = {};
+    console.error('❌ Error loading intervenant criteria:', err);
+  } finally {
+    loading.value = false;
   }
 };
+
+const setRating = (criteriaId, rating) => {
+  ratings.value[criteriaId] = rating;
+};
+
+const getRating = (criteriaId) => {
+  return ratings.value[criteriaId] || 0;
+};
+
+const submitRating = () => {
+  if (!isValid.value) return;
+
+  const ratingData = {
+    criteriaRatings: Object.entries(ratings.value)
+      .filter(([_, note]) => note > 0)
+      .reduce((acc, [criteriaId, note]) => {
+        acc[criteriaId] = note;
+        return acc;
+      }, {}),
+    overallRating: parseFloat(overallRating.value.toFixed(1)),
+    comment: comment.value.trim(),
+    wouldRecommend: wouldRecommend.value
+  };
+
+  emit('submit', ratingData);
+};
+
+// Lifecycle
+onMounted(() => {
+  fetchIntervenantCriteria();
+});
 </script>
+```

@@ -12,7 +12,7 @@
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
       <div class="text-center mb-16">
-        <h2 class="text-4xl font-bold mt-4 mb-4">Ce Que Nos Clients Disent de Nous</h2>
+        <h2 class="text-4xl font-bold mt-4 mb-4" style="color: #305C7D">Ce Que Nos Clients Disent de Nous</h2>
         <p class="text-gray-600 max-w-2xl mx-auto">
           Découvrez les avis de nos clients satisfaits sur la qualité de nos intervenants.
         </p>

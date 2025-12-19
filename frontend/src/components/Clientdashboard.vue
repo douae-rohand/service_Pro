@@ -25,6 +25,7 @@
         :sidebar-visible="sidebarVisible"
         @logout="logout"
         @toggle-sidebar="toggleSidebar"
+        @nav-change="handleNavChange"
       />
 
       <!-- Main Content -->
@@ -72,6 +73,11 @@
               <MyFavoritesTab :client-id="currentUser.id" />
             </div>
 
+            <!-- Mes Réclamations Tab -->
+            <div v-if="activeTab === 'reclamations'">
+              <ClientReclamationsTab />
+            </div>
+
             <!-- Mon Profil Tab -->
             <div v-if="activeTab === 'profile'">
               <ClientProfile
@@ -111,6 +117,7 @@ import TrouverIntervenantsTab from '@/components/TrouverIntervenantsTab.vue';
 import MyFavoritesTab from '@/components/MyFavoritesTab.vue';
 import ClientProfile from '@/components/ClientProfile.vue';
 import PageAcceuil from '@/components/PageAcceuil.vue';
+import ClientReclamationsTab from '@/components/client/ClientReclamationsTab.vue';
 
 export default {
   name: 'ClientDashboard',
@@ -126,7 +133,8 @@ export default {
     TrouverIntervenantsTab,
     MyFavoritesTab,
     ClientProfile,
-    PageAcceuil
+    PageAcceuil,
+    ClientReclamationsTab
   },
   emits: ['logout'],
   data() {

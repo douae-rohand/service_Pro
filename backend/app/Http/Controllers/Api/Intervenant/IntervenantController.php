@@ -1661,7 +1661,21 @@ class IntervenantController extends Controller
         $intervention->status = 'acceptee';
         $intervention->save();
 
-        return response()->json(['message' => 'Réservation acceptée avec succès']);
+        // Envoyer l'email de confirmation à l'intervenant avec toutes les infos
+        try {
+            $intervention->load(['client.utilisateur', 'intervenant.utilisateur', 'tache.service']);
+            \Illuminate\Support\Facades\Mail::to($intervenant->email)->send(new \App\Mail\InterventionAccepted($intervention));
+            return response()->json([
+                'message' => 'Réservation acceptée avec succès. Un email contenant les détails complets vous a été envoyé.',
+                'mail_sent' => true
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error sending intervention acceptance mail: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Réservation acceptée avec succès, mais l\'email de notification n\'a pas pu être envoyé.',
+                'mail_sent' => false
+            ]);
+        }
     }
 
     /**

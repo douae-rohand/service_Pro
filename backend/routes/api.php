@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Intervention\InterventionController;
+use App\Http\Controllers\Api\Intervention\InterventionControllerIntervenant;
 use App\Http\Controllers\Api\Service\ServiceController;
 use App\Http\Controllers\Api\Intervention\TacheController;
 use App\Http\Controllers\Api\Client\ClientController;
@@ -180,6 +181,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Interventions
     Route::apiResource('interventions', InterventionController::class);
+    
+    // Intervenant Specific Interventions
+    Route::apiResource('intervenant-interventions', InterventionControllerIntervenant::class);
+    Route::get('intervenant-interventions/filter/upcoming', [InterventionControllerIntervenant::class, 'upcoming']);
+    Route::get('intervenant-interventions/filter/completed', [InterventionControllerIntervenant::class, 'completed']);
+
     Route::get('interventions/index', [InterventionController::class, 'index']); // legacy?
     Route::get('interventions/filter/upcoming', [InterventionController::class, 'upcoming']);
     Route::get('interventions/filter/completed', [InterventionController::class, 'completed']);

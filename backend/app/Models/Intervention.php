@@ -158,4 +158,29 @@ class Intervention extends Model
     {
         return $query->where('status', 'en attend');
     }
+
+    /**
+     * Determine if ratings for this intervention are public.
+     * Rules:
+     * 1. Both parties have rated.
+     * 2. OR 7 days have passed since the intervention was finished.
+     */
+    public function areRatingsPublic(): bool
+    {
+        if ($this->status !== 'termine') {
+            return false;
+        }
+
+        // Check if both parties have rated (using count to avoid multiple select queries if possible, 
+        // but exists() is fine for now as we don't have many evaluations per intervention)
+        $intervenantRated = $this->evaluations()->where('type_auteur', 'intervenant')->exists();
+        $clientRated = $this->evaluations()->where('type_auteur', 'client')->exists();
+        
+        if ($intervenantRated && $clientRated) {
+            return true;
+        }
+
+        // Check 7-day window
+        return $this->updated_at->addDays(7)->isPast();
+    }
 }

@@ -13,6 +13,7 @@ class ContrainteSeeder extends Seeder
      */
     public function run(): void
     {
+        DB::table('contrainte')->truncate();
         DB::table('contrainte')->insert([
             // ============================================
             // JARDINAGE TASKS

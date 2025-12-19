@@ -404,6 +404,43 @@ const openImage = (photo) => {
   if (!path) return
   window.open(getImageUrl(path), '_blank')
 }
+
+const handleFileUpload = async (event) => {
+  const files = event.target.files
+  if (!files || files.length === 0) return
+
+  uploading.value = true
+  error.value = null
+
+  try {
+    const promises = Array.from(files).map(file => {
+      const formData = new FormData()
+      formData.append('photo', file)
+      formData.append('phase_prise', 'apres')
+      
+      // Use the generic interventions endpoint
+      return api.post(`interventions/${props.interventionId}/photos`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      })
+    })
+
+    await Promise.all(promises)
+    
+    // Refresh details to show new photos
+    await fetchDetails()
+    
+    // Clear input
+    event.target.value = ''
+    
+  } catch (err) {
+    console.error('Error uploading photos:', err)
+    error.value = "Erreur lors du téléchargement des photos. Veuillez réessayer."
+  } finally {
+    uploading.value = false
+  }
+}
 </script>
 
 <style scoped>

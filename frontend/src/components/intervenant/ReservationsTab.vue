@@ -364,8 +364,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Check, X, Clock, MapPin, Calendar, MessageSquare, Coins, Package, Star, FileText } from 'lucide-vue-next'
-import { Check, X, Clock, MapPin, Calendar, MessageSquare, Coins, Package, Star, Mail } from 'lucide-vue-next'
+import { Check, X, Clock, MapPin, Calendar, MessageSquare, Coins, Package, Star, FileText, Mail } from 'lucide-vue-next'
 import reservationService from '@/services/intervenantReservationService'
 import evaluationService from '@/services/evaluationService'
 import api from '@/services/api'

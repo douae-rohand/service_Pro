@@ -75,7 +75,7 @@
       </div>
 
       <!-- Reservations List -->
-      <div class="reservations-list">
+      <TransitionGroup name="list" tag="div" class="reservations-list">
         <div
           v-for="reservation in filteredReservations"
           :key="reservation.id"
@@ -225,7 +225,7 @@
             </div>
           </div>
         </div>
-      </div>
+      </TransitionGroup>
 
       <div v-if="filteredReservations.length === 0" class="empty-state">
         <p>Aucune réservation {{ 
@@ -337,6 +337,23 @@
       @close="closeInterventionDetails"
     />
 
+    <!-- Refusal Confirmation Modal -->
+    <div v-if="showRefuseModal" class="modal-overlay" @click="closeRefuseModal">
+      <div class="confirmation-modal-content" @click.stop>
+        <div class="modal-header warning-header">
+           <AlertTriangle :size="32" class="warning-icon" />
+           <h2>Refuser cette réservation ?</h2>
+        </div>
+        <div class="modal-body-text">
+           <p>Cette action est irréversible. Le client sera notifié de votre refus.</p>
+        </div>
+        <div class="modal-footer">
+           <button @click="closeRefuseModal" class="btn-cancel">Annuler</button>
+           <button @click="confirmRefusal" class="btn-confirm-danger">Refuser définitivement</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Small Mail Notification -->
     <Transition name="fade-slide">
       <div v-if="notification" class="mail-notification">
@@ -354,7 +371,42 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Check, X, Clock, MapPin, Calendar, MessageSquare, Coins, Package, Star, Mail } from 'lucide-vue-next'
+import { Check, X, Clock, MapPin, Calendar, MessageSquare, Coins, Package, Star, Mail, AlertTriangle } from 'lucide-vue-next'
+// ... existing imports ...
+
+const showRefuseModal = ref(false)
+const refusalId = ref(null)
+// ... existing refs ...
+
+const refuseReservation = (id) => {
+  refusalId.value = id
+  showRefuseModal.value = true
+}
+
+const confirmRefusal = async () => {
+  if (!refusalId.value) return
+  
+  try {
+    await reservationService.refuseReservation(refusalId.value)
+    
+    // Optimistic Update
+    const index = reservations.value.findIndex(r => r.id === refusalId.value)
+    if (index !== -1) {
+      reservations.value[index].status = 'refused'
+    }
+  } catch (err) {
+    alert(err.message || 'Erreur lors du refus de la réservation')
+    console.error(err)
+  } finally {
+    closeRefuseModal()
+  }
+}
+
+const closeRefuseModal = () => {
+  showRefuseModal.value = false
+  refusalId.value = null
+}
+
 import reservationService from '@/services/intervenantReservationService'
 import evaluationService from '@/services/evaluationService'
 import api from '@/services/api'
@@ -423,9 +475,11 @@ const calculateTotal = (reservation) => {
   return reservation.hourlyRate * hours
 }
 
-const fetchReservations = async () => {
-  loading.value = true
-  error.value = null
+const fetchReservations = async (silent = false) => {
+  if (!silent) loading.value = true
+  // Don't clear error on silent refresh to avoid flickering error messages
+  if (!silent) error.value = null
+  
   try {
     const response = await reservationService.getMyReservations()
     const fetchedReservations = response.reservations || []
@@ -434,20 +488,9 @@ const fetchReservations = async () => {
     for (const reservation of fetchedReservations) {
       if (reservation.status === 'completed') {
         try {
-          // Get detailed evaluation status
           const statusData = await evaluationService.canRateClient(reservation.id)
-          console.log('Evaluation status for reservation', reservation.id, statusData)
-          
           reservation.evaluationStatus = statusData.status
-          
-          // Show public evaluations button if:
-          // 1. Backend says it is public (both parties rated OR 7-day window passed)
           reservation.canViewPublic = statusData.is_public === true
-          
-          // No need to try/catch anymore since backend tells us explicitly
-          if (!reservation.canViewPublic && statusData.status === 'view_only') {
-             // Logic for handling private viewing if needed locally, but for "Public" button rely on flag
-          }
         } catch (err) {
           console.error('Error checking evaluation status:', err)
           reservation.evaluationStatus = 'unknown'
@@ -458,10 +501,10 @@ const fetchReservations = async () => {
     
     reservations.value = fetchedReservations
   } catch (err) {
-    error.value = err.message || 'Erreur lors du chargement des réservations'
+    if (!silent) error.value = err.message || 'Erreur lors du chargement des réservations'
     console.error(err)
   } finally {
-    loading.value = false
+    if (!silent) loading.value = false
   }
 }
 
@@ -469,8 +512,11 @@ const acceptReservation = async (id) => {
   try {
     const response = await api.post(`intervenants/me/reservations/${id}/accept`)
     
-    // Refresh the data to get updated status
-    await fetchReservations()
+    // Optimistic Update: Update status locally without refresh
+    const index = reservations.value.findIndex(r => r.id === id)
+    if (index !== -1) {
+      reservations.value[index].status = 'accepted'
+    }
 
     // Show notification
     if (response.data.message) {
@@ -482,19 +528,6 @@ const acceptReservation = async (id) => {
   } catch (err) {
     alert(err.message || 'Erreur lors de l\'acceptation de la réservation')
     console.error(err)
-  }
-}
-
-const refuseReservation = async (id) => {
-  if (confirm('Êtes-vous sûr de vouloir refuser cette réservation ?')) {
-    try {
-      await reservationService.refuseReservation(id)
-      // Refresh the data to get updated status
-      await fetchReservations()
-    } catch (err) {
-      alert(err.message || 'Erreur lors du refus de la réservation')
-      console.error(err)
-    }
   }
 }
 
@@ -599,11 +632,23 @@ const onRatingSubmitted = async () => {
   await fetchReservations()
 }
 
+const pollInterval = ref(null)
+
 onMounted(async () => {
   await Promise.all([
     fetchReservations(),
     fetchAllServices()
   ])
+
+  // Poll for updates every 30 seconds (Silent Refresh)
+  pollInterval.value = setInterval(() => {
+    fetchReservations(true)
+  }, 30000)
+})
+
+import { onUnmounted } from 'vue' // Ensure this is imported
+onUnmounted(() => {
+  if (pollInterval.value) clearInterval(pollInterval.value)
 })
 </script>
 
@@ -692,6 +737,7 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-4);
+  position: relative;
 }
 
 /* Filter Bar styles */
@@ -816,6 +862,25 @@ onMounted(async () => {
   border-color: #D1D5DB;
   color: #111827;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+/* List Transitions */
+.list-move,
+.list-enter-active,
+.list-leave-active {
+  transition: all 0.5s ease;
+}
+
+.list-enter-from,
+.list-leave-to {
+  opacity: 0;
+  transform: translateX(30px);
+}
+
+/* Ensure leaving items are taken out of layout flow so others can move up */
+.list-leave-active {
+  position: absolute;
+  width: 100%; /* Maintain width during leave */
 }
 
 .details-link-btn::after {
@@ -1398,5 +1463,86 @@ onMounted(async () => {
   .public-modal-content {
     width: 98%;
   }
+}
+/* New Modal Styles */
+.confirmation-modal-content {
+  background: white;
+  padding: 0;
+  border-radius: var(--radius-xl);
+  max-width: 450px;
+  width: 90%;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.modal-header.warning-header {
+  background-color: #FEF2F2;
+  border-bottom: 1px solid #FEE2E2;
+  padding: var(--spacing-6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-3);
+  text-align: center;
+}
+
+.warning-icon {
+  color: #DC2626;
+  background: #FEE2E2;
+  padding: 8px;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+}
+
+.modal-header h2 {
+  color: #991B1B;
+  font-size: 1.25rem;
+  margin: 0;
+}
+
+.modal-body-text {
+  padding: var(--spacing-6);
+  text-align: center;
+  color: var(--color-gray-600);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-3);
+  padding: var(--spacing-4) var(--spacing-6);
+  background-color: var(--color-gray-50);
+  border-top: 1px solid var(--color-gray-100);
+}
+
+.btn-cancel {
+  padding: 0.5rem 1rem;
+  background: white;
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--radius-lg);
+  color: var(--color-gray-700);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-cancel:hover {
+  background: var(--color-gray-50);
+}
+
+.btn-confirm-danger {
+  padding: 0.5rem 1rem;
+  background: #DC2626;
+  color: white;
+  border: none;
+  border-radius: var(--radius-lg);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-confirm-danger:hover {
+  background: #B91C1C;
 }
 </style>

@@ -29,6 +29,7 @@ class InterventionResource extends JsonResource
             'annulee' => 'cancelled',
             'annulée' => 'cancelled',
             'annulées' => 'cancelled',
+            'refuse' => 'rejected',
             'refusee' => 'rejected',
             'refusée' => 'rejected',
             'refusées' => 'rejected',

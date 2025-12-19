@@ -641,14 +641,22 @@ export default {
     formatCriteriaName(criteria) {
       const names = {
         'communication': 'Communication',
+        'communication_client': 'Communication',
+        'précision_des_instructions': 'Instructions',
+        'disponibilité': 'Disponibilité',
+        'respect_du_planning': 'Planning',
+        'clarté_des_besoins': 'Clarté des besoins',
         'ponctualité': 'Ponctualité',
         'préparation_du_jardin': 'Préparation du jardin',
         'respect_et_courtoisie': 'Respect et courtoisie',
         'paiement': 'Paiement',
         'qualité_du_travail': 'Qualité du travail',
-        'professionnalisme': 'Professionnalisme'
+        'professionnalisme': 'Professionnalisme',
+        'propreté': 'Propreté',
+        'rapport_qualité/prix': 'Qualité/Prix'
       };
-      return names[criteria] || criteria;
+      const formatted = criteria.toLowerCase().replace(/ /g, '_');
+      return names[formatted] || criteria;
     }
   }
 };

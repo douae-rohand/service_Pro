@@ -153,7 +153,7 @@
                 <span v-else-if="selectedTab === 'accepted'" class="status-badge status-accepted">
                   Confirmée
                 </span>
-                <span v-else-if="selectedTab === 'refused'" class="status-badge status-refused">
+                <span v-else-if="selectedTab === 'rejected'" class="status-badge status-refused">
                   Refusée
                 </span>
               </div>
@@ -386,13 +386,13 @@ const filteredReservations = computed(() => {
 const pendingCount = computed(() => reservations.value.filter(r => r.status === 'pending').length)
 const acceptedCount = computed(() => reservations.value.filter(r => r.status === 'accepted').length)
 const completedCount = computed(() => reservations.value.filter(r => r.status === 'completed').length)
-const refusedCount = computed(() => reservations.value.filter(r => r.status === 'refused').length)
+const refusedCount = computed(() => reservations.value.filter(r => r.status === 'rejected').length)
 
 const tabs = computed(() => [
   { id: 'pending', label: 'En Attente', color: '#E8793F', count: pendingCount.value },
   { id: 'accepted', label: 'Acceptées', color: '#92B08B', count: acceptedCount.value },
   { id: 'completed', label: 'Complétées', color: '#4682B4', count: completedCount.value },
-  { id: 'refused', label: 'Refusées', color: '#EF4444', count: refusedCount.value },
+  { id: 'rejected', label: 'Refusées', color: '#EF4444', count: refusedCount.value },
 ])
 
 const formatDate = (dateStr) => {
@@ -405,7 +405,7 @@ const formatDate = (dateStr) => {
 }
 
 const calculateTotal = (reservation) => {
-  const hours = parseInt(reservation.duration)
+  const hours = reservation.duration_hours || 0
   return reservation.hourlyRate * hours
 }
 

@@ -4,9 +4,12 @@
       <!-- Header -->
       <div class="bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50 transition-all duration-300">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <h1 class="text-3xl md:text-4xl font-bold tracking-tight mb-6" :style="{ color: currentServiceColor }">
-            Trouver des intervenants
-          </h1>
+          <!-- Title Section -->
+          <div class="mb-6">
+            <h1 class="text-3xl md:text-4xl font-bold tracking-tight" :style="{ color: currentServiceColor }">
+              Trouver des intervenants
+            </h1>
+          </div>
 
           <!-- Search inputs -->
           <div class="grid md:grid-cols-3 gap-4">
@@ -51,9 +54,9 @@
 
       <!-- Main Content with Sidebar -->
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div class="flex flex-col lg:flex-row gap-8">
+        <div class="grid grid-cols-1 md:grid-cols-[288px_1fr] lg:grid-cols-[320px_1fr] gap-8 items-start">
           <!-- Left Sidebar - Filters -->
-          <aside class="lg:w-80 flex-shrink-0">
+          <aside class="flex-shrink-0">
             <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sticky top-32">
               <!-- Header -->
               <div class="flex items-center justify-between mb-6">
@@ -168,7 +171,7 @@
           </aside>
 
           <!-- Right Content - Results -->
-          <main class="flex-1">
+          <main class="flex-1 min-w-0">
             <!-- Loading State -->
             <div v-if="loading" class="text-center py-12">
               <div class="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto" :style="{ borderColor: currentServiceColor }"></div>
@@ -229,7 +232,7 @@
               </div>
 
               <!-- Intervenants Grid -->
-              <div class="grid md:grid-cols-2 gap-6">
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div
                   v-for="intervenant in sortedIntervenants"
                   :key="intervenant.id"
@@ -315,14 +318,6 @@
                           Voir le profil
                         </button>
                         <button
-                          @click.stop="addToFavorites(intervenant)"
-                          class="px-4 h-12 rounded-xl border-2 transition-all hover:bg-red-50 flex items-center justify-center"
-                          :style="{ borderColor: currentServiceColor, color: currentServiceColor }"
-                          title="Ajouter aux favoris"
-                        >
-                          <Heart :size="18" />
-                        </button>
-                        <button
                           @click.stop="openBookingModal(intervenant)"
                           class="px-4 h-12 rounded-xl border-2 transition-all hover:bg-green-50 flex items-center justify-center"
                           :style="{ borderColor: '#609B41', color: '#609B41' }"
@@ -350,7 +345,7 @@
               </div>
 
               <!-- Pagination Controls -->
-              <div v-if="pagination.total > 0 && pagination.last_page > 1" class="flex justify-center mt-12 gap-2">
+              <div v-if="pagination.last_page > 1" class="flex justify-center mt-12 gap-2">
                 <button
                   @click="prevPage"
                   :disabled="pagination.current_page === 1"
@@ -360,7 +355,7 @@
                 </button>
                 
                 <button
-                  v-for="page in visiblePages"
+                  v-for="page in pagination.last_page"
                   :key="page"
                   @click="goToPage(page)"
                   class="w-10 h-10 rounded-lg border transition-colors flex items-center justify-center font-medium"
@@ -518,31 +513,10 @@ export default {
     },
     
     filteredIntervenants() {
-      return this.intervenants.filter(intervenant => {
-        // Price filter
-        const price = this.getIntervenantPrice(intervenant);
-        if (price < this.priceRange[0] || price > this.priceRange[1]) {
-          return false;
-        }
-        
-        // Rating filter
-        if (this.minRating !== 'all' && typeof this.minRating === 'number') {
-          const rating = parseFloat(this.getIntervenantRating(intervenant));
-          if (rating < this.minRating) {
-            return false;
-          }
-        }
-        
-        // Multiple services filter
-        if (this.selectedServices.length > 0) {
-          const intervenantServiceIds = this.getIntervenantServiceIds(intervenant);
-          if (!this.selectedServices.some(serviceId => intervenantServiceIds.includes(serviceId))) {
-            return false;
-          }
-        }
-        
-        return true;
-      });
+      // Return all intervenants from the API. 
+      // Filtering is already handled by the backend request in loadIntervenants().
+      // Client-side filtering here was causing issues (e.g., hidden intervenants due to priceRange default).
+      return this.intervenants;
     },
     
     sortedIntervenants() {
@@ -567,21 +541,6 @@ export default {
         default:
           return sorted;
       }
-    },
-    
-    visiblePages() {
-      const current = this.pagination.current_page;
-      const last = this.pagination.last_page;
-      const delta = 2;
-      const range = [];
-      
-      for (let i = 1; i <= last; i++) {
-        if (i === 1 || i === last || (i >= current - delta && i <= current + delta)) {
-          range.push(i);
-        }
-      }
-      
-      return range;
     }
   },
   async mounted() {
@@ -600,7 +559,7 @@ export default {
       try {
         // Charger les services
         const servicesResponse = await serviceService.getAll();
-        this.services = servicesResponse.data || [];
+        this.services = servicesResponse.data?.data ?? servicesResponse.data ?? [];
         
         // Charger les intervenants
         await this.loadIntervenants(1);
@@ -944,19 +903,25 @@ export default {
     },
     
     getSelectedServiceName() {
+      let serviceName = 'jardinage'; // Default fallback
+      
       if (this.serviceFilter !== 'all' && this.serviceFilter) {
         const selected = this.services.find(s => s.id == this.serviceFilter);
-        if (selected) return selected.nom_service.toLowerCase();
+        if (selected) serviceName = selected.nom_service.toLowerCase();
+      } else {
+        const intervenant = this.intervenants.find(iv => iv.id === this.selectedIntervenantId);
+        if (intervenant && intervenant.taches && intervenant.taches.length > 0) {
+          const tache = intervenant.taches[0];
+          const service = tache.service || this.services.find(s => s.id === (tache.service_id || tache.pivot?.service_id));
+          if (service) serviceName = service.nom_service.toLowerCase();
+        }
       }
       
-      const intervenant = this.intervenants.find(iv => iv.id === this.selectedIntervenantId);
-      if (intervenant && intervenant.taches && intervenant.taches.length > 0) {
-        const tache = intervenant.taches[0];
-        const service = tache.service || this.services.find(s => s.id === (tache.service_id || tache.pivot?.service_id));
-        if (service) return service.nom_service.toLowerCase();
-      }
+      // Simplifier pour le validateur du composant profile (pas d'accents)
+      if (serviceName.includes('jardin')) return 'jardinage';
+      if (serviceName.includes('ménage') || serviceName.includes('menage')) return 'menage';
       
-      return 'jardinage'; // Default fallback
+      return 'jardinage';
     },
     
     showToastMessage(message, type = 'success') {

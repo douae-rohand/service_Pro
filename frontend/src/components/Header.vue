@@ -103,16 +103,11 @@
           <a
             href="#"
             @click.prevent="handleSignupClick"
-            class="px-2 py-2 transition-all duration-300 font-medium relative group"
-            :class="{
-              'text-[#4682B4]': isSignupModalOpen,
-              'text-gray-700 hover:text-[#4682B4]': !isSignupModalOpen
-            }"
+            class="px-2 py-2 transition-all duration-300 font-medium relative group text-gray-700 hover:text-[#4682B4]"
           >
             Devenir un intervenant
             <span 
-              class="absolute bottom-0 left-0 h-0.5 bg-[#4682B4] transition-all duration-300"
-              :class="isSignupModalOpen ? 'w-full' : 'w-0 group-hover:w-full'"
+              class="absolute bottom-0 left-0 h-0.5 bg-[#4682B4] transition-all duration-300 w-0 group-hover:w-full"
             ></span>
           </a>
         </nav>
@@ -248,9 +243,7 @@ const activeLink = ref('home')
 
 const handleLogoClick = () => {
   // Rediriger vers la landing page (home)
-  if (props.onNavigateHome) {
-    props.onNavigateHome()
-  }
+  emit('navigate-home')
   activeLink.value = 'home'
   isMenuOpen.value = false
 }
@@ -265,8 +258,8 @@ const handleNavClick = (link) => {
   isMenuOpen.value = false
   
   // Si on clique sur Accueil, rediriger vers home
-  if (link === 'home' && props.onNavigateHome) {
-    props.onNavigateHome()
+  if (link === 'home') {
+    emit('navigate-home')
   }
 }
 

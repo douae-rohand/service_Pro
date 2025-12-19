@@ -73,13 +73,18 @@ class StatsController extends Controller
                 ->orderBy('updated_at', 'desc')
                 ->get();
 
+            // Filter interventions to only include those with public ratings
+            $publicInterventions = $interventions->filter(function ($intervention) {
+                return $intervention->areRatingsPublic();
+            });
+
             // Calculate statistics
             $totalReviews = 0;
             $totalRating = 0;
             $ratings = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0];
             $reviews = [];
 
-            foreach ($interventions as $intervention) {
+            foreach ($publicInterventions as $intervention) {
                 // Get evaluations for this intervention
                 $evaluations = $intervention->evaluations->where('type_auteur', 'client');
 
@@ -139,12 +144,12 @@ class StatsController extends Controller
             // Calculate average rating
             $averageRating = $totalReviews > 0 ? round($totalRating / $totalReviews, 1) : 0;
 
-            // Calculate response rate (intervenant comments / total client comments)
-            $clientComments = $interventions->sum(function ($intervention) {
+            // Calculate response rate (intervenant comments / total client comments) - only for public interventions
+            $clientComments = $publicInterventions->sum(function ($intervention) {
                 return $intervention->commentaires->where('type_auteur', 'client')->count();
             });
 
-            $intervenantComments = $interventions->sum(function ($intervention) {
+            $intervenantComments = $publicInterventions->sum(function ($intervention) {
                 return $intervention->commentaires->where('type_auteur', 'intervenant')->count();
             });
 
@@ -159,12 +164,12 @@ class StatsController extends Controller
                 return strtotime($b['date']) - strtotime($a['date']);
             });
 
-            // Calculate completed missions count
-            $completedMissions = $interventions->count();
+            // Calculate completed missions count (only public ones)
+            $completedMissions = $publicInterventions->count();
 
-            // Calculate total revenue from completed interventions
+            // Calculate total revenue from completed interventions (only public ones)
             $totalAmount = 0;
-            foreach ($interventions as $intervention) {
+            foreach ($publicInterventions as $intervention) {
                 if ($intervention->facture && $intervention->facture->ttc !== null) {
                     $totalAmount += (float) $intervention->facture->ttc;
                 }

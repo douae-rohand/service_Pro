@@ -133,6 +133,7 @@
             </button>
           </div>
         </div>
+      
 
       <!-- Tabs Navigation -->
       <div class="bg-white rounded-3xl shadow-lg mb-8 overflow-hidden">
@@ -336,6 +337,7 @@
               </div>
             </div>
           
+          </div>
         </div>
       </div>
 

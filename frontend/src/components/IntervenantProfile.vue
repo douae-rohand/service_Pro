@@ -528,7 +528,7 @@ export default {
       }
 
       reviews.forEach(review => {
-        let rating = Math.round(Number(review.rating));
+        let rating = Math.floor(Number(review.rating));
         if (rating < 1) rating = 1;
         if (rating > 5) rating = 5;
         

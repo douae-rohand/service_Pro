@@ -73,13 +73,18 @@ class StatsController extends Controller
                 ->orderBy('updated_at', 'desc')
                 ->get();
 
+            // Filter interventions to only include those with public ratings
+            $publicInterventions = $interventions->filter(function ($intervention) {
+                return $intervention->areRatingsPublic();
+            });
+
             // Calculate statistics
             $totalReviews = 0;
             $totalRating = 0;
             $ratings = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0];
             $reviews = [];
 
-            foreach ($interventions as $intervention) {
+            foreach ($publicInterventions as $intervention) {
                 // Get evaluations for this intervention
                 $evaluations = $intervention->evaluations->where('type_auteur', 'client');
 
@@ -110,24 +115,28 @@ class StatsController extends Controller
                     $user = $client ? $client->utilisateur : null;
 
                     // Build details array
-                    $details = $evaluations->map(function ($eval) {
-                        return [
-                            'criteria' => $eval->critaire ? $eval->critaire->nom_critaire : 'Critère',
+                    $clientEvaluations = $evaluations; // Re-use the filtered validations
+                    $criteriaDetails = [];
+
+                    foreach ($clientEvaluations as $eval) {
+                        $criteriaDetails[] = [
+                            'criteriaName' => $eval->critaire ? $eval->critaire->nom_critaire : 'Critère',
                             'rating' => $eval->note
                         ];
-                    })->values();
+                    }
 
                     $reviews[] = [
-                        'id' => $intervention->id, // Use intervention ID to avoid duplicates
+                        'id' => $intervention->id,
+                        'intervention_id' => $intervention->id, // Explicit ID for complaints
                         'clientName' => $user ? ($user->prenom . ' ' . $user->nom) : 'Client Anonyme',
-                        'clientImage' => null, // TODO: Add client image if available
+                        'clientImage' => $user && $user->profile_photo ? url('storage/' . $user->profile_photo) : null,
                         'rating' => $interventionAvgRating,
-                        'date' => $intervention->updated_at, // Use intervention date
+                        'date' => $intervention->updated_at,
                         'service' => $intervention->tache ? $intervention->tache->nom_tache : 'Service',
                         'mainService' => $intervention->tache && $intervention->tache->service ? $intervention->tache->service->nom_service : 'Service',
                         'location' => $intervention->address ? ($intervention->address . ($intervention->ville ? ', ' . $intervention->ville : '')) : 'Lieu non spécifié',
                         'comment' => $comment ? $comment->commentaire : '',
-                        'details' => $details
+                        'details' => $criteriaDetails
                     ];
                 }
             }
@@ -135,12 +144,12 @@ class StatsController extends Controller
             // Calculate average rating
             $averageRating = $totalReviews > 0 ? round($totalRating / $totalReviews, 1) : 0;
 
-            // Calculate response rate (intervenant comments / total client comments)
-            $clientComments = $interventions->sum(function ($intervention) {
+            // Calculate response rate (intervenant comments / total client comments) - only for public interventions
+            $clientComments = $publicInterventions->sum(function ($intervention) {
                 return $intervention->commentaires->where('type_auteur', 'client')->count();
             });
 
-            $intervenantComments = $interventions->sum(function ($intervention) {
+            $intervenantComments = $publicInterventions->sum(function ($intervention) {
                 return $intervention->commentaires->where('type_auteur', 'intervenant')->count();
             });
 
@@ -155,12 +164,12 @@ class StatsController extends Controller
                 return strtotime($b['date']) - strtotime($a['date']);
             });
 
-            // Calculate completed missions count
-            $completedMissions = $interventions->count();
+            // Calculate completed missions count (only public ones)
+            $completedMissions = $publicInterventions->count();
 
-            // Calculate total revenue from completed interventions
+            // Calculate total revenue from completed interventions (only public ones)
             $totalAmount = 0;
-            foreach ($interventions as $intervention) {
+            foreach ($publicInterventions as $intervention) {
                 if ($intervention->facture && $intervention->facture->ttc !== null) {
                     $totalAmount += (float) $intervention->facture->ttc;
                 }

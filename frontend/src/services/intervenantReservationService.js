@@ -49,6 +49,13 @@ const reservationService = {
    */
   getReservation(reservationId) {
     return api.get(`reservations/${reservationId}`).then(res => res.data);
+  },
+
+  /**
+   * Générer la facture pour une réservation
+   */
+  generateInvoice(reservationId) {
+    return api.post(`intervenants/me/reservations/${reservationId}/invoice`).then(res => res.data);
   }
 };
 

@@ -105,7 +105,7 @@
                   </button>
                   <button @click="refuseReservation(reservation.id)" class="refuse-btn">
                     <X :size="18" />
-                    Refuser
+                    Reyyfuser
                   </button>
                 </div>
 
@@ -337,23 +337,6 @@
       @close="closeInterventionDetails"
     />
 
-    <!-- Refusal Confirmation Modal -->
-    <div v-if="showRefuseModal" class="modal-overlay" @click="closeRefuseModal">
-      <div class="confirmation-modal-content" @click.stop>
-        <div class="modal-header warning-header">
-           <AlertTriangle :size="32" class="warning-icon" />
-           <h2>Refuser cette réservation ?</h2>
-        </div>
-        <div class="modal-body-text">
-           <p>Cette action est irréversible. Le client sera notifié de votre refus.</p>
-        </div>
-        <div class="modal-footer">
-           <button @click="closeRefuseModal" class="btn-cancel">Annuler</button>
-           <button @click="confirmRefusal" class="btn-confirm-danger">Refuser définitivement</button>
-        </div>
-      </div>
-    </div>
-
     <!-- Small Mail Notification -->
     <Transition name="fade-slide">
       <div v-if="notification" class="mail-notification">
@@ -508,6 +491,20 @@ const fetchReservations = async (silent = false) => {
   }
 }
 
+const generateInvoice = async (id) => {
+  try {
+    const data = await reservationService.generateInvoice(id)
+    if (data.url) {
+      window.open(data.url, '_blank')
+    } else {
+      alert('Erreur: URL de facture manquante')
+    }
+  } catch (err) {
+    alert(err.message || 'Erreur lors de la génération de la facture')
+    console.error(err)
+  }
+}
+
 const acceptReservation = async (id) => {
   try {
     const response = await api.post(`intervenants/me/reservations/${id}/accept`)
@@ -528,6 +525,23 @@ const acceptReservation = async (id) => {
   } catch (err) {
     alert(err.message || 'Erreur lors de l\'acceptation de la réservation')
     console.error(err)
+  }
+}
+
+const refuseReservation = async (id) => {
+  if (confirm('Êtes-vous sûr de vouloir refuser cette réservation ?')) {
+    try {
+      await reservationService.refuseReservation(id)
+      
+      // Optimistic Update: Update status locally without refresh
+      const index = reservations.value.findIndex(r => r.id === id)
+      if (index !== -1) {
+        reservations.value[index].status = 'refused'
+      }
+    } catch (err) {
+      alert(err.message || 'Erreur lors du refus de la réservation')
+      console.error(err)
+    }
   }
 }
 
@@ -1544,5 +1558,31 @@ onUnmounted(() => {
 
 .btn-confirm-danger:hover {
   background: #B91C1C;
+}
+.invoice-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: white;
+  border: 1px solid #E5E7EB;
+  color: #4B5563;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.invoice-btn:hover {
+  background: #F9FAFB;
+  border-color: #D1D5DB;
+  color: #111827;
+}
+
+.accepted-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 </style>

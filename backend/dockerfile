@@ -1,4 +1,4 @@
-FROM php:8.2-fpm
+FROM php:8.4-fpm
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -26,8 +26,8 @@ WORKDIR /var/www
 COPY composer.json composer.lock ./
 
 # Install project dependencies
-RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-scripts
-
+# Remplace la ligne 29 par celle-ci :
+RUN COMPOSER_MEMORY_LIMIT=-1 composer install --no-interaction --prefer-dist --optimize-autoloader --no-scripts
 # Copy the rest of the application code
 COPY . .
 

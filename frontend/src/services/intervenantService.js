@@ -63,7 +63,9 @@ const intervenantService = {
   async getIntervenantByTask(taskId) {
     try {
       const res = await api.get(`taches/${taskId}/intervenants`);
-      // Backend returns { status: 'success', data: [...] }
+      // Backend returns: {status: 'success', data: [...], meta: {...}}
+      // So we need to access res.data.data (the data key from the response)
+      const intervenantsArray = res.data?.data || res.data?.intervenants || [];
       return {
         data: res.data?.data ?? res.data?.intervenants ?? res.data ?? [],
         rawResponse: res.data

@@ -176,4 +176,27 @@ class ServiceController extends Controller
             'data' => $taches
         ]);
     }
+
+    /**
+     * Get information fields for a specific service
+     */
+    public function getInformation($id)
+    {
+        try {
+            $service = Service::with('informations')->findOrFail($id);
+            
+            return response()->json([
+                'status' => 'success',
+                'data' => $service->informations
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error getting service information: ' . $e->getMessage());
+            
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Erreur lors de la récupération des informations',
+                'error' => config('app.debug') ? $e->getMessage() : null
+            ], 500);
+        }
+    }
 }

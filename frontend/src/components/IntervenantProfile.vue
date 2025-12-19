@@ -113,16 +113,25 @@
           </div>
         </div>
 
-        <!-- Favorite Button at Bottom Left -->
-        <div class="mt-6">
-          <button
-            @click="handleFavoriteClick"
-            class="flex items-center gap-2 text-sm font-semibold transition-all"
-            :style="{ color: primaryColor }"
-          >
-            <HeartIcon :size="18" :class="{ 'fill-current': isFavorite }" />
-            <span>{{ isFavorite ? 'Retiré des favoris' : 'Ajouter' }}</span>
-          </button>
+          <!-- Action Buttons -->
+          <div class="flex gap-3">
+            <button
+              @click="handleFavoriteClick"
+              class="px-5 py-2.5 rounded-lg border-2 transition-all flex items-center gap-2"
+              :style="{ borderColor: primaryColor, color: primaryColor }"
+            >
+              <HeartIcon :size="18" :class="{ 'fill-current': isFavorite }" />
+              Ajouter aux favoris
+            </button>
+            <button
+              @click="showReclamationModal = true"
+              class="px-5 py-2.5 rounded-lg border-2 transition-all flex items-center gap-2"
+              style="borderColor: #e74c3c; color: #e74c3c"
+            >
+              <AlertTriangle :size="18" />
+              Signaler
+            </button>
+          </div>
         </div>
       </div>
 
@@ -386,6 +395,14 @@
         class="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
       />
     </div>
+
+    <!-- Reclamation Modal -->
+    <CreateReclamationModal
+      :show="showReclamationModal"
+      :preselected-intervenant-id="intervenant.id"
+      @close="showReclamationModal = false"
+      @success="handleReclamationSuccess"
+    />
   </div>
 </template>
 
@@ -398,10 +415,12 @@ import {
   CheckCircle as CheckCircleIcon, 
   Clock as ClockIcon,
   Camera as CameraIcon, 
-  X as XIcon 
+  X as XIcon,
+  AlertTriangle
 } from 'lucide-vue-next';
 import ImageWithFallback from './figma/ImageWithFallback.vue';
 import BookingModal from './BookingModal.vue';
+import CreateReclamationModal from './client/CreateReclamationModal.vue';
 import intervenantService from '../services/intervenantService';
 import authService from '../services/authService';
 import { formatExperience } from '@/utils/experienceFormatter';
@@ -417,8 +436,10 @@ export default {
     ClockIcon,
     CameraIcon,
     XIcon,
+    AlertTriangle,
     ImageWithFallback,
-    BookingModal
+    BookingModal,
+    CreateReclamationModal
   },
   props: {
     intervenantId: {
@@ -451,6 +472,7 @@ export default {
       selectedServiceForBooking: null,
       selectedTaskForBooking: null,
       hoverBackButton: false,
+      showReclamationModal: false,
       tabs: [
         { id: 'apropos', label: 'À propos' },
         { id: 'services', label: 'Taches' },
@@ -741,6 +763,10 @@ export default {
     },
     handleBookingSuccess() {
       this.showBookingModal = false;
+    },
+    handleReclamationSuccess() {
+      this.showReclamationModal = false;
+      // Optionally show a success message or refresh data
     },
     formatExperience
   }

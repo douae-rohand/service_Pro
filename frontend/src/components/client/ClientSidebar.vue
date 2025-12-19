@@ -63,7 +63,8 @@ import {
   Users,
   FileText,
   Heart,
-  Star
+  Star,
+  AlertTriangle
 } from 'lucide-vue-next';
 
 export default {
@@ -74,7 +75,8 @@ export default {
     Users,
     FileText,
     Heart,
-    Star
+    Star,
+    AlertTriangle
   },
   props: {
     activeTab: {
@@ -95,6 +97,7 @@ export default {
         { id: 'intervenants', label: 'Trouver Intervenants', icon: 'Users' },
         { id: 'demands', label: 'Mes Demandes', icon: 'FileText' },
         { id: 'favorites', label: 'Mes Favoris', icon: 'Heart' },
+        { id: 'reclamations', label: 'Mes Réclamations', icon: 'AlertTriangle' },
         { id: 'profile', label: 'Mon Profil', icon: 'Star' }
       ]
     };

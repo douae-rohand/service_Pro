@@ -202,6 +202,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('clients/{id}/favorites', [\App\Http\Controllers\Api\Client\FavorisController::class, 'toggle']);
     Route::get('clients/{id}/favorites/check', [\App\Http\Controllers\Api\Client\FavorisController::class, 'checkStatus']);
 
+    // Client Reclamations
+    Route::get('clients/me/reclamations', [\App\Http\Controllers\Api\Client\ClientReclamationController::class, 'index']);
+    Route::post('clients/me/reclamations', [\App\Http\Controllers\Api\Client\ClientReclamationController::class, 'store']);
+    Route::get('clients/me/reclamations/{id}', [\App\Http\Controllers\Api\Client\ClientReclamationController::class, 'show']);
+
     // ======================
     // Routes Admin
     // ======================

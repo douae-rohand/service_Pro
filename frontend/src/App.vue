@@ -90,18 +90,9 @@
       <!-- Client Profile Page -->
       <div v-else-if="currentPage === 'client-profile'" class="min-h-screen bg-gray-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <ClientProfile
-            :client-id="currentUser?.client?.id || currentUser?.id"
-            :user="{
-              name: currentUser?.name || '',
-              email: currentUser?.email || '',
-              phone: currentUser?.phone || '',
-              location: currentUser?.quartier || '',
-              avatar: currentUser?.avatar || '',
-              memberSince: memberSince
-            }"
-            @profile-updated="handleProfileUpdate"
-          />
+        <ClientProfile
+          @profile-updated="handleProfileUpdate"
+        />
         </div>
       </div>
 

@@ -2,13 +2,10 @@
   <div class="max-w-7xl mx-auto">
     <!-- Header Section -->
     <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-      <h2 class="text-3xl font-bold mb-2" style="color: #2f4f4f">Mes Favoris</h2>
       <div class="flex items-center justify-between">
-        <p class="text-gray-600">
-          Retrouvez rapidement vos intervenants préférés pour vos prochains services
-        </p>
-        <div class="bg-green-50 border-2 rounded-lg px-4 py-2" style="border-color: #92b08b">
-          <span class="font-bold" style="color: #2f4f4f">{{ favorites.length }} Favoris</span>
+        <h2 class="text-3xl font-bold" style="color: #2f4f4f">Mes Favoris</h2>
+        <div class="bg-blue-50 border-2 rounded-lg px-4 py-2" style="border-color: #4682B4">
+          <span class="font-bold" style="color: #4682B4">{{ favorites.length }} Favoris</span>
         </div>
       </div>
     </div>
@@ -37,38 +34,41 @@
     </div>
 
     <!-- Favorites Grid -->
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <div
         v-for="favorite in favorites"
         :key="`${favorite.id}-${favorite.service_id}`"
-        class="bg-white rounded-lg shadow-md p-6 border-2 hover:shadow-lg transition-all relative"
-        style="border-color: #92b08b"
+        class="bg-white rounded-xl shadow-md p-6 border-2 hover:shadow-xl transition-all duration-300 relative transform hover:-translate-y-1"
+        style="border-color: #4682B4"
       >
         <!-- Favorite Icon -->
         <button
           @click="removeFavorite(favorite)"
-          class="absolute top-4 right-4 text-orange-500 hover:text-red-500 transition-colors"
+          class="absolute top-4 right-4 text-red-400 hover:text-red-600 transition-colors p-2 hover:bg-red-50 rounded-full"
+          title="Retirer des favoris"
         >
-          <Heart :size="24" :fill="'currentColor'" />
+          <Heart :size="22" :fill="'currentColor'" />
         </button>
 
         <!-- Intervenant Info -->
-        <div class="flex items-start gap-4 mb-4">
-          <img
-            :src="favorite.image"
-            :alt="favorite.name"
-            @error="handleImageError"
-            class="w-20 h-20 rounded-full object-cover border-2"
-            style="border-color: #92b08b"
-          />
-          <div class="flex-1">
-            <h3 class="text-xl font-bold mb-1" style="color: #2f4f4f">{{ favorite.name }}</h3>
+        <div class="flex items-start gap-4 mb-5">
+          <div class="relative">
+            <img
+              :src="favorite.image"
+              :alt="favorite.name"
+              @error="handleImageError"
+              class="w-24 h-24 rounded-full object-cover border-3 shadow-md"
+              style="border-color: #4682B4"
+            />
+          </div>
+          <div class="flex-1 pt-1">
+            <h3 class="text-xl font-bold mb-2" style="color: #2f4f4f">{{ favorite.name }}</h3>
             <div class="flex items-center gap-2 mb-2">
-              <Star :size="16" fill="#FEE347" color="#FEE347" />
-              <span class="font-semibold">{{ favorite.averageRating || 'N/A' }}</span>
+              <Star :size="18" fill="#FEE347" color="#FEE347" />
+              <span class="font-semibold text-gray-800">{{ favorite.averageRating || 'N/A' }}</span>
               <span class="text-gray-500 text-sm">({{ favorite.totalReviews }} avis)</span>
             </div>
-            <div class="flex items-center gap-1 text-gray-600">
+            <div class="flex items-center gap-1 text-gray-600 text-sm">
               <MapPin :size="14" />
               <span>{{ favorite.location }}</span>
             </div>
@@ -76,75 +76,42 @@
         </div>
 
         <!-- Service Tags -->
-        <div class="flex flex-wrap gap-2 mb-4">
+        <div class="flex flex-wrap gap-2 mb-5">
           <span
             v-for="service in favorite.services"
             :key="service"
-            class="px-3 py-1 rounded-full text-sm"
+            class="px-3 py-1.5 rounded-full text-sm font-medium shadow-sm"
             :class="getServiceColor(service)"
           >
             {{ service }}
           </span>
-          <span
-            class="px-3 py-1 rounded-full text-sm bg-green-100 text-green-700"
-          >
-            Disponible
-          </span>
         </div>
 
         <!-- Statistics -->
-        <div class="grid grid-cols-2 gap-4 mb-4 text-sm">
-          <div>
-            <span class="text-gray-600">Services avec vous:</span>
-            <span class="ml-2 px-2 py-1 rounded bg-green-100 text-green-700 font-semibold">
-              {{ favorite.servicesWithClient }}
-            </span>
-          </div>
-          <div>
-            <span class="text-gray-600">Total missions:</span>
-            <span class="ml-2 font-semibold">{{ favorite.totalMissions }}</span>
-          </div>
-          <div>
-            <span class="text-gray-600">Dernier service:</span>
-            <span class="ml-2 font-semibold">
-              {{ favorite.lastServiceDate ? formatDate(favorite.lastServiceDate) : 'N/A' }}
-            </span>
-          </div>
-          <div>
-            <span class="text-gray-600">Tarif:</span>
-            <span class="ml-2 px-2 py-1 rounded bg-blue-100 text-blue-700 font-semibold">
-              {{ favorite.hourlyRate ? `${favorite.hourlyRate} DH/h` : 'N/A' }}
-            </span>
+        <div class="bg-blue-50 rounded-lg p-4 mb-5" style="background-color: #E8F4FD">
+          <div class="grid grid-cols-2 gap-3 text-sm">
+            <div class="flex flex-col">
+              <span class="text-gray-600 text-xs mb-1">Services avec vous</span>
+              <span class="text-lg font-bold" style="color: #4682B4">
+                {{ favorite.servicesWithClient }}
+              </span>
+            </div>
+            <div class="flex flex-col">
+              <span class="text-gray-600 text-xs mb-1">Total missions</span>
+              <span class="text-lg font-bold text-gray-800">{{ favorite.totalMissions }}</span>
+            </div>
           </div>
         </div>
 
         <!-- Book Button -->
         <button
           @click="openBookingModal(favorite)"
-          class="w-full py-3 rounded-lg text-white font-semibold hover:shadow-md transition-all flex items-center justify-center gap-2"
-          style="background-color: #92b08b"
+          class="w-full py-3 rounded-lg text-white font-semibold hover:shadow-lg transition-all flex items-center justify-center gap-2 hover:opacity-90 transform hover:scale-[1.02]"
+          style="background-color: #4682B4"
         >
           <Calendar :size="20" />
           Réserver maintenant
         </button>
-      </div>
-    </div>
-
-    <!-- Tip Box -->
-    <div class="bg-green-50 border-l-4 rounded-lg p-6 mb-6" style="border-color: #92b08b">
-      <div class="flex items-start gap-3">
-        <div class="bg-yellow-100 rounded-full p-2">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-yellow-600">
-            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-          </svg>
-        </div>
-        <div class="flex-1">
-          <h4 class="font-bold mb-2" style="color: #1a5fa3">Astuce</h4>
-          <p class="text-gray-700">
-            Vos intervenants favoris sont notifiés en priorité de vos nouvelles demandes de service. 
-            Ils peuvent vous accorder des tarifs préférentiels et une meilleure disponibilité !
-          </p>
-        </div>
       </div>
     </div>
 
@@ -267,11 +234,11 @@ export default {
     getServiceColor(service) {
       const colors = {
         'Jardinage': 'bg-green-100 text-green-700',
-        'Ménage': 'bg-orange-100 text-orange-700',
+        'Ménage': 'bg-blue-100 text-blue-700',
         'Plomberie': 'bg-blue-100 text-blue-700',
-        'Électricité': 'bg-yellow-100 text-yellow-700',
+        'Électricité': 'bg-blue-100 text-blue-700',
       };
-      return colors[service] || 'bg-gray-100 text-gray-700';
+      return colors[service] || 'bg-blue-100 text-blue-700';
     },
     formatDate(dateString) {
       if (!dateString) return 'N/A';

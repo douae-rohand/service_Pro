@@ -9,8 +9,9 @@
         <!-- Profile Picture -->
         <div class="relative">
           <img
-            :src="previewImage || user.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.name) + '&background=4682B4&color=fff'"
-            :alt="user.name"
+            v-if="currentUser"
+            :src="previewImage || currentUser.avatar || currentUser.profilePhoto || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser.name) + '&background=4682B4&color=fff'"
+            :alt="currentUser.name"
             class="w-32 h-32 rounded-full object-cover border-4"
             style="border-color: #92b08b"
           />
@@ -35,54 +36,32 @@
 
         <!-- User Info -->
         <div class="flex-1">
-          <h2 class="text-2xl font-bold mb-4" style="color: #2f4f4f">{{ user.name }}</h2>
-          <div class="space-y-2 text-gray-600">
+          <h2 v-if="currentUser" class="text-2xl font-bold mb-4" style="color: #2f4f4f">{{ currentUser.name }}</h2>
+          <div v-if="currentUser" class="space-y-2 text-gray-600">
             <div class="flex items-center gap-2">
               <Mail :size="18" />
-              <span>{{ user.email }}</span>
+              <span>{{ currentUser.email }}</span>
             </div>
             <div class="flex items-center gap-2">
               <Phone :size="18" />
-              <span>{{ user.phone || 'Non renseigné' }}</span>
+              <span>{{ currentUser.phone || 'Non renseigné' }}</span>
             </div>
             <div class="flex items-center gap-2">
               <MapPin :size="18" />
-              <span>{{ user.location || 'Non renseigné' }}</span>
+              <span>{{ currentUser.location || 'Non renseigné' }}</span>
             </div>
             <div class="flex items-center gap-2">
               <Calendar :size="18" />
-              <span>Membre depuis {{ user.memberSince }}</span>
+              <span>Membre depuis {{ currentUser.memberSince }}</span>
             </div>
           </div>
         </div>
 
-        <!-- Statistics Boxes -->
-        <div class="grid grid-cols-2 gap-4">
-          <div class="bg-blue-50 rounded-lg p-4 border-2" style="border-color: #1a5fa3">
-            <p class="text-3xl font-bold mb-1" style="color: #1a5fa3">{{ statistics.averageRating || '0' }}</p>
-            <p class="text-sm text-gray-600">Note Moyenne</p>
-          </div>
-          <div class="bg-green-50 rounded-lg p-4 border-2" style="border-color: #92b08b">
-            <p class="text-3xl font-bold mb-1" style="color: #92b08b">{{ statistics.servicesCount || 0 }}</p>
-            <p class="text-sm text-gray-600">Services</p>
-          </div>
-          <div class="bg-orange-50 rounded-lg p-4 border-2" style="border-color: #E8793F">
-            <p class="text-3xl font-bold mb-1" style="color: #E8793F">{{ statistics.totalDH || 0 }}</p>
-            <p class="text-sm text-gray-600">Total DH</p>
-          </div>
-          <div class="bg-yellow-50 rounded-lg p-4 border-2" style="border-color: #FEE347">
-            <div class="flex items-center gap-2 mb-1">
-              <Heart :size="20" fill="#FF6B9D" color="#FF6B9D" />
-              <p class="text-3xl font-bold" style="color: #E8793F">{{ statistics.favoritesCount || 0 }}</p>
-            </div>
-            <p class="text-sm text-gray-600">Favoris</p>
-          </div>
-        </div>
       </div>
     </div>
 
     <!-- Profile Tabs -->
-    <div class="bg-white rounded-lg shadow-md mb-6">
+    <div v-if="currentUser" class="bg-white rounded-lg shadow-md mb-6">
       <div class="flex border-b border-gray-200 overflow-x-auto">
         <button
           v-for="tab in tabs"
@@ -279,7 +258,7 @@
 
         <!-- Mes Favoris Tab -->
         <div v-if="activeTab === 'favorites'">
-          <MyFavoritesTab :client-id="clientId" />
+          <MyFavoritesTab v-if="clientId" :client-id="clientId" />
         </div>
 
         <!-- Mes Réclamations Tab -->
@@ -334,11 +313,12 @@ export default {
   props: {
     clientId: {
       type: Number,
-      required: true
+      required: false
     },
     user: {
       type: Object,
-      required: true
+      required: false,
+      default: null
     }
   },
   data() {
@@ -351,12 +331,9 @@ export default {
         { id: 'favorites', label: 'Mes Favoris', icon: 'Heart' },
         { id: 'reclamations', label: 'Mes Réclamations', icon: 'AlertTriangle' }
       ],
-      statistics: {
-        averageRating: 0,
-        servicesCount: 0,
-        totalDH: 0,
-        favoritesCount: 0
-      },
+      currentUser: null,
+      loading: false,
+      clientId: null,
       history: [],
       evaluations: [],
       evalStatistics: {
@@ -388,25 +365,68 @@ export default {
       }
     }
   },
-  mounted() {
-    this.loadStatistics();
-    this.loadProfileForm();
+  async mounted() {
+    await this.loadUserData();
+    if (this.clientId) {
+      this.loadHistory();
+      this.loadEvaluations();
+    }
   },
   methods: {
+    async loadUserData() {
+      this.loading = true;
+      try {
+        const response = await authService.getCurrentUser();
+        const userData = response.data;
+        
+        if (!userData) {
+          console.error('No user data received');
+          return;
+        }
+        
+        // Construire l'objet currentUser avec les données de la base de données
+        this.currentUser = {
+          id: userData.id,
+          name: `${userData.prenom || ''} ${userData.nom || ''}`.trim() || userData.email,
+          email: userData.email || '',
+          phone: userData.telephone || '',
+          location: userData.client?.ville || userData.client?.address || userData.address || '',
+          avatar: userData.url || userData.profile_photo || userData.avatar || null,
+          profilePhoto: userData.profile_photo || userData.url || null,
+          memberSince: userData.created_at ? new Date(userData.created_at).getFullYear().toString() : '2023',
+          address: userData.client?.address || userData.address || '',
+          ville: userData.client?.ville || userData.ville || '',
+          nom: userData.nom || '',
+          prenom: userData.prenom || ''
+        };
+        
+        // Définir clientId si disponible
+        if (userData.client?.id) {
+          this.clientId = userData.client.id;
+        } else if (this.clientId) {
+          // Utiliser le prop si disponible
+        } else {
+          this.clientId = userData.id;
+        }
+        
+        // Charger le formulaire avec les données de l'utilisateur
+        this.loadProfileForm();
+        
+      } catch (error) {
+        console.error('Error loading user data:', error);
+        alert('Erreur lors du chargement des données utilisateur');
+      } finally {
+        this.loading = false;
+      }
+    },
     getTabColor(tabId) {
       if (tabId === 'evaluations') return '#E8793F';
       if (tabId === 'reclamations') return '#DC2626';
       return '#1a5fa3';
     },
-    async loadStatistics() {
-      try {
-        const response = await profileService.getStatistics(this.clientId);
-        this.statistics = response.data;
-      } catch (error) {
-        console.error('Error loading statistics:', error);
-      }
-    },
     async loadHistory() {
+      if (!this.clientId) return;
+      
       this.loadingHistory = true;
       try {
         const response = await profileService.getHistory(this.clientId);
@@ -418,6 +438,8 @@ export default {
       }
     },
     async loadEvaluations() {
+      if (!this.clientId) return;
+      
       this.loadingEvaluations = true;
       try {
         const response = await profileService.getEvaluations(this.clientId);
@@ -430,29 +452,54 @@ export default {
       }
     },
     loadProfileForm() {
-      this.profileForm = {
-        name: this.user.name,
-        email: this.user.email,
-        phone: this.user.phone,
-        location: this.user.location
-      };
+      if (this.currentUser) {
+        this.profileForm = {
+          name: this.currentUser.name,
+          email: this.currentUser.email,
+          phone: this.currentUser.phone,
+          location: this.currentUser.location || this.currentUser.ville || ''
+        };
+      }
     },
     async saveProfile() {
       try {
+        // Séparer le nom complet en nom et prénom
+        const nameParts = this.profileForm.name.trim().split(/\s+/);
+        const nom = nameParts.length > 0 ? nameParts[0] : this.currentUser?.nom || '';
+        const prenom = nameParts.length > 1 ? nameParts.slice(1).join(' ') : this.currentUser?.prenom || '';
+        
         const profileData = {
-          nom: String(this.profileForm.name.split(' ')[0] || ''),
-          prenom: String(this.profileForm.name.split(' ').slice(1).join(' ') || ''),
+          nom: nom,
+          prenom: prenom,
           email: String(this.profileForm.email || ''),
           telephone: String(this.profileForm.phone || ''),
-          ville: String(this.profileForm.location || '')
+          ville: String(this.profileForm.location || ''),
+          address: String(this.profileForm.location || '') // Certains systèmes utilisent address au lieu de ville
         };
         
-        await authService.updateProfile(profileData);
+        const response = await authService.updateProfile(profileData);
+        
+        // Mettre à jour currentUser avec les nouvelles données
+        if (response.data?.user) {
+          const updatedUser = response.data.user;
+          this.currentUser.name = `${updatedUser.prenom || ''} ${updatedUser.nom || ''}`.trim();
+          this.currentUser.email = updatedUser.email || '';
+          this.currentUser.phone = updatedUser.telephone || '';
+          this.currentUser.location = updatedUser.client?.ville || updatedUser.client?.address || updatedUser.address || '';
+          this.currentUser.ville = updatedUser.client?.ville || updatedUser.ville || '';
+          this.currentUser.address = updatedUser.client?.address || updatedUser.address || '';
+          this.currentUser.nom = updatedUser.nom || '';
+          this.currentUser.prenom = updatedUser.prenom || '';
+        }
+        
         this.isEditing = false;
+        this.loadProfileForm(); // Recharger le formulaire avec les données mises à jour
         this.$emit('profile-updated');
+        alert('Profil mis à jour avec succès !');
       } catch (error) {
         console.error('Error saving profile:', error);
-        alert('Erreur lors de la sauvegarde');
+        const errorMessage = error.response?.data?.message || error.message || 'Erreur lors de la sauvegarde';
+        alert(errorMessage);
       }
     },
     async handleAvatarChange(event) {
@@ -480,14 +527,25 @@ export default {
       this.uploadingAvatar = true;
       try {
         const response = await authService.updateAvatar(file);
-        this.user.avatar = response.data.url;
+        
+        // Mettre à jour currentUser avec la nouvelle URL de l'avatar
+        if (response.data?.url) {
+          this.currentUser.avatar = response.data.url;
+          this.currentUser.profilePhoto = response.data.url;
+          this.currentUser.url = response.data.url;
+        }
+        
+        // Recharger les données utilisateur depuis la base de données pour être sûr
+        await this.loadUserData();
+        
         this.previewImage = null;
         this.$emit('profile-updated');
         alert('Photo de profil mise à jour avec succès !');
       } catch (error) {
         console.error('Error uploading avatar:', error);
         this.previewImage = null;
-        alert(error.response?.data?.message || 'Erreur lors de l\'upload de la photo');
+        const errorMessage = error.response?.data?.message || error.message || 'Erreur lors de l\'upload de la photo';
+        alert(errorMessage);
       } finally {
         this.uploadingAvatar = false;
         event.target.value = '';

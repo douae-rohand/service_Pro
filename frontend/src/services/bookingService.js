@@ -29,6 +29,15 @@ const bookingService = {
     });
   },
 
+  /**
+   * Récupérer les interventions existantes d'un intervenant pour une date
+   */
+  getIntervenantInterventions(intervenantId, date) {
+    return api.get(`intervenants/${intervenantId}/interventions`, {
+      params: { date }
+    });
+  },
+
   getTaskContraintes(tacheId) {
     return api.get(`taches/${tacheId}/contraintes`);
   },

@@ -169,14 +169,6 @@
               </div>
             </div>
 
-            <!-- Description -->
-            <div class="mb-4 p-3 bg-gray-50 rounded-lg">
-              <p class="text-sm text-gray-700">
-                <FileText :size="14" class="inline mr-2" />
-                {{ demand.description || 'Aucune description' }}
-              </p>
-            </div>
-
             <!-- Intervenant Response -->
             <div v-if="demand.intervenantResponse" class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <p class="text-sm text-gray-700">

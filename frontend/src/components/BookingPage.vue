@@ -198,7 +198,14 @@
                 <div v-for="c in constraints" :key="c.id" class="p-3 border-2 border-gray-200 rounded-lg">
                   <div class="flex items-center justify-between mb-2">
                     <span class="font-medium">{{ c.nom }} ({{ c.unite }})</span>
-                    <span class="text-xs text-gray-600">Seuil: {{ c.seuil }} {{ c.unite }} ≈ 1h</span>
+                    <span class="text-xs text-gray-600">
+                      <template v-if="c.unite === 'm²' || c.unite === 'm2'">
+                        20 {{ c.unite }} ≈ 1h
+                      </template>
+                      <template v-else>
+                        Seuil: {{ c.seuil }} {{ c.unite }} ≈ 1h
+                      </template>
+                    </span>
                   </div>
                   <input
                     v-model.number="constraintsValues[c.id]"
@@ -281,24 +288,6 @@
             <span class="px-3 py-1 rounded-full bg-orange-100 text-orange-700 font-semibold">
               +{{ materialsCost }} DH
             </span>
-          </div>
-        </div>
-
-        <!-- Description -->
-        <div class="bg-white rounded-lg p-6 border-2 border-gray-200">
-          <h4 class="text-lg font-bold mb-4 flex items-center gap-2" style="color: #2f4f4f">
-            <FileText :size="20" class="text-yellow-500" />
-            Description détaillée *
-          </h4>
-          <textarea
-            v-model="bookingData.description"
-            rows="4"
-            placeholder="Décrivez en détail votre besoin, l'état actuel, les spécificités à prendre en compte..."
-            class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-          ></textarea>
-          <div class="mt-2 flex items-start gap-2 text-sm text-gray-600">
-            <Info :size="16" class="mt-0.5" />
-            <span>Plus vous donnez de détails, mieux l'intervenant pourra estimer le temps nécessaire.</span>
           </div>
         </div>
 
@@ -509,15 +498,17 @@
           >
             <span class="font-semibold">{{ slot.time }}</span>
             
-            <X v-if="!slot.available" :size="16" class="absolute top-2 right-2 text-red-500" />
+            <X v-if="!slot.available && !isSlotReserved(slot.time)" :size="16" class="absolute top-2 right-2 text-red-500" />
+            <X v-if="isSlotReserved(slot.time)" :size="16" class="absolute top-2 right-2 text-red-700" />
             <Check v-if="isSlotSelected(slot)" :size="16" class="absolute top-2 right-2 text-blue-500" />
             
-            <div v-if="slot.available && !canSelectSlot(slot)" 
+            <div v-if="slot.available && !canSelectSlot(slot) && !isSlotReserved(slot.time)" 
                  class="absolute inset-0 bg-red-100 bg-opacity-50 rounded-lg flex items-center justify-center">
               <X :size="20" class="text-red-600" />
             </div>
             
-            <span v-if="!slot.available" class="block text-xs text-red-600 mt-1">Indisponible</span>
+            <span v-if="isSlotReserved(slot.time)" class="block text-xs text-red-700 mt-1 font-semibold">Réservé</span>
+            <span v-else-if="!slot.available" class="block text-xs text-red-600 mt-1">Indisponible</span>
             <span v-else-if="!canSelectSlot(slot)" class="block text-xs text-red-600 mt-1">Pas assez de temps</span>
           </button>
         </div>
@@ -542,8 +533,23 @@
           </p>
         </div>
         
+        <!-- Message d'erreur de sélection -->
+        <div v-if="slotSelectionError" class="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 mb-4">
+          <div class="flex items-start gap-2">
+            <AlertCircle :size="20" class="text-red-600 mt-0.5" />
+            <div>
+              <p class="font-medium text-red-700">
+                Impossible de sélectionner ces créneaux
+              </p>
+              <p class="text-sm text-gray-700 mt-1">
+                {{ slotSelectionError }}
+              </p>
+            </div>
+          </div>
+        </div>
+
         <!-- Avertissement si pas assez de créneaux -->
-        <div v-if="hasEnoughSlots === false && bookingData.date" class="bg-red-50 border-l-4 border-red-500 rounded-lg p-4">
+        <div v-if="hasEnoughSlots === false && bookingData.date && !slotSelectionError" class="bg-red-50 border-l-4 border-red-500 rounded-lg p-4">
           <div class="flex items-start gap-2">
             <AlertCircle :size="20" class="text-red-600 mt-0.5" />
             <div>
@@ -634,7 +640,10 @@ export default {
       informationsValues: {},
       dayAvailabilityResult: null,
       dayCheckLoading: false,
-      loading: false
+      loading: false,
+      slotSelectionError: null,
+      reservedSlots: [],
+      existingInterventions: []
     };
   },
   computed: {
@@ -651,7 +660,6 @@ export default {
         case 3:
           return this.bookingData.address.trim() !== '' &&
                  this.bookingData.ville.trim() !== '' &&
-                 this.bookingData.description.trim() !== '' &&
                  this.estimatedHours > 0;
         case 4:
           return this.bookingData.date !== '' && 
@@ -673,8 +681,16 @@ export default {
       this.constraints.forEach(c => {
         const v = Number(this.constraintsValues[c.id] || 0);
         const seuil = Number(c.seuil || 0);
-        if (seuil > 0 && v > 0) {
-          hours += Math.ceil(v / seuil);
+        const unite = String(c.unite || '').toLowerCase();
+        
+        if (v > 0) {
+          // Pour les contraintes d'espace (m²), utiliser 20m² = 1hr
+          if (unite === 'm²' || unite === 'm2') {
+            hours += Math.ceil(v / 20);
+          } else if (seuil > 0) {
+            // Pour les autres contraintes, utiliser le seuil existant
+            hours += Math.ceil(v / seuil);
+          }
         }
       });
       return Math.max(hours, 1);
@@ -740,10 +756,20 @@ export default {
     await this.loadIntervenantData(intervenantId);
     await this.loadServices();
     
-    // Initialiser l'adresse et la ville depuis le profil client
-    if (user.address) this.bookingData.address = user.address;
-    const city = user.ville || (user.client ? user.client.ville : null);
-    if (city) this.bookingData.ville = city;
+    // Initialiser l'adresse et la ville depuis le profil client (depuis la base de données)
+    if (user.client) {
+      // L'adresse et la ville sont dans la table client
+      if (user.client.address) {
+        this.bookingData.address = user.client.address;
+      }
+      if (user.client.ville) {
+        this.bookingData.ville = user.client.ville;
+      }
+    } else {
+      // Fallback si pas de client mais adresse dans utilisateur
+      if (user.address) this.bookingData.address = user.address;
+      if (user.ville) this.bookingData.ville = user.ville;
+    }
     
     // Handle preselection
     if (preselectedServiceId) {
@@ -826,33 +852,64 @@ export default {
       }
       
       this.dayCheckLoading = true;
+      this.slotSelectionError = null;
       
       try {
-        const response = await bookingService.getIntervenantDisponibilites(
+        // Récupérer les disponibilités
+        const disponibilitesResponse = await bookingService.getIntervenantDisponibilites(
           this.intervenant.id,
           this.bookingData.date
         );
         
-        const disponibilites = response.data?.data || response.data || [];
+        // Récupérer les interventions existantes pour cette date
+        let interventionsData = [];
+        try {
+          const interventionsResponse = await api.get(`intervenants/${this.intervenant.id}/interventions`);
+          const allInterventions = interventionsResponse.data?.data || interventionsResponse.data || [];
+          
+          // Filtrer les interventions pour la date sélectionnée
+          const selectedDate = new Date(this.bookingData.date);
+          interventionsData = allInterventions.filter(intervention => {
+            if (!intervention.date_intervention) return false;
+            const interventionDate = new Date(intervention.date_intervention);
+            return interventionDate.toDateString() === selectedDate.toDateString();
+          });
+        } catch (error) {
+          // Si l'endpoint n'existe pas, on continue sans interventions
+          console.log('Interventions endpoint not available, continuing without reserved slots check');
+        }
+        
+        const disponibilites = disponibilitesResponse.data?.data || disponibilitesResponse.data || [];
+        this.existingInterventions = interventionsData;
+        
+        // Calculer les créneaux réservés
+        this.reservedSlots = this.calculateReservedSlots(this.existingInterventions);
         
         const allSlots = this.generateTimeSlots();
         const markedSlots = allSlots.map(slot => ({
           ...slot,
-          available: this.checkSlotAvailability(slot.time, disponibilites)
+          available: this.checkSlotAvailability(slot.time, disponibilites),
+          reserved: this.isSlotReserved(slot.time)
         }));
         
         this.timeSlots = markedSlots;
+        
+        // Calculer les heures libres disponibles
+        const freeHours = this.calculateFreeHours(markedSlots);
         const possibleStartSlots = this.findPossibleStartSlots(markedSlots);
         const hasEnoughTime = possibleStartSlots.length > 0;
         
         this.dayAvailabilityResult = {
           hasEnoughTime,
+          freeHours,
           message: hasEnoughTime 
             ? `✅ Disponibilité confirmée pour ${this.estimatedHours} heure(s) le ${this.formatDate(this.bookingData.date)}`
             : `❌ Pas assez de créneaux disponibles pour ${this.estimatedHours} heure(s) le ${this.formatDate(this.bookingData.date)}`,
           details: hasEnoughTime
             ? `${possibleStartSlots.length} créneau(x) de départ possible(s)`
-            : `Essayez une autre date ou réduisez la durée estimée`,
+            : freeHours > 0
+              ? `Cette journée n'a que ${freeHours} heure(s) libre(s) disponible(s), mais vous avez besoin de ${this.estimatedHours} heure(s). Veuillez choisir une autre date.`
+              : `Aucune heure libre disponible ce jour. Veuillez choisir une autre date.`,
           availableSlots: hasEnoughTime ? possibleStartSlots.map(s => s.time) : []
         };
         
@@ -860,6 +917,7 @@ export default {
         console.error('Error checking day availability:', error);
         this.dayAvailabilityResult = {
           hasEnoughTime: false,
+          freeHours: 0,
           message: 'Erreur lors de la vérification des disponibilités',
           details: 'Veuillez réessayer ou contacter le support'
         };
@@ -935,21 +993,82 @@ export default {
       return possibleStarts;
     },
     canSelectSlot(slot) {
+      // Permettre la sélection même si certains créneaux sont réservés (on vérifiera lors du clic)
       if (!slot.available) return false;
       
       const slotIndex = this.timeSlots.findIndex(s => s.time === slot.time);
       if (slotIndex === -1) return false;
       
+      // Vérifier qu'il y a assez de créneaux (même s'ils sont réservés, on affichera un message)
       for (let i = 1; i < this.estimatedHours; i++) {
         const nextSlot = this.timeSlots[slotIndex + i];
-        if (!nextSlot || !nextSlot.available) {
+        if (!nextSlot) {
           return false;
         }
       }
       
       return true;
     },
+    calculateReservedSlots(interventions) {
+      const reserved = [];
+      
+      interventions.forEach(intervention => {
+        if (!intervention.date_intervention) return;
+        
+        const interventionDate = new Date(intervention.date_intervention);
+        const selectedDate = new Date(this.bookingData.date);
+        
+        // Vérifier si l'intervention est le même jour
+        if (interventionDate.toDateString() === selectedDate.toDateString()) {
+          const startTime = interventionDate.toTimeString().substring(0, 5); // HH:MM
+          const duration = Number(intervention.duration_hours || 1);
+          
+          // Ajouter tous les créneaux réservés
+          const startMinutes = this.timeToMinutes(startTime);
+          for (let i = 0; i < Math.ceil(duration); i++) {
+            const reservedTime = this.minutesToTime(startMinutes + (i * 60));
+            reserved.push(reservedTime);
+          }
+        }
+      });
+      
+      return reserved;
+    },
+    isSlotReserved(time) {
+      return this.reservedSlots.includes(time);
+    },
+    calculateFreeHours(slots) {
+      let freeHours = 0;
+      let consecutiveFree = 0;
+      
+      slots.forEach(slot => {
+        if (slot.available && !slot.reserved) {
+          consecutiveFree++;
+        } else {
+          if (consecutiveFree > freeHours) {
+            freeHours = consecutiveFree;
+          }
+          consecutiveFree = 0;
+        }
+      });
+      
+      // Vérifier le dernier segment
+      if (consecutiveFree > freeHours) {
+        freeHours = consecutiveFree;
+      }
+      
+      return freeHours;
+    },
+    minutesToTime(minutes) {
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+    },
     getSlotClass(slot) {
+      if (this.isSlotReserved(slot.time)) {
+        return 'border-red-300 bg-red-100 opacity-75 cursor-pointer';
+      }
+      
       if (!slot.available) {
         return 'border-red-200 bg-red-50 opacity-50 cursor-not-allowed';
       }
@@ -968,20 +1087,47 @@ export default {
       return this.selectedTimeSlots.some(s => s.time === slot.time);
     },
     selectTimeSlot(slot) {
-      if (!this.canSelectSlot(slot)) return;
-      
+      // Permettre la sélection même si certains créneaux sont réservés
       const slotIndex = this.timeSlots.findIndex(s => s.time === slot.time);
       if (slotIndex === -1) return;
       
-      this.selectedTimeSlots = [];
+      // Vérifier si tous les créneaux nécessaires sont disponibles
+      const requiredSlots = [];
+      const reservedInSelection = [];
+      
       for (let i = 0; i < this.estimatedHours; i++) {
         const timeSlot = this.timeSlots[slotIndex + i];
-        if (timeSlot) {
-          this.selectedTimeSlots.push(timeSlot);
+        if (!timeSlot) {
+          this.slotSelectionError = `Créneau ${slot.time} : Pas assez de créneaux disponibles pour ${this.estimatedHours} heure(s).`;
+          this.selectedTimeSlots = [];
+          return;
+        }
+        
+        requiredSlots.push(timeSlot);
+        
+        // Vérifier si ce créneau est réservé
+        if (this.isSlotReserved(timeSlot.time)) {
+          reservedInSelection.push(timeSlot.time);
         }
       }
       
-      this.bookingData.time = slot.time;
+      // Si certains créneaux sont réservés, afficher un message d'erreur
+      if (reservedInSelection.length > 0) {
+        this.slotSelectionError = `Les créneaux suivants sont déjà réservés : ${reservedInSelection.join(', ')}. Veuillez choisir d'autres heures.`;
+        this.selectedTimeSlots = [];
+        return;
+      }
+      
+      // Si tous les créneaux sont disponibles, sélectionner
+      if (requiredSlots.every(s => s.available)) {
+        this.selectedTimeSlots = requiredSlots;
+        this.bookingData.time = slot.time;
+        this.slotSelectionError = null;
+      } else {
+        const unavailableSlots = requiredSlots.filter(s => !s.available).map(s => s.time);
+        this.slotSelectionError = `Les créneaux suivants ne sont pas disponibles : ${unavailableSlots.join(', ')}. Veuillez choisir d'autres heures.`;
+        this.selectedTimeSlots = [];
+      }
     },
     async loadConstraints() {
       try {
@@ -1108,7 +1254,7 @@ export default {
           .map(m => m.id);
         formData.append('provided_materials', JSON.stringify(providedMaterials));
         formData.append('status', 'en_attente');
-        formData.append('description', this.bookingData.description || '');
+        formData.append('description', ''); // Description supprimée
         formData.append('constraints', JSON.stringify(this.constraintsValues));
         
         this.bookingData.photos.forEach((photo) => {

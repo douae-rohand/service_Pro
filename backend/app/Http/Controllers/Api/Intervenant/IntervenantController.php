@@ -546,7 +546,7 @@ class IntervenantController extends Controller
             // Count tasks that this intervenant can perform for this service
             $tachesCount = \App\Models\Tache::where('service_id', $service->id)
                 ->whereHas('intervenants', function($query) use ($intervenant) {
-                    $query->where('intervenant_id', $intervenant->id);
+                    $query->where('intervenant.id', $intervenant->id);
                 })
                 ->count();
 

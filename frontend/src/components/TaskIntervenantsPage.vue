@@ -2,8 +2,8 @@
   <div class="min-h-screen bg-gray-50">
     <!-- Content (affiché immédiatement) -->
     <div v-if="!error">
-      <!-- Header -->
-      <div class="bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50 transition-all duration-300">
+      <!-- Header (Non-sticky) -->
+      <div class="bg-white border-b border-gray-100">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <!-- Back button and Title row -->
           <div class="flex items-center justify-between gap-6 mb-4">

@@ -8,10 +8,10 @@
     />
 
     <!-- Dashboard Intervenant (géré par le Router) -->
-    <router-view v-if="isDashboardRoute" />
+    <router-view v-else-if="isDashboardRoute" />
 
-    <!-- Page d'accueil -->
-    <div v-else-if="currentPage === 'home'">
+    <!-- Client Pages with Persistent Header -->
+    <template v-else>
       <Header
         :user="currentUser"
         @login-click="showLoginModal = true"
@@ -22,12 +22,15 @@
         @navigate="handleClientNavigate"
         @logout="handleLogout"
       />
-      <HeroSection @search="handleSearch" />
-      <StatsSection />
-      <ServicesSection @service-click="handleServiceClick" />
-      <TestimonialsSection />
-      <Footer @navigate-home="handleNavigateHome" />
-    </div>
+
+      <!-- Page d'accueil -->
+      <template v-if="currentPage === 'home'">
+        <HeroSection @search="handleSearch" />
+        <StatsSection />
+        <ServicesSection @service-click="handleServiceClick" />
+        <TestimonialsSection />
+        <Footer @navigate-home="handleNavigateHome" />
+      </template>
 
       <!-- Page de détail du service -->
       <ServiceDetailPage
@@ -48,123 +51,75 @@
         @view-profile="handleViewProfileFromList"
       />
 
-    <!-- (Ancien emplacement du router-view) -->
+      <!-- Page des intervenants pour un sous-service spécifique -->
+      <TaskIntervenantsPage
+        v-else-if="currentPage === 'task-intervenants'"
+        :task-id="selectedTaskId"
+        :task-name="selectedTaskName"
+        :service-id="selectedService"
+        @back="handleBackFromTaskIntervenants"
+        @view-profile="handleViewProfileFromTask"
+        @login-required="showLoginModal = true"
+        @navigate-booking="handleNavigateToBooking"
+      />
 
-    <!-- Page de tous les intervenants
-    <AllIntervenantsPage
-      v-else-if="currentPage === 'all-intervenants'"
-      :service="selectedService"
-      @back="handleBackFromAllIntervenants"
-      @view-profile="handleViewProfile"
-    /> -->
+      <!-- Profil de l'intervenant -->
+      <IntervenantProfile
+        v-else-if="currentPage === 'intervenant-profile'"
+        :intervenant-data="selectedIntervenantData"
+        :intervenant-id="selectedIntervenantId"
+        :service="serviceType"
+        @back="handleBackFromProfile"
+        @login-required="showLoginModal = true"
+        @navigate-booking="handleNavigateToBooking"
+      />
 
-    <!-- Page des intervenants pour un sous-service spécifique -->
-    <TaskIntervenantsPage
-      v-else-if="currentPage === 'task-intervenants'"
-      :task-id="selectedTaskId"
-      :task-name="selectedTaskName"
-      :service-id="selectedService"
-      @back="handleBackFromTaskIntervenants"
-      @view-profile="handleViewProfileFromTask"
-      @login-required="showLoginModal = true"
-      @navigate-booking="handleNavigateToBooking"
-    />
+      <!-- Client Reservations Page -->
+      <ClientReservationsPage
+        v-else-if="currentPage === 'client-reservations'"
+        @back="handleBackFromClientPage"
+      />
 
-    <!-- Profil de l'intervenant -->
-    <IntervenantProfile
-      v-else-if="currentPage === 'intervenant-profile'"
-      :intervenant-data="selectedIntervenantData"
-      :intervenant-id="selectedIntervenantId"
-      :service="serviceType"
-      @back="handleBackFromProfile"
-      @login-required="showLoginModal = true"
-      @navigate-booking="handleNavigateToBooking"
-    />
-
-    <!-- Client Reservations Page -->
-    <ClientReservationsPage
-      v-else-if="currentPage === 'client-reservations'"
-      @back="handleBackFromClientPage"
-    />
-
-    <!-- Client Favorites Page -->
-    <div v-else-if="currentPage === 'client-favorites'" class="min-h-screen bg-gray-50">
-      <div class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div class="flex items-center gap-4">
-            <button
-              @click="handleBackFromClientPage"
-              class="flex items-center justify-center w-10 h-10 rounded-full transition-all hover:bg-gray-100"
-            >
-              <ArrowLeft :size="24" class="text-gray-600" />
-            </button>
-            <h1 class="text-2xl font-bold text-gray-900">Mes Favoris</h1>
-          </div>
+      <!-- Client Favorites Page -->
+      <div v-else-if="currentPage === 'client-favorites'" class="min-h-screen bg-gray-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <MyFavoritesTab :client-id="currentUser?.client?.id || currentUser?.id" />
         </div>
       </div>
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <MyFavoritesTab :client-id="currentUser?.client?.id || currentUser?.id" />
-      </div>
-    </div>
 
-    <!-- Client Profile Page -->
-    <div v-else-if="currentPage === 'client-profile'" class="min-h-screen bg-gray-50">
-      <div class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div class="flex items-center gap-4">
-            <button
-              @click="handleBackFromClientPage"
-              class="flex items-center justify-center w-10 h-10 rounded-full transition-all hover:bg-gray-100"
-            >
-              <ArrowLeft :size="24" class="text-gray-600" />
-            </button>
-            <h1 class="text-2xl font-bold text-gray-900">Mon Profil</h1>
-          </div>
+      <!-- Client Profile Page -->
+      <div v-else-if="currentPage === 'client-profile'" class="min-h-screen bg-gray-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <ClientProfile
+            :client-id="currentUser?.client?.id || currentUser?.id"
+            :user="{
+              name: currentUser?.name || '',
+              email: currentUser?.email || '',
+              phone: currentUser?.phone || '',
+              location: currentUser?.quartier || '',
+              avatar: currentUser?.avatar || '',
+              memberSince: memberSince
+            }"
+            @profile-updated="handleProfileUpdate"
+          />
         </div>
       </div>
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <ClientProfile
-          :client-id="currentUser?.client?.id || currentUser?.id"
-          :user="{
-            name: currentUser?.name || '',
-            email: currentUser?.email || '',
-            phone: currentUser?.phone || '',
-            location: currentUser?.quartier || '',
-            avatar: currentUser?.avatar || '',
-            memberSince: memberSince
-          }"
-          @profile-updated="handleProfileUpdate"
-        />
-      </div>
-    </div>
 
-    <!-- Client Reclamations Page -->
-    <div v-else-if="currentPage === 'client-reclamations'" class="min-h-screen bg-gray-50">
-      <div class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div class="flex items-center gap-4">
-            <button
-              @click="handleBackFromClientPage"
-              class="flex items-center justify-center w-10 h-10 rounded-full transition-all hover:bg-gray-100"
-            >
-              <ArrowLeft :size="24" class="text-gray-600" />
-            </button>
-            <h1 class="text-2xl font-bold text-gray-900">Mes Réclamations</h1>
-          </div>
+      <!-- Client Reclamations Page -->
+      <div v-else-if="currentPage === 'client-reclamations'" class="min-h-screen bg-gray-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <ClientReclamationsTab />
         </div>
       </div>
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <ClientReclamationsTab />
-      </div>
-    </div>
 
-    <!-- Booking Page -->
-    <BookingPage
-      v-else-if="currentPage === 'booking'"
-      @back="handleBackFromBooking"
-      @success="handleBookingSuccess"
-      @login-required="showLoginModal = true"
-    />
+      <!-- Booking Page -->
+      <BookingPage
+        v-else-if="currentPage === 'booking'"
+        @back="handleBackFromBooking"
+        @success="handleBookingSuccess"
+        @login-required="showLoginModal = true"
+      />
+    </template>
 
     <!-- Modals -->
     <LoginModal
@@ -483,16 +438,22 @@ const handleLoginSuccess = (user) => {
 
 // Handle logout
 const handleLogout = async () => {
+  console.log("App.vue: handleLogout called");
   try {
-    await authService.logout()
+    await authService.logout();
+    authService.setAuthToken(null);
+    currentUser.value = null;
+    currentPage.value = 'home';
+    window.location.reload(); // Recharger pour effacer l'état
   } catch (error) {
-    console.error('Logout error:', error)
+    console.error('Logout error:', error);
+    // Even if logout fails on server, clear client-side state and reload
+    authService.setAuthToken(null);
+    currentUser.value = null;
+    currentPage.value = 'home';
+    window.location.reload();
   }
-  authService.setAuthToken(null)
-  currentUser.value = null
-  currentPage.value = 'home'
-  window.scrollTo({ top: 0, behavior: 'smooth' })
-}
+};
 onMounted(() => {
   // Vérifier s'il y a un token dans l'URL (retour de Google login)
   const urlParams = new URLSearchParams(window.location.search)

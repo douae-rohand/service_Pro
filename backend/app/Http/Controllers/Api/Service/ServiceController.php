@@ -166,7 +166,7 @@ class ServiceController extends Controller
         if ($request->has('intervenantId')) {
             $intervenantId = $request->intervenantId;
             $query->whereHas('intervenants', function($q) use ($intervenantId) {
-                $q->where('intervenant_id', $intervenantId);
+                $q->where('intervenant.id', $intervenantId);
             });
         }
         

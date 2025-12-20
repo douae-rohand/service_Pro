@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen bg-gray-50">
-    <!-- Modern Header with Gradient -->
-    <div class="bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50 transition-all duration-300">
+    <!-- Modern Header (Non-sticky) -->
+    <div class="bg-white border-b border-gray-100">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <button
           @click="$emit('back')"

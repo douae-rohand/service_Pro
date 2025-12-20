@@ -19,18 +19,18 @@
 
     <!-- Content (affiché seulement quand les données sont chargées) -->
     <div v-if="serviceData && currentService">
-      <!-- Header -->
-      <div class="bg-white shadow-lg sticky top-0 z-50">
+      <!-- Header (Non-sticky, blends with main Header) -->
+      <div class="bg-white border-b border-gray-100">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div class="flex items-center gap-4">
             <button
               @click="$emit('back')"
               @mouseenter="hoverBackButton = true"
               @mouseleave="hoverBackButton = false"
-              class="flex items-center gap-2 text-gray-600 hover:text-white transition-all mb-4 px-4 py-2 rounded-lg"
-              :style="{ backgroundColor: hoverBackButton ? currentService.color : 'transparent' }"
+              class="flex items-center justify-center w-10 h-10 rounded-full transition-all mb-4"
+              :style="{ backgroundColor: hoverBackButton ? currentService.color : 'transparent', border: `1px solid ${hoverBackButton ? currentService.color : '#E5E7EB'}` }"
             >
-              <ArrowLeft :size="20" />
+              <ArrowLeft :size="20" :style="{ color: hoverBackButton ? 'white' : '#4B5563' }" />
             </button>
             <div>
               <h1 class="text-5xl" :style="{ color: currentService.color }">

@@ -1,116 +1,107 @@
 <template>
-  <header class="bg-white shadow-md sticky top-0 z-50 animate-slide-down">
+  <header class="bg-white/90 backdrop-blur-md shadow-sm sticky top-0 z-50 border-b border-gray-100/50 transition-all duration-300">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex justify-between items-center py-2">
+      <div class="flex justify-between items-center py-2 h-20">
         <!-- Logo avec redirection -->
         <div class="flex items-center">
           <a 
             href="#" 
             @click.prevent="handleLogoClick"
-            class="transition-transform hover:scale-105 duration-300"
+            class="transition-transform hover:scale-105 duration-300 flex items-center"
           >
-            <img src="../assets/logo.png" alt="Logo" class="h-16 w-auto" />
+            <img src="../assets/logo.png" alt="Logo" class="h-14 w-auto drop-shadow-sm" />
           </a>
         </div>
 
         <!-- Desktop Navigation -->
-        <nav class="hidden md:flex items-center space-x-8 ml-12">
+        <nav class="hidden md:flex items-center space-x-1 lg:space-x-4 ml-8">
           <a
             href="#home"
             @click.prevent="handleNavClick('home')"
-            class="px-2 py-2 transition-all duration-300 font-medium relative group"
+            class="px-4 py-2 rounded-full transition-all duration-300 font-medium text-sm group relative overflow-hidden"
             :class="{
-              'text-[#4682B4]': activeLink === 'home',
-              'text-gray-700 hover:text-[#4682B4]': activeLink !== 'home'
+              'text-[#4682B4] bg-blue-50/50': activeLink === 'home',
+              'text-gray-600 hover:text-[#4682B4] hover:bg-gray-50/50': activeLink !== 'home'
             }"
           >
             Accueil
-            <span 
-              class="absolute bottom-0 left-0 h-0.5 bg-[#4682B4] transition-all duration-300"
-              :class="activeLink === 'home' ? 'w-full' : 'w-0 group-hover:w-full'"
-            ></span>
           </a>
 
           <div class="relative group">
             <button
               @click.prevent="handleNavClick('services')"
-              class="px-2 py-2 transition-all duration-300 flex items-center gap-2 font-medium relative"
+              class="px-4 py-2 rounded-full transition-all duration-300 flex items-center gap-1.5 font-medium text-sm"
               :class="{
-                'text-[#4682B4]': activeLink === 'services',
-                'text-gray-700 hover:text-[#4682B4]': activeLink !== 'services'
+                'text-[#4682B4] bg-blue-50/50': activeLink === 'services',
+                'text-gray-600 hover:text-[#4682B4] hover:bg-gray-50/50': activeLink !== 'services'
               }"
             >
               Nos Services
-              <svg
+              <ChevronDown 
                 class="w-4 h-4 transition-transform duration-300 group-hover:rotate-180"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
-              <span 
-                class="absolute bottom-0 left-0 h-0.5 bg-[#4682B4] transition-all duration-300"
-                :class="activeLink === 'services' ? 'w-full' : 'w-0 group-hover:w-full'"
-              ></span>
+                :stroke-width="2.5"
+              />
             </button>
 
             <!-- Dropdown amélioré -->
             <div
-              class="absolute top-full left-0 mt-2 w-56 bg-white rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 overflow-hidden"
+              class="absolute top-full left-0 mt-3 w-56 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-100/50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 overflow-hidden translate-y-2 group-hover:translate-y-0"
             >
-              <a
-                href="#services"
-                @click.prevent="handleServiceClick(1)"
-                class="block px-5 py-4 transition-all duration-200 hover:bg-[#F3E293] hover:pl-7 border-l-4 border-transparent hover:border-[#92B08B]"
-              >
-                <div class="flex items-center gap-3">
-                  <span class="font-medium text-gray-800">Jardinage</span>
-                </div>
-              </a>
-              <a
-                href="#services"
-                @click.prevent="handleServiceClick(2)"
-                class="block px-5 py-4 transition-all duration-200 hover:bg-[#F3E293] hover:pl-7 border-l-4 border-transparent hover:border-[#4682B4]"
-              >
-                <div class="flex items-center gap-3">
-                  <span class="font-medium text-gray-800">Ménage</span>
-                </div>
-              </a>
+              <div class="p-1.5">
+                <a
+                  href="#services"
+                  @click.prevent="handleServiceClick(1)"
+                  class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-[#F3E293]/20 group/item"
+                >
+                  <div class="w-2 h-2 rounded-full bg-[#92B08B] transition-transform group-hover/item:scale-125"></div>
+                  <span class="font-medium text-gray-700">Jardinage</span>
+                </a>
+                <a
+                  href="#services"
+                  @click.prevent="handleServiceClick(2)"
+                  class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 hover:bg-[#4682B4]/10 group/item"
+                >
+                  <div class="w-2 h-2 rounded-full bg-[#4682B4] transition-transform group-hover/item:scale-125"></div>
+                  <span class="font-medium text-gray-700">Ménage</span>
+                </a>
+              </div>
             </div>
           </div>
+
+          <!-- Mes réservations (Seulement pour client connecté) -->
+          <template v-if="user && user.client">
+            <a
+              href="#reservations"
+              @click.prevent="handleReservationsClick"
+              class="px-4 py-2 rounded-full transition-all duration-300 font-medium text-sm"
+              :class="{
+                'text-[#4682B4] bg-blue-50/50': activeLink === 'reservations',
+                'text-gray-600 hover:text-[#4682B4] hover:bg-gray-50/50': activeLink !== 'reservations'
+              }"
+            >
+              Mes réservations
+            </a>
+          </template>
 
           <!-- Afficher Contact et Devenir un intervenant seulement si l'utilisateur n'est PAS connecté comme client -->
           <template v-if="!user || !user.client">
             <a
               href="#contact"
               @click="handleContactClick"
-              class="px-2 py-2 transition-all duration-300 font-medium relative group"
+              class="px-4 py-2 rounded-full transition-all duration-300 font-medium text-sm"
               :class="{
-                'text-[#4682B4]': activeLink === 'contact',
-                'text-gray-700 hover:text-[#4682B4]': activeLink !== 'contact'
+                'text-[#4682B4] bg-blue-50/50': activeLink === 'contact',
+                'text-gray-600 hover:text-[#4682B4] hover:bg-gray-50/50': activeLink !== 'contact'
               }"
             >
               Contact
-              <span 
-                class="absolute bottom-0 left-0 h-0.5 bg-[#4682B4] transition-all duration-300"
-                :class="activeLink === 'contact' ? 'w-full' : 'w-0 group-hover:w-full'"
-              ></span>
             </a>
             <a
               href="#"
               @click.prevent="handleSignupClick"
-              class="px-2 py-2 transition-all duration-300 font-medium relative group text-gray-700 hover:text-[#4682B4]"
+              class="px-4 py-2 rounded-full transition-all duration-300 font-medium text-sm text-gray-600 hover:text-[#4682B4] hover:bg-gray-50/50"
             >
-              Devenir un intervenant
-              <span 
-                class="absolute bottom-0 left-0 h-0.5 bg-[#4682B4] transition-all duration-300 w-0 group-hover:w-full"
-              ></span>
+              Devenir intervenant
             </a>
           </template>
         </nav>
@@ -120,208 +111,205 @@
           <template v-if="!user">
             <button
               @click="handleLoginClick"
-              class="text-gray-700 font-medium px-5 py-2.5 rounded-lg transition-all duration-300 hover:text-[#4682B4] hover:bg-gray-50"
+              class="text-gray-600 font-semibold px-5 py-2.5 rounded-xl transition-all duration-300 hover:text-[#4682B4] hover:bg-gray-50/80"
             >
-              Se connecter
+              Connexion
             </button>
             <button
               @click="handleSignupClick"
-              class="text-white font-medium px-6 py-2.5 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+              class="text-white font-bold px-6 py-2.5 rounded-xl transition-all duration-300 shadow-lg shadow-[#4682B4]/20 hover:shadow-xl hover:shadow-[#4682B4]/30 transform hover:-translate-y-0.5 active:scale-95"
               style="background-color: #4682B4"
-              @mouseenter="$event.currentTarget.style.backgroundColor = '#7F9A78'"
-              @mouseleave="$event.currentTarget.style.backgroundColor = '#4682B4'"
             >
               S'inscrire
             </button>
           </template>
+          
           <template v-else-if="user.client">
-            <!-- Actions pour client connecté - Design amélioré -->
-            <div class="flex items-center gap-3">
-              <!-- Avatar et nom -->
-              <div class="flex items-center gap-3 bg-gradient-to-r from-blue-50 to-gray-50 px-4 py-2.5 rounded-lg border border-gray-200 shadow-sm">
-                <img
-                  :src="getUserAvatar(user)"
-                  :alt="getUserName(user)"
-                  class="w-10 h-10 rounded-full object-cover border-2 shadow-sm"
-                  style="border-color: #4682B4"
-                />
+            <!-- Actions pour client connecté - Style Premium Icon-based -->
+            <div class="flex items-center gap-2 p-1.5 bg-gray-50/50 backdrop-blur-sm rounded-2xl border border-gray-100/50">
+              
+              <!-- User Pill -->
+              <div class="flex items-center gap-2.5 px-3 py-1.5 hover:bg-white transition-colors rounded-xl group/user cursor-default">
+                <div class="relative">
+                  <img
+                    :src="getUserAvatar(user)"
+                    :alt="getUserName(user)"
+                    class="w-9 h-9 rounded-full object-cover border-2 border-white shadow-sm transition-transform group-hover/user:scale-105"
+                  />
+                  <div class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></div>
+                </div>
                 <div class="hidden lg:block">
-                  <p class="text-sm font-semibold text-gray-800">{{ getUserName(user) }}</p>
-                  <p class="text-xs text-gray-500">Client connecté</p>
+                  <p class="text-[13px] font-bold text-gray-800 leading-none mb-0.5">{{ getUserName(user) }}</p>
+                  <p class="text-[10px] uppercase tracking-wider font-extrabold text-[#4682B4]/70">Client</p>
                 </div>
               </div>
+
+              <div class="w-px h-8 bg-gray-200/60 mx-1"></div>
               
-              <!-- Bouton Mes Réservations -->
-              <button
-                @click="$emit('navigate', 'reservations')"
-                class="text-white font-medium px-5 py-2.5 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 flex items-center gap-2"
-                style="background-color: #4682B4"
-              >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                <span class="hidden xl:inline">Mes Réservations</span>
-                <span class="xl:hidden">Réservations</span>
-              </button>
-              
-              <!-- Bouton Mon Profil -->
-              <button
-                @click="$emit('navigate', 'profile')"
-                class="text-gray-700 font-medium px-5 py-2.5 rounded-lg transition-all duration-300 hover:text-[#4682B4] hover:bg-gray-50 flex items-center gap-2 border border-gray-200"
-              >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                <span class="hidden xl:inline">Mon Profil</span>
-                <span class="xl:hidden">Profil</span>
-              </button>
-              
-              <!-- Bouton Déconnexion -->
-              <button
-                @click="$emit('logout')"
-                class="text-red-600 font-medium px-4 py-2.5 rounded-lg transition-all duration-300 hover:bg-red-50 hover:text-red-700 flex items-center gap-2 border border-red-200"
-                title="Déconnexion"
-              >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-                <span class="hidden xl:inline">Déconnexion</span>
-              </button>
+              <div class="flex items-center gap-1">
+                <!-- Icon Notifications -->
+                <button
+                  class="p-2.5 rounded-xl text-gray-500 hover:text-[#4682B4] hover:bg-white transition-all duration-200 group relative"
+                  title="Notifications"
+                >
+                  <Bell class="w-5 h-5 group-hover:scale-110" />
+                  <span class="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+                </button>
+
+                <!-- Icon Mon Profil -->
+                <button
+                  @click="$emit('navigate', 'profile')"
+                  class="p-2.5 rounded-xl text-gray-500 hover:text-[#4682B4] hover:bg-white transition-all duration-200 group"
+                  title="Mon Profil"
+                >
+                  <User class="w-5 h-5 group-hover:scale-110" />
+                </button>
+                
+                <!-- Icon Déconnexion -->
+                <button
+                  @click="onLogoutClick"
+                  class="p-2.5 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all duration-200 group"
+                  title="Déconnexion"
+                >
+                  <LogOut class="w-5 h-5 group-hover:translate-x-0.5" />
+                </button>
+              </div>
             </div>
           </template>
-          <button
-            v-else
-            @click="$emit('dashboard-click')"
-            class="text-white font-medium px-6 py-2.5 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 flex items-center gap-2"
-            style="background-color: #92B08B"
-          >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            Mon Espace
-          </button>
+
+          <template v-else>
+            <!-- Design pour Intervenant / Autres -->
+            <button
+              @click="$emit('dashboard-click')"
+              class="text-white font-bold px-5 py-2.5 rounded-xl transition-all duration-300 shadow-lg shadow-[#92B08B]/20 hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-2 active:scale-95"
+              style="background-color: #92B08B"
+            >
+              <User class="w-5 h-5" />
+              <span>Mon Espace</span>
+            </button>
+          </template>
         </div>
 
         <!-- Mobile menu button -->
         <button
-          class="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+          class="md:hidden p-2.5 rounded-xl hover:bg-gray-100 transition-colors"
           @click="isMenuOpen = !isMenuOpen"
         >
-          <svg v-if="!isMenuOpen" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-          <svg v-else class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
+          <Menu v-if="!isMenuOpen" class="w-6 h-6 text-gray-600" />
+          <X v-else class="w-6 h-6 text-gray-600" />
         </button>
       </div>
 
       <!-- Mobile Navigation -->
-      <nav v-if="isMenuOpen" class="md:hidden pb-4 space-y-2 animate-fade-in">
-        <a
-          href="#home"
-          @click.prevent="handleNavClick('home')"
-          class="block py-3 px-4 text-gray-700 rounded-lg transition-all hover:bg-[#4682B4] hover:text-white font-medium"
-        >
-          Accueil
-        </a>
-        <a
-          href="#services"
-          @click.prevent="handleNavClick('services')"
-          class="block py-3 px-4 text-gray-700 rounded-lg transition-all hover:bg-[#4682B4] hover:text-white font-medium"
-        >
-          Nos Services
-        </a>
-        <a
-          href="#about"
-          @click.prevent="handleNavClick('about')"
-          class="block py-3 px-4 text-gray-700 rounded-lg transition-all hover:bg-[#4682B4] hover:text-white font-medium"
-        >
-          À Propos
-        </a>
-        <!-- Afficher Contact et Devenir un intervenant seulement si l'utilisateur n'est PAS connecté comme client -->
-        <template v-if="!user || !user.client">
+      <transition
+        enter-active-class="transition duration-200 ease-out"
+        enter-from-class="opacity-0 -translate-y-4"
+        enter-to-class="opacity-100 translate-y-0"
+        leave-active-class="transition duration-150 ease-in"
+        leave-from-class="opacity-100 translate-y-0"
+        leave-to-class="opacity-0 -translate-y-4"
+      >
+        <nav v-if="isMenuOpen" class="md:hidden pb-6 pt-2 space-y-1.5">
           <a
-            href="#contact"
-            @click="handleContactClick"
-            class="block py-3 px-4 text-gray-700 rounded-lg transition-all hover:bg-[#4682B4] hover:text-white font-medium"
-          >
-            Contact
-          </a>
-          <a
+            v-for="link in ['home', 'services', 'about']"
+            :key="link"
             href="#"
-            @click.prevent="handleSignupClick"
-            class="block py-3 px-4 text-gray-700 rounded-lg transition-all hover:bg-[#4682B4] hover:text-white font-medium"
+            @click.prevent="handleNavClick(link)"
+            class="block py-3 px-4 rounded-xl text-gray-600 font-semibold transition-all hover:bg-gray-50 hover:text-[#4682B4]"
+            :class="{ 'bg-blue-50 text-[#4682B4]': activeLink === link }"
           >
-            Devenir un intervenant
+            {{ link === 'home' ? 'Accueil' : link === 'services' ? 'Nos Services' : 'À Propos' }}
           </a>
-        </template>
-        <div class="pt-4 space-y-2 border-t border-gray-200">
-          <template v-if="!user">
-            <button
-              @click="handleLoginClick"
-              class="block w-full text-left py-3 px-4 text-gray-700 rounded-lg transition-all hover:bg-gray-50 hover:text-[#4682B4] font-medium"
-            >
-              Se connecter
-            </button>
-            <button
-              class="block w-full text-white px-4 py-3 rounded-lg transition-all shadow-md font-medium"
-              style="background-color: #4682B4"
-              @click="handleSignupClick"
-            >
-              S'inscrire
-            </button>
-          </template>
-          <template v-else-if="user.client">
-            <div class="flex items-center gap-3 mb-3 pb-3 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-gray-50 p-3 rounded-lg">
-              <img
-                :src="getUserAvatar(user)"
-                :alt="getUserName(user)"
-                class="w-10 h-10 rounded-full object-cover border-2 shadow-sm"
-                style="border-color: #4682B4"
-              />
-              <div>
-                <p class="text-sm font-semibold text-gray-800">{{ getUserName(user) }}</p>
-                <p class="text-xs text-gray-500">Client connecté</p>
-              </div>
-            </div>
-            <button
-              @click="$emit('navigate', 'reservations')"
-              class="block w-full text-left py-3 px-4 text-gray-700 rounded-lg transition-all hover:bg-[#4682B4] hover:text-white font-medium"
-            >
-              Mes Réservations
-            </button>
-            <button
-              @click="$emit('navigate', 'profile')"
-              class="block w-full text-left py-3 px-4 text-gray-700 rounded-lg transition-all hover:bg-[#4682B4] hover:text-white font-medium"
-            >
-              Mon Profil
-            </button>
-            <button
-              @click="$emit('logout')"
-              class="block w-full text-left py-3 px-4 text-red-600 rounded-lg transition-all hover:bg-red-50 hover:text-red-700 font-medium border border-red-200 mt-2"
-            >
-              Déconnexion
-            </button>
-          </template>
-          <button
-            v-else
-            @click="$emit('dashboard-click')"
-            class="block w-full text-white px-4 py-3 rounded-lg transition-all shadow-md font-medium"
-            style="background-color: #92B08B"
-          >
-            Mon Espace
-          </button>
-        </div>
-      </nav>
-    </div>
 
-    <!-- Les modals sont maintenant gérés par App.vue pour une meilleure cohérence de l'état -->
+          <template v-if="!user || !user.client">
+            <a
+              href="#contact"
+              @click.prevent="handleContactClick"
+              class="block py-3 px-4 rounded-xl text-gray-600 font-semibold transition-all hover:bg-gray-50 hover:text-[#4682B4]"
+            >
+              Contact
+            </a>
+          </template>
+
+          <div class="pt-4 mt-4 border-t border-gray-100 space-y-2">
+            <template v-if="!user">
+              <button
+                @click="handleLoginClick"
+                class="block w-full py-3 px-4 text-center rounded-xl font-bold bg-gray-50 text-gray-700 hover:bg-gray-100 transition-colors"
+              >
+                Connexion
+              </button>
+              <button
+                class="block w-full py-3 px-4 text-center text-white font-bold rounded-xl shadow-lg transition-transform active:scale-95"
+                style="background-color: #4682B4"
+                @click="handleSignupClick"
+              >
+                Créer un compte
+              </button>
+            </template>
+            
+            <template v-else-if="user.client">
+              <div class="p-4 bg-gray-50 rounded-2xl flex items-center gap-3 mb-4">
+                <img
+                  :src="getUserAvatar(user)"
+                  :alt="getUserName(user)"
+                  class="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm"
+                />
+                <div>
+                  <p class="font-bold text-gray-800">{{ getUserName(user) }}</p>
+                  <p class="text-xs text-gray-500 font-medium">Client Connecté</p>
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <button
+                  @click="$emit('navigate', 'reservations')"
+                  class="flex items-center justify-center gap-2 py-3 rounded-xl bg-white border border-gray-100 text-gray-700 font-bold hover:bg-gray-50 transition-colors"
+                >
+                  <Calendar class="w-5 h-5" />
+                  <span>Réservations</span>
+                </button>
+                <button
+                  @click="$emit('navigate', 'profile')"
+                  class="flex items-center justify-center gap-2 py-3 rounded-xl bg-white border border-gray-100 text-gray-700 font-bold hover:bg-gray-50 transition-colors"
+                >
+                  <User class="w-5 h-5" />
+                  <span>Profil</span>
+                </button>
+              </div>
+              <button
+                @click="onLogoutClick"
+                class="block w-full mt-2 py-3 px-4 text-center text-red-600 font-bold rounded-xl bg-red-50 hover:bg-red-100 transition-colors"
+              >
+                Déconnexion
+              </button>
+            </template>
+
+            <button
+              v-else
+              @click="$emit('dashboard-click')"
+              class="block w-full py-3 px-4 text-center text-white font-bold rounded-xl shadow-lg"
+              style="background-color: #92B08B"
+            >
+              Mon Tableau de bord
+            </button>
+          </div>
+        </nav>
+      </transition>
+    </div>
   </header>
 </template>
 
 <script setup>
 import { ref } from 'vue'
+import { 
+  User, 
+  LogOut, 
+  Calendar, 
+  ChevronDown, 
+  Menu, 
+  X,
+  Bell
+} from 'lucide-vue-next'
 import SignupModal from './SignupModal.vue'
 import LoginModal from './LoginModal.vue'
 
@@ -370,6 +358,17 @@ const handleLoginClick = () => {
 const handleSignupClick = () => {
   isMenuOpen.value = false
   emit('signup-click')
+}
+
+const handleReservationsClick = () => {
+  activeLink.value = 'reservations'
+  isMenuOpen.value = false
+  emit('navigate', 'reservations')
+}
+
+const onLogoutClick = () => {
+  console.log("Header: Logout clicked");
+  emit('logout');
 }
 
 const handleVerificationSuccess = () => {

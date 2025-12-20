@@ -85,31 +85,34 @@
             </div>
           </div>
 
-          <a
-            href="#contact"
-            @click="handleContactClick"
-            class="px-2 py-2 transition-all duration-300 font-medium relative group"
-            :class="{
-              'text-[#4682B4]': activeLink === 'contact',
-              'text-gray-700 hover:text-[#4682B4]': activeLink !== 'contact'
-            }"
-          >
-            Contact
-            <span 
-              class="absolute bottom-0 left-0 h-0.5 bg-[#4682B4] transition-all duration-300"
-              :class="activeLink === 'contact' ? 'w-full' : 'w-0 group-hover:w-full'"
-            ></span>
-          </a>
-          <a
-            href="#"
-            @click.prevent="handleSignupClick"
-            class="px-2 py-2 transition-all duration-300 font-medium relative group text-gray-700 hover:text-[#4682B4]"
-          >
-            Devenir un intervenant
-            <span 
-              class="absolute bottom-0 left-0 h-0.5 bg-[#4682B4] transition-all duration-300 w-0 group-hover:w-full"
-            ></span>
-          </a>
+          <!-- Afficher Contact et Devenir un intervenant seulement si l'utilisateur n'est PAS connecté comme client -->
+          <template v-if="!user || !user.client">
+            <a
+              href="#contact"
+              @click="handleContactClick"
+              class="px-2 py-2 transition-all duration-300 font-medium relative group"
+              :class="{
+                'text-[#4682B4]': activeLink === 'contact',
+                'text-gray-700 hover:text-[#4682B4]': activeLink !== 'contact'
+              }"
+            >
+              Contact
+              <span 
+                class="absolute bottom-0 left-0 h-0.5 bg-[#4682B4] transition-all duration-300"
+                :class="activeLink === 'contact' ? 'w-full' : 'w-0 group-hover:w-full'"
+              ></span>
+            </a>
+            <a
+              href="#"
+              @click.prevent="handleSignupClick"
+              class="px-2 py-2 transition-all duration-300 font-medium relative group text-gray-700 hover:text-[#4682B4]"
+            >
+              Devenir un intervenant
+              <span 
+                class="absolute bottom-0 left-0 h-0.5 bg-[#4682B4] transition-all duration-300 w-0 group-hover:w-full"
+              ></span>
+            </a>
+          </template>
         </nav>
 
         <!-- Boutons d'action -->
@@ -130,6 +133,61 @@
             >
               S'inscrire
             </button>
+          </template>
+          <template v-else-if="user.client">
+            <!-- Actions pour client connecté - Design amélioré -->
+            <div class="flex items-center gap-3">
+              <!-- Avatar et nom -->
+              <div class="flex items-center gap-3 bg-gradient-to-r from-blue-50 to-gray-50 px-4 py-2.5 rounded-lg border border-gray-200 shadow-sm">
+                <img
+                  :src="getUserAvatar(user)"
+                  :alt="getUserName(user)"
+                  class="w-10 h-10 rounded-full object-cover border-2 shadow-sm"
+                  style="border-color: #4682B4"
+                />
+                <div class="hidden lg:block">
+                  <p class="text-sm font-semibold text-gray-800">{{ getUserName(user) }}</p>
+                  <p class="text-xs text-gray-500">Client connecté</p>
+                </div>
+              </div>
+              
+              <!-- Bouton Mes Réservations -->
+              <button
+                @click="$emit('navigate', 'reservations')"
+                class="text-white font-medium px-5 py-2.5 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 flex items-center gap-2"
+                style="background-color: #4682B4"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <span class="hidden xl:inline">Mes Réservations</span>
+                <span class="xl:hidden">Réservations</span>
+              </button>
+              
+              <!-- Bouton Mon Profil -->
+              <button
+                @click="$emit('navigate', 'profile')"
+                class="text-gray-700 font-medium px-5 py-2.5 rounded-lg transition-all duration-300 hover:text-[#4682B4] hover:bg-gray-50 flex items-center gap-2 border border-gray-200"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span class="hidden xl:inline">Mon Profil</span>
+                <span class="xl:hidden">Profil</span>
+              </button>
+              
+              <!-- Bouton Déconnexion -->
+              <button
+                @click="$emit('logout')"
+                class="text-red-600 font-medium px-4 py-2.5 rounded-lg transition-all duration-300 hover:bg-red-50 hover:text-red-700 flex items-center gap-2 border border-red-200"
+                title="Déconnexion"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                <span class="hidden xl:inline">Déconnexion</span>
+              </button>
+            </div>
           </template>
           <button
             v-else
@@ -181,20 +239,23 @@
         >
           À Propos
         </a>
-        <a
-          href="#contact"
-          @click="handleContactClick"
-          class="block py-3 px-4 text-gray-700 rounded-lg transition-all hover:bg-[#4682B4] hover:text-white font-medium"
-        >
-          Contact
-        </a>
-        <a
-          href="#"
-          @click.prevent="handleSignupClick"
-          class="block py-3 px-4 text-gray-700 rounded-lg transition-all hover:bg-[#4682B4] hover:text-white font-medium"
-        >
-          Devenir un intervenant
-        </a>
+        <!-- Afficher Contact et Devenir un intervenant seulement si l'utilisateur n'est PAS connecté comme client -->
+        <template v-if="!user || !user.client">
+          <a
+            href="#contact"
+            @click="handleContactClick"
+            class="block py-3 px-4 text-gray-700 rounded-lg transition-all hover:bg-[#4682B4] hover:text-white font-medium"
+          >
+            Contact
+          </a>
+          <a
+            href="#"
+            @click.prevent="handleSignupClick"
+            class="block py-3 px-4 text-gray-700 rounded-lg transition-all hover:bg-[#4682B4] hover:text-white font-medium"
+          >
+            Devenir un intervenant
+          </a>
+        </template>
         <div class="pt-4 space-y-2 border-t border-gray-200">
           <template v-if="!user">
             <button
@@ -209,6 +270,38 @@
               @click="handleSignupClick"
             >
               S'inscrire
+            </button>
+          </template>
+          <template v-else-if="user.client">
+            <div class="flex items-center gap-3 mb-3 pb-3 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-gray-50 p-3 rounded-lg">
+              <img
+                :src="getUserAvatar(user)"
+                :alt="getUserName(user)"
+                class="w-10 h-10 rounded-full object-cover border-2 shadow-sm"
+                style="border-color: #4682B4"
+              />
+              <div>
+                <p class="text-sm font-semibold text-gray-800">{{ getUserName(user) }}</p>
+                <p class="text-xs text-gray-500">Client connecté</p>
+              </div>
+            </div>
+            <button
+              @click="$emit('navigate', 'reservations')"
+              class="block w-full text-left py-3 px-4 text-gray-700 rounded-lg transition-all hover:bg-[#4682B4] hover:text-white font-medium"
+            >
+              Mes Réservations
+            </button>
+            <button
+              @click="$emit('navigate', 'profile')"
+              class="block w-full text-left py-3 px-4 text-gray-700 rounded-lg transition-all hover:bg-[#4682B4] hover:text-white font-medium"
+            >
+              Mon Profil
+            </button>
+            <button
+              @click="$emit('logout')"
+              class="block w-full text-left py-3 px-4 text-red-600 rounded-lg transition-all hover:bg-red-50 hover:text-red-700 font-medium border border-red-200 mt-2"
+            >
+              Déconnexion
             </button>
           </template>
           <button
@@ -236,7 +329,7 @@ const props = defineProps({
   user: Object
 })
 
-const emit = defineEmits(['login-click', 'signup-click', 'navigate-home', 'dashboard-click', 'service-click'])
+const emit = defineEmits(['login-click', 'signup-click', 'navigate-home', 'dashboard-click', 'service-click', 'navigate', 'logout'])
 
 const isMenuOpen = ref(false)
 const activeLink = ref('home')
@@ -285,6 +378,23 @@ const handleVerificationSuccess = () => {
 
 const handleNavigateHome = () => {
   emit('navigate-home')
+}
+
+// Helper functions pour obtenir les données utilisateur
+const getUserAvatar = (user) => {
+  if (!user) return 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop'
+  return user.avatar || user.url || user.profile_photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(getUserName(user))}&background=4682B4&color=fff`
+}
+
+const getUserName = (user) => {
+  if (!user) return 'Client'
+  if (user.name) return user.name
+  if (user.prenom || user.nom) return `${user.prenom || ''} ${user.nom || ''}`.trim()
+  if (user.client?.utilisateur) {
+    const u = user.client.utilisateur
+    return `${u.prenom || ''} ${u.nom || ''}`.trim() || 'Client'
+  }
+  return 'Client'
 }
 </script>
 

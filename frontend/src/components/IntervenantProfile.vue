@@ -460,7 +460,7 @@ export default {
       required: false
     }
   },
-  emits: ['back', 'login-required'],
+    emits: ['back', 'login-required', 'navigate-booking'],
   data() {
     return {
       selectedImage: null,
@@ -754,6 +754,27 @@ export default {
       this.isFavorite = !this.isFavorite;
     },
     handleBookingClick(service = null, task = null) {
+      // Vérifier si l'utilisateur est connecté
+      if (!authService.isAuthenticated()) {
+        // Stocker les paramètres pour après connexion
+        localStorage.setItem('booking_intervenantId', this.intervenant.id);
+        if (service) {
+          localStorage.setItem('booking_serviceId', service.id);
+        }
+        if (task) {
+          localStorage.setItem('booking_taskId', task.id);
+        }
+        localStorage.setItem('redirect_after_login', 'booking');
+        this.$emit('login-required');
+        return;
+      }
+      
+      // Si connecté, rediriger vers la page de réservation
+      this.$emit('navigate-booking', {
+        intervenantId: this.intervenant.id,
+        serviceId: service?.id || null,
+        taskId: task?.id || null
+      });
       if (!authService.isAuthenticated()) {
         this.$emit('login-required');
         return;

@@ -19,6 +19,8 @@
         @navigate-home="handleNavigateHome"
         @dashboard-click="handleDashboardClick"
         @service-click="handleServiceClick"
+        @navigate="handleClientNavigate"
+        @logout="handleLogout"
       />
       <HeroSection @search="handleSearch" />
       <StatsSection />
@@ -65,6 +67,7 @@
       @back="handleBackFromTaskIntervenants"
       @view-profile="handleViewProfileFromTask"
       @login-required="showLoginModal = true"
+      @navigate-booking="handleNavigateToBooking"
     />
 
     <!-- Profil de l'intervenant -->
@@ -75,12 +78,92 @@
       :service="serviceType"
       @back="handleBackFromProfile"
       @login-required="showLoginModal = true"
+      @navigate-booking="handleNavigateToBooking"
     />
 
-    <!-- Client Dashboard -->
-    <Clientdashboard
-      v-else-if="currentPage === 'client-dashboard'"
-      @logout="handleLogout"
+    <!-- Client Reservations Page -->
+    <ClientReservationsPage
+      v-else-if="currentPage === 'client-reservations'"
+      @back="handleBackFromClientPage"
+    />
+
+    <!-- Client Favorites Page -->
+    <div v-else-if="currentPage === 'client-favorites'" class="min-h-screen bg-gray-50">
+      <div class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div class="flex items-center gap-4">
+            <button
+              @click="handleBackFromClientPage"
+              class="flex items-center justify-center w-10 h-10 rounded-full transition-all hover:bg-gray-100"
+            >
+              <ArrowLeft :size="24" class="text-gray-600" />
+            </button>
+            <h1 class="text-2xl font-bold text-gray-900">Mes Favoris</h1>
+          </div>
+        </div>
+      </div>
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <MyFavoritesTab :client-id="currentUser?.client?.id || currentUser?.id" />
+      </div>
+    </div>
+
+    <!-- Client Profile Page -->
+    <div v-else-if="currentPage === 'client-profile'" class="min-h-screen bg-gray-50">
+      <div class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div class="flex items-center gap-4">
+            <button
+              @click="handleBackFromClientPage"
+              class="flex items-center justify-center w-10 h-10 rounded-full transition-all hover:bg-gray-100"
+            >
+              <ArrowLeft :size="24" class="text-gray-600" />
+            </button>
+            <h1 class="text-2xl font-bold text-gray-900">Mon Profil</h1>
+          </div>
+        </div>
+      </div>
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <ClientProfile
+          :client-id="currentUser?.client?.id || currentUser?.id"
+          :user="{
+            name: currentUser?.name || '',
+            email: currentUser?.email || '',
+            phone: currentUser?.phone || '',
+            location: currentUser?.quartier || '',
+            avatar: currentUser?.avatar || '',
+            memberSince: memberSince
+          }"
+          @profile-updated="handleProfileUpdate"
+        />
+      </div>
+    </div>
+
+    <!-- Client Reclamations Page -->
+    <div v-else-if="currentPage === 'client-reclamations'" class="min-h-screen bg-gray-50">
+      <div class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div class="flex items-center gap-4">
+            <button
+              @click="handleBackFromClientPage"
+              class="flex items-center justify-center w-10 h-10 rounded-full transition-all hover:bg-gray-100"
+            >
+              <ArrowLeft :size="24" class="text-gray-600" />
+            </button>
+            <h1 class="text-2xl font-bold text-gray-900">Mes Réclamations</h1>
+          </div>
+        </div>
+      </div>
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <ClientReclamationsTab />
+      </div>
+    </div>
+
+    <!-- Booking Page -->
+    <BookingPage
+      v-else-if="currentPage === 'booking'"
+      @back="handleBackFromBooking"
+      @success="handleBookingSuccess"
+      @login-required="showLoginModal = true"
     />
 
     <!-- Modals -->
@@ -116,8 +199,13 @@ import TaskIntervenantsPage from './components/TaskIntervenantsPage.vue'
 import IntervenantProfile from './components/IntervenantProfile.vue' 
 import LoginModal from './components/LoginModal.vue'
 import SignupModal from './components/SignupModal.vue'
-import Clientdashboard from './components/Clientdashboard.vue'
 import AdminDashboard from './components/Admin/AdminDashboard.vue'
+import BookingPage from './components/BookingPage.vue'
+import ClientReservationsPage from './components/ClientReservationsPage.vue'
+import MyFavoritesTab from './components/MyFavoritesTab.vue'
+import ClientProfile from './components/ClientProfile.vue'
+import ClientReclamationsTab from './components/client/ClientReclamationsTab.vue'
+import { ArrowLeft } from 'lucide-vue-next'
 
 
 const route = useRoute()
@@ -194,7 +282,8 @@ onMounted(async () => {
             router.push('/dashboard')
           }
         } else if (user.client) {
-          currentPage.value = 'client-dashboard'
+          // Ne plus rediriger vers le dashboard client, rester sur la page d'accueil
+          currentPage.value = 'home'
         }
       }
     } catch (error) {
@@ -359,16 +448,34 @@ const handleLoginSuccess = (user) => {
   currentUser.value = user
   showLoginModal.value = false
   
-  // Navigation basée sur le rôle
-  if (user.admin) {
-    currentPage.value = 'admin'
-  } else if (user.intervenant) {
-    router.push('/dashboard')
-  } else if (user.client) {
-    currentPage.value = 'client-dashboard'
+  // Vérifier s'il y a une redirection après connexion
+  const redirectAfterLogin = localStorage.getItem('redirect_after_login')
+  
+  if (redirectAfterLogin === 'booking') {
+    // Rediriger vers la page de réservation
+    previousPage.value = 'task-intervenants' // ou la page d'où on vient
+    currentPage.value = 'booking'
+    localStorage.removeItem('redirect_after_login')
   } else {
-    // Fallback if role is unclear
-    currentPage.value = 'home'
+    // Navigation basée sur le rôle
+    if (user.admin) {
+      currentPage.value = 'admin'
+    } else if (user.intervenant) {
+      router.push('/dashboard')
+  } else if (user.client) {
+    // Ne plus rediriger vers le dashboard client, rester sur la page actuelle ou home
+    if (redirectAfterLogin === 'booking') {
+      // Rediriger vers la page de réservation si nécessaire
+      previousPage.value = 'task-intervenants'
+      currentPage.value = 'booking'
+      localStorage.removeItem('redirect_after_login')
+    } else {
+      currentPage.value = 'home'
+    }
+  } else {
+      // Fallback if role is unclear
+      currentPage.value = 'home'
+    }
   }
   
   window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -411,10 +518,48 @@ const handleDashboardClick = () => {
   } else if (currentUser.value?.intervenant) {
     router.push('/dashboard')
   } else if (currentUser.value?.client) {
-    currentPage.value = 'client-dashboard'
+    // Rediriger vers Mes Réservations au lieu du dashboard
+    currentPage.value = 'client-reservations'
   }
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
+
+// Gérer la navigation depuis le header pour les clients
+const handleClientNavigate = (page) => {
+  if (page === 'reservations') {
+    currentPage.value = 'client-reservations'
+  } else if (page === 'profile') {
+    currentPage.value = 'client-profile'
+    // Les favoris et réclamations sont maintenant dans le profil
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+// Retour depuis une page client
+const handleBackFromClientPage = () => {
+  currentPage.value = 'home'
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+// Gérer la mise à jour du profil
+const handleProfileUpdate = async () => {
+  // Recharger les données utilisateur
+  try {
+    const response = await authService.getCurrentUser()
+    currentUser.value = response.data
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour du profil:', error)
+  }
+}
+
+// Calculer memberSince
+const memberSince = computed(() => {
+  if (currentUser.value?.created_at) {
+    const createdDate = new Date(currentUser.value.created_at)
+    return createdDate.getFullYear().toString()
+  }
+  return '2023'
+})
 
 // Fonction pour gérer la connexion admin
 const handleAdminLogin = (user) => {
@@ -435,6 +580,51 @@ const handleAdminLogout = async () => {
   currentUser.value = null
   currentPage.value = 'home'
   window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+// ============================================
+// NAVIGATION - PAGE DE RÉSERVATION
+// ============================================
+const handleBackFromBooking = () => {
+  // Retourner à la page précédente
+  if (previousPage.value === 'task-intervenants') {
+    currentPage.value = 'task-intervenants'
+  } else if (previousPage.value === 'intervenant-profile') {
+    currentPage.value = 'intervenant-profile'
+  } else {
+    currentPage.value = 'home'
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+const handleBookingSuccess = () => {
+  // Après une réservation réussie, rediriger vers Mes Réservations
+  if (currentUser.value?.client) {
+    currentPage.value = 'client-reservations'
+  } else {
+    handleBackFromBooking()
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+const handleNavigateToBooking = (bookingData) => {
+  // Stocker les données de réservation dans localStorage pour la page de réservation
+  localStorage.setItem('booking_intervenantId', bookingData.intervenantId);
+  if (bookingData.serviceId) localStorage.setItem('booking_serviceId', bookingData.serviceId);
+  if (bookingData.taskId) localStorage.setItem('booking_taskId', bookingData.taskId);
+  
+  // Sauvegarder la page précédente (peut être task-intervenants ou intervenant-profile)
+  if (currentPage.value === 'task-intervenants') {
+    previousPage.value = 'task-intervenants';
+  } else if (currentPage.value === 'intervenant-profile') {
+    previousPage.value = 'intervenant-profile';
+  } else {
+    previousPage.value = 'home';
+  }
+  
+  // Naviguer vers la page de réservation
+  currentPage.value = 'booking';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 </script>
 

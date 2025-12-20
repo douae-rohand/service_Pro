@@ -453,7 +453,7 @@ export default {
       required: true
     }
   },
-  emits: ['back', 'view-profile', 'login-required'], // Added login-required
+    emits: ['back', 'view-profile', 'login-required', 'navigate-booking'], // Added login-required and navigate-booking
   data() {
     return {
       citySearch: '',
@@ -736,17 +736,25 @@ export default {
       event.target.src = 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=150&h=150&fit=crop';
     },
     
-    handleReserve(intervenant) {
-      // Vérifier si l'utilisateur est connecté
-      if (!authService.isAuthenticated()) {
-        this.$emit('login-required');
-        return;
-      }
-      
-      // Si connecté, procéder à la réservation (rediriger vers profil ou autre logique)
-      console.log('Réserver avec:', intervenant);
-      this.viewProfile(intervenant);
-    },
+      handleReserve(intervenant) {
+        // Vérifier si l'utilisateur est connecté
+        if (!authService.isAuthenticated()) {
+          // Stocker les paramètres pour après connexion
+          localStorage.setItem('booking_intervenantId', intervenant.id);
+          localStorage.setItem('booking_serviceId', this.serviceId);
+          localStorage.setItem('booking_taskId', this.taskId);
+          localStorage.setItem('redirect_after_login', 'booking');
+          this.$emit('login-required');
+          return;
+        }
+        
+        // Si connecté, rediriger vers la page de réservation
+        this.$emit('navigate-booking', {
+          intervenantId: intervenant.id,
+          serviceId: this.serviceId,
+          taskId: this.taskId
+        });
+      },
     
     // Map & Location Methods
     initializeMap() {

@@ -57,8 +57,8 @@ class IntervenantController extends Controller
             $q->where('type_auteur', 'client');
         }]);
 
-        // Sélectionner uniquement les colonnes nécessaires
-        $intervenants = $query->select('intervenant.id', 'intervenant.ville', 'intervenant.bio', 'intervenant.is_active')
+        // Sélectionner uniquement les colonnes nécessaires (inclure address pour géolocalisation)
+        $intervenants = $query->select('intervenant.id', 'intervenant.address', 'intervenant.ville', 'intervenant.bio', 'intervenant.is_active')
             ->get();
 
         // Calculer la note moyenne et le nombre d'avis en mémoire pour éviter les requêtes SQL en boucle

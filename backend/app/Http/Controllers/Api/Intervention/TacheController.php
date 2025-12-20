@@ -134,7 +134,7 @@ class TacheController extends Controller
     public function getIntervenants($id)
     {
         try {
-            \Log::info('🔍 [TacheController] Fetching intervenants for task ID: ' . $id);
+            \Log::info('[TacheController] Fetching intervenants for task ID: ' . $id);
             
             $tache = Tache::findOrFail($id);
             
@@ -146,7 +146,7 @@ class TacheController extends Controller
                 ->withCount(['evaluations', 'interventions'])
                 ->get();
             
-            \Log::info('📦 [TacheController] Found ' . $intervenants->count() . ' active intervenants for task ' . $id);
+            \Log::info('[TacheController] Found ' . $intervenants->count() . ' active intervenants for task ' . $id);
             
             // Transform data for frontend
             $client = \App\Models\Client::where('id', auth()->id())->first();

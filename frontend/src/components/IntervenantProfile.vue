@@ -127,14 +127,6 @@
               <HeartIcon :size="18" :class="{ 'fill-current': isFavorite }" :style="{ color: isFavorite ? '#4682B4' : 'currentColor' }" />
               {{ isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris' }}
             </button>
-            <button
-              @click="showReclamationModal = true"
-              class="px-5 py-2.5 rounded-lg border-2 transition-all flex items-center gap-2"
-              style="borderColor: #e74c3c; color: #e74c3c"
-            >
-              <AlertTriangle :size="18" />
-              Signaler
-            </button>
           </div>
         </div>
       
@@ -398,14 +390,6 @@
         class="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
       />
     </div>
-
-    <!-- Reclamation Modal -->
-    <CreateReclamationModal
-      :show="showReclamationModal"
-      :preselected-intervenant-id="intervenant.id"
-      @close="showReclamationModal = false"
-      @success="handleReclamationSuccess"
-    />
     </div>
   </div>
 </template>
@@ -419,12 +403,10 @@ import {
   CheckCircle as CheckCircleIcon, 
   Clock as ClockIcon,
   Camera as CameraIcon, 
-  X as XIcon,
-  AlertTriangle
+  X as XIcon
 } from 'lucide-vue-next';
 import ImageWithFallback from './figma/ImageWithFallback.vue';
 import BookingModal from './BookingModal.vue';
-import CreateReclamationModal from './client/CreateReclamationModal.vue';
 import intervenantService from '../services/intervenantService';
 import authService from '../services/authService';
 import favoriteService from '../services/favoriteService';
@@ -441,10 +423,8 @@ export default {
     ClockIcon,
     CameraIcon,
     XIcon,
-    AlertTriangle,
     ImageWithFallback,
-    BookingModal,
-    CreateReclamationModal
+    BookingModal
   },
   props: {
     intervenantId: {
@@ -477,7 +457,6 @@ export default {
       selectedServiceForBooking: null,
       selectedTaskForBooking: null,
       hoverBackButton: false,
-      showReclamationModal: false,
       tabs: [
         { id: 'apropos', label: 'À propos' },
         { id: 'services', label: 'Taches' },
@@ -549,16 +528,26 @@ export default {
     }
   },
   async created() {
-    if (this.intervenantData) {
-      await this.loadFromProvidedData();
-    } 
+    console.log('🚀 IntervenantProfile created with:', {
+      intervenantId: this.intervenantId,
+      intervenantData: this.intervenantData,
+      service: this.service
+    });
     
+    // Déterminer l'ID à utiliser (priorité à intervenantId, puis intervenantData.id)
     const idToFetch = this.intervenantId || (this.intervenantData ? this.intervenantData.id : null);
     
-    if (idToFetch && !this.intervenantData) {
+    if (idToFetch) {
+      // Toujours charger depuis le backend pour avoir les données complètes
+      console.log('📡 Fetching full data from backend for ID:', idToFetch);
       await this.fetchIntervenantData(idToFetch);
-    } else if (!this.intervenantData) {
+    } else if (this.intervenantData) {
+      // Fallback: utiliser les données fournies si pas d'ID disponible
+      console.log('📦 Using provided intervenantData (no ID available)');
+      await this.loadFromProvidedData();
+    } else {
       this.error = "Aucune donnée d'intervenant fournie.";
+      console.error('❌ No intervenant data or ID provided');
     }
   },
   methods: {
@@ -601,15 +590,26 @@ export default {
     
     async fetchIntervenantData(optionalId = null) {
       try {
+        this.loading = true;
         const id = optionalId || this.intervenantId;
-        if (!id) return;
+        if (!id) {
+          this.error = "ID de l'intervenant manquant";
+          return;
+        }
         
+        console.log('🔍 Fetching intervenant data for ID:', id);
         const response = await intervenantService.getById(id);
-        const data = response.data || response;
+        console.log('📦 Response from getById:', response);
+        
+        // Le service getById retourne déjà res.data, donc response est directement les données
+        // Mais il peut aussi y avoir un wrapper, donc on vérifie les deux
+        const data = response?.data || response;
 
         if (!data) {
           throw new Error("Données de l'intervenant introuvables");
         }
+        
+        console.log('✅ Parsed data:', data);
         
         const mappedPhotos = [];
         if (data.interventions) {
@@ -671,10 +671,10 @@ export default {
         // Vérifier le statut favori après le chargement des données
         await this.checkFavoriteStatus();
       } catch (err) {
-        console.error("Erreur lors du chargement de l'intervenant:", err);
-        if (!this.intervenant.id) {
-             this.error = "Impossible de charger les informations de l'intervenant.";
-        }
+        console.error("❌ Erreur lors du chargement de l'intervenant:", err);
+        console.error("Error details:", err.response || err.message);
+        this.error = err.response?.data?.message || err.message || "Impossible de charger les informations de l'intervenant.";
+        this.loading = false;
       } finally {
         this.loading = false;
       }
@@ -865,10 +865,6 @@ export default {
     },
     handleBookingSuccess() {
       this.showBookingModal = false;
-    },
-    handleReclamationSuccess() {
-      this.showReclamationModal = false;
-      // Optionally show a success message or refresh data
     },
     formatExperience,
     async checkFavoriteStatus() {

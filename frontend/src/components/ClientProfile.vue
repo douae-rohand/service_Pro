@@ -180,76 +180,74 @@
             <p class="mt-4 text-gray-600">Chargement...</p>
           </div>
           <div v-else>
-            <!-- Statistics Card -->
-            <div class="bg-blue-600 rounded-lg p-6 mb-6 text-white">
-              <h3 class="text-2xl font-bold mb-2">Vos évaluations reçues</h3>
-              <p class="text-blue-100 mb-4">Ce que les intervenants disent de vous</p>
-              <div class="grid grid-cols-4 gap-4">
-                <div class="bg-white bg-opacity-20 rounded-lg p-4">
-                  <div class="flex items-center gap-2 mb-2">
-                    <Star :size="20" fill="#FEE347" color="#FEE347" />
-                    <span class="text-2xl font-bold">{{ evalStatistics.averageRating || '0' }}</span>
-                  </div>
-                  <p class="text-sm text-blue-100">Note moyenne</p>
-                </div>
-                <div class="bg-white bg-opacity-20 rounded-lg p-4">
-                  <div class="flex items-center gap-2 mb-2">
-                    <TrendingUp :size="20" />
-                    <span class="text-2xl font-bold">{{ evalStatistics.satisfactionRate || 0 }}%</span>
-                  </div>
-                  <p class="text-sm text-blue-100">Taux de satisfaction</p>
-                  <p class="text-xs text-blue-200 mt-1">Intervenants prêts à retravailler avec vous</p>
-                </div>
-                <div class="bg-white bg-opacity-20 rounded-lg p-4">
-                  <div class="flex items-center gap-2 mb-2">
-                    <Award :size="20" />
-                    <span class="text-2xl font-bold">{{ evalStatistics.clientStatus || 'N/A' }}</span>
-                  </div>
-                  <p class="text-sm text-blue-100">Statut client</p>
-                </div>
-                <div class="bg-white bg-opacity-20 rounded-lg p-4">
-                  <span class="text-2xl font-bold">{{ evalStatistics.totalEvaluations || 0 }}</span>
-                  <p class="text-sm text-blue-100 mt-2">Évaluations</p>
-                </div>
-              </div>
+            <!-- Header -->
+            <div class="mb-6">
+              <h3 class="text-2xl font-bold mb-2" style="color: #2f4f4f">Mes Évaluations</h3>
+              <p class="text-gray-600">Les évaluations que les intervenants vous ont données</p>
             </div>
 
             <!-- Reviews List -->
-            <div v-if="filteredEvaluations.length === 0" class="text-center py-12 text-gray-500">
-              <p>Aucune évaluation pour le moment</p>
+            <div v-if="filteredEvaluations.length === 0" class="text-center py-16">
+              <div class="inline-block bg-gray-100 rounded-full p-6 mb-4">
+                <Star :size="48" class="text-gray-400" />
+              </div>
+              <p class="text-lg text-gray-500 font-medium">Aucune évaluation pour le moment</p>
+              <p class="text-sm text-gray-400 mt-2">Les évaluations des intervenants apparaîtront ici après vos réservations</p>
             </div>
-            <div v-else class="space-y-4">
+            <div v-else class="space-y-6">
               <div
                 v-for="evaluation in filteredEvaluations"
                 :key="evaluation.interventionId"
-                class="bg-white border border-gray-200 rounded-lg p-6"
+                class="bg-white border-2 border-gray-100 rounded-xl p-6 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1"
               >
-                <div class="flex items-start gap-4 mb-4">
-                  <img
-                    :src="evaluation.intervenantImage"
-                    :alt="evaluation.intervenantName"
-                    class="w-16 h-16 rounded-full object-cover"
-                  />
-                  <div class="flex-1">
-                    <h4 class="font-bold mb-1" style="color: #2f4f4f">{{ evaluation.intervenantName }}</h4>
-                    <p class="text-sm text-gray-600 mb-2">{{ evaluation.serviceName }}</p>
-                    <div class="flex items-center gap-2 text-sm text-gray-500">
-                      <Calendar :size="14" />
-                      <span>{{ evaluation.date }}</span>
+                <div class="flex items-start gap-5">
+                  <!-- Avatar -->
+                  <div class="flex-shrink-0">
+                    <div class="relative">
+                      <img
+                        :src="evaluation.intervenantImage || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(evaluation.intervenantName) + '&background=4682B4&color=fff'"
+                        :alt="evaluation.intervenantName"
+                        class="w-16 h-16 rounded-full object-cover border-3 shadow-md"
+                        style="border-color: #4682B4"
+                        @error="evaluation.intervenantImage = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(evaluation.intervenantName) + '&background=4682B4&color=fff'"
+                      />
                     </div>
                   </div>
-                  <div class="text-right">
-                    <div class="flex items-center gap-1 mb-2">
-                      <Star :size="20" fill="#FEE347" color="#FEE347" />
-                      <span class="text-xl font-bold">{{ evaluation.overallRating }}</span>
-                    </div>
-                  </div>
-                </div>
 
-                <!-- Comment -->
-                <div v-if="evaluation.comment" class="flex items-start gap-2 text-gray-700">
-                  <MessageCircle :size="18" class="text-gray-400 mt-1" />
-                  <p class="italic">"{{ evaluation.comment }}"</p>
+                  <!-- Content -->
+                  <div class="flex-1 min-w-0">
+                    <!-- Header -->
+                    <div class="flex items-start justify-between mb-3">
+                      <div class="flex-1">
+                        <h4 class="text-xl font-bold mb-1" style="color: #2f4f4f">{{ evaluation.intervenantName }}</h4>
+                        <p class="text-sm font-medium text-gray-600 mb-2">{{ evaluation.serviceName }}</p>
+                        <div class="flex items-center gap-2 text-sm text-gray-500">
+                          <Calendar :size="14" />
+                          <span>{{ evaluation.date }}</span>
+                        </div>
+                      </div>
+                      
+                      <!-- Rating Badge -->
+                      <div class="flex-shrink-0 ml-4">
+                        <div class="flex items-center gap-2 bg-yellow-50 px-4 py-2 rounded-full border border-yellow-200">
+                          <Star :size="20" fill="#FEE347" color="#FEE347" />
+                          <span class="text-xl font-bold text-gray-800">{{ evaluation.overallRating }}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Comment -->
+                    <div v-if="evaluation.comment" class="mt-4 pt-4 border-t border-gray-100">
+                      <div class="flex items-start gap-3">
+                        <div class="flex-shrink-0 mt-1">
+                          <MessageCircle :size="18" class="text-blue-400" />
+                        </div>
+                        <div class="flex-1">
+                          <p class="text-gray-700 leading-relaxed italic">"{{ evaluation.comment }}"</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -282,8 +280,6 @@ import {
   Calendar,
   Pencil,
   MessageCircle,
-  TrendingUp,
-  Award,
   AlertTriangle
 } from 'lucide-vue-next';
 import profileService from '@/services/profileService';
@@ -304,8 +300,6 @@ export default {
     Calendar,
     Pencil,
     MessageCircle,
-    TrendingUp,
-    Award,
     AlertTriangle,
     MyFavoritesTab,
     ClientReclamationsTab

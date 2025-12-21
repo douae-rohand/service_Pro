@@ -105,7 +105,7 @@
                   </button>
                   <button @click="refuseReservation(reservation.id)" class="refuse-btn">
                     <X :size="18" />
-                    Reyyfuser
+                    Refuser
                   </button>
                 </div>
 
@@ -153,6 +153,17 @@
                   <span v-else-if="reservation.evaluationStatus === 'expired'" class="expired-notice">
                     Période expirée
                   </span>
+                </div>
+                
+                <!-- Complaint Button - Always available for completed interventions -->
+                <div v-if="selectedTab === 'completed'" class="completed-actions">
+                  <button 
+                    @click="openComplaintModal(reservation)" 
+                    class="complaint-btn"
+                  >
+                    <Flag :size="16" />
+                    Réclamer
+                  </button>
                 </div>
                 <div v-else-if="selectedTab === 'accepted'" class="accepted-actions">
                   <span class="status-badge status-accepted">
@@ -255,6 +266,100 @@
       @rating-submitted="onRatingSubmitted"
     />
     
+    <!-- Complaint Modal -->
+    <div v-if="showComplaintModal" class="modal-overlay" @click="closeComplaintModal">
+      <div class="complaint-modal-content" @click.stop>
+        <div class="complaint-modal-header">
+          <h2 class="complaint-modal-title">
+            <Flag :size="20" />
+            Réclamation sur intervention
+          </h2>
+          <button @click="closeComplaintModal" class="modal-close-btn">×</button>
+        </div>
+        
+        <div class="complaint-modal-body">
+          <!-- Intervention Information -->
+          <div class="intervention-info">
+            <h4 class="info-title">Informations de l'intervention</h4>
+            <div class="info-grid">
+              <div class="info-item">
+                <span class="info-label">Service :</span>
+                <span class="info-value">{{ selectedReservation?.service || '-' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Sous-service :</span>
+                <span class="info-value">{{ selectedReservation?.task || '-' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Client concerné :</span>
+                <span class="info-value">{{ selectedReservation?.clientName || '-' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Date :</span>
+                <span class="info-value">{{ selectedReservation ? formatDate(selectedReservation.date) : '-' }}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="complaint-form">
+            <div class="form-group">
+              <label class="form-label">Raison de la réclamation *</label>
+              <input 
+                v-model="complaintForm.raison" 
+                type="text" 
+                class="form-input"
+                placeholder="Ex: Problème de paiement, comportement inapproprié..."
+                required
+              />
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Priorité *</label>
+              <select 
+                v-model="complaintForm.priorite" 
+                class="form-select"
+                required
+              >
+                <option value="">Sélectionner une priorité</option>
+                <option value="basse">Basse</option>
+                <option value="moyenne">Moyenne</option>
+                <option value="haute">Haute</option>
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Sujet de la réclamation *</label>
+              <textarea 
+                v-model="complaintForm.sujet" 
+                class="form-textarea"
+                rows="4"
+                placeholder="Décrivez en détail le problème rencontré..."
+                required
+              ></textarea>
+            </div>
+          </div>
+        </div>
+        
+        <div class="complaint-modal-footer">
+          <button 
+            @click="closeComplaintModal" 
+            class="btn-cancel"
+            :disabled="isSubmittingComplaint"
+          >
+            Annuler
+          </button>
+          <button 
+            @click="submitComplaint" 
+            class="btn-submit"
+            :disabled="isSubmittingComplaint || !isComplaintFormValid"
+          >
+            <span v-if="isSubmittingComplaint" class="spinner"></span>
+            {{ isSubmittingComplaint ? 'Envoi en cours...' : 'Envoyer la réclamation' }}
+          </button>
+        </div>
+      </div>
+    </div>
+    
     <!-- Client Profile Modal -->
     <ClientProfileModal
       :show="showClientProfile"
@@ -311,10 +416,10 @@
           
           <div class="visibility-info">
             <p v-if="selectedReservation.publicData.both_parties_voted">
-              ✅ Les deux parties ont évalué
+              Les deux parties ont évalué
             </p>
             <p v-else-if="selectedReservation.publicData.window_passed">
-              ⏰ Délai de 7 jours expiré
+              Délai de 7 jours expiré
             </p>
           </div>
           
@@ -364,7 +469,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Check, X, Clock, MapPin, Calendar, MessageSquare, Coins, Package, Star, Mail, AlertTriangle, FileText } from 'lucide-vue-next'
+import { Check, X, Clock, MapPin, Calendar, MessageSquare, Coins, Package, Star, Mail, AlertTriangle, FileText, Flag } from 'lucide-vue-next'
 // ... existing imports ...
 
 const showRefuseModal = ref(false)
@@ -413,6 +518,14 @@ const loading = ref(false)
 const error = ref(null)
 const showRatingModal = ref(false)
 const selectedReservation = ref(null)
+const showComplaintModal = ref(false)
+const isSubmittingComplaint = ref(false)
+const complaintForm = ref({
+  raison: '',
+  priorite: '',
+  sujet: '',
+  intervention_id: null
+})
 const showPublicModal = ref(false)
 const showClientProfile = ref(false)
 const selectedClientId = ref(null)
@@ -576,6 +689,64 @@ const openRatingModal = async (reservation) => {
 const closeRatingModal = () => {
   showRatingModal.value = false
   selectedReservation.value = null
+}
+
+const openComplaintModal = (reservation) => {
+  selectedReservation.value = reservation
+  complaintForm.value = {
+    raison: '',
+    priorite: '',
+    sujet: '',
+    intervention_id: reservation.id
+  }
+  showComplaintModal.value = true
+}
+
+const closeComplaintModal = () => {
+  showComplaintModal.value = false
+  selectedReservation.value = null
+  complaintForm.value = {
+    raison: '',
+    priorite: '',
+    sujet: '',
+    intervention_id: null
+  }
+}
+
+const isComplaintFormValid = computed(() => {
+  return complaintForm.value.raison.trim() !== '' && 
+         complaintForm.value.priorite !== '' && 
+         complaintForm.value.sujet.trim() !== ''
+})
+
+const submitComplaint = async () => {
+  if (!isComplaintFormValid.value) return
+  
+  isSubmittingComplaint.value = true
+  
+  try {
+    const response = await api.post('/reclamations', {
+      intervention_id: complaintForm.value.intervention_id,
+      raison: complaintForm.value.raison,
+      priorite: complaintForm.value.priorite,
+      message: complaintForm.value.sujet
+    })
+    
+    notification.value = 'Réclamation envoyée avec succès!'
+    setTimeout(() => {
+      notification.value = null
+    }, 3000)
+    closeComplaintModal()
+    
+  } catch (error) {
+    console.error('Error submitting complaint:', error)
+    notification.value = 'Erreur lors de l\'envoi de la réclamation'
+    setTimeout(() => {
+      notification.value = null
+    }, 3000)
+  } finally {
+    isSubmittingComplaint.value = false
+  }
 }
 
 const openPublicEvaluations = async (reservation) => {
@@ -1063,6 +1234,25 @@ onUnmounted(() => {
   background-color: #DC2626;
 }
 
+.complaint-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  padding: var(--spacing-2) var(--spacing-3);
+  background-color: #EF4444;
+  color: var(--color-white);
+  border: none;
+  border-radius: var(--radius-lg);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.complaint-btn:hover {
+  background-color: #DC2626;
+}
+
 .details-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -1302,6 +1492,194 @@ onUnmounted(() => {
   overflow-y: auto;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   border: 3px solid #FEE347;
+}
+
+/* Complaint Modal */
+.complaint-modal-content {
+  background: white;
+  border-radius: var(--radius-xl);
+  max-width: 32rem;
+  width: 95%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.complaint-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-6);
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.complaint-modal-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin: 0;
+  color: #EF4444;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #6B7280;
+  cursor: pointer;
+  padding: var(--spacing-1);
+  line-height: 1;
+}
+
+.modal-close-btn:hover {
+  color: #374151;
+}
+
+.complaint-modal-body {
+  padding: var(--spacing-6);
+}
+
+.intervention-info {
+  background-color: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: var(--radius-md);
+  padding: var(--spacing-4);
+  margin-bottom: var(--spacing-6);
+}
+
+.info-title {
+  margin: 0 0 var(--spacing-3) 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-3);
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.info-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6B7280;
+}
+
+.info-value {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #111827;
+}
+
+.complaint-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.form-label {
+  font-weight: 500;
+  color: #374151;
+  font-size: 0.875rem;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  padding: var(--spacing-3);
+  border: 1px solid #D1D5DB;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  transition: border-color 0.2s;
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: #EF4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.complaint-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-3);
+  padding: var(--spacing-6);
+  border-top: 1px solid #E5E7EB;
+  background-color: #F9FAFB;
+}
+
+.btn-cancel,
+.btn-submit {
+  padding: var(--spacing-3) var(--spacing-4);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+
+.btn-cancel {
+  background-color: white;
+  color: #6B7280;
+  border-color: #D1D5DB;
+}
+
+.btn-cancel:hover:not(:disabled) {
+  background-color: #F3F4F6;
+  color: #374151;
+}
+
+.btn-submit {
+  background-color: #EF4444;
+  color: white;
+}
+
+.btn-submit:hover:not(:disabled) {
+  background-color: #DC2626;
+}
+
+.btn-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.spinner {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .public-modal-body {

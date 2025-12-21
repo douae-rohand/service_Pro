@@ -1,10 +1,11 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\Api\Intervention;
 
 use App\Http\Controllers\Controller;
 use App\Models\Reclamation;
 use App\Models\Intervention;
+use App\Models\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -37,6 +38,11 @@ class ReclamationController extends Controller
                 return response()->json(['message' => 'Unauthorized access to intervention'], 403);
             }
 
+            // Ensure intervention is completed
+            if ($intervention->status !== 'termine') {
+                return response()->json(['message' => 'Réclamation uniquement autorisée pour les interventions terminées'], 403);
+            }
+
             $client = $intervention->client;
 
             if (!$client) {
@@ -48,6 +54,7 @@ class ReclamationController extends Controller
                 'signale_par_type' => 'Intervenant',
                 'concernant_id' => $client->id,
                 'concernant_type' => 'Client',
+                'intervention_id' => $intervention->id,
                 'raison' => $request->raison,
                 'message' => $request->message,
                 'priorite' => $request->priorite,

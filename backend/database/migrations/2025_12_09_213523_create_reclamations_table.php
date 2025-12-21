@@ -14,9 +14,10 @@ return new class extends Migration
         Schema::create('reclamations', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('signale_par_id'); // ID de l'utilisateur qui signale
-            $table->string('signale_par_type'); // 'client' ou 'intervenant'
+            $table->enum('signale_par_type', ['client', 'intervenant']); // 'client' ou 'intervenant'
             $table->unsignedBigInteger('concernant_id')->nullable(); // ID de l'utilisateur concerné
-            $table->string('concernant_type')->nullable(); // 'client' ou 'intervenant'
+            $table->enum('concernant_type', ['client', 'intervenant'])->nullable(); // 'client' ou 'intervenant'
+            $table->unsignedBigInteger('intervention_id')->nullable(); // ID de l'intervention concernée
             $table->string('raison');
             $table->text('message');
             $table->enum('priorite', ['haute', 'moyenne', 'basse'])->default('moyenne');

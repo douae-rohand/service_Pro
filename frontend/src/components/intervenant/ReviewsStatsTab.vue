@@ -226,76 +226,6 @@
                 </div>
               </div>
 
-              <!-- Complaint Button (Only visible if details expanded for context) -->
-              <div class="mt-4 flex justify-end">
-                <button 
-                  v-if="!review.showComplaintForm"
-                  @click="toggleComplaintForm(review)"
-                  class="text-gray-400 hover:text-red-500 text-xs flex items-center gap-1 transition-colors"
-                >
-                  <Flag :size="14" />
-                  Signaler cet avis
-                </button>
-              </div>
-
-              <!-- Complaint Form -->
-              <div v-if="review.showComplaintForm" class="mt-4 bg-red-50 p-4 rounded-lg border border-red-100">
-                <h5 class="text-sm font-semibold text-red-700 mb-3 flex items-center gap-2">
-                  <Flag :size="16" />
-                  Signaler une réclamation
-                </h5>
-                
-                <div class="space-y-3">
-                  <div>
-                    <label class="block text-xs font-medium text-red-800 mb-1">Raison</label>
-                    <input 
-                      v-model="review.complaintReason" 
-                      type="text" 
-                      class="w-full text-sm rounded border-red-200 focus:border-red-500 focus:ring-red-500"
-                      placeholder="Ex: Avis abusif, insultes..."
-                    />
-                  </div>
-                  
-                  <div>
-                    <label class="block text-xs font-medium text-red-800 mb-1">Priorité</label>
-                    <select 
-                      v-model="review.complaintPriority"
-                      class="w-full text-sm rounded border-red-200 focus:border-red-500 focus:ring-red-500"
-                    >
-                      <option value="basse">Basse</option>
-                      <option value="moyenne">Moyenne</option>
-                      <option value="haute">Haute</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label class="block text-xs font-medium text-red-800 mb-1">Message</label>
-                    <textarea 
-                      v-model="review.complaintMessage"
-                      rows="3"
-                      class="w-full text-sm rounded border-red-200 focus:border-red-500 focus:ring-red-500"
-                      placeholder="Décrivez le problème en détail..."
-                    ></textarea>
-                  </div>
-
-                  <div class="flex justify-end gap-2 pt-2">
-                    <button 
-                      @click="review.showComplaintForm = false"
-                      class="px-3 py-1.5 text-xs text-red-600 hover:bg-red-100 rounded"
-                    >
-                      Annuler
-                    </button>
-                    <button 
-                      @click="submitComplaint(review)"
-                      :disabled="review.submittingComplaint"
-                      class="px-3 py-1.5 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
-                    >
-                      <span v-if="review.submittingComplaint" class="loader-spin"></span>
-                      Envoyer
-                    </button>
-                  </div>
-                </div>
-              </div>
             </div>
               </div>
             </div>
@@ -316,16 +246,11 @@
     </div>
   </div>
 
-  <!-- Success Notification -->
-  <div v-if="showSuccessNotification" class="fixed top-10 left-1/2 transform -translate-x-1/2 bg-green-600 bg-opacity-80 text-white px-6 py-2 rounded-full shadow-lg z-50 flex items-center gap-2 backdrop-blur-md transition-all duration-300 pointer-events-none">
-    <Check :size="16" />
-    <span class="text-sm font-medium">Réclamation envoyée</span>
-  </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { Star, TrendingUp, Award, ThumbsUp, Calendar, MapPin, Banknote, Flag, Check } from 'lucide-vue-next'
+import { Star, TrendingUp, Award, ThumbsUp, Calendar, MapPin, Banknote } from 'lucide-vue-next'
 import authService from '@/services/authService'
 import statsService from '@/services/statsService'
 import axios from '@/services/api' // Use the configured api service
@@ -334,15 +259,6 @@ import axios from '@/services/api' // Use the configured api service
 const currentUser = ref(null)
 const isLoadingUser = ref(true)
 const authError = ref(null)
-const showReclamationModal = ref(false)
-const isSubmittingReclamation = ref(false)
-const showSuccessNotification = ref(false)
-const reclamationForm = ref({
-  raison: '',
-  message: '',
-  priorite: 'moyenne',
-  intervention_id: null
-})
 
 // Stats and reviews data
 const stats = ref({
@@ -469,51 +385,6 @@ const calculatePercentage = (count) => {
   return Math.round((count / stats.value.totalReviews) * 100)
 }
 
-const toggleComplaintForm = (review) => {
-  // Initialize properties if they don't exist
-  if (review.showComplaintForm === undefined) {
-    review.showComplaintForm = true
-    review.complaintReason = ''
-    review.complaintPriority = 'moyenne'
-    review.complaintMessage = ''
-    review.submittingComplaint = false
-  } else {
-    review.showComplaintForm = !review.showComplaintForm
-  }
-}
-
-const submitComplaint = async (review) => {
-  if (!review.complaintReason || !review.complaintMessage) {
-    alert('Veuillez remplir la raison et le message.')
-    return
-  }
-
-  review.submittingComplaint = true
-
-  try {
-    await axios.post('/reclamations', {
-      intervention_id: review.intervention_id, // Ensure this exists in your review object from backend
-      raison: review.complaintReason,
-      message: review.complaintMessage,
-      priorite: review.complaintPriority
-    })
-
-    // Show success notification
-    showSuccessNotification.value = true
-    setTimeout(() => {
-      showSuccessNotification.value = false
-    }, 3000)
-
-    review.showComplaintForm = false // Close on success
-    review.complaintMessage = ''
-    review.complaintReason = ''
-  } catch (error) {
-    console.error('Erreur lors de l\'envoi de la réclamation:', error)
-    alert('Une erreur est survenue lors de l\'envoi de la réclamation.')
-  } finally {
-    review.submittingComplaint = false
-  }
-}
 
 // Computed properties for display logic
 const sortedDistribution = computed(() => {

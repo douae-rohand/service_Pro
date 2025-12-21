@@ -168,9 +168,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('intervenants/me/reservations/{id}/accept', [IntervenantController::class, 'acceptReservation']);
     Route::post('intervenants/me/reservations/{id}/refuse', [IntervenantController::class, 'refuseReservation']);
 
-    // Reclamations
-    Route::post('/reclamations', [App\Http\Controllers\Api\ReclamationController::class, 'store']);
-
+    
+    // Reclamations for interventions
+    Route::post('/reclamations', [App\Http\Controllers\Api\Intervention\ReclamationController::class, 'store']);
+    
     // Actions sur Intervenant par ID (pour Admin ou autres)
     Route::put('intervenants/{id}/taches/{tacheId}/configure', [IntervenantController::class, 'configureTask']);
     Route::get('intervenants/{id}/services-with-activation', [IntervenantController::class, 'getServicesWithActivation']);

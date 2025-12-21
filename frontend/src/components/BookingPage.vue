@@ -12,146 +12,111 @@
           </button>
           <div>
             <h1 class="text-2xl font-bold text-gray-900">Réservation</h1>
-            <p class="text-sm text-gray-500">pour {{ intervenant?.name || 'Intervenant' }}</p>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Progress Steps -->
-    <div class="bg-white border-b border-gray-200">
-      <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div class="flex items-center justify-center gap-4">
-          <div class="flex items-center">
-            <div
-              class="w-10 h-10 rounded-full flex items-center justify-center text-white"
-              :class="currentStep >= 1 ? 'bg-green-500' : 'bg-gray-300'"
+    <div class="bg-white/80 backdrop-blur-md sticky top-0 z-40 border-b border-gray-100">
+      <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center h-20 overflow-x-auto no-scrollbar">
+          <div v-for="step in 5" :key="step" class="flex items-center shrink-0">
+            <div 
+              class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-300"
+              :class="currentStep === step ? 'bg-[#E8F5E9] text-[#6B8E6D]' : 'text-gray-400'"
             >
-              <Check v-if="currentStep > 1" :size="20" />
-              <Calendar v-else :size="20" />
+              <div 
+                class="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300"
+                :class="currentStep > step ? 'bg-[#92B08B] text-white' : currentStep === step ? 'bg-[#92B08B] text-white shadow-lg shadow-[#92B08B]/20' : 'bg-gray-100 text-gray-400'"
+              >
+                <Check v-if="currentStep > step" :size="16" />
+                <span v-else class="text-xs font-bold">{{ step }}</span>
+              </div>
+              <span class="font-semibold text-sm whitespace-nowrap">
+                {{ ['Service', 'Tâche', 'Détails', 'Date', 'Horaire'][step-1] }}
+              </span>
             </div>
-            <span class="ml-2 font-medium" :class="currentStep >= 1 ? 'text-green-600' : 'text-gray-400'">
-              Service
-            </span>
-          </div>
-          <div class="w-12 h-1" :class="currentStep >= 2 ? 'bg-green-500' : 'bg-gray-300'"></div>
-          <div class="flex items-center">
-            <div
-              class="w-10 h-10 rounded-full flex items-center justify-center text-white"
-              :class="currentStep >= 2 ? 'bg-green-500' : currentStep === 2 ? 'bg-blue-500' : 'bg-gray-300'"
-            >
-              <Check v-if="currentStep > 2" :size="20" />
-              <Clock v-else :size="20" />
-            </div>
-            <span class="ml-2 font-medium" :class="currentStep >= 2 ? 'text-green-600' : currentStep === 2 ? 'text-blue-600' : 'text-gray-400'">
-              Tâche
-            </span>
-          </div>
-          <div class="w-12 h-1" :class="currentStep >= 3 ? 'bg-green-500' : 'bg-gray-300'"></div>
-          <div class="flex items-center">
-            <div
-              class="w-10 h-10 rounded-full flex items-center justify-center text-white"
-              :class="currentStep >= 3 ? 'bg-green-500' : currentStep === 3 ? 'bg-blue-500' : 'bg-gray-300'"
-            >
-              <Check v-if="currentStep > 3" :size="20" />
-              <FileText v-else :size="20" />
-            </div>
-            <span class="ml-2 font-medium" :class="currentStep >= 3 ? 'text-green-600' : currentStep === 3 ? 'text-blue-600' : 'text-gray-400'">
-              Détails
-            </span>
-          </div>
-          <div class="w-12 h-1" :class="currentStep >= 4 ? 'bg-green-500' : 'bg-gray-300'"></div>
-          <div class="flex items-center">
-            <div
-              class="w-10 h-10 rounded-full flex items-center justify-center text-white"
-              :class="currentStep >= 4 ? 'bg-green-500' : currentStep === 4 ? 'bg-blue-500' : 'bg-gray-300'"
-            >
-              <Calendar :size="20" />
-            </div>
-            <span class="ml-2 font-medium" :class="currentStep >= 4 ? 'text-green-600' : currentStep === 4 ? 'text-blue-600' : 'text-gray-400'">
-              Date
-            </span>
-          </div>
-          <div class="w-12 h-1" :class="currentStep >= 5 ? 'bg-green-500' : 'bg-gray-300'"></div>
-          <div class="flex items-center">
-            <div
-              class="w-10 h-10 rounded-full flex items-center justify-center text-white"
-              :class="currentStep >= 5 ? 'bg-blue-500' : 'bg-gray-300'"
-            >
-              <Clock :size="20" />
-            </div>
-            <span class="ml-2 font-medium" :class="currentStep >= 5 ? 'text-blue-600' : 'text-gray-400'">
-              Horaire
-            </span>
+            <div 
+              v-if="step < 5" 
+              class="w-8 h-px bg-gray-100 mx-2"
+              :class="{ 'bg-[#E8F5E9]': currentStep > step }"
+            ></div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Intervenant Info Bar -->
-    <div class="bg-green-50 border-b border-green-100">
-      <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div class="flex items-center gap-4">
-          <img
-            v-if="intervenant?.image"
-            :src="intervenant.image"
-            :alt="intervenant.name"
-            class="w-12 h-12 rounded-full object-cover border-2"
-            style="border-color: #92b08b"
-          />
-          <div class="flex-1">
-            <h3 class="font-bold text-lg" style="color: #2f4f4f">{{ intervenant?.name || 'Intervenant' }}</h3>
-            <div class="flex items-center gap-4 mt-1">
-              <div class="flex items-center gap-1">
-                <Star :size="16" fill="#FEE347" color="#FEE347" />
-                <span class="font-semibold">{{ intervenant?.averageRating || 'N/A' }}</span>
-              </div>
-              <span class="px-3 py-1 rounded-full text-sm text-white" style="background-color: #1a5fa3">
-                {{ intervenant?.hourlyRate ? `${intervenant.hourlyRate} DH/h` : 'N/A' }}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <!-- Step Content -->
     <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <!-- Step 1: Choose Service -->
-      <div v-if="currentStep === 1" class="space-y-6">
-        <h3 class="text-xl font-bold mb-4" style="color: #2f4f4f">Étape 1 : Choisissez le service</h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div v-if="currentStep === 1" class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div class="text-center max-w-2xl mx-auto">
+          <h3 class="text-2xl font-extrabold text-gray-900 mb-2">Quel service souhaitez-vous ?</h3>
+          <p class="text-gray-500">Sélectionnez le type de prestation pour continuer votre réservation.</p>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div
             v-for="service in services"
             :key="service.id"
             @click="selectService(service)"
-            class="p-4 border-2 rounded-lg cursor-pointer transition-all hover:shadow-md"
-            :class="selectedService?.id === service.id ? 'border-green-500 bg-green-50' : 'border-gray-200'"
+            class="group relative p-6 bg-white rounded-3xl border-2 transition-all duration-300 cursor-pointer overflow-hidden"
+            :class="selectedService?.id === service.id ? 'border-[#92B08B] bg-[#E8F5E9]/30' : 'border-gray-100 hover:border-[#92B08B]/30 hover:shadow-xl hover:shadow-[#92B08B]/5'"
           >
-            <h4 class="font-bold text-lg mb-2" :class="selectedService?.id === service.id ? 'text-green-600' : 'text-gray-700'">
-              {{ service.nom_service }}
-            </h4>
-            <p class="text-sm text-gray-600">
-              {{ service.taches_count || 0 }} tâches disponibles
-            </p>
+            <div class="relative z-10">
+              <div 
+                class="w-12 h-12 rounded-2xl flex items-center justify-center mb-4 transition-all duration-300"
+                :class="selectedService?.id === service.id ? 'bg-[#92B08B] text-white shadow-lg shadow-[#92B08B]/20' : 'bg-gray-50 text-gray-400 group-hover:bg-[#E8F5E9] group-hover:text-[#92B08B]'"
+              >
+                <Check v-if="selectedService?.id === service.id" :size="24" />
+                <Package v-else :size="24" />
+              </div>
+              <h4 class="font-black text-xl mb-2 transition-colors" :class="selectedService?.id === service.id ? 'text-[#6B8E6D]' : 'text-gray-800'">
+                {{ service.nom_service }}
+              </h4>
+              <p class="text-sm text-gray-500 leading-relaxed">
+                {{ service.taches_count || 0 }} options disponibles pour ce service.
+              </p>
+            </div>
+            
+            <!-- Shadow effect on selection -->
+            <div 
+              v-if="selectedService?.id === service.id" 
+              class="absolute -right-8 -bottom-8 w-32 h-32 bg-[#92B08B]/10 rounded-full blur-3xl transition-all duration-500 scale-150"
+            ></div>
           </div>
         </div>
       </div>
 
       <!-- Step 2: Choose Task -->
-      <div v-if="currentStep === 2" class="space-y-6">
-        <h3 class="text-xl font-bold mb-4" style="color: #2f4f4f">Étape 2 : Choisissez la tâche</h3>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div v-if="currentStep === 2" class="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+        <div class="text-center max-w-2xl mx-auto">
+          <h3 class="text-2xl font-extrabold text-gray-900 mb-2">Plus précisément ?</h3>
+          <p class="text-gray-500">Choisissez la tâche spécifique à accomplir par l'intervenant.</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <button
             v-for="task in tasks"
             :key="task.id"
             @click="selectTask(task)"
-            class="p-4 border-2 rounded-lg transition-all hover:shadow-md text-left"
-            :class="selectedTask?.id === task.id ? 'border-green-500 bg-green-50' : 'border-gray-200'"
+            class="group p-5 bg-white border-2 rounded-2xl transition-all duration-300 text-left relative overflow-hidden"
+            :class="selectedTask?.id === task.id ? 'border-green-500 bg-green-50/30' : 'border-gray-100 hover:border-green-200 hover:shadow-lg hover:shadow-green-900/5'"
           >
-            <span class="font-medium" :class="selectedTask?.id === task.id ? 'text-green-600' : 'text-gray-700'">
-              {{ task.nom_tache }}
-            </span>
+            <div class="flex items-center gap-4 relative z-10">
+              <div 
+                class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300"
+                :class="selectedTask?.id === task.id ? 'bg-green-500 text-white shadow-lg shadow-green-200' : 'bg-gray-50 text-gray-400 group-hover:bg-green-100 group-hover:text-green-600'"
+              >
+                <Check v-if="selectedTask?.id === task.id" :size="20" />
+                <span v-else class="text-xs font-bold">{{ task.nom_tache.charAt(0) }}</span>
+              </div>
+              <span class="font-bold text-gray-800 transition-colors" :class="{ 'text-green-900': selectedTask?.id === task.id }">
+                {{ task.nom_tache }}
+              </span>
+            </div>
           </button>
         </div>
       </div>
@@ -159,409 +124,334 @@
       <!-- Step 3: Details (same as BookingModal) -->
       <div v-if="currentStep === 3" class="space-y-6">
         <!-- Address & City -->
-        <div class="bg-white rounded-lg p-6 border-2 border-gray-200">
-          <h4 class="text-lg font-bold mb-4 flex items-center gap-2" style="color: #2f4f4f">
-            <MapPin :size="20" style="color: #92b08b" />
+        <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-100 shadow-sm transition-all hover:shadow-md">
+          <h4 class="text-lg font-bold mb-4 flex items-center gap-3 text-gray-800">
+            <div class="w-8 h-8 rounded-lg bg-[#E8F5E9] flex items-center justify-center">
+              <MapPin :size="20" class="text-[#92B08B]" />
+            </div>
             Adresse & Ville du service
           </h4>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label class="block mb-2 font-medium">Adresse</label>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="space-y-2">
+              <label class="block text-sm font-semibold text-gray-700">Adresse exacte</label>
               <input
                 v-model="bookingData.address"
                 type="text"
                 placeholder="Numéro, rue, immeuble..."
-                class="w-full px-4 py-2 border-2 rounded-lg focus:ring-2 focus:ring-green-500"
-                style="border-color: #92b08b"
+                class="w-full px-4 py-3 bg-gray-50/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#92B08B]/20 focus:border-[#92B08B] transition-all outline-none"
               />
             </div>
-            <div>
-              <label class="block mb-2 font-medium">Ville</label>
+            <div class="space-y-2">
+              <label class="block text-sm font-semibold text-gray-700">Ville</label>
               <input
                 v-model="bookingData.ville"
                 type="text"
                 placeholder="Ex: Tétouan, Martil..."
-                class="w-full px-4 py-2 border-2 rounded-lg focus:ring-2 focus:ring-green-500"
-                style="border-color: #92b08b"
+                class="w-full px-4 py-3 bg-gray-50/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#92B08B]/20 focus:border-[#92B08B] transition-all outline-none"
               />
             </div>
           </div>
         </div>
 
         <!-- Specific Information & Constraints -->
-        <div class="bg-white rounded-lg p-6 border-2 border-gray-200">
-          <h4 class="text-lg font-bold mb-4" style="color: #2f4f4f">Informations spécifiques</h4>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label class="block mb-2 font-medium">Contraintes de la tâche</label>
-              <div class="space-y-3">
-                <div v-for="c in constraints" :key="c.id" class="p-3 border-2 border-gray-200 rounded-lg">
-                  <div class="flex items-center justify-between mb-2">
-                    <span class="font-medium">{{ c.nom }} ({{ c.unite }})</span>
-                    <span class="text-xs text-gray-600">
-                      <template v-if="c.unite === 'm²' || c.unite === 'm2'">
-                        20 {{ c.unite }} ≈ 1h
-                      </template>
-                      <template v-else>
-                        Seuil: {{ c.seuil }} {{ c.unite }} ≈ 1h
-                      </template>
+        <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-100 shadow-sm transition-all hover:shadow-md">
+          <h4 class="text-lg font-bold mb-4 flex items-center gap-3 text-gray-800">
+            <div class="w-8 h-8 rounded-lg bg-[#b8c5d1] flex items-center justify-center">
+               <Clock :size="20" class="text-[#4682B4]" />
+            </div>
+            Informations spécifiques
+          </h4>
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 space-y-4">
+              <label class="block text-sm font-semibold text-gray-700">Contraintes de la tâche</label>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div v-for="c in constraints" :key="c.id" class="p-4 bg-gray-50/50 border border-gray-100 rounded-xl">
+                  <div class="flex items-center justify-between mb-3">
+                    <span class="font-bold text-sm text-gray-700">{{ c.nom }}</span>
+                    <span class="text-[10px] font-medium px-2 py-0.5 bg-white rounded-full text-gray-500 border border-gray-100">
+                      {{ c.unite }}
                     </span>
                   </div>
                   <input
                     v-model.number="constraintsValues[c.id]"
                     type="number"
                     min="0"
-                    class="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                    placeholder="0"
+                    class="w-full px-4 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#92B08B]/20 focus:border-[#92B08B] transition-all outline-none text-right font-mono"
                     @input="updateDurationEstimation"
                   />
+                  <p class="mt-2 text-[10px] text-gray-500 flex items-center gap-1">
+                    <Info :size="10" />
+                    {{ c.unite === 'm²' || c.unite === 'm2' ? '20 m² ≈ 1h' : `Seuil: ${c.seuil} ${c.unite} ≈ 1h` }}
+                  </p>
                 </div>
               </div>
             </div>
             
-            <!-- Durée estimée -->
-            <div class="bg-blue-50 rounded-lg p-4">
-              <h5 class="font-bold mb-3 flex items-center gap-2">
-                <Clock :size="18" class="text-blue-600" />
-                Durée estimée
-              </h5>
-              <div class="text-center mb-2">
-                <span class="text-3xl font-bold text-blue-700">{{ estimatedHours }}</span>
-                <span class="text-lg text-gray-600 ml-1">heures</span>
-              </div>
-              <p class="text-sm text-gray-600 text-center">
-                Cette durée déterminera le nombre de créneaux horaires nécessaires
-              </p>
-              <div v-if="estimatedHours > 8" class="mt-3 bg-yellow-50 border-l-4 border-yellow-400 rounded p-3">
-                <div class="flex items-start gap-2">
-                  <AlertCircle :size="16" class="text-yellow-600 mt-0.5" />
-                  <p class="text-sm">
-                    ⚠️ Durée importante. Vérifiez que l'intervenant a assez de disponibilités.
-                  </p>
-                </div>
+            <!-- Durée estimée Panel -->
+            <div class="bg-gradient-to-br from-[#4682B4] to-[#36648B] rounded-2xl p-6 text-white shadow-lg shadow-[#4682B4]/20 flex flex-col justify-center items-center text-center relative overflow-hidden">
+              <div class="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
+              <div class="absolute -left-4 -bottom-4 w-24 h-24 bg-[#b8c5d1]/20 rounded-full blur-2xl"></div>
+              
+              <Clock :size="32" class="mb-4 text-[#b8c5d1]" />
+              <div class="text-4xl font-extrabold mb-1">{{ estimatedHours }}</div>
+              <div class="text-[#b8c5d1] font-medium uppercase tracking-wider text-xs">Heures estimées</div>
+              
+              <div v-if="estimatedHours > 8" class="mt-4 p-2 bg-white/20 backdrop-blur-md rounded-lg flex items-start gap-2 text-left">
+                <AlertCircle :size="14" class="shrink-0 mt-0.5" />
+                <p class="text-[10px] leading-tight">Attention: Durée importante. Disponibilités à vérifier.</p>
               </div>
             </div>
           </div>
         </div>
 
         <!-- Materials -->
-        <div class="bg-white rounded-lg p-6 border-2 border-gray-200">
-          <h4 class="text-lg font-bold mb-4 flex items-center gap-2" style="color: #2f4f4f">
-            <Package :size="20" style="color: #7c3aed" />
-            Matériel disponible
-          </h4>
-          <div class="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-4 mb-4">
-            <div class="flex items-start gap-2">
-              <Info :size="20" class="text-blue-600 mt-0.5" />
-              <div class="text-sm">
-                <p class="font-medium mb-1">Cochez le matériel que vous possédez déjà</p>
-                <p>Le matériel non coché sera fourni par l'intervenant avec un coût supplémentaire</p>
+        <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-100 shadow-sm transition-all hover:shadow-md">
+          <div class="flex items-center justify-between mb-6">
+            <h4 class="text-lg font-bold flex items-center gap-3 text-gray-800">
+              <div class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+                <Package :size="20" class="text-[#4682B4]" />
               </div>
+              Matériel
+            </h4>
+            <div class="flex items-center gap-2 text-sm">
+               <span class="text-gray-500 italic">Vous fournissez:</span>
+               <span class="font-bold text-[#4682B4] px-2 py-0.5 bg-blue-50 rounded-full border border-blue-100">
+                {{ bookingData.materials.length }}/{{ materials.length }}
+               </span>
             </div>
           </div>
-          <div class="grid grid-cols-2 gap-4">
+          
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <label
               v-for="material in materials"
               :key="material.id"
-              class="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50"
+              class="group relative flex items-center gap-4 p-4 bg-gray-50/50 border border-gray-100 rounded-xl cursor-pointer transition-all duration-300 hover:bg-white hover:border-[#4682B4]/30 hover:shadow-md hover:-translate-y-1"
+              :class="{ 'bg-white border-[#4682B4]/20 shadow-sm': bookingData.materials.includes(material.id) }"
             >
-              <input
-                v-model="bookingData.materials"
-                type="checkbox"
-                :value="material.id"
-                class="w-5 h-5"
-              />
-              <span class="flex-1">{{ material.nom_materiel }}</span>
-              <span v-if="material.cost" class="px-2 py-1 rounded-full text-xs bg-orange-100 text-orange-700">
-                +{{ material.cost }} DH
-              </span>
+              <div class="relative flex items-center justify-center w-6 h-6">
+                <input
+                  v-model="bookingData.materials"
+                  type="checkbox"
+                  :value="material.id"
+                  class="peer appearance-none w-6 h-6 border-2 border-gray-300 rounded-lg checked:bg-[#4682B4] checked:border-[#4682B4] transition-all cursor-pointer"
+                />
+                <Check :size="14" class="absolute text-white scale-0 peer-checked:scale-100 transition-transform pointer-events-none" />
+              </div>
+              <div class="flex-1">
+                <p class="text-sm font-bold text-gray-700 group-hover:text-[#4682B4] transition-colors duration-300 hover:underline decoration-skip-ink">{{ material.nom_materiel }}</p>
+                <p class="text-[10px] text-gray-500">
+                  {{ bookingData.materials.includes(material.id) ? 'Fourni par vous' : 'Fourni par l\'intervenant' }}
+                </p>
+              </div>
+              <div class="shrink-0">
+                <span 
+                  class="text-xs font-bold px-2 py-1 rounded-lg border transition-all duration-300"
+                  :class="bookingData.materials.includes(material.id) ? 'text-gray-400 bg-gray-50 border-gray-100' : 'text-[#4682B4] bg-blue-50 border-blue-100'"
+                >
+                  {{ bookingData.materials.includes(material.id) ? '0 DH' : `+${material.cost ?? material.pivot?.prix_materiel ?? 0} DH` }}
+                </span>
+              </div>
             </label>
           </div>
-          <div class="mt-4 flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <span>Matériel que vous fournissez:</span>
-            <span class="flex items-center gap-2">
-              <Check :size="16" class="text-green-600" />
-              <span class="font-semibold">{{ bookingData.materials.length }}/{{ materials.length }}</span>
-            </span>
-          </div>
-          <div class="mt-2 flex items-center justify-between p-3 bg-orange-50 rounded-lg">
-            <span>Coût matériel à fournir:</span>
-            <span class="px-3 py-1 rounded-full bg-orange-100 text-orange-700 font-semibold">
-              +{{ materialsCost }} DH
-            </span>
-          </div>
         </div>
 
-        <!-- Photos -->
-        <div class="bg-white rounded-lg p-6 border-2 border-gray-200">
-          <h4 class="text-lg font-bold mb-4 flex items-center gap-2" style="color: #2f4f4f">
-            <Camera :size="20" class="text-blue-500" />
-            Photos du site (optionnel)
-          </h4>
-          <div class="bg-green-50 border-l-4 border-green-500 rounded-lg p-4 mb-4">
-            <div class="flex items-start gap-2">
-              <Info :size="20" class="text-green-600 mt-0.5" />
-              <p class="text-sm">
-                Ajoutez des photos pour aider l'intervenant à mieux comprendre votre besoin
-                Ex: état actuel du jardin, zones à nettoyer, problèmes spécifiques...
-              </p>
-            </div>
-          </div>
-          <div
-            @click="triggerFileInput"
-            @drop.prevent="handleFileDrop"
-            @dragover.prevent
-            class="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center cursor-pointer hover:border-green-500 transition-colors"
-          >
-            <input
-              ref="fileInput"
-              type="file"
-              multiple
-              accept="image/*"
-              @change="handleFileSelect"
-              class="hidden"
-            />
-            <Upload :size="48" class="mx-auto mb-4 text-gray-400" />
-            <p class="text-gray-600">
-              Cliquez pour ajouter des photos PNG, JPG jusqu'à 10MB (max 5 photos)
-            </p>
-          </div>
-          <div v-if="bookingData.photos.length > 0" class="mt-4 grid grid-cols-5 gap-2">
-            <div
-              v-for="(photo, index) in bookingData.photos"
-              :key="index"
-              class="relative"
-            >
-              <img :src="photo.preview" alt="Preview" class="w-full h-24 object-cover rounded-lg" />
-              <button
-                @click="removePhoto(index)"
-                class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1"
-              >
-                <X :size="12" />
-              </button>
-            </div>
-          </div>
-        </div>
 
-        <!-- Cost Estimation -->
-        <div class="bg-blue-50 rounded-lg p-6 border-2 border-blue-200">
-          <h4 class="text-lg font-bold mb-4 flex items-center gap-2" style="color: #2f4f4f">
-            <DollarSign :size="20" class="text-orange-500" />
-            Estimation du coût
-          </h4>
-          <div class="space-y-3">
-            <div class="flex justify-between items-center">
-              <span>Tarif horaire:</span>
-              <span class="px-3 py-1 rounded-full bg-blue-100 text-blue-700 font-semibold">
-                {{ intervenant?.hourlyRate || 'N/A' }} DH/h
-              </span>
-            </div>
-            <div class="flex justify-between items-center">
-              <span>Durée estimée:</span>
-              <span class="px-3 py-1 rounded-full bg-blue-100 text-blue-700 font-semibold">{{ estimatedHours }} h</span>
-            </div>
-            <div class="flex justify-between items-center">
-              <span>Coût estimé:</span>
-              <span class="px-3 py-1 rounded-full bg-blue-100 text-blue-700 font-semibold">{{ finalCost }} DH</span>
-            </div>
-            <div class="flex justify-between items-center">
-              <span class="text-orange-600">Coût matériel:</span>
-              <span class="px-3 py-1 rounded-full bg-orange-100 text-orange-700 font-semibold">
-                +{{ materialsCost }} DH
-              </span>
+        <!-- Cost Estimation Box (Horizontal Style) - Only show after Step 3 -->
+        <div v-if="currentStep > 3" class="bg-white rounded-[2.5rem] border border-gray-100 shadow-2xl overflow-hidden max-w-4xl mx-auto flex flex-col md:flex-row transition-all duration-500 hover:shadow-blue-900/10">
+          <!-- Left side: Brand Summary -->
+          <div class="bg-[#4682B4] p-10 text-white md:w-1/3 flex flex-col justify-center items-center text-center relative overflow-hidden">
+            <div class="absolute -top-10 -left-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+            <div class="absolute -bottom-10 -right-10 w-40 h-40 bg-blue-900/20 rounded-full blur-3xl"></div>
+            
+            <div class="relative z-10">
+              <h4 class="text-3xl font-black mb-3 tracking-tight">Récapitulatif</h4>
+              <div class="h-1 w-12 bg-[#92B08B] mx-auto rounded-full mb-4"></div>
+              <p class="text-xs text-blue-100 uppercase tracking-[0.2em] font-bold opacity-80">Estimation des coûts</p>
             </div>
           </div>
-          <div class="mt-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-lg p-4">
-            <div class="flex items-start gap-2">
-              <AlertCircle :size="20" class="text-yellow-600 mt-0.5" />
-              <p class="text-sm text-gray-700">
-                La durée estimée et le coût final de la main d'œuvre seront confirmés par l'intervenant après analyse de votre demande.
+
+          <!-- Right side: Detailed Breakdown -->
+          <div class="flex-1 p-8 sm:p-10 relative">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-6">
+              <!-- Item 1 -->
+              <div class="flex flex-col gap-1 border-b border-dashed border-gray-100 pb-3">
+                <span class="text-[10px] uppercase tracking-wider font-bold text-gray-400">Tarif horaire</span>
+                <span class="text-lg font-black text-gray-800">{{ intervenant?.hourlyRate || '0' }} <span class="text-xs font-bold text-gray-400">DH/h</span></span>
+              </div>
+              
+              <!-- Item 2 -->
+              <div class="flex flex-col gap-1 border-b border-dashed border-gray-200 pb-3">
+                <span class="text-[10px] uppercase tracking-wider font-bold text-gray-400">Durée estimée</span>
+                <span class="text-lg font-black text-gray-800">x {{ estimatedHours }} <span class="text-xs font-bold text-gray-400">Heures</span></span>
+              </div>
+
+              <!-- Item 3 -->
+              <div class="flex flex-col gap-1 border-b border-dashed border-gray-100 pb-3">
+                <span class="text-[10px] uppercase tracking-wider font-bold text-gray-400">Main d'œuvre</span>
+                <span class="text-lg font-black text-gray-800">{{ intervenant?.hourlyRate * estimatedHours }} <span class="text-xs font-bold text-gray-400">DH</span></span>
+              </div>
+
+              <!-- Item 4 -->
+              <div class="flex flex-col gap-1 border-b border-dashed border-gray-200 pb-3">
+                <div class="flex justify-between items-start">
+                  <span class="text-[10px] uppercase tracking-wider font-bold text-gray-400">Matériel</span>
+                  <span class="text-[8px] font-bold px-1.5 py-0.5 bg-blue-50 text-[#4682B4] rounded-md border border-blue-100">EXTRA</span>
+                </div>
+                <span class="text-lg font-black text-[#4682B4]">+ {{ materialsCost }} <span class="text-xs font-bold text-gray-400">DH</span></span>
+              </div>
+            </div>
+
+            <!-- Total Section -->
+            <div class="mt-10 pt-8 border-t-2 border-gray-50 flex flex-col sm:flex-row justify-between items-center gap-6">
+              <div class="text-center sm:text-left">
+                <p class="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">Total Final Estimé</p>
+                <div class="flex items-baseline gap-2">
+                  <span class="text-5xl font-black text-gray-900 tracking-tighter">{{ finalCost }}</span>
+                  <span class="text-xl font-bold text-gray-400">DH</span>
+                </div>
+              </div>
+              
+              <div class="flex items-center gap-4">
+                <div class="w-14 h-14 rounded-2xl bg-[#92B08B]/10 flex items-center justify-center text-[#92B08B] shadow-inner">
+                  <Check :size="32" stroke-width="3" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Warning Notice -->
+            <div class="mt-8 p-4 bg-yellow-50/50 rounded-2xl border border-yellow-100/50 flex gap-3">
+              <AlertCircle :size="18" class="text-yellow-600 shrink-0 mt-0.5" />
+              <p class="text-[10px] text-yellow-800 leading-relaxed font-medium">
+                Le coût final sera validé par l'intervenant après examen de la demande. Vous ne paierez qu'une fois la mission terminée.
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Step 4: Date Selection (same as BookingModal) -->
-      <div v-if="currentStep === 4" class="space-y-6">
-        <h3 class="text-xl font-bold mb-4" style="color: #2f4f4f">
-          Sélectionnez une date pour votre intervention
-        </h3>
+      <!-- Step 4: Date Selection -->
+      <div v-if="currentStep === 4" class="space-y-8 animate-in fade-in slide-in-from-left-4 duration-500">
+        <div class="text-center max-w-2xl mx-auto">
+          <h3 class="text-2xl font-extrabold text-gray-900 mb-2">Quand doit-on intervenir ?</h3>
+          <p class="text-gray-500">Sélectionnez une date pour vérifier les disponibilités de l'intervenant.</p>
+        </div>
         
-        <div class="bg-white rounded-lg p-6 border-2 border-gray-200">
-          <div class="flex items-center gap-2 mb-4">
-            <Calendar :size="20" style="color: #1a5fa3" />
-            <span class="font-medium">Date souhaitée</span>
+        <div class="bg-white/80 backdrop-blur-sm rounded-3xl p-6 border border-gray-100 shadow-xl max-w-lg mx-auto">
+          <div class="flex items-center gap-3 mb-6 bg-[#b8c5d1]/30 p-4 rounded-2xl">
+            <div class="w-10 h-10 rounded-xl bg-[#4682B4] text-white flex items-center justify-center shadow-lg shadow-[#4682B4]/20">
+              <Calendar :size="20" />
+            </div>
+            <div>
+              <p class="text-xs text-[#4682B4] font-bold uppercase tracking-wider">Date souhaitée</p>
+              <p class="text-sm text-gray-700 font-medium">{{ bookingData.date ? formatDate(bookingData.date) : 'Aucune date choisie' }}</p>
+            </div>
           </div>
+          
           <input
             v-model="bookingData.date"
             type="date"
             :min="minDate"
-            class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            class="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-[#4682B4]/10 focus:border-[#4682B4] transition-all outline-none font-bold text-lg text-center"
             @change="checkDayAvailability"
           />
         </div>
 
         <!-- Validation de la journée -->
-        <div v-if="bookingData.date" class="bg-white rounded-lg p-6 border-2 border-gray-200">
-          <div class="flex items-center gap-3 mb-4">
-            <Clock :size="20" class="text-blue-600" />
-            <h4 class="text-lg font-bold" style="color: #2f4f4f">Vérification de disponibilité</h4>
+        <div v-if="bookingData.date" class="max-w-lg mx-auto mt-8">
+          <div v-if="dayCheckLoading" class="flex flex-col items-center py-8">
+            <div class="w-12 h-12 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin"></div>
+            <p class="mt-4 text-sm font-bold text-gray-500">Analyse du planning...</p>
           </div>
           
-          <div v-if="dayCheckLoading" class="text-center py-4">
-            <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <p class="mt-2 text-gray-600">Vérification des disponibilités...</p>
-          </div>
-          
-          <div v-else-if="dayAvailabilityResult">
-            <div class="space-y-4">
-              <div :class="dayAvailabilityResult.hasEnoughTime ? 'bg-green-50 border-l-4 border-green-500' : 'bg-red-50 border-l-4 border-red-500'"
-                   class="rounded-lg p-4">
-                <div class="flex items-start gap-3">
-                  <Check v-if="dayAvailabilityResult.hasEnoughTime" :size="20" class="text-green-600 mt-0.5" />
-                  <X v-else :size="20" class="text-red-600 mt-0.5" />
-                  <div>
-                    <p class="font-medium" :class="dayAvailabilityResult.hasEnoughTime ? 'text-green-700' : 'text-red-700'">
-                      {{ dayAvailabilityResult.message }}
-                    </p>
-                    <p v-if="dayAvailabilityResult.details" class="text-sm text-gray-600 mt-1">
-                      {{ dayAvailabilityResult.details }}
-                    </p>
-                  </div>
+          <div v-else-if="dayAvailabilityResult" class="animate-in zoom-in-95 duration-300">
+            <div 
+              class="rounded-3xl p-6 border transition-all"
+              :class="dayAvailabilityResult.hasEnoughTime ? 'bg-green-50/50 border-green-100' : 'bg-red-50/50 border-red-100'"
+            >
+              <div class="flex items-start gap-4">
+                <div 
+                  class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm"
+                  :class="dayAvailabilityResult.hasEnoughTime ? 'bg-green-500 text-white' : 'bg-red-500 text-white'"
+                >
+                  <Check v-if="dayAvailabilityResult.hasEnoughTime" :size="20" />
+                  <X v-else :size="20" />
+                </div>
+                <div class="flex-1">
+                  <p class="font-black text-lg" :class="dayAvailabilityResult.hasEnoughTime ? 'text-green-900' : 'text-red-900'">
+                    {{ dayAvailabilityResult.hasEnoughTime ? 'C\'est parfait !' : 'Oups, petit souci...' }}
+                  </p>
+                  <p class="text-sm mt-1 leading-relaxed" :class="dayAvailabilityResult.hasEnoughTime ? 'text-green-700' : 'text-red-700'">
+                    {{ dayAvailabilityResult.message }}
+                  </p>
                 </div>
               </div>
               
-              <div v-if="dayAvailabilityResult.availableSlots && dayAvailabilityResult.availableSlots.length > 0" 
-                   class="bg-blue-50 rounded-lg p-4">
-                <p class="text-sm font-medium text-blue-800 mb-2">
-                  Créneaux de départ possibles pour {{ estimatedHours }} heure(s) :
-                </p>
-                <div class="flex flex-wrap gap-2">
-                  <span v-for="slot in dayAvailabilityResult.availableSlots" 
-                        :key="slot"
-                        class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">
-                    {{ slot }}
-                  </span>
-                </div>
-              </div>
-              
-              <div v-if="!dayAvailabilityResult.hasEnoughTime" class="bg-yellow-50 border-l-4 border-yellow-400 rounded-lg p-4">
-                <div class="flex items-start gap-2">
-                  <AlertCircle :size="20" class="text-yellow-600 mt-0.5" />
-                  <div>
-                    <p class="text-sm font-medium text-yellow-800">
-                      Recommandation :
-                    </p>
-                    <p class="text-sm text-gray-700 mt-1">
-                      Choisissez une autre date ou réduisez la durée estimée en ajustant les contraintes.
-                    </p>
-                  </div>
-                </div>
+              <div v-if="dayAvailabilityResult.availableSlots?.length > 0" class="mt-6 pt-6 border-t border-[#92B08B]/10">
+                 <p class="text-[10px] font-bold text-[#92B08B] uppercase mb-3 text-center">Horaires de début conseillés</p>
+                 <div class="flex flex-wrap justify-center gap-2">
+                    <span v-for="slot in dayAvailabilityResult.availableSlots" :key="slot" class="px-3 py-1 bg-white border border-[#92B08B]/20 rounded-lg text-xs font-bold text-[#92B08B] shadow-sm">
+                      {{ slot }}
+                    </span>
+                 </div>
               </div>
             </div>
-          </div>
-          
-          <div v-else-if="bookingData.date && !dayCheckLoading" class="text-center py-4 text-gray-500">
-            <p>La date est sélectionnée. Les disponibilités seront vérifiées automatiquement.</p>
           </div>
         </div>
       </div>
 
-      <!-- Step 5: Time Slot Selection (same as BookingModal) -->
-      <div v-if="currentStep === 5" class="space-y-6">
-        <h3 class="text-xl font-bold mb-4" style="color: #2f4f4f">
-          Choisissez l'horaire pour le {{ formatDate(bookingData.date) }}
-        </h3>
-        
-        <div class="bg-blue-50 rounded-lg p-4 mb-6">
-          <div class="flex items-center gap-3">
-            <Info :size="20" class="text-blue-600" />
-            <div>
-              <p class="font-medium text-blue-800">
-                Durée nécessaire : <span class="font-bold">{{ estimatedHours }} heure(s)</span>
-              </p>
-              <p class="text-sm text-blue-700 mt-1">
-                Vous devez sélectionner un créneau de départ. Les {{ estimatedHours - 1 }} créneau(x) suivant(s) seront automatiquement réservés.
-              </p>
-            </div>
-          </div>
+      <!-- Step 5: Time Slot Selection -->
+      <div v-if="currentStep === 5" class="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+        <div class="text-center max-w-2xl mx-auto">
+          <h3 class="text-2xl font-extrabold text-gray-900 mb-2">À quelle heure ?</h3>
+          <p class="text-gray-500">Choisissez l'heure de début. Nous réserverons automatiquement {{ estimatedHours }} heure(s) consécutives.</p>
         </div>
         
-        <div class="grid grid-cols-3 md:grid-cols-4 gap-4">
-          <button
-            v-for="slot in timeSlots"
-            :key="slot.time"
-            @click="selectTimeSlot(slot)"
-            :disabled="!slot.available || !canSelectSlot(slot)"
-            class="p-4 border-2 rounded-lg transition-all text-center relative group"
-            :class="getSlotClass(slot)"
-          >
-            <span class="font-semibold">{{ slot.time }}</span>
-            
-            <X v-if="!slot.available && !isSlotReserved(slot.time)" :size="16" class="absolute top-2 right-2 text-red-500" />
-            <X v-if="isSlotReserved(slot.time)" :size="16" class="absolute top-2 right-2 text-red-700" />
-            <Check v-if="isSlotSelected(slot)" :size="16" class="absolute top-2 right-2 text-blue-500" />
-            
-            <div v-if="slot.available && !canSelectSlot(slot) && !isSlotReserved(slot.time)" 
-                 class="absolute inset-0 bg-red-100 bg-opacity-50 rounded-lg flex items-center justify-center">
-              <X :size="20" class="text-red-600" />
-            </div>
-            
-            <span v-if="isSlotReserved(slot.time)" class="block text-xs text-red-700 mt-1 font-semibold">Réservé</span>
-            <span v-else-if="!slot.available" class="block text-xs text-red-600 mt-1">Indisponible</span>
-            <span v-else-if="!canSelectSlot(slot)" class="block text-xs text-red-600 mt-1">Pas assez de temps</span>
-          </button>
-        </div>
-        
-        <!-- Affichage des créneaux sélectionnés -->
-        <div v-if="selectedTimeSlots.length > 0" class="bg-green-50 border-2 border-green-300 rounded-lg p-4">
-          <div class="flex items-center gap-2 mb-2">
-            <Check :size="20" class="text-green-600" />
-            <span class="font-semibold">Créneaux sélectionnés :</span>
-          </div>
-          <div class="flex flex-wrap gap-2 mt-2">
-            <span v-for="(slot, index) in selectedTimeSlots" 
-                  :key="slot.time"
-                  class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm flex items-center gap-1">
-              {{ slot.time }}
-              <span v-if="index === 0" class="text-xs bg-green-200 px-1 rounded">Début</span>
-            </span>
-          </div>
-          <p class="text-sm text-gray-600 mt-2">
-            Heure de début : <span class="font-semibold">{{ selectedTimeSlots[0]?.time }}</span> 
-            • Durée totale : <span class="font-semibold">{{ estimatedHours }} heure(s)</span>
-          </p>
-        </div>
-        
-        <!-- Message d'erreur de sélection -->
-        <div v-if="slotSelectionError" class="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 mb-4">
-          <div class="flex items-start gap-2">
-            <AlertCircle :size="20" class="text-red-600 mt-0.5" />
-            <div>
-              <p class="font-medium text-red-700">
-                Impossible de sélectionner ces créneaux
-              </p>
-              <p class="text-sm text-gray-700 mt-1">
-                {{ slotSelectionError }}
-              </p>
-            </div>
+        <div class="max-w-4xl mx-auto">
+          <div class="grid grid-cols-3 md:grid-cols-5 gap-3">
+            <button
+              v-for="slot in timeSlots"
+              :key="slot.time"
+              @click="selectTimeSlot(slot)"
+              :disabled="!slot.available || !canSelectSlot(slot)"
+              class="relative flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all duration-300"
+              :class="getSlotClass(slot)"
+            >
+              <span class="text-lg font-black">{{ slot.time }}</span>
+              <span v-if="isSlotSelected(slot)" class="text-[10px] font-bold uppercase mt-1">Début</span>
+              
+              <div v-if="isSlotSelected(slot)" class="absolute -top-2 -right-2 w-6 h-6 bg-[#4682B4] text-white rounded-lg flex items-center justify-center shadow-lg animate-in zoom-in duration-300">
+                <Check :size="14" />
+              </div>
+
+              <div v-if="!slot.available || !canSelectSlot(slot)" class="absolute inset-0 bg-white/40 backdrop-blur-[1px] rounded-2xl flex items-center justify-center pointer-events-none">
+                <X :size="20" class="text-red-500/50" />
+              </div>
+            </button>
           </div>
         </div>
 
-        <!-- Avertissement si pas assez de créneaux -->
-        <div v-if="hasEnoughSlots === false && bookingData.date && !slotSelectionError" class="bg-red-50 border-l-4 border-red-500 rounded-lg p-4">
-          <div class="flex items-start gap-2">
-            <AlertCircle :size="20" class="text-red-600 mt-0.5" />
-            <div>
-              <p class="font-medium text-red-700">
-                Pas assez de créneaux disponibles
-              </p>
-              <p class="text-sm text-gray-700 mt-1">
-                Cette journée n'a pas assez de créneaux consécutifs pour une durée de {{ estimatedHours }} heure(s).
-                Veuillez choisir une autre date ou ajuster la durée.
-              </p>
-            </div>
+        <!-- Selected Slots Summary -->
+        <div v-if="selectedTimeSlots.length > 0" class="max-w-lg mx-auto bg-green-900 rounded-3xl p-6 text-white shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div class="flex items-center gap-4 mb-4">
+             <div class="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center backdrop-blur-md">
+                <Clock :size="24" class="text-green-400" />
+             </div>
+             <div>
+                <p class="text-[10px] text-green-300 font-bold uppercase tracking-widest leading-none">Plage horaire réservée</p>
+                <p class="text-xl font-black">{{ selectedTimeSlots[0]?.time }} — {{ selectedTimeSlots[selectedTimeSlots.length-1]?.time.split(':')[0] }}:{{ selectedTimeSlots[selectedTimeSlots.length-1]?.time.split(':')[1] === '00' ? '59' : '59' }}</p>
+             </div>
           </div>
+          <div class="flex flex-wrap gap-2 pt-4 border-t border-white/10">
+             <span v-for="s in selectedTimeSlots" :key="s.time" class="text-xs font-bold px-3 py-1 bg-white/10 rounded-full border border-white/5">
+               {{ s.time }}
+             </span>
+          </div>
+        </div>
+
+        <div v-if="slotSelectionError" class="max-w-lg mx-auto bg-red-50 border border-red-100 rounded-2xl p-4 flex items-start gap-3 animate-head-shake">
+          <AlertCircle :size="18" class="text-red-600 shrink-0 mt-0.5" />
+          <p class="text-xs text-red-700 font-medium">{{ slotSelectionError }}</p>
         </div>
       </div>
     </div>
@@ -583,7 +473,7 @@
             @click="nextStep"
             :disabled="!canProceed || (currentStep === 4 && !dayAvailabilityResult?.hasEnoughTime) || loading"
             class="px-6 py-3 rounded-lg text-white font-semibold transition-all flex items-center gap-2"
-            :class="canProceed && !(currentStep === 4 && !dayAvailabilityResult?.hasEnoughTime) && !loading ? 'bg-green-500 hover:bg-green-600' : 'bg-gray-400 cursor-not-allowed'"
+            :class="canProceed && !(currentStep === 4 && !dayAvailabilityResult?.hasEnoughTime) && !loading ? 'bg-[#92B08B] hover:opacity-90' : 'bg-gray-400 cursor-not-allowed'"
           >
             <span v-if="loading">Envoi en cours...</span>
             <span v-else>{{ currentStep === 5 ? 'Envoyer la demande' : 'Continuer →' }}</span>
@@ -599,7 +489,7 @@
 <script>
 import {
   X, Calendar, Clock, FileText, Check, Star, MapPin, AlertCircle,
-  Package, Info, Camera, Upload, DollarSign, ArrowLeft, ArrowRight
+  Package, Info, DollarSign, ArrowLeft, ArrowRight
 } from 'lucide-vue-next';
 import bookingService from '@/services/bookingService';
 import authService from '@/services/authService';
@@ -609,7 +499,7 @@ export default {
   name: 'BookingPage',
   components: {
     X, Calendar, Clock, FileText, Check, Star, MapPin, AlertCircle,
-    Package, Info, Camera, Upload, DollarSign, ArrowLeft, ArrowRight
+    Package, Info, DollarSign, ArrowLeft, ArrowRight
   },
   emits: ['back', 'success', 'login-required'],
   data() {
@@ -627,8 +517,7 @@ export default {
         address: '',
         ville: '',
         materials: [],
-        description: '',
-        photos: []
+        description: ''
       },
       timeSlots: [],
       availableSlots: [],
@@ -636,8 +525,6 @@ export default {
       materials: [],
       constraints: [],
       constraintsValues: {},
-      informations: [],
-      informationsValues: {},
       dayAvailabilityResult: null,
       dayCheckLoading: false,
       loading: false,
@@ -1162,42 +1049,6 @@ export default {
         this.checkDayAvailability();
       }
     },
-    triggerFileInput() {
-      this.$refs.fileInput?.click();
-    },
-    handleFileSelect(event) {
-      const files = Array.from(event.target.files).slice(0, 5);
-      files.forEach(file => {
-        if (file.size <= 10 * 1024 * 1024) {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            this.bookingData.photos.push({
-              file,
-              preview: e.target.result
-            });
-          };
-          reader.readAsDataURL(file);
-        }
-      });
-    },
-    handleFileDrop(event) {
-      const files = Array.from(event.dataTransfer.files).slice(0, 5);
-      files.forEach(file => {
-        if (file.type.startsWith('image/') && file.size <= 10 * 1024 * 1024) {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            this.bookingData.photos.push({
-              file,
-              preview: e.target.result
-            });
-          };
-          reader.readAsDataURL(file);
-        }
-      });
-    },
-    removePhoto(index) {
-      this.bookingData.photos.splice(index, 1);
-    },
     nextStep() {
       if (!this.canProceed) return;
       
@@ -1257,9 +1108,7 @@ export default {
         formData.append('description', ''); // Description supprimée
         formData.append('constraints', JSON.stringify(this.constraintsValues));
         
-        this.bookingData.photos.forEach((photo) => {
-          formData.append('photos[]', photo.file);
-        });
+        console.log('Sending formData:', Object.fromEntries(formData.entries()));
 
         const response = await bookingService.createIntervention(formData);
         

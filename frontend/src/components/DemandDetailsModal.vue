@@ -109,6 +109,16 @@
                 {{ demand.finalCost || calculateTotal() || demand.estimatedCost }} DH
               </div>
             </div>
+            
+            <div v-if="['completed', 'accepted'].includes(demand.status)" class="pt-2 flex justify-end">
+              <button 
+                @click="showInvoice = true"
+                class="text-sm font-semibold text-[#305C7D] hover:underline flex items-center gap-1"
+              >
+                <FileText :size="14" />
+                {{ demand.status === 'completed' ? 'Voir la facture' : 'Voir le devis / facture' }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -145,6 +155,14 @@
         class="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl animate-scale-in"
       />
     </div>
+
+    <!-- Invoice Modal -->
+    <InvoiceModal
+      v-if="showInvoice"
+      :invoice="computedInvoice"
+      :demand="demand"
+      @close="showInvoice = false"
+    />
   </div>
 </template>
 
@@ -165,6 +183,7 @@ import {
   Camera,
   ZoomIn
 } from 'lucide-vue-next';
+import InvoiceModal from './InvoiceModal.vue';
 
 export default {
   name: 'DemandDetailsModal',
@@ -182,7 +201,8 @@ export default {
     AlertCircle,
     Download,
     Camera,
-    ZoomIn
+    ZoomIn,
+    InvoiceModal
   },
   props: {
     demand: {
@@ -194,8 +214,25 @@ export default {
   data() {
     return {
       selectedPhoto: null,
-      imageErrors: {}
+      imageErrors: {},
+      showInvoice: false
     };
+  },
+  computed: {
+    computedInvoice() {
+      if (this.demand.invoice) return this.demand.invoice;
+      
+      // Virtual invoice for accepted/in-progress/completed if missing
+      return {
+        date: this.demand.date,
+        actualDuration: 'Estimée',
+        laborCost: this.demand.estimatedCost || 0,
+        materialsCost: 0,
+        materialsProvided: [],
+        paymentDate: null,
+        isProvisional: this.demand.status !== 'completed'
+      };
+    }
   },
   methods: {
     getStatusColor(status) {

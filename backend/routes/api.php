@@ -220,6 +220,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('clients/me/reclamations', [\App\Http\Controllers\Api\Client\ClientReclamationController::class, 'store']);
     Route::get('clients/me/reclamations/{id}', [\App\Http\Controllers\Api\Client\ClientReclamationController::class, 'show']);
 
+    // Notifications
+    Route::get('notifications', [App\Http\Controllers\Api\NotificationController::class, 'index']);
+    Route::post('notifications/{id}/read', [App\Http\Controllers\Api\NotificationController::class, 'markAsRead']);
+    Route::post('notifications/read-all', [App\Http\Controllers\Api\NotificationController::class, 'markAllAsRead']);
+
     // ======================
     // Routes Admin
     // ======================

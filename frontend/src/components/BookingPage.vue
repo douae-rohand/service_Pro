@@ -659,7 +659,10 @@ export default {
       const selectedMaterialIds = this.bookingData.materials;
       return this.materials
         .filter(m => !selectedMaterialIds.includes(m.id))
-        .reduce((sum, m) => sum + (m.cost ?? m.pivot?.prix_materiel ?? 0), 0);
+        .reduce((sum, m) => {
+          const cost = Number(m.cost ?? m.pivot?.prix_materiel ?? 0);
+          return sum + cost;
+        }, 0);
     },
     estimatedHours() {
       let hours = 0;

@@ -21,7 +21,7 @@
     <div class="bg-white/80 backdrop-blur-md sticky top-0 z-40 border-b border-gray-100">
       <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center h-20 overflow-x-auto no-scrollbar">
-          <div v-for="step in 5" :key="step" class="flex items-center shrink-0">
+          <div v-for="step in 6" :key="step" class="flex items-center shrink-0">
             <div 
               class="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-300"
               :class="currentStep === step ? 'bg-[#E8F5E9] text-[#6B8E6D]' : 'text-gray-400'"
@@ -34,11 +34,11 @@
                 <span v-else class="text-xs font-bold">{{ step }}</span>
               </div>
               <span class="font-semibold text-sm whitespace-nowrap">
-                {{ ['Service', 'Tâche', 'Détails', 'Date', 'Horaire'][step-1] }}
+                {{ ['Service', 'Tâche', 'Détails', 'Date', 'Horaire', 'Récapitulatif'][step-1] }}
               </span>
             </div>
             <div 
-              v-if="step < 5" 
+              v-if="step < 6" 
               class="w-8 h-px bg-gray-100 mx-2"
               :class="{ 'bg-[#E8F5E9]': currentStep > step }"
             ></div>
@@ -454,6 +454,102 @@
           <p class="text-xs text-red-700 font-medium">{{ slotSelectionError }}</p>
         </div>
       </div>
+
+      <!-- Step 6: Confirmation Recap -->
+      <div v-if="currentStep === 6" class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div class="text-center max-w-2xl mx-auto">
+          <h3 class="text-2xl font-extrabold text-gray-900 mb-2">Vérifiez vos informations</h3>
+          <p class="text-gray-500">Dernière étape avant d'envoyer votre demande de réservation à {{ intervenant?.name }}.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Left Column: Details -->
+          <div class="space-y-6">
+            <!-- Service Info -->
+            <div class="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+              <h4 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Service & Tâche</h4>
+              <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl bg-[#E8F5E9] flex items-center justify-center text-[#92B08B]">
+                  <Package :size="24" />
+                </div>
+                <div>
+                  <p class="font-bold text-gray-900">{{ selectedService?.nom_service }}</p>
+                  <p class="text-sm text-gray-500">{{ selectedTask?.nom_tache }}</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Place & Time -->
+            <div class="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+              <h4 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Lieu & Date</h4>
+              <div class="space-y-4">
+                <div class="flex items-start gap-4">
+                  <div class="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-[#4682B4] shrink-0">
+                    <MapPin :size="20" />
+                  </div>
+                  <div>
+                    <p class="font-bold text-gray-900">{{ bookingData.address }}</p>
+                    <p class="text-sm text-gray-500">{{ bookingData.ville }}</p>
+                  </div>
+                </div>
+                <div class="flex items-start gap-4">
+                  <div class="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600 shrink-0">
+                    <Calendar :size="20" />
+                  </div>
+                  <div>
+                    <p class="font-bold text-gray-900">{{ formatDate(bookingData.date) }}</p>
+                    <p class="text-sm text-gray-500">À partir de {{ bookingData.time }} ({{ estimatedHours }}h estimées)</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column: Cost Recap -->
+          <div class="space-y-6">
+             <div class="bg-[#4682B4] rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
+                <div class="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+                <h4 class="text-xl font-black mb-6 flex items-center gap-2">
+                  <DollarSign :size="24" />
+                  Estimation finale
+                </h4>
+                
+                <div class="space-y-4 mb-8">
+                  <div class="flex justify-between items-center text-blue-100">
+                    <span>Main d'œuvre ({{ estimatedHours }}h)</span>
+                    <span class="font-bold">{{ intervenant?.hourlyRate * estimatedHours }} DH</span>
+                  </div>
+                  <div class="flex justify-between items-center text-blue-100">
+                    <span>Matériel</span>
+                    <span class="font-bold">{{ materialsCost }} DH</span>
+                  </div>
+                  <div class="pt-4 border-t border-white/20 flex justify-between items-end">
+                    <span class="text-blue-50 font-bold">Total Estimé</span>
+                    <div class="text-right">
+                      <span class="text-4xl font-black">{{ finalCost }}</span>
+                      <span class="text-xl ml-1 font-bold">DH</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="bg-white/10 rounded-xl p-4 flex gap-3 text-xs leading-relaxed text-blue-50">
+                  <Info :size="16" class="shrink-0" />
+                  <p>Le prix final est basé sur l'estimation de durée. Il peut être ajusté par l'intervenant après discussion.</p>
+                </div>
+             </div>
+
+             <!-- Materials Summary -->
+             <div v-if="bookingData.materials.length > 0" class="bg-gray-50 rounded-2xl p-6 border border-gray-100">
+                <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Matériel que vous fournissez</h4>
+                <div class="flex flex-wrap gap-2">
+                  <span v-for="matId in bookingData.materials" :key="matId" class="px-3 py-1 bg-white border border-gray-200 rounded-full text-xs text-gray-600 font-medium">
+                    {{ materials.find(m => m.id === matId)?.nom_materiel }}
+                  </span>
+                </div>
+             </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Footer Buttons -->
@@ -476,9 +572,9 @@
             :class="canProceed && !(currentStep === 4 && !dayAvailabilityResult?.hasEnoughTime) && !loading ? 'bg-[#92B08B] hover:opacity-90' : 'bg-gray-400 cursor-not-allowed'"
           >
             <span v-if="loading">Envoi en cours...</span>
-            <span v-else>{{ currentStep === 5 ? 'Envoyer la demande' : 'Continuer →' }}</span>
-            <ArrowRight v-if="currentStep < 5 && !loading" :size="20" />
-            <Check v-else-if="currentStep === 5 && !loading" :size="20" />
+            <span v-else>{{ currentStep === 6 ? 'Confirmer la réservation' : 'Continuer →' }}</span>
+            <ArrowRight v-if="currentStep < 6 && !loading" :size="20" />
+            <Check v-else-if="currentStep === 6 && !loading" :size="20" />
           </button>
         </div>
       </div>
@@ -553,6 +649,8 @@ export default {
                  this.dayAvailabilityResult?.hasEnoughTime === true;
         case 5:
           return this.selectedTimeSlots.length === this.estimatedHours;
+        case 6:
+          return true;
         default:
           return false;
       }
@@ -728,6 +826,19 @@ export default {
     },
     selectTask(task) {
       this.selectedTask = task;
+      // Récupérer le tarif spécifique de l'intervenant pour cette tâche
+      if (this.intervenant) {
+        const pivot = task.intervenants?.find(i => i.id === this.intervenant.id)?.pivot || 
+                      task.intervenant_tache || 
+                      task.pivot;
+        
+        if (pivot && pivot.prix_tache) {
+          this.intervenant.hourlyRate = Number(pivot.prix_tache);
+        } else if (task.tarif_tache) {
+          this.intervenant.hourlyRate = Number(task.tarif_tache);
+        }
+      }
+      
       this.loadConstraints();
       this.loadMaterials();
       this.currentStep = 3;
@@ -790,8 +901,8 @@ export default {
           hasEnoughTime,
           freeHours,
           message: hasEnoughTime 
-            ? `✅ Disponibilité confirmée pour ${this.estimatedHours} heure(s) le ${this.formatDate(this.bookingData.date)}`
-            : `❌ Pas assez de créneaux disponibles pour ${this.estimatedHours} heure(s) le ${this.formatDate(this.bookingData.date)}`,
+            ? `Disponibilité confirmée pour ${this.estimatedHours} heure(s) le ${this.formatDate(this.bookingData.date)}`
+            : `Pas assez de créneaux disponibles pour ${this.estimatedHours} heure(s) le ${this.formatDate(this.bookingData.date)}`,
           details: hasEnoughTime
             ? `${possibleStartSlots.length} créneau(x) de départ possible(s)`
             : freeHours > 0
@@ -1035,7 +1146,9 @@ export default {
     },
     async loadMaterials() {
       try {
-        const response = await api.get(`taches/${this.selectedTask?.id}/materiels`);
+        const response = await api.get(`taches/${this.selectedTask?.id}/materiels`, {
+          params: { intervenantId: this.intervenant?.id }
+        });
         this.materials = response.data?.data ?? response.data ?? [];
         if (!Array.isArray(this.materials)) this.materials = [];
       } catch (error) {
@@ -1065,7 +1178,7 @@ export default {
         this.selectedTimeSlots = [];
       }
       
-      if (this.currentStep === 5) {
+      if (this.currentStep === 6) {
         this.submitBooking();
         return;
       }
@@ -1164,6 +1277,14 @@ export default {
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 </style>
 

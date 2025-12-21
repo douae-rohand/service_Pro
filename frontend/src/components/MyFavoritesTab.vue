@@ -105,7 +105,7 @@
 
         <!-- Book Button -->
         <button
-          @click="openBookingModal(favorite)"
+          @click="handleBooking(favorite)"
           class="w-full py-3 rounded-lg text-white font-semibold hover:shadow-lg transition-all flex items-center justify-center gap-2 hover:opacity-90 transform hover:scale-[1.02]"
           style="background-color: #4682B4"
         >
@@ -115,21 +115,12 @@
       </div>
     </div>
 
-    <!-- Booking Modal -->
-    <BookingModal
-      v-if="selectedIntervenant"
-      :intervenant="selectedIntervenant"
-      :client-id="clientId"
-      @close="closeBookingModal"
-      @success="handleBookingSuccess"
-    />
   </div>
 </template>
 
 <script>
 import { Heart, Star, MapPin, Calendar, AlertCircle } from 'lucide-vue-next';
 import favoriteService from '@/services/favoriteService';
-import BookingModal from './BookingModal.vue';
 import api from '@/services/api';
 
 // Base URL of backend (without the `/api` suffix used for API routes)
@@ -143,8 +134,8 @@ export default {
     Star,
     MapPin,
     Calendar,
-    AlertCircle,
-    BookingModal
+    Calendar,
+    AlertCircle
   },
   props: {
     clientId: {
@@ -156,8 +147,7 @@ export default {
     return {
       favorites: [],
       loading: false,
-      error: null,
-      selectedIntervenant: null
+      error: null
     };
   },
   mounted() {
@@ -221,15 +211,12 @@ export default {
         alert('Erreur lors de la suppression du favori');
       }
     },
-    openBookingModal(intervenant) {
-      this.selectedIntervenant = intervenant;
-    },
-    closeBookingModal() {
-      this.selectedIntervenant = null;
-    },
-    handleBookingSuccess() {
-      this.closeBookingModal();
-      this.loadFavorites(); // Refresh to update last service date
+    handleBooking(favorite) {
+      // Emit event to navigate to the global BookingPage
+      this.$emit('navigate-booking', {
+        intervenantId: favorite.id, // Assuming favorite.id is the intervenant ID
+        serviceId: favorite.service_id
+      });
     },
     getServiceColor(service) {
       const colors = {

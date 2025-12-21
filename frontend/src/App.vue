@@ -23,6 +23,15 @@
         @logout="handleLogout"
       />
 
+      <!-- Client Home Page (New Dashboard) -->
+      <ClientHomePage
+        v-if="currentPage === 'client-home'"
+        :current-user="currentUser"
+        :stats="clientStats"
+        @service-click="handleServiceClick"
+        @navigate-home="handleNavigateHome"
+      />
+
       <!-- Page d'accueil -->
       <template v-if="currentPage === 'home'">
         <HeroSection @search="handleSearch" />
@@ -83,7 +92,10 @@
       <!-- Client Favorites Page -->
       <div v-else-if="currentPage === 'client-favorites'" class="min-h-screen bg-gray-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <MyFavoritesTab :client-id="currentUser?.client?.id || currentUser?.id" />
+          <MyFavoritesTab 
+            :client-id="currentUser?.client?.id || currentUser?.id" 
+            @navigate-booking="handleNavigateToBooking"
+          />
         </div>
       </div>
 
@@ -92,6 +104,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <ClientProfile
           @profile-updated="handleProfileUpdate"
+          @navigate-booking="handleNavigateToBooking"
         />
         </div>
       </div>
@@ -132,6 +145,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import authService from '@/services/authService'
+import { demandService } from '@/services/demandService'
 import { useRoute, useRouter } from 'vue-router'
 import Header from "./components/Header.vue";
 import HeroSection from './components/HeroSection.vue'
@@ -151,7 +165,9 @@ import ClientReservationsPage from './components/ClientReservationsPage.vue'
 import MyFavoritesTab from './components/MyFavoritesTab.vue'
 import ClientProfile from './components/ClientProfile.vue'
 import ClientReclamationsTab from './components/client/ClientReclamationsTab.vue'
+import ClientHomePage from './components/ClientHomePage.vue'
 import { ArrowLeft } from 'lucide-vue-next'
+
 
 
 const route = useRoute()
@@ -165,9 +181,11 @@ const isDashboardRoute = computed(() => {
 // ============================================
 // ÉTAT DE NAVIGATION
 // ============================================
-const currentPage = ref("home"); // 'home', 'service-detail', 'all-intervenants', 'task-intervenants', 'intervenant-profile'
-const previousPage = ref("home"); // Pour savoir d'où on vient lors du retour
+const currentPage = ref("home"); // 'home', 'client-home', 'service-detail', 'all-intervenants', 'task-intervenants', 'intervenant-profile'
+const previousPage = ref("home"); // Pour savoir d'où on vient lors du retour (générique)
+const profileBackRoute = ref("home"); // Spécifique: savoir où revenir quand on quitte le profil
 const currentUser = ref(null)
+const clientStats = ref({ pending: 0, accepted: 0, inProgress: 0, completed: 0 })
 // ============================================
 // ÉTAT DES DONNÉES
 // ============================================
@@ -202,10 +220,32 @@ const handleNavigateHome = () => {
   selectedTaskId.value = null;
   selectedIntervenantData.value = null;
   selectedIntervenantId.value = null;
-  currentPage.value = "home";
+  
+  // Si le client est connecté, on le redirige vers sa page d'accueil client
+  if (currentUser.value?.client) {
+    currentPage.value = "client-home";
+  } else {
+    currentPage.value = "home";
+  }
+  
   previousPage.value = "home";
   window.scrollTo({ top: 0, behavior: "smooth" });
 };
+
+// Fetch client stats
+const fetchClientStats = async (clientId) => {
+  try {
+    const statistics = await demandService.getClientStatistics(clientId);
+    clientStats.value = {
+      pending: statistics.pending || 0,
+      accepted: statistics.accepted || 0,
+      inProgress: statistics.inProgress || 0,
+      completed: statistics.completed || 0
+    };
+  } catch (error) {
+    console.error('Error fetching client stats:', error);
+  }
+}
 
 // Vérifier si l'utilisateur est connecté au chargement
 onMounted(async () => {
@@ -228,8 +268,10 @@ onMounted(async () => {
             router.push('/dashboard')
           }
         } else if (user.client) {
-          // Ne plus rediriger vers le dashboard client, rester sur la page d'accueil
-          currentPage.value = 'home'
+          // Rediriger vers la page d'accueil client
+          currentPage.value = 'client-home'
+          // Charger les stats
+          fetchClientStats(user.client.id || user.id)
         }
       }
     } catch (error) {
@@ -277,7 +319,14 @@ const handleBack = () => {
   selectedTaskId.value = null;
   selectedIntervenantData.value = null;
   selectedIntervenantId.value = null;
-  currentPage.value = "home";
+  
+  // Retour intelligent
+  if (currentUser.value?.client) {
+    currentPage.value = "client-home";
+  } else {
+    currentPage.value = "home";
+  }
+  
   window.scrollTo({ top: 0, behavior: "smooth" });
 };
 
@@ -299,6 +348,7 @@ const handleViewProfileFromDetail = (intervenantId) => {
   selectedIntervenantData.value = null; // Forcer le chargement API
   selectedIntervenantId.value = intervenantId;
   previousPage.value = "service-detail";
+  profileBackRoute.value = "service-detail"; // Sauvegarder route retour profil
   currentPage.value = "intervenant-profile";
   window.scrollTo({ top: 0, behavior: "smooth" });
 };
@@ -347,6 +397,7 @@ const handleViewProfileFromTask = (payload) => {
 
   // Sauvegarder d'où on vient
   previousPage.value = "task-intervenants";
+  profileBackRoute.value = "task-intervenants";
 
   // Naviguer vers le profil
   currentPage.value = "intervenant-profile";
@@ -363,6 +414,7 @@ const handleViewProfileFromList = (payload) => {
 
   // Sauvegarder d'où on vient
   previousPage.value = "all-intervenants";
+  profileBackRoute.value = "all-intervenants";
 
   // Naviguer vers le profil
   currentPage.value = "intervenant-profile";
@@ -373,8 +425,10 @@ const handleViewProfileFromList = (payload) => {
 // NAVIGATION - PAGE DE PROFIL
 // ============================================
 const handleBackFromProfile = () => {
-  // Retourner à la page précédente (soit detail, soit all-intervenants, soit task-intervenants)
-  currentPage.value = previousPage.value;
+  // Retourner à la page précédente spécifique au profil
+  // Cela évite le bug de boucle si on vient de la page Booking
+  currentPage.value = profileBackRoute.value || previousPage.value || "home";
+  
   selectedIntervenantData.value = null;
   selectedIntervenantId.value = null;
   // Ne pas réinitialiser selectedTaskId car on peut vouloir revenir à la page task-intervenants
@@ -416,7 +470,8 @@ const handleLoginSuccess = (user) => {
       currentPage.value = 'booking'
       localStorage.removeItem('redirect_after_login')
     } else {
-      currentPage.value = 'home'
+      currentPage.value = 'client-home'
+      fetchClientStats(user.client.id || user.id)
     }
   } else {
       // Fallback if role is unclear
@@ -470,8 +525,8 @@ const handleDashboardClick = () => {
   } else if (currentUser.value?.intervenant) {
     router.push('/dashboard')
   } else if (currentUser.value?.client) {
-    // Rediriger vers Mes Réservations au lieu du dashboard
-    currentPage.value = 'client-reservations'
+    // Rediriger vers Home Page Client du dashboard
+    currentPage.value = 'client-home'
   }
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
@@ -489,7 +544,7 @@ const handleClientNavigate = (page) => {
 
 // Retour depuis une page client
 const handleBackFromClientPage = () => {
-  currentPage.value = 'home'
+  currentPage.value = 'client-home'
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
@@ -543,6 +598,10 @@ const handleBackFromBooking = () => {
     currentPage.value = 'task-intervenants'
   } else if (previousPage.value === 'intervenant-profile') {
     currentPage.value = 'intervenant-profile'
+  } else if (previousPage.value === 'client-profile') {
+    currentPage.value = 'client-profile'
+  } else if (previousPage.value === 'client-favorites') {
+    currentPage.value = 'client-favorites'
   } else {
     currentPage.value = 'home'
   }
@@ -553,6 +612,7 @@ const handleBookingSuccess = () => {
   // Après une réservation réussie, rediriger vers Mes Réservations
   if (currentUser.value?.client) {
     currentPage.value = 'client-reservations'
+    fetchClientStats(currentUser.value.client.id || currentUser.value.id)
   } else {
     handleBackFromBooking()
   }
@@ -570,6 +630,10 @@ const handleNavigateToBooking = (bookingData) => {
     previousPage.value = 'task-intervenants';
   } else if (currentPage.value === 'intervenant-profile') {
     previousPage.value = 'intervenant-profile';
+  } else if (currentPage.value === 'client-profile') {
+    previousPage.value = 'client-profile';
+  } else if (currentPage.value === 'client-favorites') {
+    previousPage.value = 'client-favorites';
   } else {
     previousPage.value = 'home';
   }

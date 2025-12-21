@@ -23,13 +23,13 @@
         @logout="handleLogout"
       />
 
-      <!-- Client Home Page (New Dashboard) -->
       <ClientHomePage
         v-if="currentPage === 'client-home'"
         :current-user="currentUser"
         :stats="clientStats"
         @service-click="handleServiceClick"
         @navigate-home="handleNavigateHome"
+        @view-profile="handleViewProfileFromHome"
       />
 
       <!-- Page d'accueil -->
@@ -415,6 +415,21 @@ const handleViewProfileFromList = (payload) => {
   // Sauvegarder d'où on vient
   previousPage.value = "all-intervenants";
   profileBackRoute.value = "all-intervenants";
+
+  // Naviguer vers le profil
+  currentPage.value = "intervenant-profile";
+  window.scrollTo({ top: 0, behavior: "smooth" });
+};
+
+const handleViewProfileFromHome = (payload) => {
+  console.log("View profile from home:", payload);
+
+  selectedIntervenantData.value = payload.data;
+  selectedIntervenantId.value = payload.id;
+
+  // Sauvegarder d'où on vient
+  previousPage.value = "client-home";
+  profileBackRoute.value = "client-home";
 
   // Naviguer vers le profil
   currentPage.value = "intervenant-profile";

@@ -191,6 +191,21 @@
                    </div>
                  </div>
                </l-tooltip>
+               <l-popup>
+                  <div class="p-2 min-w-[150px] text-center">
+                    <div class="avatar-container-popup mx-auto w-16 h-16 rounded-full overflow-hidden border-2 border-gray-100 mb-2">
+                       <img :src="iv.avatar" class="w-full h-full object-cover" />
+                    </div>
+                    <div class="font-bold text-slate-800 mb-1">{{ iv.name }}</div>
+                    <div class="text-xs text-slate-500 mb-3">{{ iv.profession }}</div>
+                    <button
+                      @click="viewProfile(iv)"
+                      class="w-full px-4 py-2 rounded-lg text-white font-bold text-sm transition-all hover:scale-105 shadow-md bg-slate-900 hover:bg-slate-800"
+                    >
+                      Voir profil
+                    </button>
+                  </div>
+               </l-popup>
              </l-marker>
            </l-map>
            
@@ -212,7 +227,7 @@ import {
   Clock, Calendar, Activity, CheckCircle, MapPin, Star, ArrowRight
 } from 'lucide-vue-next';
 import "leaflet/dist/leaflet.css";
-import { LMap, LTileLayer, LMarker, LTooltip, LIcon } from "@vue-leaflet/vue-leaflet";
+import { LMap, LTileLayer, LMarker, LTooltip, LIcon, LPopup } from "@vue-leaflet/vue-leaflet";
 import intervenantService from '@/services/intervenantService';
 import Footer from './Footer.vue';
 
@@ -221,7 +236,7 @@ const props = defineProps({
   stats: { type: Object, default: () => ({ pending: 0, accepted: 0, inProgress: 0, completed: 0 }) }
 })
 
-defineEmits(['service-click', 'navigate-home'])
+const emit = defineEmits(['service-click', 'navigate-home', 'view-profile'])
 
 const map = ref(null)
 const mapReady = ref(false)
@@ -283,6 +298,13 @@ const generateMarkers = () => {
       reviews: iv.review_count || Math.floor(Math.random() * 50),
       avatar: iv.utilisateur?.url || `https://ui-avatars.com/api/?name=${iv.utilisateur?.prenom}+${iv.utilisateur?.nom}&background=random`
     }
+  })
+}
+
+const viewProfile = (intervenant) => {
+  emit('view-profile', {
+    id: intervenant.id,
+    data: intervenant
   })
 }
 </script>

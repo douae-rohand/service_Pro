@@ -1,191 +1,177 @@
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <div class="min-h-screen bg-[#F9FAFB]">
+    <!-- Hero Section -->
+    <section 
+      class="relative py-16 px-4 sm:px-6 lg:px-8 overflow-hidden mb-8"
+      style="background: linear-gradient(to bottom, #E8F5E9, #FFFFFF)"
+    >
+      <!-- Decorative shapes -->
+      <div class="absolute top-10 left-10 w-32 h-32 rounded-full opacity-30 blur-3xl animate-float" style="background-color: #92B08B"></div>
+      <div class="absolute bottom-10 right-10 w-40 h-40 bg-yellow-100 rounded-full opacity-30 blur-3xl animate-float-delayed"></div>
+      
+      <div class="max-w-6xl mx-auto text-center relative z-10">
+        <h1 class="text-4xl md:text-5xl font-bold mb-4 animate-fade-in-up" style="color: #305C7D">
+          Mes <span class="relative inline-block">
+            Réservations
+            <svg class="absolute -bottom-2 left-0 w-full" height="8" viewBox="0 0 200 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M1 5.5C50 2 150 2 199 5.5" stroke="#FCD34D" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+          </span>
+        </h1>
+        <p class="text-gray-600 text-lg animate-fade-in-up-delayed max-w-2xl mx-auto">
+          Suivez l'état de vos demandes de service et gérez vos interventions en toute simplicité.
+        </p>
+      </div>
+    </section>
 
     <!-- Content -->
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
       <!-- Error State -->
-      <div v-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-600 mb-6">
-        <AlertCircle :size="20" class="inline mr-2" />
-        {{ error }}
+      <div v-if="error" class="bg-red-50 border border-red-200 rounded-3xl p-6 text-red-600 mb-8 flex items-center gap-4 animate-fade-in">
+        <AlertCircle :size="24" class="flex-shrink-0" />
+        <span class="font-medium">{{ error }}</span>
       </div>
 
-      <!-- Content -->
+      <!-- Main Interface -->
       <div v-else>
-        <!-- Status Filter -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h3 class="text-xl mb-4" style="color: #2f4f4f">Filtrer par statut</h3>
-          <div class="flex flex-wrap gap-3">
+        <!-- Status Filter Tabs -->
+        <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-2 mb-8 overflow-x-auto no-scrollbar animate-fade-in">
+          <div class="flex gap-1 min-w-max">
             <button
               v-for="(config, key) in statusConfig"
               :key="key"
               @click="selectedStatus = key"
-              class="px-4 py-2 rounded-lg border-2 transition-all"
-              :class="selectedStatus === key ? 'text-white shadow-md' : 'bg-gray-50 hover:bg-gray-100'"
+              class="px-5 py-3 rounded-2xl transition-all duration-300 font-semibold text-sm flex items-center gap-2"
               :style="{
-                borderColor: selectedStatus === key ? config.color : '#E5E7EB',
-                backgroundColor: selectedStatus === key ? config.color : '',
-                color: selectedStatus === key ? 'white' : '#2F4F4F'
+                backgroundColor: selectedStatus === key ? config.color : 'transparent',
+                color: selectedStatus === key ? 'white' : '#64748B'
               }"
             >
-              {{ config.label }} ({{ config.count }})
+              <div 
+                v-if="selectedStatus !== key" 
+                class="w-2 h-2 rounded-full" 
+                :style="{ backgroundColor: config.color }"
+              ></div>
+              {{ config.label }}
+              <span 
+                class="px-2 py-0.5 rounded-full text-[10px] ml-1"
+                :style="{ 
+                  backgroundColor: selectedStatus === key ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.05)',
+                  color: selectedStatus === key ? 'white' : '#64748B'
+                }"
+              >
+                {{ config.count }}
+              </span>
             </button>
           </div>
         </div>
 
         <!-- Loading State -->
-        <div v-if="loading" class="text-center py-12">
-          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-          <p class="mt-4 text-gray-600">Chargement des réservations...</p>
+        <div v-if="loading" class="text-center py-20 animate-fade-in">
+          <div class="w-16 h-16 border-4 border-gray-100 border-t-[#305C7D] rounded-full animate-spin mx-auto mb-4"></div>
+          <p class="text-gray-500 font-medium">Récupération de vos réservations...</p>
         </div>
 
         <!-- Empty State -->
-        <div v-else-if="!loading && !error && filteredDemands.length === 0" class="bg-white rounded-lg shadow-md p-12 text-center">
-          <FileText :size="64" class="mx-auto mb-4 text-gray-400" />
-          <h3 class="text-xl font-bold mb-2" style="color: #2f4f4f">
-            Aucune réservation trouvée
-          </h3>
-          <p class="text-gray-600 mb-4">
-            Vous n'avez pas encore de réservations de service.
+        <div v-else-if="!loading && !error && filteredDemands.length === 0" class="bg-white rounded-[40px] shadow-sm border border-gray-100 p-16 text-center animate-fade-in">
+          <div class="w-24 h-24 bg-gray-50 rounded-3xl flex items-center justify-center mx-auto mb-6">
+            <FileText :size="40" class="text-gray-300" />
+          </div>
+          <h3 class="text-2xl font-bold mb-3" style="color: #305C7D">Aucune réservation</h3>
+          <p class="text-gray-500 mb-8 max-w-sm mx-auto">
+            Vous n'avez pas encore de réservations correspondant à ce statut.
           </p>
-          <p class="text-sm text-gray-500">
-            Vos réservations apparaîtront ici une fois créées.
-          </p>
+          <button 
+            @click="selectedStatus = 'all'" 
+            class="px-8 py-3 bg-[#305C7D] text-white rounded-2xl font-bold hover:shadow-lg transition-all transform hover:scale-105"
+          >
+            Voir tout
+          </button>
         </div>
 
-        <!-- Demands List -->
-        <div v-else class="space-y-4">
+        <!-- Demands List (Ultra-Compact) -->
+        <div v-else class="space-y-3 animate-fade-in">
           <div
-            v-for="demand in filteredDemands"
+            v-for="(demand, index) in filteredDemands"
             :key="demand.id"
-            class="bg-white rounded-lg shadow-md p-6 border-l-4 transition-all hover:shadow-lg"
-            :style="{ borderColor: getBorderColor(demand.status) }"
+            class="group bg-white rounded-2xl shadow-sm border border-gray-100 p-3 transition-all duration-300 hover:shadow-md hover:border-gray-200 relative overflow-hidden"
+            :style="{ 
+              animationDelay: `${index * 50}ms`,
+              borderLeft: `4px solid ${getBorderColor(demand.status)}`
+            }"
           >
-            <!-- Header -->
-            <div class="flex items-start justify-between mb-4">
-              <div class="flex items-start gap-4 flex-1">
+            <div class="relative z-10 flex items-center gap-4">
+              <!-- Minimalist Avatar -->
+              <div class="relative flex-shrink-0">
                 <img
-                  :src="demand.intervenant.image"
+                  :src="demand.intervenant.image || 'https://via.placeholder.com/150'"
                   :alt="demand.intervenant.name"
-                  class="w-16 h-16 rounded-full object-cover border-2"
-                  style="border-color: #92b08b"
+                  class="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm"
                 />
-                <div class="flex-1">
-                  <div class="flex items-center gap-2 mb-1">
-                    <h4 class="text-xl" style="color: #2f4f4f">
-                      {{ demand.service }} - {{ demand.task }}
-                    </h4>
-                    <span
-                      class="px-3 py-1 rounded-full text-white text-xs"
-                      :style="{ backgroundColor: getStatusBgColor(demand.status) }"
-                    >
-                      {{ getStatusLabel(demand.status) }}
-                    </span>
+                <div 
+                  class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white"
+                  :style="{ backgroundColor: getStatusBgColor(demand.status) }"
+                ></div>
+              </div>
+
+              <!-- Compact Info -->
+              <div class="flex-1 min-w-0">
+                <div class="flex flex-wrap items-center gap-x-3 gap-y-0.5 mb-0.5">
+                  <h4 class="font-bold text-[#305C7D] truncate">
+                    {{ demand.service }}
+                  </h4>
+                  <div class="px-2 py-0.5 rounded-full text-[8px] uppercase tracking-tighter font-black" :style="{ backgroundColor: getStatusBgColor(demand.status) + '15', color: getStatusBgColor(demand.status) }">
+                    {{ getStatusLabel(demand.status) }}
                   </div>
-                  <p class="text-gray-600 mb-2">
-                    <User :size="16" class="inline mr-1" />
-                    {{ demand.intervenant.name }}
-                  </p>
-                  <div class="flex flex-wrap gap-4 text-sm text-gray-600">
-                    <span>
-                      <Calendar :size="14" class="inline mr-1" />
-                      {{ formatDate(demand.date) }}
-                    </span>
-                    <span>
-                      <Clock :size="14" class="inline mr-1" />
-                      {{ demand.time }}
-                    </span>
-                    <span>
-                      <MapPin :size="14" class="inline mr-1" />
-                      {{ demand.quartier }}
-                    </span>
+                </div>
+                
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-gray-500">
+                  <div class="flex items-center gap-1">
+                    <span class="font-semibold text-gray-700">{{ demand.intervenant.name }}</span>
+                  </div>
+                  <div class="flex items-center gap-1 opacity-70">
+                    <Calendar :size="10" />
+                    {{ formatDate(demand.date) }}
+                  </div>
+                  <div class="flex items-center gap-1 opacity-70">
+                    <Clock :size="10" />
+                    {{ demand.time }}
+                  </div>
+                  <div class="flex items-center gap-1 opacity-70 hidden sm:flex">
+                    <MapPin :size="10" />
+                    {{ demand.quartier }}
                   </div>
                 </div>
               </div>
 
-              <div class="text-right">
-                <div class="text-2xl mb-1 px-4 py-2 rounded-lg text-white" style="background-color: #1a5fa3">
-                  {{ demand.finalCost || demand.estimatedCost || 0 }} DH
+              <!-- Price & Action -->
+              <div class="flex items-center gap-4 pl-4 border-l border-gray-50">
+                <div class="text-right hidden sm:block">
+                  <div class="text-lg font-black text-[#1a5fa3]">
+                    {{ demand.finalCost || demand.estimatedCost || 0 }}<span class="text-[10px] ml-0.5">DH</span>
+                  </div>
                 </div>
-                <p v-if="demand.finalCost && demand.finalCost !== demand.estimatedCost" class="text-xs text-gray-500 line-through">
-                  Estimé: {{ demand.estimatedCost }} DH
-                </p>
+                <button
+                  @click="viewDemandDetails(demand)"
+                  class="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-[#305C7D] hover:text-white transition-all shadow-sm"
+                  title="Voir détails"
+                >
+                  <Eye :size="16" />
+                </button>
               </div>
             </div>
 
-            <!-- Rating Section -->
+            <!-- Ultra-Tiny Rating Link -->
             <div
-              v-if="demand.status === 'completed'"
-              class="mb-4 p-4 rounded-lg"
-              :style="{
-                backgroundColor: demand.rating ? '#F0FFF0' : canRate(demand) ? '#FFF9E6' : '#FFF0F0'
-              }"
+              v-if="demand.status === 'completed' && !demand.rating && canRate(demand)"
+              class="mt-2 pt-2 border-t border-dashed border-gray-100 flex items-center justify-between text-[10px]"
             >
-              <!-- Has Rating -->
-              <div v-if="demand.rating">
-                <div class="flex items-center justify-between mb-3">
-                  <div class="flex items-center gap-2">
-                    <Star :size="20" fill="#FEE347" color="#FEE347" />
-                    <span class="text-lg">Votre évaluation: {{ demand.rating.overallRating.toFixed(1) }}/5</span>
-                  </div>
-                  <button
-                    @click="viewDemandDetails(demand)"
-                    class="text-sm px-3 py-1 rounded text-white hover:shadow-md transition-all flex items-center gap-1"
-                    style="background-color: #1a5fa3"
-                  >
-                    <Eye :size="14" />
-                    Voir l'évaluation
-                  </button>
-                </div>
-                <p v-if="demand.rating.comment" class="text-sm text-gray-700 italic">"{{ demand.rating.comment }}"</p>
-              </div>
-
-              <!-- Can Rate -->
-              <div v-else-if="canRate(demand)">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <p class="text-sm font-bold mb-1" style="color: #e8793f">
-                      Évaluez cette prestation !
-                    </p>
-                    <p class="text-xs text-gray-600">
-                      Il vous reste {{ getDaysLeftToRate(demand) }} jour{{ getDaysLeftToRate(demand) > 1 ? 's' : '' }} pour laisser votre avis
-                    </p>
-                  </div>
-                  <button
-                    @click="openRatingModal(demand)"
-                    class="px-4 py-2 rounded-lg text-white hover:shadow-md transition-all flex items-center gap-2"
-                    style="background-color: #92b08b"
-                  >
-                    <Star :size="16" />
-                    Noter maintenant
-                  </button>
-                </div>
-              </div>
-
-              <!-- Expired -->
-              <div v-else class="text-center">
-                <p class="text-sm text-red-600 font-bold">
-                  Le délai de 7 jours pour évaluer cette prestation est dépassé
-                </p>
-              </div>
-            </div>
-
-            <!-- Intervenant Response -->
-            <div v-if="demand.intervenantResponse" class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p class="text-sm text-gray-700">
-                <MessageCircle :size="14" class="inline mr-2" />
-                <span class="font-bold">Réponse de l'intervenant:</span> {{ demand.intervenantResponse }}
-              </p>
-            </div>
-
-            <!-- Actions -->
-            <div class="flex gap-2">
+              <span class="text-orange-600 font-bold">Prêt pour évaluation !</span>
               <button
-                @click="viewDemandDetails(demand)"
-                class="w-full px-4 py-2 border-2 rounded-lg transition-all hover:shadow-md font-bold"
-                style="border-color: #1a5fa3; color: #1a5fa3"
+                @click="openRatingModal(demand)"
+                class="text-[#305C7D] font-black hover:underline"
               >
-                <Eye :size="16" class="inline mr-2" />
-                Voir détails
+                Noter maintenant →
               </button>
             </div>
           </div>
@@ -278,9 +264,9 @@ export default {
   computed: {
     statusConfig() {
       return {
-        all: { label: 'Toutes', color: '#2F4F4F', count: this.statusCounts.all },
-        pending: { label: 'En attente', color: '#FEE347', count: this.statusCounts.pending },
-        accepted: { label: 'Acceptées', color: '#92B08B', count: this.statusCounts.accepted },
+        all: { label: 'Toutes', color: '#305C7D', count: this.statusCounts.all },
+        pending: { label: 'En attente', color: '#FCD34D', count: this.statusCounts.pending },
+        accepted: { label: 'Acceptées', color: '#4682B4', count: this.statusCounts.accepted },
         'in-progress': { label: 'En cours', color: '#1A5FA3', count: this.statusCounts['in-progress'] },
         completed: { label: 'Terminées', color: '#92B08B', count: this.statusCounts.completed },
         cancelled: { label: 'Annulées', color: '#E8793F', count: this.statusCounts.cancelled },
@@ -367,8 +353,8 @@ export default {
     getBorderColor(status) {
       const colors = {
         completed: '#92B08B',
-        accepted: '#1A5FA3',
-        pending: '#FEE347',
+        accepted: '#4682B4',
+        pending: '#FCD34D',
         'in-progress': '#1A5FA3',
         cancelled: '#E8793F',
         rejected: '#DC2626'
@@ -417,13 +403,53 @@ export default {
 </script>
 
 <style scoped>
-.animate-spin {
-  animation: spin 1s linear infinite;
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.8s ease-out;
+}
+
+.animate-fade-in-up-delayed {
+  animation: fadeInUp 0.8s ease-out 0.2s both;
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float 6s ease-in-out infinite 1s;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 </style>
 

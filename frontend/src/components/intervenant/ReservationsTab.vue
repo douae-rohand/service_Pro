@@ -468,7 +468,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Check, X, Clock, MapPin, Calendar, MessageSquare, Coins, Package, Star, Mail, AlertTriangle, FileText, Flag } from 'lucide-vue-next'
 // ... existing imports ...
 
@@ -508,6 +508,7 @@ const closeRefuseModal = () => {
 import reservationService from '@/services/intervenantReservationService'
 import evaluationService from '@/services/evaluationService'
 import api from '@/services/api'
+import reservationSSEService from '@/services/reservationSSEService'
 import ClientRatingModal from './ClientRatingModal.vue'
 import ClientProfileModal from './ClientProfileModal.vue'
 import InterventionDetailsModal from './InterventionDetailsModal.vue'
@@ -732,10 +733,10 @@ const submitComplaint = async () => {
       message: complaintForm.value.sujet
     })
     
-    notification.value = 'Réclamation envoyée avec succès!'
+    notification.value = 'Réclamation envoyée avec succès! Elle sera traitée dans les plus brefs délais et vous recevrez une réponse par email'
     setTimeout(() => {
       notification.value = null
-    }, 3000)
+    }, 5000)
     closeComplaintModal()
     
   } catch (error) {
@@ -812,23 +813,73 @@ const onRatingSubmitted = async () => {
   await fetchReservations()
 }
 
+const showNotification = (message, type = 'info') => {
+  notification.value = { message, type }
+  setTimeout(() => {
+    notification.value = null
+  }, 3000)
+}
+
 const pollInterval = ref(null)
 
 onMounted(async () => {
   await Promise.all([
     fetchReservations(),
     fetchAllServices()
-  ])
+  ]);
 
-  // Poll for updates every 30 seconds (Silent Refresh)
+  // Configurer SSE pour les notifications temps réel
+  const setupSSE = () => {
+    // Récupérer l'ID de l'intervenant connecté depuis les réservations ou le localStorage
+    const intervenantId = localStorage.getItem('intervenant_id') || 
+                        (reservations.value.length > 0 ? reservations.value[0].intervenant_id : null)
+    
+    if (intervenantId) {
+      reservationSSEService.connect(intervenantId)
+      
+      // Écouter les nouvelles réservations
+      reservationSSEService.addListener('new_reservation', (data) => {
+        console.log('Nouvelle réservation reçue:', data)
+        
+        // Ajouter la nouvelle réservation à la liste
+        reservations.value.unshift(data.reservation)
+        
+        // Mettre à jour les statistiques
+        updateStats()
+        
+        // Afficher une notification
+        showNotification('Nouvelle réservation reçue!', 'success')
+      })
+      
+      // Écouter les mises à jour de statut
+      reservationSSEService.addListener('status_update', (data) => {
+        console.log('Mise à jour de statut:', data)
+        
+        // Mettre à jour la réservation dans la liste
+        const index = reservations.value.findIndex(r => r.id === data.reservation_id)
+        if (index !== -1) {
+          reservations.value[index] = { ...reservations.value[index], ...data.updates }
+        }
+        
+        // Mettre à jour les statistiques
+        updateStats()
+      })
+    }
+  }
+
+  // Initialiser SSE après avoir récupéré les réservations
+  setTimeout(setupSSE, 1000)
+
+  // Poll for updates every 30 seconds (Silent Refresh) - backup
   pollInterval.value = setInterval(() => {
     fetchReservations(true)
   }, 30000)
 })
 
-import { onUnmounted } from 'vue' // Ensure this is imported
 onUnmounted(() => {
   if (pollInterval.value) clearInterval(pollInterval.value)
+  // Déconnecter SSE
+  reservationSSEService.disconnect()
 })
 </script>
 

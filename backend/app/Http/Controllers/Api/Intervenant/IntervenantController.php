@@ -8,9 +8,9 @@ use App\Models\Disponibilite;
 use App\Models\Tache;
 use App\Models\Intervention;
 use App\Models\Materiel;
+use Illuminate\Support\Facades\Log;
 use App\Models\Service;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -1078,9 +1078,9 @@ class IntervenantController extends Controller
             return response()->json(['error' => 'Intervenant not found'], 404);
         }
 
-        // Get active and archived services
+        // Get active, archived, and pending services
         $activeServices = $intervenant->services()
-            ->wherePivotIn('status', ['active', 'archive'])
+            ->wherePivotIn('status', ['active', 'archive', 'demmande'])
             ->get()
             ->map(function ($service) {
                 return [

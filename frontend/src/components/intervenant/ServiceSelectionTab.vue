@@ -11,6 +11,18 @@
       </div>
     </div>
 
+    <!-- Pending Request Notification -->
+    <div v-if="showPendingNotification" class="pending-notification">
+      <div class="pending-icon">
+        <AlertTriangle :size="20" />
+      </div>
+      <div>
+        <p class="pending-title">Demande déjà en cours</p>
+        <p class="pending-subtitle">{{ pendingNotificationMessage }}</p>
+      </div>
+      <button @click="closePendingNotification" class="pending-close">×</button>
+    </div>
+
     <!-- Stats -->
     <div class="stats-grid">
       <div class="stat-card stat-green">
@@ -390,7 +402,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Plus, Trash2, FileText, AlertCircle, Upload, Send, X, Archive, Check } from 'lucide-vue-next'
+import { Plus, Trash2, FileText, AlertCircle, Upload, Send, X, Archive, Check, AlertTriangle } from 'lucide-vue-next'
 import authService from '@/services/authService'
 import intervenantService from '@/services/intervenantService'
 import intervenantTacheService from '@/services/intervenantTacheService'
@@ -503,6 +515,10 @@ const loadIntervenantActiveData = async (intervenantId) => {
         } else if (service.status === 'archive' && serviceStates.value[service.id] !== undefined) {
           // If archived, we mark it so we can fast-reactivate
           archivedServices.value[service.id] = true
+          serviceStates.value[service.id] = false
+        } else if (service.status === 'demmande') {
+          // If service has a pending request, mark it as pending
+          pendingRequestServices.value[service.id] = true
           serviceStates.value[service.id] = false
         }
       })
@@ -676,6 +692,27 @@ const materialsFormVisible = ref({})
 // Add archived services state
 const archivedServices = ref({})
 
+// Add pending request state for services with 'demmande' status
+const pendingRequestServices = ref({})
+
+// Notification state for pending requests
+const showPendingNotification = ref(false)
+const pendingNotificationMessage = ref('')
+
+const showPendingRequestNotification = () => {
+  pendingNotificationMessage.value = 'Vous avez déjà déposé une demande pour ce service. Veuillez attendre que l\'administrateur traite votre demande. Un email vous sera envoyé une fois la demande traitée.'
+  showPendingNotification.value = true
+  
+  // Auto-hide after 5 seconds
+  setTimeout(() => {
+    showPendingNotification.value = false
+  }, 5000)
+}
+
+const closePendingNotification = () => {
+  showPendingNotification.value = false
+}
+
 const toggleService = async (serviceId, serviceName) => {
   // If service is archived, reactivate directly
   if (archivedServices.value[serviceId]) {
@@ -698,8 +735,15 @@ const toggleService = async (serviceId, serviceName) => {
     return
   }
   
-  // If activating the service, show the activation request modal
+  // If activating the service, check if there's already a pending request
   if (!serviceStates.value[serviceId]) {
+    // Check if there's already a pending request for this service
+    if (pendingRequestServices.value[serviceId]) {
+      // Show notification that request is already pending
+      showPendingRequestNotification()
+      return
+    }
+    
     const service = services.value.find(s => s.id === serviceId)
     if (service) {
       currentService.value = service
@@ -1120,9 +1164,9 @@ const saveTaskConfig = async (taskId) => {
     // Ensure task state remains active (this fixes the toggle issue)
     taskStates.value[taskId] = true
     
-    // Show success message
-    showSuccessMessage.value = true
-    successMessage.value = 'Configuration enregistrée avec succès !'
+    // Success message removed as per request (sub-services don't need "pending review" notification)
+    // showSuccessMessage.value = true
+    // successMessage.value = 'Configuration enregistrée avec succès !'
   } catch (error) {
     console.error('Erreur complète:', error)
     console.error('Response data:', error.response?.data)
@@ -1229,6 +1273,68 @@ const getMaterialsByService = (serviceId) => {
   font-size: 0.75rem;
   color: var(--color-gray-500);
   margin: 0;
+}
+
+/* Pending Request Notification */
+.pending-notification {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-4);
+  padding: var(--spacing-4);
+  background: #FEF3E2;
+  border-left: 4px solid #F59E0B;
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--spacing-4);
+  position: relative;
+}
+
+.pending-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background-color: #FEF3E2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #F59E0B;
+  flex-shrink: 0;
+}
+
+.pending-title {
+  font-size: 0.875rem;
+  color: var(--color-dark);
+  margin: 0 0 var(--spacing-1) 0;
+  font-weight: 600;
+}
+
+.pending-subtitle {
+  font-size: 0.75rem;
+  color: var(--color-gray-600);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.pending-close {
+  position: absolute;
+  top: var(--spacing-3);
+  right: var(--spacing-3);
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: var(--color-gray-500);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.pending-close:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: var(--color-dark);
 }
 
 /* Modal Styles */

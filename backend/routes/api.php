@@ -172,6 +172,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Reclamations for interventions
     Route::post('/reclamations', [App\Http\Controllers\Api\Intervention\ReclamationController::class, 'store']);
     
+    // SSE pour les réservations en temps réel
+    Route::get('/reservations/stream', [App\Http\Controllers\Api\Intervention\ReservationSSEController::class, 'stream']);
+    
     // Actions sur Intervenant par ID (pour Admin ou autres)
     Route::put('intervenants/{id}/taches/{tacheId}/configure', [IntervenantController::class, 'configureTask']);
     Route::get('intervenants/{id}/services-with-activation', [IntervenantController::class, 'getServicesWithActivation']);

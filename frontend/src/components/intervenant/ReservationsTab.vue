@@ -173,10 +173,10 @@
                   <span class="status-badge status-completed">
                     Terminée
                   </span>
-                  <button @click="generateInvoice(reservation.id)" class="invoice-btn">
-                    <FileText :size="16" />
-                    Facture
-                  </button>
+<!--                  <button @click="generateInvoice(reservation.id)" class="invoice-btn">-->
+<!--                    <FileText :size="16" />-->
+<!--                    Facture-->
+<!--                  </button>-->
 
                   <!-- View both evaluations (public) - HIGHEST PRIORITY -->
                   <button 
@@ -237,10 +237,10 @@
                   <span class="status-badge status-accepted">
                     Confirmée
                   </span>
-                  <button @click="generateInvoice(reservation.id)" class="invoice-btn">
-                    <FileText :size="16" />
-                    Facture
-                  </button>
+<!--                  <button @click="generateInvoice(reservation.id)" class="invoice-btn">-->
+<!--                    <FileText :size="16" />-->
+<!--                    Facture-->
+<!--                  </button>-->
                 </div>
                 <span v-else-if="selectedTab === 'refused'" class="status-badge status-refused">
                   Refusée
@@ -699,6 +699,11 @@ const loadingMessage = ref('')
 const showRefuseModal = ref(false)
 const refusalId = ref(null)
 
+// Variables pour les réclamations passées
+const showPastComplaintsModal = ref(false)
+const pastComplaints = ref([])
+const isLoadingPastComplaints = ref(false)
+
 const fetchAllServices = async () => {
   try {
     const response = await api.get('services')
@@ -745,8 +750,15 @@ const formatDate = (dateStr) => {
 }
 
 const calculateTotal = (reservation) => {
-  const hours = parseInt(reservation.duration)
-  return reservation.hourlyRate * hours
+  const hours = parseFloat(reservation.duration_hours || reservation.duration || 0)
+  const laborTotal = reservation.hourlyRate * hours
+  
+  // Sum material prices (intervenant materials only)
+  const materialTotal = (reservation.intervenantMaterials || []).reduce((sum, mat) => {
+    return sum + (parseFloat(mat.prix_materiel) || 0)
+  }, 0)
+  
+  return (laborTotal + materialTotal).toFixed(2)
 }
 
 const fetchReservations = async (silent = false) => {
@@ -770,19 +782,19 @@ const fetchReservations = async (silent = false) => {
   }
 }
 
-const generateInvoice = async (id) => {
-  try {
-    const data = await reservationService.generateInvoice(id)
-    if (data.url) {
-      window.open(data.url, '_blank')
-    } else {
-      alert('Erreur: URL de facture manquante')
-    }
-  } catch (err) {
-    alert(err.message || 'Erreur lors de la génération de la facture')
-    console.error(err)
-  }
-}
+// const generateInvoice = async (id) => {
+//   try {
+//     const data = await reservationService.generateInvoice(id)
+//     if (data.url) {
+//       window.open(data.url, '_blank')
+//     } else {
+//       alert('Erreur: URL de facture manquante')
+//     }
+//   } catch (err) {
+//     alert(err.message || 'Erreur lors de la génération de la facture')
+//     console.error(err)
+//   }
+// }
 
 const acceptReservation = async (id) => {
   try {
@@ -974,6 +986,39 @@ const handleViewEvaluation = (interventionId) => {
 
 const onRatingSubmitted = async () => {
   await fetchReservations()
+}
+
+const openPastComplaintsModal = async (reservation) => {
+  selectedReservation.value = reservation
+  showPastComplaintsModal.value = true
+  isLoadingPastComplaints.value = true
+  pastComplaints.value = []
+  
+  try {
+    const response = await api.get(`/interventions/${reservation.id}/my-reclamations`)
+    pastComplaints.value = response.data.reclamations || []
+  } catch (error) {
+    console.error('Error fetching past complaints:', error)
+    alert('Erreur lors du chargement des réclamations passées')
+  } finally {
+    isLoadingPastComplaints.value = false
+  }
+}
+
+const closePastComplaintsModal = () => {
+  showPastComplaintsModal.value = false
+  pastComplaints.value = []
+}
+
+const formatStatus = (status) => {
+  const map = {
+    'en_attente': 'En attente',
+    'en_cours': 'En cours',
+    'resolue': 'Résolue',
+    'rejeter': 'Rejetée',
+    'rejete': 'Rejetée'
+  }
+  return map[status] || status
 }
 
 const showNotification = (message, type = 'info') => {

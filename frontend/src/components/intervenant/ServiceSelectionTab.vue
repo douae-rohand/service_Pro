@@ -224,7 +224,7 @@
     <!-- Service Selection -->
     <div v-if="!authError && currentUser && !loadError" class="card">
       <h2>Choisissez vos services</h2>
-      
+
       <!-- Skeleton Loading for Services -->
       <div v-if="isLoading" class="skeleton-wrapper services-grid">
         <div v-for="n in 3" :key="n" class="service-card skeleton-card" style="border: 2px solid #cbd5e1; background-color: #f8fafc;">
@@ -249,6 +249,7 @@
           <div class="service-header">
             <span class="service-name">{{ service.name }}</span>
             <div class="service-actions">
+              <!-- Bouton d'archivage visible si service est actif -->
               <button
                 v-if="serviceStates[service.id]"
                 @click="archiveService(service.id)"
@@ -257,15 +258,15 @@
               >
                 <Archive :size="16" />
               </button>
+              
+              <!-- Toggle masqué si service est actif, visible pour les autres états -->
               <button
+                v-if="!serviceStates[service.id]"
                 @click="toggleService(service.id, service.name)"
                 class="toggle-switch"
-                :style="{ backgroundColor: serviceStates[service.id] ? service.color : '#E0E0E0' }"
+                :style="{ backgroundColor: '#E0E0E0' }"
               >
-                <span
-                  class="toggle-slider"
-                  :class="{ 'toggle-slider-active': serviceStates[service.id] }"
-                ></span>
+                <span class="toggle-slider"></span>
               </button>
             </div>
           </div>
@@ -421,6 +422,40 @@
 
     <!-- Loading Modal -->
     <LoadingModal :show="showLoadingModal" :message="loadingMessage" />
+
+    <!-- Custom Confirmation Modal for Pending Interventions -->
+    <div v-if="showConfirmationModal" class="modal-overlay" @click.self="cancelConfirmation">
+      <div class="modal-container modal-sm">
+        <div class="modal-header bg-warning">
+          <h2 class="modal-title text-white">Attention : Réservations en attente</h2>
+          <button @click="cancelConfirmation" class="modal-close text-white">
+            <X :size="20" />
+          </button>
+        </div>
+
+        <div class="modal-body text-center py-6">
+          <div class="warning-icon-large mb-4">
+            <AlertTriangle :size="48" color="#F59E0B" />
+          </div>
+          <p class="text-lg font-semibold mb-2">
+            Il y a {{ confirmationModalData.count }} réservation(s) en attente pour "{{ confirmationModalData.name }}".
+          </p>
+          <p class="text-gray-600 mb-6">
+            Si vous confirmez la désactivation, toutes ces réservations seront automatiquement <strong>refusées</strong>.
+          </p>
+
+          <div class="action-buttons-vertical">
+            <button @click="confirmConfirmation" class="btn-confirm-danger">
+              <Check :size="18" />
+              Confirmer et refuser les réservations
+            </button>
+            <button @click="cancelConfirmation" class="btn-cancel-outline">
+              Annuler
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -432,6 +467,7 @@ import authService from '@/services/authService'
 import intervenantService from '@/services/intervenantService'
 import intervenantTacheService from '@/services/intervenantTacheService'
 import serviceService from '@/services/serviceService'
+import interventionService from '@/services/interventionService'
 import axios from 'axios'
 import LoadingModal from './LoadingModal.vue'
 import SkeletonLoader from './SkeletonLoader.vue'
@@ -447,6 +483,11 @@ const showActivationModal = ref(false)
 const currentService = ref(null)
 const showLoadingModal = ref(false)
 const loadingMessage = ref('')
+
+// Confirmation Modal State
+const showConfirmationModal = ref(false)
+const confirmationModalData = ref({ count: 0, name: '', id: '', type: '' })
+const confirmationPromise = ref(null)
 
 // Loading and error states
 const isLoading = ref(true)
@@ -681,7 +722,7 @@ onMounted(async () => {
   try {
     // Load authenticated user first
     await loadAuthenticatedUser()
-    
+
     // Only proceed if user is authenticated and is an intervenant
     if (currentUser.value && currentUser.value.id) {
       await fetchServices()
@@ -758,19 +799,74 @@ const closePendingNotification = () => {
   showPendingNotification.value = false
 }
 
+const handlePendingInterventions = async (type, id, name) => {
+  try {
+    let pendingCount = 0
+    if (type === 'service') {
+      const response = await interventionService.countPendingByService(id)
+      pendingCount = response.count
+    } else {
+      const response = await interventionService.countPendingByTache(id)
+      pendingCount = response.count
+    }
+
+    if (pendingCount > 0) {
+      // Use custom beautiful modal
+      confirmationModalData.value = { count: pendingCount, name, id, type }
+      showConfirmationModal.value = true
+
+      return new Promise((resolve) => {
+        confirmationPromise.value = resolve
+      })
+    }
+    return true
+  } catch (error) {
+    console.error('Erreur lors de la vérification des interventions en attente:', error)
+    alert('Une erreur est survenue lors de la vérification des réservations en attente. Par mesure de sécurité, l\'action a été annulée. Veuillez rafraîchir la page et réessayer.')
+    return false
+  }
+}
+
+const confirmConfirmation = async () => {
+  const { type, id } = confirmationModalData.value
+  try {
+    if (type === 'service') {
+      await interventionService.refusePendingByService(id)
+    } else {
+      await interventionService.refusePendingByTache(id)
+    }
+    closeConfirmationModal(true)
+  } catch (error) {
+    console.error('Error refusing interventions:', error)
+    alert('Erreur lors du refus des interventions. Veuillez réessayer.')
+  }
+}
+
+const cancelConfirmation = () => {
+  closeConfirmationModal(false)
+}
+
+const closeConfirmationModal = (result) => {
+  showConfirmationModal.value = false
+  if (confirmationPromise.value) {
+    confirmationPromise.value(result)
+    confirmationPromise.value = null
+  }
+}
+
 const toggleService = async (serviceId, serviceName) => {
   // If service is archived, reactivate directly
   if (archivedServices.value[serviceId]) {
     try {
       loadingMessage.value = 'Réactivation du service...'
       showLoadingModal.value = true
-      
+
       const response = await intervenantService.updateServiceStatus(
         currentUser.value.intervenant.id,
         serviceId,
         'active'
       )
-      
+
       // Update states
       archivedServices.value[serviceId] = false
       serviceStates.value[serviceId] = true
@@ -798,16 +894,20 @@ const toggleService = async (serviceId, serviceName) => {
       showActivationModal.value = true
     }
   } else {
-    // Deactivating - call API to update status in database
+    // Deactivating - check for pending interventions first
+    const proceed = await handlePendingInterventions('service', serviceId, serviceName)
+    if (!proceed) return
+
+    // Call API to update status in database
     try {
       loadingMessage.value = 'Désactivation du service...'
       showLoadingModal.value = true
-      
+
       const response = await intervenantService.toggleService(
         currentUser.value.intervenant.id,
         serviceId
       )
-      
+
       // Update local state after successful API call
       serviceStates.value[serviceId] = false
     } catch (error) {
@@ -822,16 +922,20 @@ const toggleService = async (serviceId, serviceName) => {
 }
 
 const archiveService = async (serviceId) => {
+  const serviceName = getServiceName(serviceId)
+  const proceed = await handlePendingInterventions('service', serviceId, serviceName)
+  if (!proceed) return
+
   try {
     loadingMessage.value = 'Archivage du service...'
     showLoadingModal.value = true
-    
+
     const response = await intervenantService.updateServiceStatus(
       currentUser.value.intervenant.id,
       serviceId,
       'archive'
     )
-    
+
     // Update states
     serviceStates.value[serviceId] = false
     archivedServices.value[serviceId] = true
@@ -851,28 +955,28 @@ const loadServiceMaterials = async (serviceId) => {
   
   // Toggle form visibility
   materialsFormVisible.value[serviceId] = !materialsFormVisible.value[serviceId]
-  
+
   if (materialsFormVisible.value[serviceId]) {
     // Reset saving state
     isSavingMaterials.value[serviceId] = false
     // Set loading state
     isLoadingMaterials.value[serviceId] = true
-    
+
     try {
       const response = await intervenantService.getIntervenantMaterials(
         currentUser.value.intervenant.id,
         serviceId
       )
-      
+
       const materials = response.materials || []
-      
+
       // Pre-fill prices and selections
       materials.forEach(material => {
         const key = `${serviceId}-${material.name}`
         if (material.possessed) materialSelections.value[key] = true
         if (material.price > 0) serviceMaterialPrices.value[key] = material.price
       })
-      
+
     } catch (error) {
       console.error('Error loading service materials:', error)
     } finally {
@@ -885,7 +989,7 @@ const saveServiceMaterials = async (serviceId) => {
   if (!currentUser.value) return
   
   isSavingMaterials.value[serviceId] = true
-  
+
   // Collect selected materials with prices
   const materials = []
   const serviceMaterials = getMaterialsByService(serviceId)
@@ -915,7 +1019,7 @@ const saveServiceMaterials = async (serviceId) => {
       serviceId,
       materials
     )
-    
+
     // Hide the materials form after successful save
     materialsFormVisible.value[serviceId] = false
     
@@ -924,7 +1028,7 @@ const saveServiceMaterials = async (serviceId) => {
     successMessage.value = materials.length > 0 
       ? 'Matériaux enregistrés avec succès !' 
       : 'Aucun matériau sélectionné - Configuration enregistrée !'
-      
+
     setTimeout(() => {
       showSuccessMessage.value = false
     }, 3000)
@@ -1140,11 +1244,31 @@ const toggleTask = async (taskId) => {
         taskStates.value[taskId] = true
         // Ensure form is hidden
         taskFormVisible.value[taskId] = false
-        
+
         return
     }
 
     // Standard toggle logic
+    if (taskStates.value[taskId]) {
+      // Deactivating - check for pending interventions first
+      let taskName = 'ce sous-service'
+      for (const serviceId in tasksByService.value) {
+        const t = tasksByService.value[serviceId].find(t => t.id === taskId)
+        if (t) {
+          taskName = t.name || t.nom_tache
+          break
+        }
+      }
+
+      const proceed = await handlePendingInterventions('task', taskId, taskName)
+      if (!proceed) {
+        // Since the UI toggle might have already happened, we might need to sync it back
+        // but usually this is called from @click which happens before the state change if we are careful
+        // but here taskStates.value[taskId] is already true (we are deactivating)
+        return
+      }
+    }
+
     // Call API to toggle the status in database
     const response = await intervenantTacheService.toggleActive(taskId)
     
@@ -1208,7 +1332,7 @@ const saveTaskConfig = async (taskId) => {
       hourlyRate: taskPrices.value[taskId],
       materials: materialsWithPrices
     })
-    
+
     // Hide the form but keep the task active
     taskFormVisible.value[taskId] = false
     
@@ -2195,4 +2319,79 @@ const getMaterialsByService = (serviceId) => {
 .task-checkbox-item span {
   line-height: 1.2;
 }
+
+/* Confirmation Modal Specific Styles */
+.modal-sm {
+  max-width: 450px;
+}
+
+.bg-warning {
+  background-color: #F59E0B !important;
+}
+
+.text-white {
+  color: white !important;
+}
+
+.warning-icon-large {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.btn-confirm-danger {
+  width: 100%;
+  padding: 0.875rem;
+  background-color: #EF4444;
+  color: white;
+  border: none;
+  border-radius: var(--radius-lg);
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+  box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.2);
+}
+
+.btn-confirm-danger:hover {
+  background-color: #DC2626;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.3);
+}
+
+.btn-cancel-outline {
+  width: 100%;
+  padding: 0.875rem;
+  background-color: transparent;
+  color: var(--color-gray-600);
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--radius-lg);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-cancel-outline:hover {
+  background-color: var(--color-gray-50);
+  color: var(--color-dark);
+}
+
+.action-buttons-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.text-center { text-align: center; }
+.py-6 { padding-top: 1.5rem; padding-bottom: 1.5rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+.mb-4 { margin-bottom: 1rem; }
+.mb-6 { margin-bottom: 1.5rem; }
+.font-semibold { font-weight: 600; }
+.text-lg { font-size: 1.125rem; }
+.text-gray-600 { color: #4B5563; }
 </style>

@@ -101,6 +101,14 @@ class Intervention extends Model
     }
 
     /**
+     * Get the payment slip for this intervention.
+     */
+    public function fichePayement()
+    {
+        return $this->hasOne(FichePayement::class, 'intervention_id', 'id');
+    }
+
+    /**
      * Get the informations for this intervention.
      */
     public function informations()

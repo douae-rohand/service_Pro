@@ -103,6 +103,7 @@ class ClientReclamationController extends Controller
                     'concernant_id' => $reclamation->concernant_id,
                     'concernant_type' => $reclamation->concernant_type,
                     'concernant_name' => $concernantName ?: 'N/A',
+                    'intervention_id' => $reclamation->intervention_id,
                     'notes_admin' => $reclamation->notes_admin,
                     'created_at' => $reclamation->created_at,
                     'updated_at' => $reclamation->updated_at,
@@ -171,8 +172,9 @@ class ClientReclamationController extends Controller
             }
 
             $validator = Validator::make($request->all(), [
-                'concernant_id' => 'required|integer',
-                'concernant_type' => 'required|string|in:Intervenant,Client',
+                'concernant_id' => 'required_without:intervention_id|integer',
+                'concernant_type' => 'required_without:intervention_id|string|in:Intervenant,Client',
+                'intervention_id' => 'nullable|integer|exists:intervention,id',
                 'raison' => 'required|string|max:255',
                 'message' => 'required|string',
                 'priorite' => 'nullable|string|in:haute,moyenne,basse',
@@ -186,30 +188,56 @@ class ClientReclamationController extends Controller
                 ], 422);
             }
 
-            // Verify that the concerned entity exists
-            if ($request->concernant_type === 'Intervenant') {
-                $intervenant = Intervenant::find($request->concernant_id);
-                if (!$intervenant) {
+            $concernantId = $request->concernant_id;
+            $concernantType = $request->concernant_type;
+
+            // If intervention_id is provided, automatically find the intervenant
+            if ($request->has('intervention_id')) {
+                $intervention = \App\Models\Intervention::find($request->intervention_id);
+                if (!$intervention) {
                     return response()->json([
                         'status' => 'error',
-                        'message' => 'Intervenant non trouvé'
+                        'message' => 'Intervention non trouvée'
                     ], 404);
                 }
-            } elseif ($request->concernant_type === 'Client') {
-                $client = Client::find($request->concernant_id);
-                if (!$client) {
+                
+                // Ensure the client owns this intervention
+                if ($intervention->client_id != $clientId) {
                     return response()->json([
                         'status' => 'error',
-                        'message' => 'Client non trouvé'
-                    ], 404);
+                        'message' => 'Cette intervention ne vous appartient pas'
+                    ], 403);
+                }
+
+                $concernantId = $intervention->intervenant_id;
+                $concernantType = 'Intervenant';
+            } else {
+                // Verify that the manually provided concerned entity exists
+                if ($concernantType === 'Intervenant') {
+                    $intervenant = Intervenant::find($concernantId);
+                    if (!$intervenant) {
+                        return response()->json([
+                            'status' => 'error',
+                            'message' => 'Intervenant non trouvé'
+                        ], 404);
+                    }
+                } elseif ($concernantType === 'Client') {
+                    $client = Client::find($concernantId);
+                    if (!$client) {
+                        return response()->json([
+                            'status' => 'error',
+                            'message' => 'Client non trouvé'
+                        ], 404);
+                    }
                 }
             }
 
             $reclamation = Reclamation::create([
                 'signale_par_id' => (int) $clientId,
                 'signale_par_type' => 'Client',
-                'concernant_id' => (int) $request->concernant_id,
-                'concernant_type' => $request->concernant_type,
+                'concernant_id' => (int) $concernantId,
+                'concernant_type' => $concernantType,
+                'intervention_id' => $request->intervention_id,
                 'raison' => $request->raison,
                 'message' => $request->message,
                 'priorite' => $request->priorite ?? 'moyenne',
@@ -300,6 +328,7 @@ class ClientReclamationController extends Controller
                     'concernant_id' => $reclamation->concernant_id,
                     'concernant_type' => $reclamation->concernant_type,
                     'concernant_name' => $concernantName,
+                    'intervention_id' => $reclamation->intervention_id,
                     'notes_admin' => $reclamation->notes_admin,
                     'created_at' => $reclamation->created_at,
                     'updated_at' => $reclamation->updated_at,

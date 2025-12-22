@@ -2196,6 +2196,13 @@ class AdminController extends Controller
         ->get()
         ->keyBy('id');
         
+        // Charger les interventions liées aux réclamations
+        $interventionIds = $reclamations->pluck('intervention_id')->filter()->unique();
+        $linkedInterventions = \App\Models\Intervention::with(['tache.service'])
+            ->whereIn('id', $interventionIds)
+            ->get()
+            ->keyBy('id');
+        
         // Précharger toutes les évaluations pour les intervenants
         $allInterventionIds = $intervenants->pluck('interventions')->flatten()->pluck('id')->unique()->filter();
         $evaluationsByIntervenant = [];
@@ -2230,7 +2237,7 @@ class AdminController extends Controller
         }
         
         // Mapper les réclamations avec les données préchargées
-        $reclamationsData = $reclamations->getCollection()->map(function ($reclamation) use ($clients, $intervenants, $evaluationsByIntervenant) {
+        $reclamationsData = $reclamations->getCollection()->map(function ($reclamation) use ($clients, $intervenants, $evaluationsByIntervenant, $linkedInterventions) {
             $signaleParName = 'N/A';
             $concernantName = 'N/A';
             $signaleParId = $reclamation->signale_par_id;
@@ -2308,6 +2315,12 @@ class AdminController extends Controller
                 'date' => $reclamation->created_at ? $reclamation->created_at->toDateTimeString() : now()->toDateTimeString(),
                 'notes' => $reclamation->notes_admin,
                 'archived' => $reclamation->archived ?? false,
+                'intervention_id' => $reclamation->intervention_id,
+                'intervention' => isset($linkedInterventions[$reclamation->intervention_id]) ? [
+                    'id' => $linkedInterventions[$reclamation->intervention_id]->id,
+                    'service' => $linkedInterventions[$reclamation->intervention_id]->tache->service->nom_service ?? 'N/A',
+                    'date' => $linkedInterventions[$reclamation->intervention_id]->date_intervention,
+                ] : null,
             ];
         });
 

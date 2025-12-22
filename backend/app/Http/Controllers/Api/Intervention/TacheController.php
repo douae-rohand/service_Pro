@@ -108,11 +108,20 @@ class TacheController extends Controller
     ]);
     }
 
-    public function getMateriels($id)
+    public function getMateriels(Request $request, $id)
     {
         try {
-            $tache = Tache::with('materiels')->findOrFail($id);
-            // Utilisez la relation belongsToMany sans parenthèses get()
+            $intervenantId = $request->input('intervenantId');
+            
+            $tache = Tache::with(['materiels' => function($q) use ($intervenantId) {
+                if ($intervenantId) {
+                    $q->leftJoin('intervenant_materiel', function($join) use ($intervenantId) {
+                        $join->on('materiel.id', '=', 'intervenant_materiel.materiel_id')
+                             ->where('intervenant_materiel.intervenant_id', '=', $intervenantId);
+                    })->select('materiel.*', 'intervenant_materiel.prix_materiel as cost');
+                }
+            }])->findOrFail($id);
+            
             $materiels = $tache->materiels;
             
             return response()->json([
@@ -134,7 +143,7 @@ class TacheController extends Controller
     public function getIntervenants($id)
     {
         try {
-            \Log::info('🔍 [TacheController] Fetching intervenants for task ID: ' . $id);
+            \Log::info('[TacheController] Fetching intervenants for task ID: ' . $id);
             
             $tache = Tache::findOrFail($id);
             
@@ -146,7 +155,7 @@ class TacheController extends Controller
                 ->withCount(['evaluations', 'interventions'])
                 ->get();
             
-            \Log::info('📦 [TacheController] Found ' . $intervenants->count() . ' active intervenants for task ' . $id);
+            \Log::info('[TacheController] Found ' . $intervenants->count() . ' active intervenants for task ' . $id);
             
             // Transform data for frontend
             $client = \App\Models\Client::where('id', auth()->id())->first();

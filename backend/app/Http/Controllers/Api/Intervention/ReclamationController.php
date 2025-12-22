@@ -71,4 +71,34 @@ class ReclamationController extends Controller
             return response()->json(['message' => 'Erreur serveur', 'error' => $e->getMessage()], 500);
         }
     }
+
+    /**
+     * Get reclamations made by the authenticated intervenant for a specific intervention.
+     */
+    public function myReclamations(Request $request, $id)
+    {
+        try {
+            $user = Auth::user();
+            if (!$user || !$user->intervenant) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $intervenant = $user->intervenant;
+
+            // Find requests made by this intervenant for this intervention
+            $reclamations = Reclamation::where('intervention_id', $id)
+                ->where('signale_par_id', $intervenant->id)
+                ->where('signale_par_type', 'Intervenant')
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            return response()->json([
+                'reclamations' => $reclamations
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error fetching my reclamations: ' . $e->getMessage());
+            return response()->json(['message' => 'Erreur serveur', 'error' => $e->getMessage()], 500);
+        }
+    }
 }

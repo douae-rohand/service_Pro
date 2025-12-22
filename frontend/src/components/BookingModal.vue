@@ -829,8 +829,8 @@ export default {
         this.dayAvailabilityResult = {
           hasEnoughTime,
           message: hasEnoughTime 
-            ? `✅ Disponibilité confirmée pour ${this.estimatedHours} heure(s) le ${this.formatDate(this.bookingData.date)}`
-            : `❌ Pas assez de créneaux disponibles pour ${this.estimatedHours} heure(s) le ${this.formatDate(this.bookingData.date)}`,
+            ? `Disponibilité confirmée pour ${this.estimatedHours} heure(s) le ${this.formatDate(this.bookingData.date)}`
+            : `Pas assez de créneaux disponibles pour ${this.estimatedHours} heure(s) le ${this.formatDate(this.bookingData.date)}`,
           details: hasEnoughTime
             ? `${possibleStartSlots.length} créneau(x) de départ possible(s)`
             : `Essayez une autre date ou réduisez la durée estimée`,
@@ -1152,7 +1152,7 @@ export default {
           .filter(m => !this.bookingData.materials.includes(m.id))
           .map(m => m.id);
         formData.append('provided_materials', JSON.stringify(providedMaterials));
-        formData.append('status', 'en_attente');
+        formData.append('status', 'en attend');
         formData.append('description', this.bookingData.description || '');
         
         // Contraintes (optionnel, pourrait être stocké ailleurs)

@@ -96,6 +96,7 @@ class ClientProfileController extends Controller
                 return [
                     'id' => $intervention->id,
                     'serviceName' => $fullServiceName,
+                    'providerId' => $intervention->intervenant_id,
                     'providerName' => trim(($intervention->intervenant->utilisateur->prenom ?? '') . ' ' . ($intervention->intervenant->utilisateur->nom ?? '')),
                     'date' => $intervention->date_intervention ? $intervention->date_intervention->format('d/m/Y') : 'N/A',
                     'price' => $intervention->facture->ttc ?? 0,

@@ -2170,44 +2170,73 @@ class AdminController extends Controller
             ->latest('created_at')
             ->paginate($perPage, ['*'], 'page', $page);
         
-        // Précharger tous les clients et intervenants concernés en une seule fois (séparation stricte par type)
-        $clientIds = $reclamations->where('signale_par_type', 'Client')->pluck('signale_par_id')
-            ->merge($reclamations->where('concernant_type', 'Client')->pluck('concernant_id'))
-            ->filter()
-            ->unique();
-        
-        $intervenantIds = $reclamations->where('signale_par_type', 'Intervenant')->pluck('signale_par_id')
-            ->merge($reclamations->where('concernant_type', 'Intervenant')->pluck('concernant_id'))
-            ->filter()
-            ->unique();
-        
-        // Charger tous les clients avec leurs utilisateurs
-        $clients = Client::with('utilisateur:id,nom,prenom,email')
-            ->whereIn('id', $clientIds)
-            ->get()
-            ->keyBy('id');
-        
-        // Charger tous les intervenants avec leurs utilisateurs et interventions
-        $intervenants = Intervenant::with([
-            'utilisateur:id,nom,prenom,email',
-            'interventions:id,intervenant_id'
+        // Charger les interventions liées aux réclamations avec leurs relations
+        $interventionIds = $reclamations->pluck('intervention_id')->filter()->unique();
+        $linkedInterventions = Intervention::with([
+            'client.utilisateur:id,nom,prenom,email',
+            'intervenant.utilisateur:id,nom,prenom,email',
+            'tache.service:id,nom_service',
+            'evaluations.critaire:id,nom_critaire', // Charger les évaluations avec leurs critères
+            'commentaires' // Charger les commentaires
         ])
-        ->whereIn('id', $intervenantIds)
+        ->whereIn('id', $interventionIds)
         ->get()
         ->keyBy('id');
         
-        // Charger les interventions liées aux réclamations
-        $interventionIds = $reclamations->pluck('intervention_id')->filter()->unique();
-        $linkedInterventions = \App\Models\Intervention::with(['tache.service'])
-            ->whereIn('id', $interventionIds)
+        // Collecter tous les IDs de clients et intervenants depuis les interventions et les réclamations
+        $clientIds = collect();
+        $intervenantIds = collect();
+        
+        // Depuis les interventions
+        foreach ($linkedInterventions as $intervention) {
+            if ($intervention->client_id) {
+                $clientIds->push($intervention->client_id);
+            }
+            if ($intervention->intervenant_id) {
+                $intervenantIds->push($intervention->intervenant_id);
+            }
+        }
+        
+        // Depuis les réclamations (signale_par ET concernant) en normalisant la casse
+        $clientIds = $clientIds->merge(
+            $reclamations
+                ->filter(fn ($rec) => strtolower($rec->signale_par_type) === 'client')
+                ->pluck('signale_par_id')
+        );
+        $intervenantIds = $intervenantIds->merge(
+            $reclamations
+                ->filter(fn ($rec) => strtolower($rec->signale_par_type) === 'intervenant')
+                ->pluck('signale_par_id')
+        );
+        
+        // Collecter aussi les IDs depuis concernant_id et concernant_type
+        $clientIds = $clientIds->merge(
+            $reclamations->where('concernant_type', 'Client')->pluck('concernant_id')->filter()
+        );
+        $intervenantIds = $intervenantIds->merge(
+            $reclamations->where('concernant_type', 'Intervenant')->pluck('concernant_id')->filter()
+        );
+        
+        // Charger tous les clients avec leurs utilisateurs
+        $clients = Client::with('utilisateur:id,nom,prenom,email')
+            ->whereIn('id', $clientIds->filter()->unique())
+            ->get()
+            ->keyBy('id');
+        
+        // Charger tous les intervenants avec leurs utilisateurs
+        $intervenants = Intervenant::with('utilisateur:id,nom,prenom,email')
+            ->whereIn('id', $intervenantIds->filter()->unique())
             ->get()
             ->keyBy('id');
         
         // Précharger toutes les évaluations pour les intervenants
-        $allInterventionIds = $intervenants->pluck('interventions')->flatten()->pluck('id')->unique()->filter();
+        $allInterventionIdsForEvals = $intervenants->pluck('id')->map(function($id) {
+            return Intervention::where('intervenant_id', $id)->pluck('id');
+        })->flatten()->unique()->filter();
+        
         $evaluationsByIntervenant = [];
         
-        if ($allInterventionIds->isNotEmpty()) {
+        if ($allInterventionIdsForEvals->isNotEmpty()) {
             $evaluations = DB::table('evaluation')
                 ->join('intervention', 'evaluation.intervention_id', '=', 'intervention.id')
                 ->select(
@@ -2215,7 +2244,7 @@ class AdminController extends Controller
                     'evaluation.intervention_id',
                     'evaluation.note'
                 )
-                ->whereIn('evaluation.intervention_id', $allInterventionIds)
+                ->whereIn('evaluation.intervention_id', $allInterventionIdsForEvals)
                 ->where('evaluation.type_auteur', 'client')
                 ->get()
                 ->groupBy('intervenant_id');
@@ -2237,28 +2266,123 @@ class AdminController extends Controller
         }
         
         // Mapper les réclamations avec les données préchargées
+        // IMPORTANT: concernant_id et concernant_type sont maintenant dérivés de l'intervention
         $reclamationsData = $reclamations->getCollection()->map(function ($reclamation) use ($clients, $intervenants, $evaluationsByIntervenant, $linkedInterventions) {
             $signaleParName = 'N/A';
             $concernantName = 'N/A';
             $signaleParId = $reclamation->signale_par_id;
-            $signaleParType = $reclamation->signale_par_type;
-            $concernantId = $reclamation->concernant_id;
-            $concernantType = $reclamation->concernant_type;
+            // Normaliser la casse pour fiabiliser les comparaisons
+            $signaleParType = $reclamation->signale_par_type
+                ? ucfirst(strtolower($reclamation->signale_par_type))
+                : null;
+            $concernantId = null;
+            $concernantType = null;
             $signaleParNote = null;
             $signaleParNbAvis = null;
             $concernantNote = null;
             $concernantNbAvis = null;
+            $interventionData = null;
 
+            // Charger les données de l'intervention si elle existe
+            if ($reclamation->intervention_id && isset($linkedInterventions[$reclamation->intervention_id])) {
+                $intervention = $linkedInterventions[$reclamation->intervention_id];
+                
+                // Récupérer les évaluations du client et de l'intervenant
+                $clientEvaluations = $intervention->evaluations->where('type_auteur', 'client');
+                $intervenantEvaluations = $intervention->evaluations->where('type_auteur', 'intervenant');
+                
+                // Calculer la note moyenne du client
+                $clientAverageNote = $clientEvaluations->count() > 0 
+                    ? round($clientEvaluations->avg('note'), 1) 
+                    : null;
+                
+                // Calculer la note moyenne de l'intervenant
+                $intervenantAverageNote = $intervenantEvaluations->count() > 0 
+                    ? round($intervenantEvaluations->avg('note'), 1) 
+                    : null;
+                
+                // Récupérer les commentaires
+                $clientComment = $intervention->commentaires->where('type_auteur', 'client')->first();
+                $intervenantComment = $intervention->commentaires->where('type_auteur', 'intervenant')->first();
+                
+                // Construire les données de l'intervention avec les évaluations et commentaires
+                $interventionData = [
+                    'id' => $intervention->id,
+                    'service' => $intervention->tache->service->nom_service ?? 'N/A',
+                    'date' => $intervention->date_intervention,
+                    'status' => $intervention->status,
+                    'address' => $intervention->address,
+                    'ville' => $intervention->ville,
+                    'evaluations' => [
+                        'client' => [
+                            'average_note' => $clientAverageNote,
+                            'count' => $clientEvaluations->count(),
+                            'details' => $clientEvaluations->map(function($eval) {
+                                return [
+                                    'id' => $eval->id,
+                                    'note' => $eval->note,
+                                    'critere' => $eval->critaire->nom_critaire ?? 'N/A',
+                                ];
+                            })->values(),
+                            'comment' => $clientComment ? $clientComment->commentaire : null,
+                        ],
+                        'intervenant' => [
+                            'average_note' => $intervenantAverageNote,
+                            'count' => $intervenantEvaluations->count(),
+                            'details' => $intervenantEvaluations->map(function($eval) {
+                                return [
+                                    'id' => $eval->id,
+                                    'note' => $eval->note,
+                                    'critere' => $eval->critaire->nom_critaire ?? 'N/A',
+                                ];
+                            })->values(),
+                            'comment' => $intervenantComment ? $intervenantComment->commentaire : null,
+                        ],
+                    ],
+                ];
+                
+                // Dériver concernant_id et concernant_type depuis l'intervention
+                // Si signale_par est un Client, alors concernant est l'Intervenant de l'intervention
+                // Si signale_par est un Intervenant, alors concernant est le Client de l'intervention
+                if ($signaleParType === 'Client') {
+                    $concernantId = $intervention->intervenant_id;
+                    $concernantType = 'Intervenant';
+                } elseif ($signaleParType === 'Intervenant') {
+                    $concernantId = $intervention->client_id;
+                    $concernantType = 'Client';
+                }
+            } else {
+                // Si pas d'intervention, utiliser les valeurs stockées (pour compatibilité)
+                $concernantId = $reclamation->concernant_id;
+                $concernantType = $reclamation->concernant_type;
+            }
+
+            // Normaliser la casse du concernant pour fiabiliser l'affichage
+            $concernantType = $concernantType
+                ? ucfirst(strtolower($concernantType))
+                : null;
+
+            // Récupérer les informations de signale_par
             if ($signaleParId && $signaleParType) {
                 if ($signaleParType === 'Client' && isset($clients[$signaleParId])) {
                     $client = $clients[$signaleParId];
-                    if ($client->utilisateur) {
-                        $signaleParName = $client->utilisateur->prenom . ' ' . $client->utilisateur->nom;
+                    if ($client && $client->utilisateur) {
+                        $prenom = $client->utilisateur->prenom ?? '';
+                        $nom = $client->utilisateur->nom ?? '';
+                        $signaleParName = trim($prenom . ' ' . $nom);
+                        if (empty($signaleParName)) {
+                            $signaleParName = 'N/A';
+                        }
                     }
                 } elseif ($signaleParType === 'Intervenant' && isset($intervenants[$signaleParId])) {
                     $intervenant = $intervenants[$signaleParId];
-                    if ($intervenant->utilisateur) {
-                        $signaleParName = $intervenant->utilisateur->prenom . ' ' . $intervenant->utilisateur->nom;
+                    if ($intervenant && $intervenant->utilisateur) {
+                        $prenom = $intervenant->utilisateur->prenom ?? '';
+                        $nom = $intervenant->utilisateur->nom ?? '';
+                        $signaleParName = trim($prenom . ' ' . $nom);
+                        if (empty($signaleParName)) {
+                            $signaleParName = 'N/A';
+                        }
                         
                         // Utiliser les données préchargées
                         if (isset($evaluationsByIntervenant[$signaleParId])) {
@@ -2272,16 +2396,27 @@ class AdminController extends Controller
                 }
             }
 
+            // Récupérer les informations de concernant (dérivé de l'intervention)
             if ($concernantId && $concernantType) {
                 if ($concernantType === 'Client' && isset($clients[$concernantId])) {
                     $client = $clients[$concernantId];
-                    if ($client->utilisateur) {
-                        $concernantName = $client->utilisateur->prenom . ' ' . $client->utilisateur->nom;
+                    if ($client && $client->utilisateur) {
+                        $prenom = $client->utilisateur->prenom ?? '';
+                        $nom = $client->utilisateur->nom ?? '';
+                        $concernantName = trim($prenom . ' ' . $nom);
+                        if (empty($concernantName)) {
+                            $concernantName = 'N/A';
+                        }
                     }
                 } elseif ($concernantType === 'Intervenant' && isset($intervenants[$concernantId])) {
                     $intervenant = $intervenants[$concernantId];
-                    if ($intervenant->utilisateur) {
-                        $concernantName = $intervenant->utilisateur->prenom . ' ' . $intervenant->utilisateur->nom;
+                    if ($intervenant && $intervenant->utilisateur) {
+                        $prenom = $intervenant->utilisateur->prenom ?? '';
+                        $nom = $intervenant->utilisateur->nom ?? '';
+                        $concernantName = trim($prenom . ' ' . $nom);
+                        if (empty($concernantName)) {
+                            $concernantName = 'N/A';
+                        }
                         
                         // Utiliser les données préchargées
                         if (isset($evaluationsByIntervenant[$concernantId])) {
@@ -2316,11 +2451,7 @@ class AdminController extends Controller
                 'notes' => $reclamation->notes_admin,
                 'archived' => $reclamation->archived ?? false,
                 'intervention_id' => $reclamation->intervention_id,
-                'intervention' => isset($linkedInterventions[$reclamation->intervention_id]) ? [
-                    'id' => $linkedInterventions[$reclamation->intervention_id]->id,
-                    'service' => $linkedInterventions[$reclamation->intervention_id]->tache->service->nom_service ?? 'N/A',
-                    'date' => $linkedInterventions[$reclamation->intervention_id]->date_intervention,
-                ] : null,
+                'intervention' => $interventionData,
             ];
         });
 
@@ -2348,9 +2479,30 @@ class AdminController extends Controller
             'statut' => 'nullable|in:en_cours,en_attente,resolu' // For mark action
         ]);
 
-        $reclamation = Reclamation::findOrFail($id);
+        $reclamation = Reclamation::with('intervention.client.utilisateur', 'intervention.intervenant.utilisateur')->findOrFail($id);
         $oldStatus = $reclamation->statut;
         $message = '';
+
+        // Dériver concernant_id et concernant_type depuis l'intervention
+        $concernantId = null;
+        $concernantType = null;
+        
+        if ($reclamation->intervention_id && $reclamation->intervention) {
+            $intervention = $reclamation->intervention;
+            // Si signale_par est un Client, alors concernant est l'Intervenant de l'intervention
+            // Si signale_par est un Intervenant, alors concernant est le Client de l'intervention
+            if ($reclamation->signale_par_type === 'Client') {
+                $concernantId = $intervention->intervenant_id;
+                $concernantType = 'Intervenant';
+            } elseif ($reclamation->signale_par_type === 'Intervenant') {
+                $concernantId = $intervention->client_id;
+                $concernantType = 'Client';
+            }
+        } else {
+            // Si pas d'intervention, utiliser les valeurs stockées (pour compatibilité)
+            $concernantId = $reclamation->concernant_id;
+            $concernantType = $reclamation->concernant_type;
+        }
 
         if ($validated['action'] === 'reply') {
             // Action: Repondre - Send email to signale_par and concernant
@@ -2423,9 +2575,10 @@ class AdminController extends Controller
                 }
 
                 // Send email to concernant (person concerned) - Warning email with alerts
-                if ($reclamation->concernant_id) {
-                    if ($reclamation->concernant_type === 'Client') {
-                        $concernant = Client::with('utilisateur')->find($reclamation->concernant_id);
+                // Utiliser concernant_id et concernant_type dérivés de l'intervention
+                if ($concernantId && $concernantType) {
+                    if ($concernantType === 'Client') {
+                        $concernant = Client::with('utilisateur')->find($concernantId);
                         if ($concernant && $concernant->utilisateur && $concernant->utilisateur->email) {
                             Mail::to($concernant->utilisateur->email)->send(
                                 new ReclamationConcerned(
@@ -2439,10 +2592,10 @@ class AdminController extends Controller
                                     $signaleParName
                                 )
                             );
-                            Log::info("Email d'avertissement envoyé au concernant (Client) ID {$reclamation->concernant_id}");
+                            Log::info("Email d'avertissement envoyé au concernant (Client) ID {$concernantId}");
                         }
-                    } elseif ($reclamation->concernant_type === 'Intervenant') {
-                        $concernant = Intervenant::with('utilisateur')->find($reclamation->concernant_id);
+                    } elseif ($concernantType === 'Intervenant') {
+                        $concernant = Intervenant::with('utilisateur')->find($concernantId);
                         if ($concernant && $concernant->utilisateur && $concernant->utilisateur->email) {
                             Mail::to($concernant->utilisateur->email)->send(
                                 new ReclamationConcerned(
@@ -2456,7 +2609,7 @@ class AdminController extends Controller
                                     $signaleParName
                                 )
                             );
-                            Log::info("Email d'avertissement envoyé au concernant (Intervenant) ID {$reclamation->concernant_id}");
+                            Log::info("Email d'avertissement envoyé au concernant (Intervenant) ID {$concernantId}");
                         }
                     }
                 }
@@ -2510,14 +2663,15 @@ class AdminController extends Controller
                     }
                     
                     // Récupérer le nom de concernant pour l'affichage dans l'email
-                    if ($reclamation->concernant_id) {
-                        if ($reclamation->concernant_type === 'Client') {
-                            $concernantTemp = Client::with('utilisateur')->find($reclamation->concernant_id);
+                    // Utiliser concernant_id et concernant_type dérivés de l'intervention
+                    if ($concernantId && $concernantType) {
+                        if ($concernantType === 'Client') {
+                            $concernantTemp = Client::with('utilisateur')->find($concernantId);
                             if ($concernantTemp && $concernantTemp->utilisateur) {
                                 $concernantName = $concernantTemp->utilisateur->prenom . ' ' . $concernantTemp->utilisateur->nom;
                             }
-                        } elseif ($reclamation->concernant_type === 'Intervenant') {
-                            $concernantTemp = Intervenant::with('utilisateur')->find($reclamation->concernant_id);
+                        } elseif ($concernantType === 'Intervenant') {
+                            $concernantTemp = Intervenant::with('utilisateur')->find($concernantId);
                             if ($concernantTemp && $concernantTemp->utilisateur) {
                                 $concernantName = $concernantTemp->utilisateur->prenom . ' ' . $concernantTemp->utilisateur->nom;
                             }

@@ -5,29 +5,43 @@
       {{ error }}
     </div>
 
-    <!-- Loading State -->
-    <div v-if="loading" class="loading-state">
-      <p>Chargement des réservations...</p>
-    </div>
+    <!-- Loading State removed (using granular skeleton) -->
 
     <!-- Stats -->
-    <div v-if="!loading" class="stats-grid">
-      <div class="stat-card stat-orange">
+    <div class="stats-grid">
+      <!-- Pending Stat -->
+      <div v-if="loading" class="stat-card skeleton-item border-l-4 border-orange-400">
+        <div class="skeleton-text w-24 h-4 mb-2"></div>
+        <div class="skeleton-text w-12 h-8"></div>
+      </div>
+      <div v-else class="stat-card stat-orange">
         <p class="stat-label">En Attente</p>
         <p class="stat-value">{{ pendingCount }}</p>
       </div>
-      <div class="stat-card stat-green">
+
+      <!-- Accepted Stat -->
+      <div v-if="loading" class="stat-card skeleton-item border-l-4 border-green-500">
+        <div class="skeleton-text w-24 h-4 mb-2"></div>
+        <div class="skeleton-text w-12 h-8"></div>
+      </div>
+      <div v-else class="stat-card stat-green">
         <p class="stat-label">Acceptées</p>
         <p class="stat-value">{{ acceptedCount }}</p>
       </div>
-      <div class="stat-card stat-blue">
+
+      <!-- Completed Stat -->
+      <div v-if="loading" class="stat-card skeleton-item border-l-4 border-blue-500">
+        <div class="skeleton-text w-24 h-4 mb-2"></div>
+        <div class="skeleton-text w-12 h-8"></div>
+      </div>
+      <div v-else class="stat-card stat-blue">
         <p class="stat-label">Complétées</p>
         <p class="stat-value">{{ completedCount }}</p>
       </div>
     </div>
 
     <!-- Reservations Card -->
-    <div v-if="!loading" class="card">
+    <div class="card">
       <h1>Gérer mes réservations</h1>
       <p class="subtitle">Acceptez ou refusez les demandes de réservation de vos clients</p>
 
@@ -49,7 +63,17 @@
       </div>
 
       <!-- Service Filter Bar -->
-      <div class="filter-bar" v-if="allServices.length > 0">
+      <!-- Service Filter Bar -->
+      <div v-if="loading" class="filter-bar skeleton-item justify-start gap-4">
+        <div class="skeleton-box w-6 h-6 rounded-md"></div>
+        <div class="skeleton-text w-32 h-5"></div>
+        <div class="flex gap-2 ml-4">
+           <div class="skeleton-text w-24 h-8 rounded-full"></div>
+           <div class="skeleton-text w-24 h-8 rounded-full"></div>
+           <div class="skeleton-text w-24 h-8 rounded-full"></div>
+        </div>
+      </div>
+      <div v-else-if="allServices.length > 0" class="filter-bar">
         <div class="filter-label">
           <Package :size="16" />
           <span>Filtrer par service :</span>
@@ -75,7 +99,42 @@
       </div>
 
       <!-- Reservations List -->
-      <TransitionGroup name="list" tag="div" class="reservations-list">
+      <div v-if="loading" class="reservations-list">
+        <div v-for="n in 3" :key="n" class="reservation-card skeleton-item">
+           <div class="reservation-content">
+             <!-- Client Info Skeleton -->
+             <div class="client-info">
+               <div class="skeleton-box w-12 h-12 rounded-full"></div>
+               <div class="w-full">
+                 <div class="skeleton-text w-32 h-5 mb-2"></div>
+                 <div class="flex gap-2">
+                   <div class="skeleton-text w-20 h-4"></div>
+                   <div class="skeleton-text w-24 h-4"></div>
+                 </div>
+               </div>
+             </div>
+             
+             <!-- Details Skeleton -->
+             <div class="reservation-details">
+               <div class="reservation-header justify-end mb-4">
+                  <div class="flex gap-2">
+                    <div class="skeleton-box w-24 h-9 rounded-lg"></div>
+                    <div class="skeleton-box w-24 h-9 rounded-lg"></div>
+                  </div>
+               </div>
+               
+               <div class="details-grid">
+                 <div class="detail-item"><div class="skeleton-text w-24 h-6"></div></div>
+                 <div class="detail-item"><div class="skeleton-text w-32 h-6"></div></div>
+                 <div class="detail-item"><div class="skeleton-text w-40 h-6"></div></div>
+                 <div class="detail-item"><div class="skeleton-text w-20 h-6"></div></div>
+               </div>
+             </div>
+           </div>
+        </div>
+      </div>
+
+      <TransitionGroup v-else name="list" tag="div" class="reservations-list">
         <div
           v-for="reservation in filteredReservations"
           :key="reservation.id"
@@ -131,22 +190,24 @@
                   
                   <!-- Can rate -->
                   <button 
-                    v-else-if="reservation.evaluationStatus === 'can_rate'" 
+                    v-if="reservation.evaluationStatus === 'can_rate' || reservation.evaluationStatus === 'unknown'"
                     @click="openRatingModal(reservation)" 
                     class="rating-btn"
+                    :disabled="openingRatingId === reservation.id"
                   >
                     <Star :size="16" />
-                    Évaluer
+                    <span v-if="openingRatingId === reservation.id" class="spinner" style="width: 1rem; height: 1rem; border-width: 2px;"></span>
+                    <span v-else>Évaluer</span>
                   </button>
-                  
-                  <!-- View own evaluation (waiting for client) -->
                   <button 
-                    v-else-if="reservation.evaluationStatus === 'view_only'" 
+                    v-else-if="reservation.evaluationStatus === 'view_only' && !reservation.canViewPublic" 
                     @click="openRatingModal(reservation)" 
                     class="rating-btn"
+                    :disabled="openingRatingId === reservation.id"
                   >
                     <Star :size="16" />
-                    Voir mon évaluation
+                    <span v-if="openingRatingId === reservation.id" class="spinner" style="width: 1rem; height: 1rem; border-width: 2px;"></span>
+                    <span v-else>Voir mon évaluation</span>
                   </button>
                   
                   <!-- Expired -->
@@ -155,16 +216,23 @@
                   </span>
                 </div>
                 
-                <!-- Complaint Button - Always available for completed interventions -->
-                <div v-if="selectedTab === 'completed'" class="completed-actions">
-                  <button 
-                    @click="openComplaintModal(reservation)" 
-                    class="complaint-btn"
-                  >
-                    <Flag :size="16" />
-                    Réclamer
-                  </button>
-                </div>
+                  <!-- Past Complaints Button (Only if completed) -->
+                  <div v-if="selectedTab === 'completed'" class="completed-actions">
+                    <button 
+                      @click="openComplaintModal(reservation)" 
+                      class="complaint-btn"
+                    >
+                      <Flag :size="16" />
+                      Réclamer
+                    </button>
+                    <button 
+                      @click="openPastComplaintsModal(reservation)" 
+                      class="past-complaints-btn"
+                    >
+                      <History :size="16" />
+                      Réclamations passées
+                    </button>
+                  </div>
                 <div v-else-if="selectedTab === 'accepted'" class="accepted-actions">
                   <span class="status-badge status-accepted">
                     Confirmée
@@ -248,7 +316,7 @@
         </div>
       </TransitionGroup>
 
-      <div v-if="filteredReservations.length === 0" class="empty-state">
+      <div v-if="!loading && filteredReservations.length === 0" class="empty-state">
         <p>Aucune réservation {{ 
           selectedTab === 'pending' ? 'en attente' : 
           selectedTab === 'accepted' ? 'acceptée' : 
@@ -360,6 +428,101 @@
       </div>
     </div>
     
+    <!-- Past Complaints Modal -->
+    <div v-if="showPastComplaintsModal" class="modal-overlay" @click="closePastComplaintsModal">
+      <div class="complaint-modal-content" @click.stop>
+        <div class="complaint-modal-header">
+          <h2 class="complaint-modal-title">
+            <History :size="20" />
+            Réclamations passées
+          </h2>
+          <button @click="closePastComplaintsModal" class="modal-close-btn">×</button>
+        </div>
+        
+        <div class="complaint-modal-body">
+          <!-- Intervention Info Header -->
+          <div class="intervention-info">
+            <h4 class="info-title">Informations de l'intervention</h4>
+            <div class="info-grid">
+              <div class="info-item">
+                <span class="info-label">Service :</span>
+                <span class="info-value">{{ selectedReservation?.service || '-' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Sous-service :</span>
+                <span class="info-value">{{ selectedReservation?.task || '-' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Client :</span>
+                <span class="info-value">{{ selectedReservation?.clientName || '-' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Date :</span>
+                <span class="info-value">{{ selectedReservation ? formatDate(selectedReservation.date) : '-' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="isLoadingPastComplaints" class="loading-state">
+            Chargement des réclamations...
+          </div>
+          <div v-else-if="pastComplaints.length === 0" class="empty-state-small">
+            <p>Aucune réclamation passée pour cette intervention.</p>
+          </div>
+          <div v-else class="past-complaints-list">
+            <div v-for="complaint in pastComplaints" :key="complaint.id" class="complaint-card">
+              <div class="complaint-card-header">
+                <span class="complaint-date">
+                  <Calendar :size="14" />
+                  {{ formatDate(complaint.created_at) }}
+                </span>
+                <span 
+                  class="status-badge"
+                  :class="{
+                    'status-pending': complaint.statut === 'en_attente',
+                    'status-processing': complaint.statut === 'en_cours',
+                    'status-resolved': complaint.statut === 'resolue',
+                    'status-rejected': complaint.statut === 'rejete' || complaint.statut === 'rejeter'
+                  }"
+                >
+                  {{ formatStatus(complaint.statut) }}
+                </span>
+              </div>
+              
+              <div class="complaint-card-body">
+                <div class="complaint-row">
+                  <span class="row-label">Raison:</span>
+                  <span class="row-value">{{ complaint.raison }}</span>
+                </div>
+                <div class="complaint-row">
+                  <span class="row-label">Priorité:</span>
+                  <span class="priority-badge" :class="complaint.priorite">
+                    {{ complaint.priorite }}
+                  </span>
+                </div>
+                <div class="complaint-message-box">
+                  <span class="row-label">Message:</span>
+                  <p class="message-text">{{ complaint.message }}</p>
+                </div>
+              </div>
+
+              <div v-if="complaint.reponse_admin" class="admin-response-box">
+                 <div class="admin-header">
+                   <MessageSquare :size="14" />
+                   <strong>Réponse Admin</strong>
+                 </div>
+                 <p class="response-text">{{ complaint.reponse_admin }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="complaint-modal-footer">
+          <button @click="closePastComplaintsModal" class="btn-cancel">Fermer</button>
+        </div>
+      </div>
+    </div>
+    
     <!-- Client Profile Modal -->
     <ClientProfileModal
       :show="showClientProfile"
@@ -371,7 +534,11 @@
     <!-- Public Evaluations Modal -->
     <div v-if="showPublicModal" class="modal-overlay" @click="closePublicModal">
       <div class="public-modal-content" @click.stop>
-        <div class="public-modal-body" v-if="selectedReservation?.publicData">
+        <div v-if="isLoadingPublicData" class="loading-state py-12 text-center text-gray-500">
+           <span class="spinner inline-block w-8 h-8 text-blue-500 border-4 border-gray-200 border-t-blue-500 mb-4"></span>
+           <p>Chargement de l'évaluation...</p>
+        </div>
+        <div class="public-modal-body" v-else-if="selectedReservation?.publicData">
           <h2 class="public-modal-title">Évaluations Mutuelles</h2>
           
           <div class="evaluations-grid">
@@ -429,7 +596,7 @@
         </div>
 
         <!-- Empty State -->
-        <div v-if="filteredReservations.length === 0" class="empty-state">
+        <div v-if="!loading && filteredReservations.length === 0" class="empty-state">
           <div class="empty-icon">
             <Clock :size="48" v-if="selectedTab === 'pending'" />
             <Calendar :size="48" v-else />
@@ -464,12 +631,15 @@
         <button @click="notification = null" class="notif-close">×</button>
       </div>
     </Transition>
+
+    <!-- Loading Modal -->
+    <LoadingModal :show="showLoadingModal" :message="loadingMessage" />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { Check, X, Clock, MapPin, Calendar, MessageSquare, Coins, Package, Star, Mail, AlertTriangle, FileText, Flag } from 'lucide-vue-next'
+import { Check, X, Clock, MapPin, Calendar, MessageSquare, Coins, Package, Star, Mail, AlertTriangle, FileText, Flag, History } from 'lucide-vue-next'
 // ... existing imports ...
 
 const showRefuseModal = ref(false)
@@ -485,6 +655,10 @@ const confirmRefusal = async () => {
   if (!refusalId.value) return
 
   try {
+    // Show loading modal
+    loadingMessage.value = 'Refus en cours...'
+    showLoadingModal.value = true
+    
     await reservationService.refuseReservation(refusalId.value)
 
     // Optimistic Update
@@ -497,6 +671,8 @@ const confirmRefusal = async () => {
     console.error(err)
   } finally {
     closeRefuseModal()
+    // Hide loading modal
+    showLoadingModal.value = false
   }
 }
 
@@ -512,10 +688,12 @@ import reservationSSEService from '@/services/reservationSSEService'
 import ClientRatingModal from './ClientRatingModal.vue'
 import ClientProfileModal from './ClientProfileModal.vue'
 import InterventionDetailsModal from './InterventionDetailsModal.vue'
+import LoadingModal from './LoadingModal.vue'
+import SkeletonLoader from './SkeletonLoader.vue'
 
 const selectedTab = ref('pending')
 const reservations = ref([])
-const loading = ref(false)
+const loading = ref(true)
 const error = ref(null)
 const showRatingModal = ref(false)
 const selectedReservation = ref(null)
@@ -528,6 +706,7 @@ const complaintForm = ref({
   intervention_id: null
 })
 const showPublicModal = ref(false)
+const isLoadingPublicData = ref(false)
 const showClientProfile = ref(false)
 const selectedClientId = ref(null)
 const selectedService = ref('all')
@@ -535,6 +714,8 @@ const allServices = ref([])
 const showDetailsModal = ref(false)
 const selectedInterventionId = ref(null)
 const notification = ref(null)
+const showLoadingModal = ref(false)
+const loadingMessage = ref('')
 
 const fetchAllServices = async () => {
   try {
@@ -598,20 +779,7 @@ const fetchReservations = async (silent = false) => {
     const response = await reservationService.getMyReservations()
     const fetchedReservations = response.reservations || []
     
-    // Check evaluation status for completed reservations
-    for (const reservation of fetchedReservations) {
-      if (reservation.status === 'completed') {
-        try {
-          const statusData = await evaluationService.canRateClient(reservation.id)
-          reservation.evaluationStatus = statusData.status
-          reservation.canViewPublic = statusData.is_public === true
-        } catch (err) {
-          console.error('Error checking evaluation status:', err)
-          reservation.evaluationStatus = 'unknown'
-          reservation.canViewPublic = false
-        }
-      }
-    }
+    // Loop removed as evaluation status is now provided by backend\n    // for (const reservation of fetchedReservations) { ... }
     
     reservations.value = fetchedReservations
   } catch (err) {
@@ -638,6 +806,10 @@ const fetchReservations = async (silent = false) => {
 
 const acceptReservation = async (id) => {
   try {
+    // Show loading modal
+    loadingMessage.value = 'Acceptation en cours...'
+    showLoadingModal.value = true
+    
     const response = await api.post(`intervenants/me/reservations/${id}/accept`)
 
     // Optimistic Update: Update status locally without refresh
@@ -656,43 +828,13 @@ const acceptReservation = async (id) => {
   } catch (err) {
     alert(err.message || 'Erreur lors de l\'acceptation de la réservation')
     console.error(err)
+  } finally {
+    // Hide loading modal
+    showLoadingModal.value = false
   }
 }
 
 
-
-const openRatingModal = async (reservation) => {
-  try {
-    console.log('Checking rating permissions for intervention:', reservation.id)
-    console.log('Reservation data:', reservation)
-    
-    // First check current auth status
-    const authResponse = await api.get('debug/auth')
-    console.log('Current auth status:', authResponse.data)
-    
-    // Then check specific intervention
-    const interventionResponse = await api.get(`debug/intervention/${reservation.id}`)
-    console.log('Intervention debug:', interventionResponse.data)
-    
-    const data = await evaluationService.canRateClient(reservation.id)
-    console.log('Rating permission response:', data)
-    
-    // Allow modal to open for both can_rate and can_view scenarios
-    if (data.can_rate || data.can_view) {
-      selectedReservation.value = reservation
-      showRatingModal.value = true
-    } else {
-      alert(data.reason || 'Vous ne pouvez pas évaluer ce client')
-    }
-  } catch (err) {
-    console.error('Rating permission error:', err)
-    const errorMessage = err.response?.data?.reason || 
-                        err.response?.data?.message || 
-                        err.message || 
-                        'Erreur lors de la vérification des permissions d\'évaluation'
-    alert(errorMessage)
-  }
-}
 
 const closeRatingModal = () => {
   showRatingModal.value = false
@@ -757,28 +899,42 @@ const submitComplaint = async () => {
   }
 }
 
+const openingRatingId = ref(null)
+
+const openRatingModal = async (reservation) => {
+  if (openingRatingId.value) return // Prevent multiple opens
+  
+  openingRatingId.value = reservation.id
+  selectedReservation.value = { ...reservation }
+  // showRatingModal.value = true // Moved to after possible check if needed, or keeping immediate
+  
+  // Note: ClientRatingModal fetches data on mount/show. 
+  // We just show it immediately to let it display its own loading state.
+  showRatingModal.value = true
+  openingRatingId.value = null
+}
+
 const openPublicEvaluations = async (reservation) => {
+  selectedReservation.value = { ...reservation }
+  showPublicModal.value = true
+  isLoadingPublicData.value = true
+
   try {
-    console.log('Opening public evaluations for reservation:', reservation.id)
     const data = await evaluationService.getPublicEvaluations(reservation.id)
-    console.log('Public evaluations data received:', data)
-    console.log('Intervenant ratings:', data.intervenant_ratings)
-    console.log('Client ratings:', data.client_ratings)
     
     if (data.can_view) {
-      selectedReservation.value = {
-        ...reservation,
-        publicData: data
-      }
-      console.log('Setting selectedReservation with publicData:', selectedReservation.value)
-      showPublicModal.value = true
+      selectedReservation.value.publicData = data
     } else {
       alert('Les évaluations ne sont pas encore disponibles')
+      closePublicModal()
     }
   } catch (err) {
     console.error('Error loading public evaluations:', err)
     console.error('Error response:', err.response?.data)
     alert(err.response?.data?.message || 'Erreur lors du chargement des évaluations')
+    closePublicModal()
+  } finally {
+    isLoadingPublicData.value = false
   }
 }
 
@@ -891,6 +1047,26 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* Skeleton Styles */
+.skeleton-item {
+  border-color: #e5e7eb !important;
+  background-color: #ffffff !important;
+  pointer-events: none;
+}
+.skeleton-box {
+  background-color: #f3f4f6;
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+.skeleton-text {
+  background-color: #f3f4f6;
+  border-radius: 4px;
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 .container {
   max-width: 80rem;
 }
@@ -1541,15 +1717,16 @@ onUnmounted(() => {
 }
 
 /* Public Evaluations Modal */
+/* Public Evaluations Modal */
 .public-modal-content {
-  background: #FEF9E6;
+  background: white;
   border-radius: var(--radius-xl);
   max-width: 65rem;
   width: 95%;
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  border: 3px solid #FEE347;
+  border: 1px solid #E5E7EB;
 }
 
 /* Complaint Modal */
@@ -1976,6 +2153,183 @@ onUnmounted(() => {
   background: var(--color-gray-50);
 }
 
+/* Past Complaints List Styling */
+.past-complaints-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.complaint-card {
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+
+.complaint-card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.complaint-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-3) var(--spacing-4);
+  background-color: #F9FAFB;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.complaint-date {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  color: #6B7280;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.status-pending {
+  background-color: #FEF3C7;
+  color: #D97706;
+}
+
+.status-processing {
+  background-color: #DBEAFE;
+  color: #1E40AF;
+}
+
+.status-resolved {
+  background-color: #D1FAE5;
+  color: #059669;
+}
+
+.status-rejected {
+  background-color: #FEE2E2;
+  color: #DC2626;
+}
+
+.complaint-card-body {
+  padding: var(--spacing-4);
+}
+
+.complaint-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--spacing-3);
+}
+
+.row-label {
+  width: 80px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #6B7280;
+  flex-shrink: 0;
+}
+
+.row-value {
+  color: #111827;
+  font-weight: 500;
+}
+
+.priority-badge {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.priority-badge.basse {
+  background-color: #E5E7EB;
+  color: #374151;
+}
+
+.priority-badge.moyenne {
+  background-color: #FEF3C7;
+  color: #D97706;
+}
+
+.priority-badge.haute {
+  background-color: #FEE2E2;
+  color: #DC2626;
+}
+
+.complaint-message-box {
+  margin-top: var(--spacing-2);
+}
+
+.complaint-message-box .row-label {
+  display: block;
+  margin-bottom: var(--spacing-1);
+}
+
+.message-text {
+  background-color: #F9FAFB;
+  padding: var(--spacing-3);
+  border-radius: var(--radius-md);
+  margin: 0;
+  color: #4B5563;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  border: 1px solid #F3F4F6;
+}
+
+.admin-response-box {
+  margin: 0 var(--spacing-4) var(--spacing-4);
+  background-color: #F0F9FF; /* Light blue background */
+  border: 1px solid #BAE6FD;
+  border-radius: var(--radius-md);
+  padding: var(--spacing-3);
+}
+
+.admin-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  color: #0369A1;
+  margin-bottom: var(--spacing-2);
+  font-size: 0.875rem;
+}
+
+.response-text {
+  margin: 0;
+  color: #0C4A6E;
+  font-size: 0.9375rem;
+}
+
+.past-complaints-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  padding: var(--spacing-2) var(--spacing-3);
+  background-color: white;
+  border: 1px solid #E5E7EB;
+  border-radius: var(--radius-lg);
+  color: #4B5563;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.past-complaints-btn:hover {
+  background-color: #F9FAFB;
+  border-color: #D1D5DB;
+  color: #374151;
+}
+
 .btn-confirm-danger {
   padding: 0.5rem 1rem;
   background: #DC2626;
@@ -2015,5 +2369,40 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 1rem;
+}
+/* Skeleton Styles */
+.skeleton-item {
+  border-color: #e5e7eb !important;
+  background-color: #ffffff !important;
+  pointer-events: none;
+}
+.skeleton-box {
+  background-color: #E2E8F0; /* Darker contrast */
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+.skeleton-text {
+  background-color: #E2E8F0; /* Darker contrast */
+  border-radius: 4px;
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+/* Spinner for buttons and loading states */
+.spinner {
+  display: inline-block;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  border-top-color: currentColor;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.rating-btn:disabled, .details-link-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 </style>

@@ -9,65 +9,96 @@
       </div>
     </div>
 
-    <!-- Loading State -->
-    <div v-if="isLoadingUser || isLoadingReviews" class="flex items-center justify-center min-h-[400px]">
-      <div class="text-center">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-        <p>Chargement des avis...</p>
-      </div>
-    </div>
+    <!-- Loading State (User Auth only) - REMOVED to show skeletons immediately -->
+    <div v-if="isLoadingUser" class="hidden"></div>
 
     <!-- Main Content -->
-    <div v-if="!authError && !isLoadingUser && !isLoadingReviews && currentUser" class="max-w-5xl">
+    <div v-if="!authError && (currentUser || isLoadingUser)" class="max-w-5xl">
     <!-- Stats Cards -->
     <div class="grid md:grid-cols-4 gap-4 mb-6">
-      <div 
-        class="bg-white rounded-lg shadow-sm p-4 border-l-4" 
-        style="border-left-color: #FEE347"
-      >
-        <div class="flex items-center justify-between mb-2">
-          <p class="text-xs text-gray-600">Note Moyenne</p>
-          <Star :size="18" style="color: #FEE347" fill="#FEE347" />
+      <template v-if="isLoadingReviews || isLoadingUser">
+        <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-gray-100">
+           <div class="flex justify-between mb-2">
+             <div class="skeleton-text w-20 h-4"></div>
+             <div class="skeleton-box w-5 h-5 rounded-full"></div>
+           </div>
+           <div class="skeleton-text w-16 h-8 mb-1"></div>
+           <div class="skeleton-text w-12 h-3"></div>
         </div>
-        <p class="text-3xl" style="color: #2F4F4F">{{ stats.averageRating }}</p>
-        <p class="text-xs text-gray-500 mt-1">sur 5.0</p>
-      </div>
+        <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-gray-100">
+           <div class="flex justify-between mb-2">
+             <div class="skeleton-text w-20 h-4"></div>
+             <div class="skeleton-box w-5 h-5 rounded-full"></div>
+           </div>
+           <div class="skeleton-text w-16 h-8 mb-1"></div>
+           <div class="skeleton-text w-12 h-3"></div>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-gray-100">
+           <div class="flex justify-between mb-2">
+             <div class="skeleton-text w-20 h-4"></div>
+             <div class="skeleton-box w-5 h-5 rounded-full"></div>
+           </div>
+           <div class="skeleton-text w-16 h-8 mb-1"></div>
+           <div class="skeleton-text w-12 h-3"></div>
+        </div>
+        <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-gray-100">
+           <div class="flex justify-between mb-2">
+             <div class="skeleton-text w-20 h-4"></div>
+             <div class="skeleton-box w-5 h-5 rounded-full"></div>
+           </div>
+           <div class="skeleton-text w-16 h-8 mb-1"></div>
+           <div class="skeleton-text w-12 h-3"></div>
+        </div>
+      </template>
+      <template v-else>
+        <div 
+          class="bg-white rounded-lg shadow-sm p-4 border-l-4" 
+          style="border-left-color: #FEE347"
+        >
+          <div class="flex items-center justify-between mb-2">
+            <p class="text-xs text-gray-600">Note Moyenne</p>
+            <Star :size="18" style="color: #FEE347" fill="#FEE347" />
+          </div>
+          <p class="text-3xl" style="color: #2F4F4F">{{ stats.averageRating }}</p>
+          <p class="text-xs text-gray-500 mt-1">sur 5.0</p>
+        </div>
 
-      <div 
-        class="bg-white rounded-lg shadow-sm p-4 border-l-4" 
-        style="border-left-color: #92B08B"
-      >
-        <div class="flex items-center justify-between mb-2">
-          <p class="text-xs text-gray-600">Total Avis</p>
-          <ThumbsUp :size="18" style="color: #92B08B" />
+        <div 
+          class="bg-white rounded-lg shadow-sm p-4 border-l-4" 
+          style="border-left-color: #92B08B"
+        >
+          <div class="flex items-center justify-between mb-2">
+            <p class="text-xs text-gray-600">Total Avis</p>
+            <ThumbsUp :size="18" style="color: #92B08B" />
+          </div>
+          <p class="text-3xl" style="color: #92B08B">{{ stats.totalReviews }}</p>
+          <p class="text-xs text-gray-500 mt-1">avis clients</p>
         </div>
-        <p class="text-3xl" style="color: #92B08B">{{ stats.totalReviews }}</p>
-        <p class="text-xs text-gray-500 mt-1">avis clients</p>
-      </div>
 
-      <div 
-        class="bg-white rounded-lg shadow-sm p-4 border-l-4" 
-        style="border-left-color: #1A5FA3"
-      >
-        <div class="flex items-center justify-between mb-2">
-          <p class="text-xs text-gray-600">Missions</p>
-          <Award :size="18" style="color: #1A5FA3" />
+        <div 
+          class="bg-white rounded-lg shadow-sm p-4 border-l-4" 
+          style="border-left-color: #1A5FA3"
+        >
+          <div class="flex items-center justify-between mb-2">
+            <p class="text-xs text-gray-600">Missions</p>
+            <Award :size="18" style="color: #1A5FA3" />
+          </div>
+          <p class="text-3xl" style="color: #1A5FA3">{{ stats.completedMissions }}</p>
+          <p class="text-xs text-gray-500 mt-1">complétées</p>
         </div>
-        <p class="text-3xl" style="color: #1A5FA3">{{ stats.completedMissions }}</p>
-        <p class="text-xs text-gray-500 mt-1">complétées</p>
-      </div>
 
-      <div 
-        class="bg-white rounded-lg shadow-sm p-4 border-l-4" 
-        style="border-left-color: #92B08B"
-      >
-        <div class="flex items-center justify-between mb-2">
-          <p class="text-xs text-gray-600">Revenus totaux</p>
-          <Banknote :size="18" style="color: #92B08B" />
+        <div 
+          class="bg-white rounded-lg shadow-sm p-4 border-l-4" 
+          style="border-left-color: #92B08B"
+        >
+          <div class="flex items-center justify-between mb-2">
+            <p class="text-xs text-gray-600">Revenus totaux</p>
+            <Banknote :size="18" style="color: #92B08B" />
+          </div>
+          <p class="text-3xl" style="color: #92B08B">{{ totalAmount }} DH</p>
+          <p class="text-xs text-gray-500 mt-1">total gagné</p>
         </div>
-        <p class="text-3xl" style="color: #92B08B">{{ totalAmount }} DH</p>
-        <p class="text-xs text-gray-500 mt-1">total gagné</p>
-      </div>
+      </template>
     </div>
 
     <!-- Filter Section -->
@@ -92,7 +123,23 @@
       <div class="lg:col-span-1">
         <div class="bg-white rounded-lg shadow-sm p-6">
           <h2 class="text-lg mb-4" style="color: #2F4F4F">Distribution des notes</h2>
-          <div class="space-y-3">
+          
+          <div v-if="isLoadingReviews || isLoadingUser" class="space-y-3">
+             <div class="space-y-3">
+                <div v-for="n in 5" :key="n" class="flex items-center gap-3">
+                  <div class="skeleton-text w-8 h-4"></div>
+                  <div class="flex-1 skeleton-box h-2 rounded-full"></div>
+                  <div class="skeleton-text w-8 h-3"></div>
+                </div>
+             </div>
+             <div class="mt-8 p-4 rounded-lg bg-gray-50 text-center">
+                <div class="skeleton-box w-8 h-8 rounded-full mx-auto mb-2"></div>
+                <div class="skeleton-text w-32 h-4 mx-auto mb-1"></div>
+                <div class="skeleton-text w-24 h-3 mx-auto"></div>
+             </div>
+          </div>
+
+          <div v-else class="space-y-3">
             <div 
               v-for="item in sortedDistribution" 
               :key="item.stars" 
@@ -112,18 +159,17 @@
                 {{ calculatePercentage(item.count) }}%
               </span>
             </div>
-          </div>
-
-          <!-- Excellence Badge -->
-          <div 
-            class="mt-6 p-4 rounded-lg text-center" 
-            style="background-color: #E8F5E9"
-          >
-            <Award :size="32" style="color: #92B08B" class="mx-auto mb-2" />
-            <p class="text-sm" style="color: #92B08B">Performance d'Excellence</p>
-            <p class="text-xs text-gray-600 mt-1">
-              {{ excellencePercentage }}% d'avis positifs
-            </p>
+             <!-- Excellence Badge -->
+            <div 
+                class="mt-6 p-4 rounded-lg text-center" 
+                style="background-color: #E8F5E9"
+            >
+                <Award :size="32" style="color: #92B08B" class="mx-auto mb-2" />
+                <p class="text-sm" style="color: #92B08B">Performance d'Excellence</p>
+                <p class="text-xs text-gray-600 mt-1">
+                {{ excellencePercentage }}% d'avis positifs
+                </p>
+            </div>
           </div>
         </div>
       </div>
@@ -134,7 +180,29 @@
           <h2 class="text-lg mb-4" style="color: #2F4F4F">
             Avis récents ({{ filteredReviews.length }})
           </h2>
-          <div class="space-y-4">
+          
+          <div v-if="isLoadingReviews || isLoadingUser" class="space-y-4">
+             <div v-for="n in 3" :key="n" class="p-4 rounded-lg border border-gray-200">
+                <div class="flex items-start gap-3 mb-3">
+                   <div class="skeleton-box w-10 h-10 rounded-full"></div>
+                   <div class="flex-1">
+                      <div class="flex justify-between mb-1">
+                         <div class="skeleton-text w-32 h-5"></div>
+                         <div class="skeleton-text w-24 h-5"></div>
+                      </div>
+                      <div class="mb-3"><div class="skeleton-text w-20 h-5 rounded-full"></div></div>
+                      <div class="flex gap-4">
+                         <div class="skeleton-text w-24 h-4"></div>
+                         <div class="skeleton-text w-32 h-4"></div>
+                      </div>
+                   </div>
+                </div>
+                <div class="skeleton-text w-full h-4 mb-2"></div>
+                <div class="skeleton-text w-3/4 h-4"></div>
+             </div>
+          </div>
+
+          <div v-else class="space-y-4">
             <div
               v-for="review in filteredReviews"
               :key="review.id"
@@ -254,6 +322,7 @@ import { Star, TrendingUp, Award, ThumbsUp, Calendar, MapPin, Banknote } from 'l
 import authService from '@/services/authService'
 import statsService from '@/services/statsService'
 import axios from '@/services/api' // Use the configured api service
+import SkeletonLoader from './SkeletonLoader.vue'
 
 // Authentication state
 const currentUser = ref(null)
@@ -412,5 +481,23 @@ const excellencePercentage = computed(() => {
 </script>
 
 <style scoped>
-/* Add any component-specific styles here if needed */
+/* Skeleton Styles */
+.skeleton-item {
+  border-color: #e5e7eb !important;
+  background-color: #ffffff !important;
+  pointer-events: none;
+}
+.skeleton-box {
+  background-color: #f3f4f6;
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+.skeleton-text {
+  background-color: #f3f4f6;
+  border-radius: 4px;
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
 </style>

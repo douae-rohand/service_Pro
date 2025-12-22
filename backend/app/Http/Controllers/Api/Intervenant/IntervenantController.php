@@ -1583,7 +1583,8 @@ class IntervenantController extends Controller
             'client.utilisateur',
             'tache.service',
             'tache.materiels',
-            'materiels' // Materials used in this specific intervention
+            'materiels', // Materials used in this specific intervention
+            'evaluations' // Eager load evaluations for status calculation
         ])
         ->where('intervenant_id', $intervenant->id)
         ->orderBy('date_intervention', 'desc')
@@ -1645,6 +1646,34 @@ class IntervenantController extends Controller
                 }
             }
 
+            // Calculate Evaluation Status
+            $status = strtolower($intervention->status ?? '');
+            $evaluationStatus = 'none'; // default
+            $canViewPublic = false;
+
+            if (in_array($status, ['termine', 'terminee', 'terminée', 'completed'])) {
+                $intervenantRatings = $intervention->evaluations->where('type_auteur', 'intervenant');
+                $clientRatings = $intervention->evaluations->where('type_auteur', 'client');
+                
+                $hasIntervenantRated = $intervenantRatings->isNotEmpty();
+                $hasClientRated = $clientRatings->isNotEmpty();
+                
+                $updatedAt = $intervention->updated_at;
+                $isWindowClosed = $updatedAt ? $updatedAt->copy()->addDays(7)->isPast() : false;
+                
+                if ($hasIntervenantRated) {
+                    $evaluationStatus = 'view_only';
+                    // Logic for public visibility: Both rated OR Window closed
+                    if (($hasIntervenantRated && $hasClientRated) || $isWindowClosed) {
+                            $canViewPublic = true;
+                    }
+                } elseif (!$isWindowClosed) {
+                    $evaluationStatus = 'can_rate';
+                } else {
+                    $evaluationStatus = 'expired';
+                }
+            }
+
             return [
                 'id' => $intervention->id,
                 'clientName' => $clientUser ? ($clientUser->nom . ' ' . $clientUser->prenom) : 'Client inconnu',
@@ -1661,7 +1690,9 @@ class IntervenantController extends Controller
                 'message' => $intervention->description,
                 'materials' => $allMaterials,
                 'clientProvidedMaterials' => $clientProvidedMaterials,
-                'intervenantMaterials' => $intervenantMaterials
+                'intervenantMaterials' => $intervenantMaterials,
+                'evaluationStatus' => $evaluationStatus,
+                'canViewPublic' => $canViewPublic
             ];
         });
 
@@ -1678,15 +1709,11 @@ class IntervenantController extends Controller
 
         return response()->json([
             'reservations' => $formattedInterventions,
-            'statistics' => [
+            'stats' => [
                 'pending' => $pendingCount,
                 'accepted' => $acceptedCount,
                 'completed' => $completedCount,
-                'total_earnings' => $totalEarnings,
-                'total_interventions' => $interventions->count(),
-                'completion_rate' => $interventions->count() > 0
-                    ? round(($completedCount / $interventions->count()) * 100, 1)
-                    : 0
+                'earnings' => $totalEarnings
             ]
         ]);
     }

@@ -4,7 +4,15 @@
       <div class="modal-body">
         <h2 class="modal-title">Votre évaluation</h2>
         
-        <div class="client-info">
+        <div v-if="loading" class="client-info skeleton-item">
+          <div class="skeleton-box client-avatar"></div>
+          <div>
+            <div class="skeleton-text" style="width: 150px; height: 20px; margin-bottom: 8px;"></div>
+            <div class="skeleton-text" style="width: 100px; height: 16px;"></div>
+          </div>
+        </div>
+
+        <div v-else class="client-info">
           <img :src="reservation.clientImage" :alt="reservation.clientName" class="client-avatar" />
           <div>
             <h3>{{ reservation.clientName }}</h3>
@@ -12,7 +20,12 @@
           </div>
         </div>
 
-        <form @submit.prevent="submitRating">
+        <div v-if="loading" class="loading-message">
+          <div class="spinner"></div>
+          <p>Chargement des critères d'évaluation...</p>
+        </div>
+
+        <form v-else @submit.prevent="submitRating">
           <fieldset :disabled="hasExistingRatings" class="rating-fieldset">
           <div class="criteria-list">
             <div v-for="criteria in clientCriteria" :key="criteria.id" class="criteria-item">
@@ -106,7 +119,7 @@ const emit = defineEmits(['close', 'rating-submitted'])
 const clientCriteria = ref([])
 const ratings = ref({})
 const comment = ref('')
-const loading = ref(false)
+const loading = ref(true)
 const error = ref(null)
 const hasExistingRatings = ref(false)
 
@@ -215,9 +228,6 @@ const submitRating = async () => {
         note: note
       }))
     
-    console.log('Submitting evaluations:', evaluations)
-    console.log('Comment:', comment.value)
-
     await evaluationService.storeClientEvaluation(props.reservation.id, evaluations, comment.value)
     
     emit('rating-submitted')
@@ -260,14 +270,14 @@ watch(() => props.show, (newShow) => {
 }
 
 .modal-content {
-  background: #FEF9E6;
+  background: white;
   border-radius: var(--radius-xl);
   max-width: 42rem;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  border: 3px solid #FEE347;
+  border: 1px solid #E5E7EB;
 }
 
 .modal-body {
@@ -559,5 +569,40 @@ watch(() => props.show, (newShow) => {
     width: 2.75rem;
     height: 2.75rem;
   }
+}
+
+/* Skeleton Styles */
+.skeleton-item {
+  border-color: #e5e7eb !important;
+  background-color: #ffffff !important;
+  pointer-events: none;
+}
+.skeleton-box {
+  background-color: #E2E8F0; /* Darker contrast */
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+.skeleton-text {
+  background-color: #E2E8F0; /* Darker contrast */
+  border-radius: 4px;
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.spinner {
+  display: inline-block;
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  border-top-color: #3B82F6;
+  animation: spin 1s linear infinite;
+  margin-bottom: 0.5rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>

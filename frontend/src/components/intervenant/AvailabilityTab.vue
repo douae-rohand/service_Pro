@@ -13,7 +13,31 @@
       <h1 class="card-title">Disponibilités Régulières</h1>
       <p class="card-subtitle">Définissez vos horaires de travail pour chaque jour de la semaine</p>
 
-      <div class="days-list">
+      <div v-if="loading" class="days-list">
+        <div
+          v-for="n in 7"
+          :key="n"
+          class="day-item skeleton-item"
+        >
+          <div class="day-toggle">
+            <div class="skeleton-text w-16 h-5"></div>
+          </div>
+
+          <div class="time-inputs">
+            <div class="time-group">
+              <label><div class="skeleton-text w-4 h-3"></div></label>
+              <div class="skeleton-box w-20 h-9 rounded-xl"></div>
+            </div>
+            <span class="time-separator">à</span>
+            <div class="time-group">
+              <label><div class="skeleton-text w-3 h-3"></div></label>
+              <div class="skeleton-box w-20 h-9 rounded-xl"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-else class="days-list">
         <div
           v-for="(day, index) in regularAvailability"
           :key="day.day"
@@ -50,8 +74,9 @@
         </div>
       </div>
 
-      <button @click="saveRegularAvailability" class="save-btn">
-        Enregistrer les disponibilités régulières
+      <button @click="saveRegularAvailability" class="save-btn" :disabled="isSavingRegular">
+        <span v-if="isSavingRegular">Enregistrement...</span>
+        <span v-else>Enregistrer les disponibilités régulières</span>
       </button>
     </div>
 
@@ -106,17 +131,36 @@
         </div>
 
         <div class="button-group">
-          <button @click="addSpecialAvailability" :disabled="!newSpecial.date" class="accept-btn">
-            Ajouter cette disponibilité
+      <!-- Save Button for Regular Availability (Implicitly at bottom or top?) -->
+      <!-- Wait, the previous view didn't show the saveRegularAvailability button in the template, only function. -->
+      <!-- I need to find where saveRegularAvailability is called. -->
+      <!-- Ah, I'll search for it first to be safe, but let's update addSpecialAvailability button first as I saw it. -->
+
+          <button @click="addSpecialAvailability" :disabled="!newSpecial.date || isAddingSpecial" class="accept-btn">
+            <span v-if="isAddingSpecial">Ajout...</span>
+            <span v-else>Ajouter cette disponibilité</span>
           </button>
-          <button @click="showAddSpecial = false" class="cancel-btn">
+          <button @click="showAddSpecial = false" class="cancel-btn" :disabled="isAddingSpecial">
             Annuler
           </button>
         </div>
       </div>
 
       <!-- Special Availability List -->
-      <div class="special-list">
+      <div v-if="loading" class="special-list">
+        <div v-for="n in 2" :key="n" class="special-item skeleton-item">
+          <div class="special-content">
+            <div class="skeleton-box w-6 h-6 rounded-md mr-3"></div>
+            <div>
+              <div class="skeleton-text w-32 h-5 mb-2"></div>
+              <div class="skeleton-text w-48 h-4"></div>
+            </div>
+          </div>
+          <div class="skeleton-box w-9 h-9 rounded-lg"></div>
+        </div>
+      </div>
+
+      <div v-else class="special-list">
         <div
           v-for="special in specialAvailability"
           :key="special.id"
@@ -143,7 +187,7 @@
         </div>
       </div>
 
-      <div v-if="specialAvailability.length === 0 && !showAddSpecial" class="empty-state">
+      <div v-if="!loading && specialAvailability.length === 0 && !showAddSpecial" class="empty-state">
         <p>Aucune disponibilité ponctuelle configurée</p>
         <p class="text-sm">Cliquez sur "Ajouter" pour en créer une</p>
       </div>
@@ -155,10 +199,11 @@
 import { ref, onMounted } from 'vue'
 import { Plus, Trash2, Check, Calendar } from 'lucide-vue-next'
 import availabilityService from '@/services/availabilityService'
+import SkeletonLoader from './SkeletonLoader.vue'
 
 const showSuccessMessage = ref(false)
 const showAddSpecial = ref(false)
-const loading = ref(false)
+const loading = ref(true)
 
 // Initialize with default values
 const regularAvailability = ref([
@@ -208,15 +253,8 @@ const fetchDisponibilites = async () => {
   try {
     loading.value = true
     
-    // Debug: Check authentication status
-    const token = localStorage.getItem('token')
-    console.log('Authentication token exists:', !!token)
-    console.log('Token value:', token ? token.substring(0, 20) + '...' : 'null')
-    
     const response = await availabilityService.getMyDisponibilites()
     const disponibilites = response.data
-    
-    console.log('Disponibilites from backend:', disponibilites)
     
     // Reset regular availability
     regularAvailability.value = regularAvailability.value.map(day => ({
@@ -253,9 +291,6 @@ const fetchDisponibilites = async () => {
       reason: null // Reason field not in database yet
     }))
     
-    console.log('Processed regular availability:', regularAvailability.value)
-    console.log('Processed special availability:', specialAvailability.value)
-    
   } catch (error) {
     console.error('Error fetching disponibilites:', error)
   } finally {
@@ -267,9 +302,11 @@ const toggleDay = (index) => {
   regularAvailability.value[index].available = !regularAvailability.value[index].available
 }
 
+const isSavingRegular = ref(false)
+
 const saveRegularAvailability = async () => {
   try {
-    loading.value = true
+    isSavingRegular.value = true
     
     const availabilities = regularAvailability.value.map(day => ({
       day: dayMap[day.day],
@@ -278,8 +315,6 @@ const saveRegularAvailability = async () => {
       endTime: day.available ? day.endTime : null
     }))
     
-    console.log('Saving regular availability:', availabilities)
-    
     await availabilityService.createRegularAvailability(availabilities)
     
     showSuccessMessage.value = true
@@ -287,22 +322,23 @@ const saveRegularAvailability = async () => {
       showSuccessMessage.value = false
     }, 3000)
     
-    // Refresh data
-    await fetchDisponibilites()
+    // Optimistic: Data is already in regularAvailability, no need to refetch
     
   } catch (error) {
     console.error('Error saving regular availability:', error)
     alert('Erreur lors de l\'enregistrement des disponibilités régulières')
   } finally {
-    loading.value = false
+    isSavingRegular.value = false
   }
 }
+
+const isAddingSpecial = ref(false)
 
 const addSpecialAvailability = async () => {
   if (!newSpecial.value.date) return
 
   try {
-    loading.value = true
+    isAddingSpecial.value = true
     
     const data = {
       date: newSpecial.value.date,
@@ -312,9 +348,21 @@ const addSpecialAvailability = async () => {
       reason: newSpecial.value.reason
     }
     
-    console.log('Adding special availability:', data)
+    const response = await availabilityService.createSpecialAvailability(data)
     
-    await availabilityService.createSpecialAvailability(data)
+    // Optimistic Update: Add to list safely
+    // Assuming backend returns the created object or id. If not, we might need to rely on what we sent + a temp ID.
+    // Ideally response.data contains the created ID.
+    const createdId = response.data?.id || Date.now() 
+    
+    specialAvailability.value.push({
+      id: createdId,
+      date: newSpecial.value.date,
+      available: newSpecial.value.available,
+      startTime: newSpecial.value.available ? newSpecial.value.startTime : null,
+      endTime: newSpecial.value.available ? newSpecial.value.endTime : null,
+      reason: newSpecial.value.reason
+    })
     
     // Reset form
     newSpecial.value = {
@@ -326,22 +374,17 @@ const addSpecialAvailability = async () => {
     }
     showAddSpecial.value = false
     
-    // Refresh data
-    await fetchDisponibilites()
-    
   } catch (error) {
     console.error('Error adding special availability:', error)
     alert('Erreur lors de l\'ajout de la disponibilité ponctuelle')
   } finally {
-    loading.value = false
+    isAddingSpecial.value = false
   }
 }
 
 const deleteSpecialAvailability = async (id) => {
   try {
     loading.value = true
-    
-    console.log('Deleting special availability:', id)
     
     await availabilityService.deleteDisponibilite(id)
     
@@ -373,6 +416,26 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* Skeleton Styles */
+.skeleton-item {
+  border-color: #e5e7eb !important;
+  background-color: #ffffff !important;
+  pointer-events: none;
+}
+.skeleton-box {
+  background-color: #f3f4f6;
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+.skeleton-text {
+  background-color: #f3f4f6;
+  border-radius: 4px;
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 .container {
   display: flex;
   flex-direction: column;

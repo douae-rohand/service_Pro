@@ -63,7 +63,7 @@ class StatsController extends Controller
             // Get all interventions for this intervenant that are completed
             $interventions = Intervention::where('intervenant_id', $intervenantId)
                 ->where('status', 'termine')
-                ->with(['evaluations', 'commentaires', 'client.utilisateur', 'facture', 'tache.service'])
+                ->with(['evaluations', 'commentaires', 'client.utilisateur', 'fichePayement', 'tache.service'])
                 ->orderBy('updated_at', 'desc')
                 ->get();
 
@@ -158,14 +158,14 @@ class StatsController extends Controller
                 return strtotime($b['date']) - strtotime($a['date']);
             });
 
-            // Calculate completed missions count (only public ones)
-            $completedMissions = $publicInterventions->count();
+            // Calculate completed missions count (ALL completed interventions)
+            $completedMissions = $interventions->count();
 
-            // Calculate total revenue from completed interventions (only public ones)
+            // Calculate total revenue from ALL completed interventions
             $totalAmount = 0;
-            foreach ($publicInterventions as $intervention) {
-                if ($intervention->facture && $intervention->facture->ttc !== null) {
-                    $totalAmount += (float) $intervention->facture->ttc;
+            foreach ($interventions as $intervention) {
+                if ($intervention->fichePayement && $intervention->fichePayement->ttc !== null) {
+                    $totalAmount += (float) $intervention->fichePayement->ttc;
                 }
             }
 

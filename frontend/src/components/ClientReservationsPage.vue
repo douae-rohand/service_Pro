@@ -200,6 +200,16 @@
       :demand="selectedDemand"
       @close="showDetails = false"
       @open-rating="openRatingModalFromDetails"
+      @open-reclamation="handleOpenReclamation(selectedDemand)"
+    />
+
+    <!-- Reclamation Modal -->
+    <CreateReclamationModal
+      v-if="showReclamationModal"
+      :show="showReclamationModal"
+      :preselected-intervention="demandToReport"
+      @close="showReclamationModal = false"
+      @success="handleReclamationSuccess"
     />
   </div>
 </template>
@@ -219,6 +229,7 @@ import {
 } from 'lucide-vue-next';
 import RateIntervenantModal from './RateIntervenantModal.vue';
 import DemandDetailsModal from './DemandDetailsModal.vue';
+import CreateReclamationModal from './client/CreateReclamationModal.vue';
 import interventionService from '@/services/interventionService';
 import api from '@/services/api';
 import authService from '@/services/authService';
@@ -237,7 +248,8 @@ export default {
     Eye,
     ArrowLeft,
     RateIntervenantModal,
-    DemandDetailsModal
+    DemandDetailsModal,
+    CreateReclamationModal
   },
   emits: ['back'],
   data() {
@@ -246,6 +258,8 @@ export default {
       selectedDemand: null,
       showDetails: false,
       demandToRate: null,
+      showReclamationModal: false,
+      demandToReport: null,
       demands: [],
       loading: false,
       error: null,
@@ -290,6 +304,15 @@ export default {
     }
   },
   methods: {
+    handleOpenReclamation(demand) {
+      this.demandToReport = demand;
+      this.showReclamationModal = true;
+      this.showDetails = false;
+    },
+    handleReclamationSuccess() {
+      this.showReclamationModal = false;
+      this.demandToReport = null;
+    },
     async loadDemands() {
       if (!this.clientId) {
         console.warn('No clientId provided to loadDemands');

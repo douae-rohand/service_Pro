@@ -17,6 +17,7 @@ class Reclamation extends Model
         'signale_par_type',
         'concernant_id',
         'concernant_type',
+        'intervention_id',
         'raison',
         'message',
         'priorite',
@@ -53,6 +54,14 @@ class Reclamation extends Model
     public function concernant()
     {
         return $this->morphTo('concernant', 'concernant_type', 'concernant_id');
+    }
+
+    /**
+     * Get the intervention associated with the reclamation.
+     */
+    public function intervention()
+    {
+        return $this->belongsTo(Intervention::class, 'intervention_id');
     }
 
     /**

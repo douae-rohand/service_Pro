@@ -136,7 +136,7 @@ class InterventionController extends Controller
         $validator = Validator::make($request->all(), [
             'address' => 'required|string|max:255',
             'ville' => 'required|string|max:100',
-            'status' => 'nullable|string|in:en_attente,confirmée,en_cours,terminée,annulée',
+            'status' => 'nullable|string|in:en attend,acceptee,refuse,termine',
             'date_intervention' => 'required|date',
             'duration_hours' => 'required|numeric|min:0.5|max:24',
             'client_id' => 'required|exists:client,id',
@@ -207,7 +207,7 @@ class InterventionController extends Controller
             $interventionData = [
                 'address' => $request->address,
                 'ville' => $request->ville,
-                'status' => $request->status ?? 'en_attente',
+                'status' => $request->status ?? 'en attend',
                 'date_intervention' => $request->date_intervention,
                 'duration_hours' => $request->duration_hours,
                 'client_id' => $request->client_id,
@@ -601,6 +601,7 @@ class InterventionController extends Controller
         $interventions = Intervention::where('client_id', $clientId)->get();
 
         $statusMap = [
+            'en attend' => 'pending',
             'en_attente' => 'pending',
             'en attente' => 'pending',
             'acceptee' => 'accepted',
@@ -635,7 +636,7 @@ class InterventionController extends Controller
         $totalCost = 0;
 
         foreach ($interventions as $intervention) {
-            $status = strtolower($intervention->status ?? 'en_attente');
+            $status = strtolower($intervention->status ?? 'en attend');
             $mappedStatus = $statusMap[$status] ?? 'pending';
 
             if (isset($stats[$mappedStatus])) {
@@ -666,7 +667,7 @@ class InterventionController extends Controller
         $intervention = Intervention::findOrFail($id);
 
         // Only allow cancellation if status is pending or accepted
-        $allowedStatuses = ['en_attente', 'en attente', 'acceptee', 'acceptée', 'acceptées', 'planifiee', 'planifiée'];
+        $allowedStatuses = ['en attend', 'en_attente', 'en attente', 'acceptee', 'acceptée', 'acceptées', 'planifiee', 'planifiée'];
         if (!in_array(strtolower($intervention->status ?? ''), $allowedStatuses)) {
             return response()->json([
                 'status' => 'error',

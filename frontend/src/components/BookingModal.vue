@@ -1152,7 +1152,7 @@ export default {
           .filter(m => !this.bookingData.materials.includes(m.id))
           .map(m => m.id);
         formData.append('provided_materials', JSON.stringify(providedMaterials));
-        formData.append('status', 'en_attente');
+        formData.append('status', 'en attend');
         formData.append('description', this.bookingData.description || '');
         
         // Contraintes (optionnel, pourrait être stocké ailleurs)

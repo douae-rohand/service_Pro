@@ -18,6 +18,7 @@ class InterventionResource extends JsonResource
         $statusMap = [
             'en_attente' => 'pending',
             'en attente' => 'pending',
+            'en attend' => 'pending',
             'acceptee' => 'accepted',
             'acceptée' => 'accepted',
             'acceptées' => 'accepted',
@@ -25,6 +26,7 @@ class InterventionResource extends JsonResource
             'en cours' => 'in-progress',
             'terminee' => 'completed',
             'terminée' => 'completed',
+            'termine' => 'completed',
             'terminées' => 'completed',
             'annulee' => 'cancelled',
             'annulée' => 'cancelled',

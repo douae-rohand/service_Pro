@@ -163,6 +163,26 @@
           <p class="text-xs italic" style="color: #2F4F4F">"{{ reclamation.message }}"</p>
         </div>
 
+        <!-- Linked Intervention -->
+        <div v-if="reclamation.intervention" class="bg-blue-50/50 rounded-lg p-2.5 mb-2.5 border border-blue-100 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="bg-blue-100 p-1.5 rounded-lg">
+              <Calendar :size="14" class="text-blue-600" />
+            </div>
+            <div>
+              <p class="text-[10px] text-blue-600 font-medium uppercase tracking-wider">Intervention liée</p>
+              <p class="text-xs font-semibold text-blue-900">{{ reclamation.intervention.service }}</p>
+              <p class="text-[10px] text-blue-700/70">{{ formatDateShort(reclamation.intervention.date) }}</p>
+            </div>
+          </div>
+          <button 
+            @click="viewInterventionDetails(reclamation.intervention.id)"
+            class="px-2 py-1 text-[10px] bg-white border border-blue-200 text-blue-600 rounded-md hover:bg-blue-50 transition-colors font-medium shadow-sm"
+          >
+            Détails intervention
+          </button>
+        </div>
+
         <div class="flex items-center gap-2.5 mb-2.5">
           <div class="flex-1">
             <div class="flex items-center gap-1.5 mb-1">
@@ -325,6 +345,15 @@
           <div class="bg-gray-50 rounded-lg p-2.5 mb-2.5">
             <p class="text-xs text-gray-600 mb-1">Message du rapporteur :</p>
             <p class="text-xs italic" style="color: #2F4F4F">"{{ reclamation.message }}"</p>
+          </div>
+
+          <!-- Linked Intervention (Archived) -->
+          <div v-if="reclamation.intervention" class="bg-gray-50 rounded-lg p-2.5 mb-2.5 border border-gray-200 flex items-center gap-2">
+            <Calendar :size="14" class="text-gray-400" />
+            <div>
+              <p class="text-[10px] text-gray-500 font-medium">Intervention : {{ reclamation.intervention.service }}</p>
+              <p class="text-[10px] text-gray-500">{{ formatDateShort(reclamation.intervention.date) }}</p>
+            </div>
           </div>
 
           <div class="flex items-center gap-2.5 mb-2.5">
@@ -526,7 +555,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { AlertTriangle, Star, CheckCheck, Ban, XCircle } from 'lucide-vue-next'
+import { AlertTriangle, Star, CheckCheck, Ban, XCircle, Calendar } from 'lucide-vue-next'
 import adminService from '@/services/adminService'
 import AdminIntervenantProfile from './AdminIntervenantProfile.vue'
 import AdminClientDetails from './AdminClientDetails.vue'
@@ -954,11 +983,25 @@ const viewProfile = async (id, type) => {
       console.error('Type de profil non reconnu:', type)
       error(`Type de profil non reconnu: ${type}. ID: ${id}`)
     }
-  } catch (error) {
-    console.error('Erreur chargement profil:', error)
-    console.error('Détails:', { id, type, error: error.response?.data || error.message })
-    error(`Erreur lors du chargement du profil: ${error.response?.data?.message || error.message}`)
+  } catch (err) {
+    console.error('Erreur chargement profil:', err)
+    error(`Erreur lors du chargement du profil: ${err.response?.data?.message || err.message}`)
   }
+}
+
+const formatDateShort = (dateString) => {
+  if (!dateString) return 'N/A'
+  return new Date(dateString).toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  })
+}
+
+const viewInterventionDetails = (id) => {
+  // Optionnel: implémenter une vue détaillée ou rediriger
+  // Pour l'instant, disons qu'on affiche un message ou qu'on utilise un modal existant si dispo
+  alert(`Détails de l'intervention #${id}`)
 }
 
 onMounted(async () => {

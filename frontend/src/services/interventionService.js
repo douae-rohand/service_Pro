@@ -74,7 +74,7 @@ const interventionService = {
     try {
       const response = await api.get('interventions', { params: { clientId } });
       const interventions = response.data.data || response.data;
-      
+
       return {
         pending: interventions.filter(i => this.mapStatus(i.status) === 'pending').length,
         accepted: interventions.filter(i => this.mapStatus(i.status) === 'accepted').length,
@@ -96,6 +96,7 @@ const interventionService = {
     const statusMap = {
       'en_attente': 'pending',
       'en attente': 'pending',
+      'en attend': 'pending',
       'acceptee': 'accepted',
       'acceptée': 'accepted',
       'acceptées': 'accepted',
@@ -103,10 +104,12 @@ const interventionService = {
       'en cours': 'in-progress',
       'terminee': 'completed',
       'terminée': 'completed',
+      'termine': 'completed',
       'terminées': 'completed',
       'annulee': 'cancelled',
       'annulée': 'cancelled',
       'annulées': 'cancelled',
+      'refuse': 'rejected',
       'refusee': 'rejected',
       'refusée': 'rejected',
       'refusées': 'rejected',
@@ -121,7 +124,7 @@ const interventionService = {
    */
   transformIntervention(intervention) {
     const status = this.mapStatus(intervention.status);
-    
+
     return {
       id: intervention.id,
       service: intervention.tache?.service?.nom_service || 'N/A',
@@ -166,13 +169,13 @@ const interventionService = {
    */
   extractClientRating(evaluations) {
     if (!evaluations || evaluations.length === 0) return null;
-    
+
     const clientEvaluations = evaluations.filter(e => e.type_auteur === 'client');
     if (clientEvaluations.length === 0) return null;
 
     const criteriaRatings = {};
     let totalRating = 0;
-    
+
     clientEvaluations.forEach(evaluation => {
       const criteriaName = evaluation.critaire?.nom_critaire?.toLowerCase().replace(/\s+/g, '_') || 'quality';
       criteriaRatings[criteriaName] = evaluation.note || 0;
@@ -180,7 +183,7 @@ const interventionService = {
     });
 
     const commentaire = clientEvaluations.find(evaluation => evaluation.commentaire)?.commentaire || '';
-    
+
     return {
       criteriaRatings,
       overallRating: totalRating / clientEvaluations.length,
@@ -209,12 +212,12 @@ const interventionService = {
    */
   transformMaterials(materiels) {
     if (!materiels || materiels.length === 0) return {};
-    
+
     const materialsObj = {};
     materiels.forEach(m => {
       materialsObj[m.nom_materiel] = true; // All materials in intervention are available
     });
-    
+
     return materialsObj;
   },
 

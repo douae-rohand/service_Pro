@@ -55,6 +55,10 @@
             <p class="reclamation-concernant">
               Concernant: <strong>{{ reclamation.concernant_name }}</strong>
             </p>
+            <div v-if="reclamation.intervention_id" class="reclamation-intervention-tag">
+              <Calendar :size="12" />
+              <span>Intervention liée #{{ reclamation.intervention_id }}</span>
+            </div>
           </div>
           <div class="reclamation-badges">
             <span class="badge badge-status" :class="getStatusBadgeClass(reclamation.statut)">
@@ -211,6 +215,10 @@
                 <label>Dernière mise à jour:</label>
                 <p>{{ formatDate(selectedReclamation.updated_at) }}</p>
               </div>
+              <div v-if="selectedReclamation.intervention_id" class="detail-item">
+                <label>Intervention liée:</label>
+                <p class="text-blue-600 font-bold">#{{ selectedReclamation.intervention_id }}</p>
+              </div>
             </div>
           </div>
 
@@ -235,7 +243,7 @@
 
 <script setup>
 import { ref, onMounted, watch } from 'vue'
-import { Plus, X, AlertCircle } from 'lucide-vue-next'
+import { Plus, X, AlertCircle, Calendar } from 'lucide-vue-next'
 import clientReclamationService from '@/services/clientReclamationService'
 import authService from '@/services/authService'
 import profileService from '@/services/profileService'
@@ -279,8 +287,27 @@ const form = ref({
 
 // Watch for preselected intervenant
 watch(() => props.preselectedIntervenantId, (newId) => {
-  // Logic could be adapted to pre-select an intervention if passed
+  if (newId && interventions.value.length > 0) {
+    const matchingIntervention = interventions.value.find(i => 
+      (i.providerId === newId || i.intervenant_id === newId)
+    )
+    if (matchingIntervention) {
+      selectedInterventionId.value = matchingIntervention.id
+    }
+  }
 }, { immediate: true })
+
+// Also watch interventions for when they load
+watch(interventions, (newVal) => {
+  if (props.preselectedIntervenantId && newVal.length > 0) {
+    const matchingIntervention = newVal.find(i => 
+      (i.providerId === props.preselectedIntervenantId || i.intervenant_id === props.preselectedIntervenantId)
+    )
+    if (matchingIntervention) {
+      selectedInterventionId.value = matchingIntervention.id
+    }
+  }
+})
 
 // Watch for auto-open
 watch(() => props.autoOpenCreate, (shouldOpen) => {
@@ -368,9 +395,10 @@ async function submitReclamation() {
     
     await clientReclamationService.create({
       concernant_id: parseInt(providerId),
-      concernant_type: 'Intervenant', // We keep backend logic happy
+      concernant_type: 'Intervenant',
+      intervention_id: selectedIntervention.id,
       raison: form.value.raison,
-      message: contextMessage,
+      message: form.value.message,
       priorite: form.value.priorite
     })
 
@@ -604,6 +632,19 @@ function getPriorityBadgeClass(priority) {
 .reclamation-concernant {
   color: #666;
   font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.reclamation-intervention-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: #E3F2FD;
+  color: #1976D2;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .reclamation-badges {

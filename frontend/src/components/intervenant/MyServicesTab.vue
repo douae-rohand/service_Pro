@@ -5,29 +5,40 @@
       {{ error }}
     </div>
 
-    <!-- Loading State -->
-    <div v-if="loading" class="loading-state">
-      <p>Chargement des sous-services...</p>
-    </div>
-
     <!-- Stats -->
-    <div v-if="!loading" class="stats-grid">
-      <div class="stat-card stat-green">
-        <p class="stat-label">Sous-services Actifs</p>
-        <p class="stat-value">{{ activeServices }}</p>
-      </div>
-      <div class="stat-card stat-blue">
-        <p class="stat-label">Total Sous-services</p>
-        <p class="stat-value">{{ totalServices }}</p>
-      </div>
-      <div class="stat-card stat-orange">
-        <p class="stat-label">Missions Complétées</p>
-        <p class="stat-value">{{ totalCompletedJobs }}</p>
-      </div>
+    <div class="stats-grid">
+      <template v-if="loading">
+        <div class="stat-card skeleton-item border-l-4 border-green-500">
+          <div class="skeleton-text" style="width: 8rem; height: 1rem; margin-bottom: 0.5rem; background-color: #E2E8F0;"></div>
+          <div class="skeleton-text" style="width: 3rem; height: 2rem; background-color: #E2E8F0;"></div>
+        </div>
+        <div class="stat-card skeleton-item border-l-4 border-blue-500">
+           <div class="skeleton-text" style="width: 8rem; height: 1rem; margin-bottom: 0.5rem; background-color: #E2E8F0;"></div>
+           <div class="skeleton-text" style="width: 3rem; height: 2rem; background-color: #E2E8F0;"></div>
+        </div>
+        <div class="stat-card skeleton-item border-l-4 border-orange-500">
+           <div class="skeleton-text" style="width: 8rem; height: 1rem; margin-bottom: 0.5rem; background-color: #E2E8F0;"></div>
+           <div class="skeleton-text" style="width: 3rem; height: 2rem; background-color: #E2E8F0;"></div>
+        </div>
+      </template>
+      <template v-else>
+        <div class="stat-card stat-green">
+          <p class="stat-label">Sous-services Actifs</p>
+          <p class="stat-value">{{ activeServices }}</p>
+        </div>
+        <div class="stat-card stat-blue">
+          <p class="stat-label">Total Sous-services</p>
+          <p class="stat-value">{{ totalServices }}</p>
+        </div>
+        <div class="stat-card stat-orange">
+          <p class="stat-label">Missions Complétées</p>
+          <p class="stat-value">{{ totalCompletedJobs }}</p>
+        </div>
+      </template>
     </div>
 
     <!-- Services List -->
-    <div v-if="!loading" class="card">
+    <div class="card">
       <div class="card-header">
         <div>
           <h1>Mes Sous-services</h1>
@@ -35,7 +46,50 @@
         </div>
       </div>
 
-      <div class="services-list">
+      <div v-if="loading" class="services-list">
+        <div v-for="n in 3" :key="n" class="service-item skeleton-item" style="border-color: #cbd5e1 !important; background-color: #f8fafc !important; border-width: 2px; border-style: solid;">
+          <div>
+            <div class="service-header justify-between items-start" style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <div class="w-full" style="width: 100%;">
+                <div class="service-title flex items-center gap-2 mb-2" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                   <!-- Title -->
+                  <div class="skeleton-text" style="width: 12rem; height: 1.5rem; border-radius: 0.25rem; background-color: #E2E8F0;"></div> 
+                   <!-- Status Badge -->
+                  <div class="skeleton-box" style="width: 4rem; height: 1.25rem; border-radius: 9999px; background-color: #E2E8F0;"></div>
+                </div>
+                <!-- Description -->
+                <div class="skeleton-text" style="width: 75%; height: 1rem; border-radius: 0.25rem; margin-bottom: 0.5rem; background-color: #E2E8F0;"></div>
+                <!-- Meta -->
+                <div class="service-meta flex gap-2 mt-2" style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                   <div class="skeleton-box" style="width: 5rem; height: 1rem; border-radius: 9999px; background-color: #E2E8F0;"></div>
+                   <div class="skeleton-box" style="width: 4rem; height: 1rem; border-radius: 9999px; background-color: #E2E8F0;"></div>
+                </div>
+              </div>
+              <!-- Action Button Placeholder -->
+              <div class="service-actions ml-4" style="margin-left: 1rem;">
+                 <div class="skeleton-box" style="width: 2.5rem; height: 2.5rem; border-radius: 0.5rem; background-color: #E2E8F0;"></div> 
+              </div>
+            </div>
+
+            <!-- Rate Section -->
+            <div class="rate-badge mt-4" style="margin-top: 1rem;">
+               <div class="skeleton-box" style="width: 6rem; height: 1.25rem; border-radius: 0.25rem; background-color: #E2E8F0;"></div>
+            </div>
+
+            <!-- Materials -->
+            <div class="materials-section mt-4" style="margin-top: 1rem;">
+              <div class="skeleton-text" style="width: 8rem; height: 1rem; margin-bottom: 0.5rem; background-color: #E2E8F0;"></div>
+              <div class="materials-tags flex flex-wrap gap-2" style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                <div class="skeleton-box" style="width: 6rem; height: 1.5rem; border-radius: 9999px; background-color: #E2E8F0;"></div>
+                <div class="skeleton-box" style="width: 8rem; height: 1.5rem; border-radius: 9999px; background-color: #E2E8F0;"></div>
+                <div class="skeleton-box" style="width: 5rem; height: 1.5rem; border-radius: 9999px; background-color: #E2E8F0;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-else class="services-list">
         <div
           v-for="service in displayedServices"
           :key="service.id"
@@ -52,7 +106,10 @@
               <input v-model.number="editData.hourlyRate" type="number" min="1" />
             </div>
             <div class="button-group">
-              <button @click="saveEdit(service.id)" class="save-btn">Enregistrer</button>
+              <button @click="saveEdit(service.id)" class="save-btn" :disabled="isSaving">
+                <span v-if="isSaving">Enregistrement...</span>
+                <span v-else>Enregistrer</span>
+              </button>
               <button @click="editingService = null" class="cancel-btn">Annuler</button>
             </div>
           </div>
@@ -104,10 +161,10 @@
             </div>
           </div>
         </div>
-      </div>
-
-      <div v-if="displayedServices.length === 0" class="empty-state">
-        <p>Vous n'avez pas encore configuré de sous-services</p>
+      
+        <div v-if="!loading && displayedServices.length === 0" class="empty-state">
+          <p>Vous n'avez pas encore configuré de sous-services</p>
+        </div>
       </div>
     </div>
   </div>
@@ -117,9 +174,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { Edit2, Trash2, Coins } from 'lucide-vue-next'
 import intervenantTacheService from '@/services/intervenantTacheService'
+import SkeletonLoader from './SkeletonLoader.vue'
 
 const services = ref([])
-const loading = ref(false)
+const loading = ref(true)
 const error = ref(null)
 
 const materialsByService = {
@@ -206,8 +264,11 @@ const startEdit = (service) => {
   }
 }
 
+const isSaving = ref(false)
+
 const saveEdit = async (id) => {
   try {
+    isSaving.value = true
     await intervenantTacheService.updateMyTache(id, {
       hourlyRate: editData.value.hourlyRate,
     })
@@ -221,6 +282,8 @@ const saveEdit = async (id) => {
   } catch (err) {
     alert(err.response?.data?.message || 'Erreur lors de la sauvegarde')
     console.error(err)
+  } finally {
+    isSaving.value = false
   }
 }
 
@@ -243,6 +306,23 @@ const deleteService = async (id) => {
 </script>
 
 <style scoped>
+/* Skeleton Styles */
+.skeleton-item {
+  border-color: #e5e7eb !important;
+  background-color: #ffffff !important;
+  pointer-events: none;
+}
+
+.skeleton-box {
+  background-color: #f3f4f6;
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 .container {
   max-width: 80rem;
 }
@@ -614,5 +694,25 @@ const deleteService = async (id) => {
     align-items: flex-start;
     gap: var(--spacing-3);
   }
+}
+
+/* Skeleton Styles */
+.skeleton-item {
+  border-color: #e5e7eb !important;
+  background-color: #ffffff !important;
+  pointer-events: none;
+}
+.skeleton-box {
+  background-color: #f3f4f6;
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+.skeleton-text {
+  background-color: #f3f4f6;
+  border-radius: 4px;
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 </style>

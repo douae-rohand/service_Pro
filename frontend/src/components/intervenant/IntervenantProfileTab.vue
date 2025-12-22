@@ -133,7 +133,7 @@ export default {
     intervenant: { type: Object, required: true }
   },
   mounted() {
-    console.log("IntervenantProfileTab mounted. Services:", this.intervenant.services);
+    // Component mounted, services should be available from prop
   },
   data() {
     return {

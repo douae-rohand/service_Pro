@@ -128,6 +128,14 @@ class Intervention extends Model
     }
 
     /**
+     * Get the reclamations for this intervention.
+     */
+    public function reclamations()
+    {
+        return $this->hasMany(Reclamation::class, 'intervention_id', 'id');
+    }
+
+    /**
      * Scope a query to filter interventions by status.
      */
     public function scopeByStatus(Builder $query, string $status): Builder

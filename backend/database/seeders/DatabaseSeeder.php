@@ -60,9 +60,10 @@ class DatabaseSeeder extends Seeder
             EvaluationSeeder::class,
             CommentaireSeeder::class,
             FactureSeeder::class,
+            ReclamationSeeder::class,
         ]);
 
-        // Additional test data for admin features
-        $this->call(TestDataSeeder::class);
+        // Additional test data for admin features (optionnel - peut être supprimé)
+        // $this->call(TestDataSeeder::class);
     }
 }

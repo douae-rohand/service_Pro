@@ -717,6 +717,11 @@ const notification = ref(null)
 const showLoadingModal = ref(false)
 const loadingMessage = ref('')
 
+// Variables pour les réclamations passées
+const showPastComplaintsModal = ref(false)
+const pastComplaints = ref([])
+const isLoadingPastComplaints = ref(false)
+
 const fetchAllServices = async () => {
   try {
     const response = await api.get('services')
@@ -967,6 +972,39 @@ const handleViewEvaluation = (interventionId) => {
 
 const onRatingSubmitted = async () => {
   await fetchReservations()
+}
+
+const openPastComplaintsModal = async (reservation) => {
+  selectedReservation.value = reservation
+  showPastComplaintsModal.value = true
+  isLoadingPastComplaints.value = true
+  pastComplaints.value = []
+  
+  try {
+    const response = await api.get(`/interventions/${reservation.id}/my-reclamations`)
+    pastComplaints.value = response.data.reclamations || []
+  } catch (error) {
+    console.error('Error fetching past complaints:', error)
+    alert('Erreur lors du chargement des réclamations passées')
+  } finally {
+    isLoadingPastComplaints.value = false
+  }
+}
+
+const closePastComplaintsModal = () => {
+  showPastComplaintsModal.value = false
+  pastComplaints.value = []
+}
+
+const formatStatus = (status) => {
+  const map = {
+    'en_attente': 'En attente',
+    'en_cours': 'En cours',
+    'resolue': 'Résolue',
+    'rejeter': 'Rejetée',
+    'rejete': 'Rejetée'
+  }
+  return map[status] || status
 }
 
 const showNotification = (message, type = 'info') => {

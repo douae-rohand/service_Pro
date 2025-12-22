@@ -249,6 +249,7 @@
           <div class="service-header">
             <span class="service-name">{{ service.name }}</span>
             <div class="service-actions">
+              <!-- Bouton d'archivage visible si service est actif -->
               <button
                 v-if="serviceStates[service.id]"
                 @click="archiveService(service.id)"
@@ -257,15 +258,15 @@
               >
                 <Archive :size="16" />
               </button>
+              
+              <!-- Toggle masqué si service est actif, visible pour les autres états -->
               <button
+                v-if="!serviceStates[service.id]"
                 @click="toggleService(service.id, service.name)"
                 class="toggle-switch"
-                :style="{ backgroundColor: serviceStates[service.id] ? service.color : '#E0E0E0' }"
+                :style="{ backgroundColor: '#E0E0E0' }"
               >
-                <span
-                  class="toggle-slider"
-                  :class="{ 'toggle-slider-active': serviceStates[service.id] }"
-                ></span>
+                <span class="toggle-slider"></span>
               </button>
             </div>
           </div>

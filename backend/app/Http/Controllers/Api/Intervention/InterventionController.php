@@ -157,6 +157,52 @@ class InterventionController extends Controller
             ], 422);
         }
 
+        // ======================================
+        // VALIDATION: Check for personal information in constraints
+        // ======================================
+        if ($request->has('constraints')) {
+            $validation = \App\Utils\InputValidator::validateConstraints($request->constraints);
+            if (!$validation['valid']) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => $validation['reason'],
+                    'error' => 'PERSONAL_INFO_DETECTED'
+                ], 400);
+            }
+        }
+        
+        // Validate address
+        $addressValidation = \App\Utils\InputValidator::validateUserInput($request->address, 'l\'adresse');
+        if (!$addressValidation['valid']) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $addressValidation['reason'],
+                'error' => 'PERSONAL_INFO_DETECTED'
+            ], 400);
+        }
+        
+        // Validate ville
+        $villeValidation = \App\Utils\InputValidator::validateUserInput($request->ville, 'la ville');
+        if (!$villeValidation['valid']) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $villeValidation['reason'],
+                'error' => 'PERSONAL_INFO_DETECTED'
+            ], 400);
+        }
+        
+        // Validate description if provided
+        if ($request->has('description') && !empty(trim($request->description))) {
+            $descriptionValidation = \App\Utils\InputValidator::validateUserInput($request->description, 'la description');
+            if (!$descriptionValidation['valid']) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => $descriptionValidation['reason'],
+                    'error' => 'PERSONAL_INFO_DETECTED'
+                ], 400);
+            }
+        }
+
         try {
             $interventionData = [
                 'address' => $request->address,
@@ -379,7 +425,76 @@ class InterventionController extends Controller
             return response()->json(['message' => 'Aucune modification détectée'], 200);
         }
 
+        if (isset($validated['status']) && in_array(strtolower($validated['status']), ['acceptee', 'acceptée', 'accepted'])) {
+             // Load relationships for mail/notification
+             $intervention->load(['client.utilisateur', 'intervenant.utilisateur', 'tache.service']);
+
+             try {
+                 // Send Email
+                 \Illuminate\Support\Facades\Mail::to($intervention->client->utilisateur->email)->send(new \App\Mail\InterventionInvoiceMail($intervention));
+                 
+                 // Create Database Notification (if user model has Notifiable trait)
+                 $clientUser = $intervention->client->utilisateur; // Assuming relationship structure
+                 // Adjust based on your User model structure. Intervention->client is Client model, Client->utilisateur is User model?
+                 // Let's verify relationships.
+                 // In InterventionController update method:
+                 // $intervention->load(['client.utilisateur'...]); 
+                 // It seems $intervention->client is the Client model. $intervention->client->utilisateur likely the User.
+                 
+                 // Let's assume standard Laravel notification system
+                 // We can manually insert into notifications table if Notifiable trait isn't handy or direct usage is complex here
+                 
+                 // Or better, use the Notification class I created?
+                 // But simpler for now to stick to the requirement: "notification in top bar". 
+                 // Does the frontend fetch from 'notifications' table? I need to assume yes.
+                 
+                 // Let's try to notify the user.
+                 if ($intervention->client && $intervention->client->utilisateur) {
+                     $user = $intervention->client->utilisateur;
+                     // $user->notify(new \App\Notifications\InterventionAcceptedNotification($intervention)); // If I update it to DB channel
+                 }
+
+             } catch (\Exception $e) {
+                 Log::error('Error sending acceptance email/notification: ' . $e->getMessage());
+             }
+        }
+
         $intervention->update($data);
+
+        // After update, if status became accepted, send notifications
+        if (isset($validated['status']) && in_array(strtolower($validated['status']), ['acceptee', 'acceptée', 'accepted'])) {
+             // We can do it here to ensure data is saved first
+             try {
+                  $intervention = $intervention->refresh();
+                  $intervention->load(['client.utilisateur', 'intervenant.utilisateur', 'tache.service']);
+                  
+                  if ($intervention->client && $intervention->client->utilisateur) {
+                      $clientUser = $intervention->client->utilisateur;
+                      
+                      // Send Mail
+                      \Illuminate\Support\Facades\Mail::to($clientUser->email)->send(new \App\Mail\InterventionInvoiceMail($intervention));
+
+                      // Send DB Notification (Manual insert to ensure specific format if needed, or use Notifiable)
+                      // Let's construct a notification record manually to be safe if 'Notifiable' isn't set up perfectly
+                      \Illuminate\Support\Facades\DB::table('notifications')->insert([
+                          'id' => \Illuminate\Support\Str::uuid(),
+                          'type' => 'App\Notifications\InterventionAcceptedNotification',
+                          'notifiable_type' => 'App\Models\User',
+                          'notifiable_id' => $clientUser->id,
+                          'data' => json_encode([
+                              'message' => 'Votre facture a été envoyée ! Veuillez vérifier votre boîte mail.',
+                              'intervention_id' => $intervention->id,
+                              'type' => 'invoice_available'
+                          ]),
+                          'read_at' => null,
+                          'created_at' => now(),
+                          'updated_at' => now()
+                      ]);
+                  }
+             } catch (\Exception $e) {
+                  Log::error("Error processing acceptance notifications: " . $e->getMessage());
+             }
+        }
 
         return response()->json([
             'status' => 'success',

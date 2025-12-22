@@ -656,11 +656,19 @@ class AdminController extends Controller
         // Déterminer le statut : actif ou suspendu
         $statut = $intervenant->is_active ? 'actif' : 'suspendu';
         
-        // Récupérer TOUS les services (peu importe le statut) pour calculer l'expérience
-        // Mais filtrer uniquement les services ACTIVÉS pour l'affichage (limitation de 2 services)
-        $tousServices = $intervenant->services;
+        // Récupérer les services avec statuts actifs, désactivés ou archivés
+        // Exclure les services avec status 'refuse' et 'demmande' (gérés ailleurs)
+        $tousServices = $intervenant->services->filter(function($service) {
+            $pivotStatus = $service->pivot->status ?? null;
+            // Exclure les services refusés et en demande
+            if ($pivotStatus === 'refuse' || $pivotStatus === 'demmande') {
+                return false;
+            }
+            // Inclure seulement active, desactive, archive
+            return in_array($pivotStatus, ['active', 'desactive', 'archive']);
+        });
         
-        // Filtrer uniquement les services ACTIVÉS pour l'affichage
+        // Filtrer uniquement les services ACTIVÉS pour l'affichage principal
         // 1. Le service doit être actif dans la table pivot (intervenant_service.status = 'active')
         // 2. Le service lui-même doit être actif (service.status = 'active')
         $servicesActives = $tousServices->filter(function($service) {
@@ -755,6 +763,22 @@ class AdminController extends Controller
 
         // Si l'intervenant n'a pas de services
         if (!$hasServices) {
+            // Construire allServicesWithDetailsAll même s'il n'y a pas de services actifs
+            // Cela permet d'afficher les services désactivés ou archivés dans l'admin
+            $allServicesWithDetailsAll = $tousServices->map(function($service) {
+                $status = $service->pivot->status ?? null;
+                // S'assurer que le statut est une string (et non null)
+                $status = $status ? (string)$status : null;
+                
+                return [
+                    'nom_service' => $service->nom_service,
+                    'id' => $service->id,
+                    'experience' => $this->formatExperience($service->pivot->experience ?? null),
+                    'presentation' => $service->pivot->presentation ?? null,
+                    'status' => $status // Statut: active, desactive, ou archive (toujours string)
+                ];
+            })->toArray();
+            
             return response()->json([
                 'id' => $intervenant->id,
                 'nom' => $intervenant->utilisateur->nom ?? '',
@@ -767,8 +791,9 @@ class AdminController extends Controller
                 'experience' => null,
                 'service' => null,
                 'serviceId' => null,
-                'allServices' => [],
+                'allServices' => $tousServices->pluck('nom_service')->toArray(), // TOUS les services pour navigation
                 'allServicesWithDetails' => [],
+                'allServicesWithDetailsAll' => $allServicesWithDetailsAll, // TOUS les services avec détails pour toggle
                 'note' => 0,
                 'nbAvis' => 0,
                 'missions' => 0,
@@ -924,15 +949,19 @@ class AdminController extends Controller
             $experience = $this->formatExperience($servicePrincipal->pivot->experience ?? null);
         }
         
-        // Construire allServicesWithDetails avec TOUS les services (pour avoir toutes les expériences)
-        // Mais seulement afficher les services actifs dans le frontend (limitation de 2)
+        // Construire allServicesWithDetails avec TOUS les services (active, desactive, archive uniquement)
+        // Exclure refuse et demmande
         $allServicesWithDetails = $tousServices->map(function($service) {
+            $status = $service->pivot->status ?? null;
+            // S'assurer que le statut est une string (et non null)
+            $status = $status ? (string)$status : null;
+            
             return [
                 'nom_service' => $service->nom_service,
                 'id' => $service->id,
                 'experience' => $this->formatExperience($service->pivot->experience ?? null),
                 'presentation' => $service->pivot->presentation ?? null,
-                'status' => $service->pivot->status ?? null // Ajouter le statut pour pouvoir filtrer côté frontend
+                'status' => $status // Statut: active, desactive, ou archive (toujours string)
             ];
         })->toArray();
         
@@ -953,9 +982,9 @@ class AdminController extends Controller
             'experience' => $experience, // Experience du service principal (pour compatibilité)
             'service' => $servicePrincipal ? $servicePrincipal->nom_service : null,
             'serviceId' => $servicePrincipal ? $servicePrincipal->id : null,
-            'allServices' => $servicesActives->pluck('nom_service')->toArray(), // Seulement les services ACTIVÉS (pour compatibilité - limitation de 2)
+            'allServices' => $tousServices->pluck('nom_service')->toArray(), // TOUS les services (actifs et désactivés) pour navigation - permet de voir tous les services dans l'admin
             'allServicesWithDetails' => $allServicesWithDetailsActifs, // Services ACTIFS avec détails (nom, id, experience) - pour affichage (limitation de 2)
-            'allServicesWithDetailsAll' => $allServicesWithDetails, // TOUS les services avec détails (pour calculer l'expérience de tous les services)
+            'allServicesWithDetailsAll' => $allServicesWithDetails, // TOUS les services avec détails (nom, id, experience, presentation, status) - pour toggle
             'note' => $avgNote ? round($avgNote, 1) : 0,
             'nbAvis' => $nbAvis,
             'missions' => $interventions->count(),
@@ -1029,6 +1058,72 @@ class AdminController extends Controller
     }
 
     /**
+     * Toggle service status for an intervenant (Admin only)
+     * Cette méthode permet à l'admin d'activer/désactiver un service pour un intervenant
+     * sans supprimer la présentation et l'expérience
+     * 
+     * @param int $intervenantId
+     * @param int $serviceId
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function toggleIntervenantServiceStatus($intervenantId, $serviceId)
+    {
+        try {
+            $intervenant = Intervenant::findOrFail($intervenantId);
+            $service = Service::findOrFail($serviceId);
+
+            // Vérifier que la relation existe
+            $existing = DB::table('intervenant_service')
+                ->where('intervenant_id', $intervenantId)
+                ->where('service_id', $serviceId)
+                ->first();
+
+            if (!$existing) {
+                return response()->json([
+                    'error' => 'Relation intervenant-service non trouvée'
+                ], 404);
+            }
+
+            // Toggle le statut (active <-> desactive)
+            // Ne pas toucher aux statuts 'archive', 'refuse', 'demmande'
+            if (!in_array($existing->status, ['active', 'desactive'])) {
+                return response()->json([
+                    'error' => 'Impossible de modifier le statut de ce service. Statut actuel: ' . $existing->status
+                ], 400);
+            }
+            
+            $newStatus = ($existing->status === 'active') ? 'desactive' : 'active';
+
+            // Mettre à jour le statut SANS supprimer présentation et expérience
+            DB::table('intervenant_service')
+                ->where('intervenant_id', $intervenantId)
+                ->where('service_id', $serviceId)
+                ->update([
+                    'status' => $newStatus,
+                    'updated_at' => now(),
+                ]);
+
+            return response()->json([
+                'message' => $newStatus === 'active' ? 'Service activé pour cet intervenant' : 'Service désactivé pour cet intervenant',
+                'status' => $newStatus,
+                'isActive' => $newStatus === 'active'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Erreur toggleIntervenantServiceStatus: ' . $e->getMessage(), [
+                'intervenant_id' => $intervenantId,
+                'service_id' => $serviceId,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'error' => 'Erreur lors de la modification du statut du service',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Download a justificatif file
      */
     public function downloadJustificatif($id)
@@ -1070,14 +1165,26 @@ class AdminController extends Controller
     public function getPendingRequests(Request $request)
     {
         try {
-            // Récupérer uniquement les intervenants ACTIFS qui ont AU MOINS UN SERVICE avec status='demmande'
-            // ET qui concernent des services ACTIFS
+            // ========================================================================
+            // LOGIQUE DE FILTRAGE - AdminDemandes
+            // ========================================================================
+            // Cette méthode affiche UNIQUEMENT les demandes qui satisfont TOUTES ces conditions :
+            // 1. Intervenant ACTIF (is_active = true)
+            // 2. Service ACTIF (service.status = 'active')
+            // 3. Demande EN ATTENTE (intervenant_service.status = 'demmande')
+            //
+            // IMPORTANT : Si un intervenant ou un service est désactivé APRÈS la création
+            // de la demande, le statut 'demmande' reste INCHANGÉ en base de données,
+            // mais la demande DISPARAÎT de cette liste (filtrage dynamique).
+            // Si l'intervenant ou le service est réactivé, la demande RÉAPPARAÎT automatiquement.
+            // ========================================================================
+            
             $query = Intervenant::with(['utilisateur', 'services', 'taches.service', 'justificatifs'])
-                ->where('is_active', true) // Uniquement les intervenants actifs
+                ->where('is_active', true) // FILTRE 1 : Uniquement les intervenants actifs
                 ->whereHas('services', function($q) {
-                    // Seulement les services avec status = 'demmande' dans la table pivot
+                    // FILTRE 2 : Seulement les services avec status = 'demmande' dans la table pivot
                     $q->where('intervenant_service.status', 'demmande');
-                    // IMPORTANT : Filtrer uniquement les services ACTIFS (service.status = 'active')
+                    // FILTRE 3 : Filtrer uniquement les services ACTIFS (service.status = 'active')
                     // Cela garantit qu'on ne montre que les demandes pour des services actifs
                     if (Schema::hasColumn('service', 'status')) {
                         $q->where('service.status', 'active');

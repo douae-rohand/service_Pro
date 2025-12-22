@@ -240,6 +240,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('intervenants', [AdminController::class, 'getIntervenants']);
         Route::get('intervenants/{id}', [AdminController::class, 'getIntervenantDetails']);
         Route::post('intervenants/{id}/toggle-status', [AdminController::class, 'toggleIntervenantStatus']);
+        Route::post('intervenants/{intervenantId}/services/{serviceId}/toggle-status', [AdminController::class, 'toggleIntervenantServiceStatus']);
         Route::get('justificatifs/{id}/download', [AdminController::class, 'downloadJustificatif']);
 
         Route::get('demandes', [AdminController::class, 'getPendingRequests']);

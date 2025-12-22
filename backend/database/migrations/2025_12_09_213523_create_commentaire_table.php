@@ -18,6 +18,7 @@ return new class extends Migration
             $table->timestamp('updated_at')->useCurrentOnUpdate()->useCurrent();
             $table->integer('intervention_id')->nullable()->index('intervention_id');
             $table->enum('type_auteur', ['client', 'intervenant'])->nullable();
+            $table->boolean('is_public')->default(false);
         });
     }
 

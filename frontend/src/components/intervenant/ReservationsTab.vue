@@ -173,10 +173,10 @@
                   <span class="status-badge status-completed">
                     Terminée
                   </span>
-                  <button @click="generateInvoice(reservation.id)" class="invoice-btn">
-                    <FileText :size="16" />
-                    Facture
-                  </button>
+<!--                  <button @click="generateInvoice(reservation.id)" class="invoice-btn">-->
+<!--                    <FileText :size="16" />-->
+<!--                    Facture-->
+<!--                  </button>-->
 
                   <!-- View both evaluations (public) - HIGHEST PRIORITY -->
                   <button 
@@ -237,10 +237,10 @@
                   <span class="status-badge status-accepted">
                     Confirmée
                   </span>
-                  <button @click="generateInvoice(reservation.id)" class="invoice-btn">
-                    <FileText :size="16" />
-                    Facture
-                  </button>
+<!--                  <button @click="generateInvoice(reservation.id)" class="invoice-btn">-->
+<!--                    <FileText :size="16" />-->
+<!--                    Facture-->
+<!--                  </button>-->
                 </div>
                 <span v-else-if="selectedTab === 'refused'" class="status-badge status-refused">
                   Refusée
@@ -764,8 +764,15 @@ const formatDate = (dateStr) => {
 }
 
 const calculateTotal = (reservation) => {
-  const hours = parseInt(reservation.duration)
-  return reservation.hourlyRate * hours
+  const hours = parseFloat(reservation.duration_hours || reservation.duration || 0)
+  const laborTotal = reservation.hourlyRate * hours
+  
+  // Sum material prices (intervenant materials only)
+  const materialTotal = (reservation.intervenantMaterials || []).reduce((sum, mat) => {
+    return sum + (parseFloat(mat.prix_materiel) || 0)
+  }, 0)
+  
+  return (laborTotal + materialTotal).toFixed(2)
 }
 
 const fetchReservations = async (silent = false) => {
@@ -788,19 +795,19 @@ const fetchReservations = async (silent = false) => {
   }
 }
 
-const generateInvoice = async (id) => {
-  try {
-    const data = await reservationService.generateInvoice(id)
-    if (data.url) {
-      window.open(data.url, '_blank')
-    } else {
-      alert('Erreur: URL de facture manquante')
-    }
-  } catch (err) {
-    alert(err.message || 'Erreur lors de la génération de la facture')
-    console.error(err)
-  }
-}
+// const generateInvoice = async (id) => {
+//   try {
+//     const data = await reservationService.generateInvoice(id)
+//     if (data.url) {
+//       window.open(data.url, '_blank')
+//     } else {
+//       alert('Erreur: URL de facture manquante')
+//     }
+//   } catch (err) {
+//     alert(err.message || 'Erreur lors de la génération de la facture')
+//     console.error(err)
+//   }
+// }
 
 const acceptReservation = async (id) => {
   try {

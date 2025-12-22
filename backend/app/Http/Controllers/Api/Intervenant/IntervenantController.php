@@ -1612,14 +1612,24 @@ class IntervenantController extends Controller
             // Get materials used by intervenant in this intervention
             $intervenantMaterials = collect([]);
             if ($intervention->materiels) {
-                $intervenantMaterials = $intervention->materiels->map(function ($materiel) {
-                    return [
+                foreach ($intervention->materiels as $materiel) {
+                    $prixMateriel = 0;
+                    // Get price from Intervenant-Materiel pivot
+                    $intervenantMat = \App\Models\IntervenantMateriel::where('intervenant_id', $intervenant->id)
+                        ->where('materiel_id', $materiel->id)
+                        ->first();
+                    if ($intervenantMat) {
+                        $prixMateriel = $intervenantMat->prix_materiel;
+                    }
+
+                    $intervenantMaterials->push([
                         'id' => $materiel->id,
                         'name' => $materiel->nom_materiel,
                         'description' => $materiel->description,
+                        'prix_materiel' => (float)$prixMateriel,
                         'provided_by' => 'intervenant'
-                    ];
-                });
+                    ]);
+                }
             }
 
             // Combine all materials - merge works on Collections

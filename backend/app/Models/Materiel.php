@@ -49,7 +49,8 @@ class Materiel extends Model
             'intervenant_materiel',
             'materiel_id',
             'intervenant_id'
-        )->withTimestamps();
+        )->withPivot('prix_materiel')
+        ->withTimestamps();
     }
 
     /**

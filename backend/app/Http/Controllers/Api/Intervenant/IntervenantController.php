@@ -32,8 +32,18 @@ class IntervenantController extends Controller
                 'services'
             ]);
 
-            // Filtrer les intervenants actifs uniquement si demandé
-            if ($request->has('active') && $request->active == 'true') {
+            // Filtrer les intervenants actifs par défaut
+            // Si 'active' est présent et vaut 'false', on prend les inactifs
+            // Si 'active' est présent et vaut 'all', on prend tout
+            // Sinon (absent ou 'true'), on prend uniquement les actifs
+            $activeParam = $request->input('active');
+            
+            if ($activeParam === 'all') {
+                // No filter
+            } elseif ($activeParam === 'false' || $activeParam === '0') {
+                $query->where('is_active', false);
+            } else {
+                // Default or explicitly true
                 $query->active();
             }
 
@@ -57,8 +67,8 @@ class IntervenantController extends Controller
             $q->where('type_auteur', 'client');
         }]);
 
-        // Sélectionner uniquement les colonnes nécessaires
-        $intervenants = $query->select('intervenant.id', 'intervenant.ville', 'intervenant.bio', 'intervenant.is_active')
+        // Sélectionner uniquement les colonnes nécessaires (inclure address pour géolocalisation)
+        $intervenants = $query->select('intervenant.id', 'intervenant.address', 'intervenant.ville', 'intervenant.bio', 'intervenant.is_active')
             ->get();
 
         // Calculer la note moyenne et le nombre d'avis en mémoire pour éviter les requêtes SQL en boucle
@@ -423,11 +433,19 @@ class IntervenantController extends Controller
         // Start with simple query
         $query = Intervenant::query();
         
-        // Filter by active status FIRST (simplest filter)
-        if ($request->has('active')) {
-            $isActive = filter_var($request->active, FILTER_VALIDATE_BOOLEAN);
-            $query->where('is_active', $isActive);
-            Log::info('Filtering by active: ' . $isActive);
+        // Filter by active status
+        $activeParam = $request->input('active');
+        
+        if ($activeParam === 'all') {
+            // No filter
+            Log::info('Filtering by active: ALL');
+        } elseif ($activeParam === 'false' || $activeParam === '0') {
+            $query->where('is_active', false);
+            Log::info('Filtering by active: FALSE');
+        } else {
+            // Default or explicitly true
+            $query->where('is_active', true);
+            Log::info('Filtering by active: TRUE (Default)');
         }
         
         // Filter by service - using serviceId parameter
@@ -546,7 +564,7 @@ class IntervenantController extends Controller
             // Count tasks that this intervenant can perform for this service
             $tachesCount = \App\Models\Tache::where('service_id', $service->id)
                 ->whereHas('intervenants', function($query) use ($intervenant) {
-                    $query->where('intervenant_id', $intervenant->id);
+                    $query->where('intervenant.id', $intervenant->id);
                 })
                 ->count();
 

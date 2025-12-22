@@ -30,6 +30,15 @@
           </p>
         </div>
 
+        <div v-if="preselectedIntervention" class="form-group info-box">
+          <label>Intervention liée</label>
+          <div class="intervention-details">
+            <p><strong>Service:</strong> {{ preselectedIntervention.service }}</p>
+            <p><strong>Tâche:</strong> {{ preselectedIntervention.task }}</p>
+            <p><strong>Date:</strong> {{ formatDate(preselectedIntervention.date) }}</p>
+          </div>
+        </div>
+
         <div class="form-group">
           <label>Raison <span class="required">*</span></label>
           <input
@@ -92,6 +101,10 @@ const props = defineProps({
   preselectedIntervenantId: {
     type: Number,
     default: null
+  },
+  preselectedIntervention: {
+    type: Object,
+    default: null
   }
 })
 
@@ -104,15 +117,25 @@ const intervenants = ref([])
 
 const form = ref({
   concernant_id: '',
+  intervention_id: null,
   raison: '',
   message: '',
   priorite: 'moyenne'
 })
 
-// Watch for preselected intervenant
+// Watch for preselected intervenant or intervention
 watch(() => props.preselectedIntervenantId, (newId) => {
   if (newId) {
     form.value.concernant_id = newId.toString()
+  }
+}, { immediate: true })
+
+watch(() => props.preselectedIntervention, (newInt) => {
+  if (newInt) {
+    form.value.intervention_id = newInt.id
+    if (newInt.intervenant?.id) {
+      form.value.concernant_id = newInt.intervenant.id.toString()
+    }
   }
 }, { immediate: true })
 
@@ -145,6 +168,7 @@ async function submitReclamation() {
     await clientReclamationService.create({
       concernant_id: parseInt(form.value.concernant_id),
       concernant_type: 'Intervenant',
+      intervention_id: form.value.intervention_id,
       raison: form.value.raison,
       message: form.value.message,
       priorite: form.value.priorite
@@ -187,14 +211,32 @@ async function submitReclamation() {
 
 function close() {
   emit('close')
-  // Reset form but keep preselected intervenant if exists
+  // Reset form but keep props-based pre-selections
+  resetForm()
+  error.value = null
+}
+
+function resetForm() {
   form.value = {
     concernant_id: props.preselectedIntervenantId ? props.preselectedIntervenantId.toString() : '',
+    intervention_id: props.preselectedIntervention ? props.preselectedIntervention.id : null,
     raison: '',
     message: '',
     priorite: 'moyenne'
   }
-  error.value = null
+  
+  if (props.preselectedIntervention?.intervenant?.id) {
+    form.value.concernant_id = props.preselectedIntervention.intervenant.id.toString()
+  }
+}
+
+function formatDate(dateString) {
+  if (!dateString) return 'N/A'
+  return new Date(dateString).toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  })
 }
 </script>
 
@@ -249,6 +291,19 @@ function close() {
 
 .reclamation-form {
   padding: 24px;
+}
+
+.info-box {
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.intervention-details p {
+  margin: 4px 0;
+  font-size: 14px;
+  color: #475569;
 }
 
 .form-group {

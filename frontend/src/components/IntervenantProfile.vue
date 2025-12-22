@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen bg-gray-50">
-    <!-- Modern Header with Gradient -->
-    <div class="bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50 transition-all duration-300">
+    <!-- Modern Header (Non-sticky) -->
+    <div class="bg-white border-b border-gray-100">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <button
           @click="$emit('back')"
@@ -117,19 +117,15 @@
           <div class="flex gap-3">
             <button
               @click="handleFavoriteClick"
-              class="px-5 py-2.5 rounded-lg border-2 transition-all flex items-center gap-2"
-              :style="{ borderColor: primaryColor, color: primaryColor }"
+              class="px-5 py-2.5 rounded-lg border-2 transition-all flex items-center gap-2 hover:shadow-md"
+              :style="{ 
+                borderColor: isFavorite ? '#4682B4' : primaryColor, 
+                color: isFavorite ? '#4682B4' : primaryColor,
+                backgroundColor: isFavorite ? '#E8F4FD' : 'transparent'
+              }"
             >
-              <HeartIcon :size="18" :class="{ 'fill-current': isFavorite }" />
-              Ajouter aux favoris
-            </button>
-            <button
-              @click="showReclamationModal = true"
-              class="px-5 py-2.5 rounded-lg border-2 transition-all flex items-center gap-2"
-              style="borderColor: #e74c3c; color: #e74c3c"
-            >
-              <AlertTriangle :size="18" />
-              Signaler
+              <HeartIcon :size="18" :class="{ 'fill-current': isFavorite }" :style="{ color: isFavorite ? '#4682B4' : 'currentColor' }" />
+              {{ isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris' }}
             </button>
           </div>
         </div>
@@ -394,14 +390,6 @@
         class="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
       />
     </div>
-
-    <!-- Reclamation Modal -->
-    <CreateReclamationModal
-      :show="showReclamationModal"
-      :preselected-intervenant-id="intervenant.id"
-      @close="showReclamationModal = false"
-      @success="handleReclamationSuccess"
-    />
     </div>
   </div>
 </template>
@@ -415,14 +403,13 @@ import {
   CheckCircle as CheckCircleIcon, 
   Clock as ClockIcon,
   Camera as CameraIcon, 
-  X as XIcon,
-  AlertTriangle
+  X as XIcon
 } from 'lucide-vue-next';
 import ImageWithFallback from './figma/ImageWithFallback.vue';
 import BookingModal from './BookingModal.vue';
-import CreateReclamationModal from './client/CreateReclamationModal.vue';
 import intervenantService from '../services/intervenantService';
 import authService from '../services/authService';
+import favoriteService from '../services/favoriteService';
 import { formatExperience } from '@/utils/experienceFormatter';
 
 export default {
@@ -436,10 +423,8 @@ export default {
     ClockIcon,
     CameraIcon,
     XIcon,
-    AlertTriangle,
     ImageWithFallback,
-    BookingModal,
-    CreateReclamationModal
+    BookingModal
   },
   props: {
     intervenantId: {
@@ -460,7 +445,7 @@ export default {
       required: false
     }
   },
-  emits: ['back', 'login-required'],
+    emits: ['back', 'login-required', 'navigate-booking'],
   data() {
     return {
       selectedImage: null,
@@ -472,7 +457,6 @@ export default {
       selectedServiceForBooking: null,
       selectedTaskForBooking: null,
       hoverBackButton: false,
-      showReclamationModal: false,
       tabs: [
         { id: 'apropos', label: 'À propos' },
         { id: 'services', label: 'Taches' },
@@ -495,7 +479,8 @@ export default {
         services: [],
         reviews: [],
         photos: [],
-        availability: []
+        availability: [],
+        serviceId: null // Store the primary service ID
       }
     };
   },
@@ -543,23 +528,42 @@ export default {
     }
   },
   async created() {
-    if (this.intervenantData) {
-      this.loadFromProvidedData();
-    } 
+    console.log('🚀 IntervenantProfile created with:', {
+      intervenantId: this.intervenantId,
+      intervenantData: this.intervenantData,
+      service: this.service
+    });
     
+    // Déterminer l'ID à utiliser (priorité à intervenantId, puis intervenantData.id)
     const idToFetch = this.intervenantId || (this.intervenantData ? this.intervenantData.id : null);
     
     if (idToFetch) {
+      // Toujours charger depuis le backend pour avoir les données complètes
+      console.log('📡 Fetching full data from backend for ID:', idToFetch);
       await this.fetchIntervenantData(idToFetch);
+    } else if (this.intervenantData) {
+      // Fallback: utiliser les données fournies si pas d'ID disponible
+      console.log('📦 Using provided intervenantData (no ID available)');
+      await this.loadFromProvidedData();
     } else {
-      if (!this.intervenantData) {
-         this.error = "Aucune donnée d'intervenant fournie.";
-      }
+      this.error = "Aucune donnée d'intervenant fournie.";
+      console.error('❌ No intervenant data or ID provided');
     }
   },
   methods: {
-    loadFromProvidedData() {
+    async loadFromProvidedData() {
       const data = this.intervenantData;
+      
+      // Obtenir le service_id depuis les données fournies
+      let serviceId = null;
+      if (data.taches && data.taches.length > 0 && data.taches[0].service_id) {
+        serviceId = data.taches[0].service_id;
+      } else if (data.serviceId) {
+        serviceId = data.serviceId;
+      } else {
+        // Fallback: utiliser 1 pour Jardinage, 2 pour Ménage
+        serviceId = this.service === 'jardinage' ? 1 : 2;
+      }
       
       this.intervenant = {
         id: data.id,
@@ -576,21 +580,36 @@ export default {
         services: this.mapServices(data.taches || []),
         reviews: [],
         photos: [data.image].filter(Boolean),
-        availability: []
+        availability: [],
+        serviceId: serviceId
       };
+      
+      // Vérifier le statut favori
+      await this.checkFavoriteStatus();
     },
     
     async fetchIntervenantData(optionalId = null) {
       try {
+        this.loading = true;
         const id = optionalId || this.intervenantId;
-        if (!id) return;
+        if (!id) {
+          this.error = "ID de l'intervenant manquant";
+          return;
+        }
         
+        console.log('🔍 Fetching intervenant data for ID:', id);
         const response = await intervenantService.getById(id);
-        const data = response.data || response;
+        console.log('📦 Response from getById:', response);
+        
+        // Le service getById retourne déjà res.data, donc response est directement les données
+        // Mais il peut aussi y avoir un wrapper, donc on vérifie les deux
+        const data = response?.data || response;
 
         if (!data) {
           throw new Error("Données de l'intervenant introuvables");
         }
+        
+        console.log('✅ Parsed data:', data);
         
         const mappedPhotos = [];
         if (data.interventions) {
@@ -605,6 +624,30 @@ export default {
         
         const reviews = this.mapReviews(data.interventions);
         const fullName = data.utilisateur ? `${data.utilisateur.prenom || ''} ${data.utilisateur.nom || ''}`.trim() : 'Intervenant';
+
+        // Obtenir le service_id depuis les taches ou services
+        let serviceId = null;
+        if (data.taches && data.taches.length > 0 && data.taches[0].service_id) {
+          serviceId = data.taches[0].service_id;
+        } else if (data.taches && data.taches.length > 0 && data.taches[0].service?.id) {
+          serviceId = data.taches[0].service.id;
+        } else if (data.services && data.services.length > 0) {
+          // Chercher le service correspondant au prop 'service'
+          const targetServiceName = this.service === 'jardinage' ? 'Jardinage' : 'Ménage';
+          const matchingService = data.services.find(s => 
+            (s.nom_service || s.name || '').toLowerCase().includes(this.service)
+          );
+          if (matchingService) {
+            serviceId = matchingService.id || matchingService.service_id;
+          } else if (data.services[0]) {
+            serviceId = data.services[0].id || data.services[0].service_id;
+          }
+        }
+        
+        // Fallback: utiliser 1 pour Jardinage, 2 pour Ménage
+        if (!serviceId) {
+          serviceId = this.service === 'jardinage' ? 1 : 2;
+        }
 
         this.intervenant = {
           id: data.id,
@@ -621,13 +664,17 @@ export default {
           services: this.mapServices(data.taches),
           reviews: reviews, 
           photos: mappedPhotos,
-          availability: this.mapAvailability(data.disponibilites)
+          availability: this.mapAvailability(data.disponibilites),
+          serviceId: serviceId
         };
+        
+        // Vérifier le statut favori après le chargement des données
+        await this.checkFavoriteStatus();
       } catch (err) {
-        console.error("Erreur lors du chargement de l'intervenant:", err);
-        if (!this.intervenant.id) {
-             this.error = "Impossible de charger les informations de l'intervenant.";
-        }
+        console.error("❌ Erreur lors du chargement de l'intervenant:", err);
+        console.error("Error details:", err.response || err.message);
+        this.error = err.response?.data?.message || err.message || "Impossible de charger les informations de l'intervenant.";
+        this.loading = false;
       } finally {
         this.loading = false;
       }
@@ -746,14 +793,68 @@ export default {
       const anyExp = data.services.find(s => s.pivot && s.pivot.experience);
       return anyExp ? anyExp.pivot.experience : null;
     },
-    handleFavoriteClick() {
+    async handleFavoriteClick() {
+      // Vérifier l'authentification
       if (!authService.isAuthenticated()) {
         this.$emit('login-required');
         return;
       }
-      this.isFavorite = !this.isFavorite;
+
+      // Obtenir le service_id depuis l'intervenant ou utiliser le fallback
+      const serviceId = this.intervenant.serviceId || (this.service === 'jardinage' ? 1 : 2);
+
+      if (!serviceId || !this.intervenant.id) {
+        alert('Impossible de déterminer le service. Veuillez réessayer.');
+        return;
+      }
+
+      try {
+        // Appel API pour ajouter/retirer des favoris
+        const response = await favoriteService.toggleFavorite(
+          this.effectiveClientId,
+          this.intervenant.id,
+          serviceId
+        );
+
+        // Mettre à jour l'état local basé sur la réponse de l'API
+        this.isFavorite = response.data?.is_favorite ?? !this.isFavorite;
+        
+        // Afficher un message de succès
+        const message = this.isFavorite 
+          ? `${this.intervenant.name.split(' ')[0]} a été ajouté à vos favoris`
+          : `${this.intervenant.name.split(' ')[0]} a été retiré de vos favoris`;
+        
+        // Afficher une notification
+        alert(message);
+      } catch (error) {
+        console.error('Error toggling favorite:', error);
+        const errorMessage = error.response?.data?.message || error.message || 'Erreur lors de la mise à jour des favoris';
+        alert(errorMessage);
+        // Ne pas changer l'état en cas d'erreur (il restera dans son état précédent)
+      }
     },
     handleBookingClick(service = null, task = null) {
+      // Vérifier si l'utilisateur est connecté
+      if (!authService.isAuthenticated()) {
+        // Stocker les paramètres pour après connexion
+        localStorage.setItem('booking_intervenantId', this.intervenant.id);
+        if (service) {
+          localStorage.setItem('booking_serviceId', service.id);
+        }
+        if (task) {
+          localStorage.setItem('booking_taskId', task.id);
+        }
+        localStorage.setItem('redirect_after_login', 'booking');
+        this.$emit('login-required');
+        return;
+      }
+      
+      // Si connecté, rediriger vers la page de réservation
+      this.$emit('navigate-booking', {
+        intervenantId: this.intervenant.id,
+        serviceId: service?.id || null,
+        taskId: task?.id || null
+      });
       if (!authService.isAuthenticated()) {
         this.$emit('login-required');
         return;
@@ -765,11 +866,34 @@ export default {
     handleBookingSuccess() {
       this.showBookingModal = false;
     },
-    handleReclamationSuccess() {
-      this.showReclamationModal = false;
-      // Optionally show a success message or refresh data
-    },
-    formatExperience
+    formatExperience,
+    async checkFavoriteStatus() {
+      // Vérifier si l'utilisateur est connecté
+      if (!authService.isAuthenticated()) {
+        this.isFavorite = false;
+        return;
+      }
+
+      // Obtenir le service_id depuis l'intervenant ou utiliser le fallback
+      const serviceId = this.intervenant.serviceId || (this.service === 'jardinage' ? 1 : 2);
+
+      if (!serviceId || !this.intervenant.id) {
+        this.isFavorite = false;
+        return;
+      }
+
+      try {
+        const response = await favoriteService.checkStatus(
+          this.effectiveClientId,
+          this.intervenant.id,
+          serviceId
+        );
+        this.isFavorite = response.data?.is_favorite || false;
+      } catch (error) {
+        console.error('Error checking favorite status:', error);
+        this.isFavorite = false;
+      }
+    }
   }
 };
 </script>

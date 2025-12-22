@@ -55,6 +55,10 @@
             <p class="reclamation-concernant">
               Concernant: <strong>{{ reclamation.concernant_name }}</strong>
             </p>
+            <div v-if="reclamation.intervention_id" class="reclamation-intervention-tag">
+              <Calendar :size="12" />
+              <span>Intervention liée #{{ reclamation.intervention_id }}</span>
+            </div>
           </div>
           <div class="reclamation-badges">
             <span class="badge badge-status" :class="getStatusBadgeClass(reclamation.statut)">
@@ -100,27 +104,24 @@
 
         <form @submit.prevent="submitReclamation" class="reclamation-form">
           <div class="form-group">
-            <label>Type de réclamation <span class="required">*</span></label>
-            <select v-model="form.concernant_type" required>
-              <option value="">Sélectionner...</option>
-              <option value="Intervenant">Intervenant</option>
-            </select>
+             <label>Type de source</label>
+             <input type="text" value="Intervention Terminée" disabled class="bg-gray-100" />
           </div>
 
-          <div v-if="form.concernant_type === 'Intervenant'" class="form-group">
-            <label>Intervenant concerné <span class="required">*</span></label>
+          <div class="form-group">
+            <label>Intervention concernée <span class="required">*</span></label>
             <select
-              v-model="form.concernant_id"
+              v-model="selectedInterventionId"
               required
-              :disabled="loadingIntervenants"
+              :disabled="loadingInterventions"
             >
-              <option value="">Sélectionner un intervenant...</option>
+              <option value="">Sélectionner une intervention terminée...</option>
               <option
-                v-for="intervenant in intervenants"
-                :key="intervenant.id"
-                :value="intervenant.id"
+                v-for="intervention in interventions"
+                :key="intervention.id"
+                :value="intervention.id"
               >
-                {{ intervenant.utilisateur?.prenom }} {{ intervenant.utilisateur?.nom }}
+                {{ intervention.serviceName }} - {{ formatDate(intervention.date) }} ({{ intervention.providerName }})
               </option>
             </select>
           </div>
@@ -214,6 +215,10 @@
                 <label>Dernière mise à jour:</label>
                 <p>{{ formatDate(selectedReclamation.updated_at) }}</p>
               </div>
+              <div v-if="selectedReclamation.intervention_id" class="detail-item">
+                <label>Intervention liée:</label>
+                <p class="text-blue-600 font-bold">#{{ selectedReclamation.intervention_id }}</p>
+              </div>
             </div>
           </div>
 
@@ -238,9 +243,10 @@
 
 <script setup>
 import { ref, onMounted, watch } from 'vue'
-import { Plus, X, AlertCircle } from 'lucide-vue-next'
+import { Plus, X, AlertCircle, Calendar } from 'lucide-vue-next'
 import clientReclamationService from '@/services/clientReclamationService'
-import intervenantService from '@/services/intervenantService'
+import authService from '@/services/authService'
+import profileService from '@/services/profileService'
 
 const props = defineProps({
   // Optional: Pre-fill intervenant when opening from intervenant profile
@@ -261,8 +267,10 @@ const showCreateModal = ref(false)
 const selectedReclamation = ref(null)
 const submitting = ref(false)
 const error = ref(null)
-const loadingIntervenants = ref(false)
-const intervenants = ref([])
+const loadingInterventions = ref(false)
+const interventions = ref([])
+const selectedInterventionId = ref('')
+const currentUser = ref(null)
 
 const filters = ref({
   statut: 'all',
@@ -279,10 +287,27 @@ const form = ref({
 
 // Watch for preselected intervenant
 watch(() => props.preselectedIntervenantId, (newId) => {
-  if (newId) {
-    form.value.concernant_id = newId.toString()
+  if (newId && interventions.value.length > 0) {
+    const matchingIntervention = interventions.value.find(i => 
+      (i.providerId === newId || i.intervenant_id === newId)
+    )
+    if (matchingIntervention) {
+      selectedInterventionId.value = matchingIntervention.id
+    }
   }
 }, { immediate: true })
+
+// Also watch interventions for when they load
+watch(interventions, (newVal) => {
+  if (props.preselectedIntervenantId && newVal.length > 0) {
+    const matchingIntervention = newVal.find(i => 
+      (i.providerId === props.preselectedIntervenantId || i.intervenant_id === props.preselectedIntervenantId)
+    )
+    if (matchingIntervention) {
+      selectedInterventionId.value = matchingIntervention.id
+    }
+  }
+})
 
 // Watch for auto-open
 watch(() => props.autoOpenCreate, (shouldOpen) => {
@@ -292,9 +317,21 @@ watch(() => props.autoOpenCreate, (shouldOpen) => {
 }, { immediate: true })
 
 onMounted(async () => {
+  await loadCurrentUser()
   await loadReclamations()
-  await loadIntervenants()
+  if (currentUser.value) {
+    await loadHistory()
+  }
 })
+
+async function loadCurrentUser() {
+  try {
+     const res = await authService.getCurrentUser()
+     currentUser.value = res.data
+  } catch (e) {
+     console.error("Error loading user", e)
+  }
+}
 
 async function loadReclamations() {
   loading.value = true
@@ -318,31 +355,48 @@ async function loadReclamations() {
   }
 }
 
-async function loadIntervenants() {
-  loadingIntervenants.value = true
+async function loadHistory() {
+  if (!currentUser.value) return
+  
+  loadingInterventions.value = true
   try {
-    const response = await intervenantService.getAll({ active: 'true' })
-    intervenants.value = response.data || []
+    const clientId = currentUser.value.client?.id || currentUser.value.id
+    const response = await profileService.getHistory(clientId)
+    interventions.value = response.data.data || []
   } catch (err) {
-    console.error('Error loading intervenants:', err)
+    console.error('Error loading history:', err)
   } finally {
-    loadingIntervenants.value = false
+    loadingInterventions.value = false
   }
 }
 
 async function submitReclamation() {
-  if (!form.value.concernant_id || !form.value.raison || !form.value.message) {
+  if (!selectedInterventionId.value || !form.value.raison || !form.value.message) {
     error.value = 'Veuillez remplir tous les champs obligatoires'
     return
   }
+
+  const selectedIntervention = interventions.value.find(i => i.id === selectedInterventionId.value)
+  if (!selectedIntervention) {
+     error.value = "Intervention invalide"
+     return
+  }
+
+  // Enrich message with intervention context
+  const contextMessage = `[Intervention #${selectedIntervention.id} - ${selectedIntervention.serviceName} du ${formatDate(selectedIntervention.date)}] \n\n${form.value.message}`
 
   submitting.value = true
   error.value = null
 
   try {
+    // We link implicitly to the intervenant of the intervention
+    // Assuming selectedIntervention has providerId or we infer it
+    const providerId = selectedIntervention.providerId || selectedIntervention.intervenant_id
+    
     await clientReclamationService.create({
-      concernant_id: parseInt(form.value.concernant_id),
-      concernant_type: form.value.concernant_type,
+      concernant_id: parseInt(providerId),
+      concernant_type: 'Intervenant',
+      intervention_id: selectedIntervention.id,
       raison: form.value.raison,
       message: form.value.message,
       priorite: form.value.priorite
@@ -356,6 +410,7 @@ async function submitReclamation() {
       message: '',
       priorite: 'moyenne'
     }
+    selectedInterventionId.value = ''
 
     showCreateModal.value = false
     await loadReclamations()
@@ -577,6 +632,19 @@ function getPriorityBadgeClass(priority) {
 .reclamation-concernant {
   color: #666;
   font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.reclamation-intervention-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: #E3F2FD;
+  color: #1976D2;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .reclamation-badges {

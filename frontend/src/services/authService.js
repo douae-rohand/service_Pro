@@ -39,9 +39,13 @@ const authService = {
      * Déconnexion utilisateur
      */
     async logout() {
-        const res = await api.post('auth/logout');
-        localStorage.removeItem('user');
-        return res;
+        try {
+            await api.post('auth/logout');
+        } catch (error) {
+            console.error('API Logout failed:', error);
+        } finally {
+            this.setAuthToken(null);
+        }
     },
 
     async register(userData) {

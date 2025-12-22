@@ -157,6 +157,52 @@ class InterventionController extends Controller
             ], 422);
         }
 
+        // ======================================
+        // VALIDATION: Check for personal information in constraints
+        // ======================================
+        if ($request->has('constraints')) {
+            $validation = \App\Utils\InputValidator::validateConstraints($request->constraints);
+            if (!$validation['valid']) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => $validation['reason'],
+                    'error' => 'PERSONAL_INFO_DETECTED'
+                ], 400);
+            }
+        }
+        
+        // Validate address
+        $addressValidation = \App\Utils\InputValidator::validateUserInput($request->address, 'l\'adresse');
+        if (!$addressValidation['valid']) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $addressValidation['reason'],
+                'error' => 'PERSONAL_INFO_DETECTED'
+            ], 400);
+        }
+        
+        // Validate ville
+        $villeValidation = \App\Utils\InputValidator::validateUserInput($request->ville, 'la ville');
+        if (!$villeValidation['valid']) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $villeValidation['reason'],
+                'error' => 'PERSONAL_INFO_DETECTED'
+            ], 400);
+        }
+        
+        // Validate description if provided
+        if ($request->has('description') && !empty(trim($request->description))) {
+            $descriptionValidation = \App\Utils\InputValidator::validateUserInput($request->description, 'la description');
+            if (!$descriptionValidation['valid']) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => $descriptionValidation['reason'],
+                    'error' => 'PERSONAL_INFO_DETECTED'
+                ], 400);
+            }
+        }
+
         try {
             $interventionData = [
                 'address' => $request->address,

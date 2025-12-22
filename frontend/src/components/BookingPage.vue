@@ -205,6 +205,37 @@
           </div>
         </div>
 
+        <!-- Description détaillée -->
+        <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-100 shadow-sm transition-all hover:shadow-md">
+          <h4 class="text-lg font-bold mb-4 flex items-center gap-3 text-gray-800">
+            <div class="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center">
+               <FileText :size="20" class="text-purple-600" />
+            </div>
+            Description détaillée (optionnel)
+          </h4>
+          <div class="space-y-2">
+            <label class="block text-sm font-semibold text-gray-700">
+              Décrivez précisément votre besoin
+            </label>
+            <textarea
+              v-model="bookingData.description"
+              rows="4"
+              placeholder="Ex: J'ai besoin d'une aide pour nettoyer mon salon et ma cuisine. Le salon fait environ 20m² et la cuisine 15m²..."
+              class="w-full px-4 py-3 bg-gray-50/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all outline-none resize-none"
+              maxlength="500"
+            ></textarea>
+            <div class="flex justify-between items-center text-xs">
+              <p class="text-gray-500 flex items-center gap-1">
+                <AlertCircle :size="12" />
+                ⚠️ Ne partagez pas vos coordonnées personnelles (téléphone, email, réseaux sociaux)
+              </p>
+              <span class="text-gray-400 font-mono">
+                {{ (bookingData.description || '').length }}/500
+              </span>
+            </div>
+          </div>
+        </div>
+
         <!-- Materials -->
         <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-100 shadow-sm transition-all hover:shadow-md">
           <div class="flex items-center justify-between mb-6">
@@ -324,6 +355,30 @@
               <AlertCircle :size="18" class="text-yellow-600 shrink-0 mt-0.5" />
               <p class="text-[10px] text-yellow-800 leading-relaxed font-medium">
                 Le coût final sera validé par l'intervenant après examen de la demande. Vous ne paierez qu'une fois la mission terminée.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Alerte détection instantanée -->
+        <div 
+          v-if="personalInfoDetected" 
+          class="bg-red-50 border-2 border-red-200 rounded-3xl p-6 shadow-lg animate-in slide-in-from-top-2 duration-300"
+        >
+          <div class="flex items-start gap-4">
+            <div class="w-12 h-12 bg-red-500 rounded-2xl flex items-center justify-center shrink-0 shadow-lg">
+              <AlertCircle :size="24" class="text-white" />
+            </div>
+            <div class="flex-1">
+              <h4 class="text-lg font-black text-red-900 mb-1">
+                🚫 Action requise
+              </h4>
+              <p class="text-sm text-red-700 font-bold mb-2">
+                {{ personalInfoDetected }}
+              </p>
+              <p class="text-xs text-red-600 leading-relaxed font-medium">
+                Pour des raisons de sécurité, les numéros de téléphone, emails et réseaux sociaux ne sont pas autorisés. 
+                Veuillez retirer ces informations pour continuer.
               </p>
             </div>
           </div>
@@ -643,7 +698,8 @@ export default {
         case 3:
           return this.bookingData.address.trim() !== '' &&
                  this.bookingData.ville.trim() !== '' &&
-                 this.estimatedHours > 0;
+                 this.estimatedHours > 0 &&
+                 this.personalInfoDetected === null; // Block if personal info detected
         case 4:
           return this.bookingData.date !== '' && 
                  this.dayAvailabilityResult?.hasEnoughTime === true;
@@ -695,6 +751,79 @@ export default {
       );
       
       return availableStartSlots.length > 0;
+    },
+    personalInfoDetected() {
+      // Lazy load validation utils
+      const validateUserInput = (text, fieldName) => {
+        if (!text) return { valid: true };
+        
+        // Phone patterns
+        const phonePatterns = [
+          /\b0[567]\d{8}\b/g,
+          /\b\+?212\s?[567]\d{8}\b/g,
+          /\b0[567][\s.-]?\d{2}[\s.-]?\d{2}[\s.-]?\d{2}[\s.-]?\d{2}\b/g,
+          /\b\d{10}\b/g,
+        ];
+        
+        // Email pattern
+        const emailPattern = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+        
+        // Social media patterns
+        const socialPatterns = [
+          /@[a-zA-Z0-9_]{2,}/g,
+          /\b(facebook|fb|insta|instagram|whatsapp|telegram|snapchat|tiktok)[\s.:]/gi,
+          /\bwa\.me\//gi,
+        ];
+        
+        // Check phones
+        if (phonePatterns.some(p => p.test(text))) {
+          return { valid: false, reason: `⚠️ Numéro de téléphone détecté dans ${fieldName}` };
+        }
+        
+        // Check email
+        if (emailPattern.test(text)) {
+          return { valid: false, reason: `⚠️ Email détecté dans ${fieldName}` };
+        }
+        
+        // Check social media
+        if (socialPatterns.some(p => p.test(text))) {
+          return { valid: false, reason: `⚠️ Réseau social détecté dans ${fieldName}` };
+        }
+        
+        return { valid: true };
+      };
+      
+      // Validate all constraint values
+      for (const [key, value] of Object.entries(this.constraintsValues)) {
+        if (typeof value === 'string' && value.trim()) {
+          const validation = validateUserInput(value, 'les détails');
+          if (!validation.valid) {
+            return validation.reason;
+          }
+        }
+      }
+      
+      // Validate address
+      const addressValidation = validateUserInput(this.bookingData.address, 'l\'adresse');
+      if (!addressValidation.valid) {
+        return addressValidation.reason;
+      }
+      
+      // Validate ville
+      const villeValidation = validateUserInput(this.bookingData.ville, 'la ville');
+      if (!villeValidation.valid) {
+        return villeValidation.reason;
+      }
+      
+      // Validate description
+      if (this.bookingData.description && this.bookingData.description.trim()) {
+        const descValidation = validateUserInput(this.bookingData.description, 'la description');
+        if (!descValidation.valid) {
+          return descValidation.reason;
+        }
+      }
+      
+      return null; // No personal info detected
     }
   },
   async mounted() {
@@ -1201,6 +1330,52 @@ export default {
       this.loading = true;
       
       try {
+        // ======================================
+        // VALIDATION: Check for personal information in constraints
+        // ====================================== 
+        const { validateUserInput } = await import('@/utils/inputValidation.js');
+        
+        // Validate all constraint values
+        for (const [key, value] of Object.entries(this.constraintsValues)) {
+          if (typeof value === 'string' && value.trim()) {
+            const validation = validateUserInput(value, 'les détails de la demande');
+            if (!validation.valid) {
+              alert(validation.reason + '\n\n🔒 Pour votre sécurité et celle des intervenants, tous les échanges doivent se faire via notre plateforme sécurisée.');
+              this.loading = false;
+              return; // Block the booking
+            }
+          }
+        }
+        
+        // Validate address field
+        const addressValidation = validateUserInput(this.bookingData.address, 'l\'adresse');
+        if (!addressValidation.valid) {
+          alert(addressValidation.reason);
+          this.loading = false;
+          return;
+        }
+        
+        // Validate ville field
+        const villeValidation = validateUserInput(this.bookingData.ville, 'la ville');
+        if (!villeValidation.valid) {
+          alert(villeValidation.reason);
+          this.loading = false;
+          return;
+        }
+        
+        // Validate description field
+        if (this.bookingData.description && this.bookingData.description.trim()) {
+          const descriptionValidation = validateUserInput(this.bookingData.description, 'la description');
+          if (!descriptionValidation.valid) {
+            alert(descriptionValidation.reason + '\n\n🔒 Pour votre sécurité et celle des intervenants, tous les échanges doivent se faire via notre plateforme sécurisée.');
+            this.loading = false;
+            return;
+          }
+        }
+        
+        // ======================================
+        // If validation passes, proceed with booking
+        // ======================================
         const formData = new FormData();
         
         formData.append('client_id', this.clientId);
@@ -1221,7 +1396,7 @@ export default {
           .map(m => m.id);
         formData.append('provided_materials', JSON.stringify(providedMaterials));
         formData.append('status', 'en_attente');
-        formData.append('description', ''); // Description supprimée
+        formData.append('description', this.bookingData.description || '');
         formData.append('constraints', JSON.stringify(this.constraintsValues));
         
         console.log('Sending formData:', Object.fromEntries(formData.entries()));

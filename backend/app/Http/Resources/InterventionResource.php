@@ -150,11 +150,24 @@ class InterventionResource extends JsonResource
 
         // Get estimated cost from intervenant_tache
         $estimatedCost = 0;
+        $materialsCost = 0;
+        
         if ($this->tache && $this->intervenant_id) {
             $intervenantTache = \App\Models\IntervenantTache::where('tache_id', $this->tache_id)
                 ->where('intervenant_id', $this->intervenant_id)
                 ->first();
-            $estimatedCost = $intervenantTache ? (float)($intervenantTache->prix_tache ?? 0) * (float)($this->duration_hours ?? 1) : 0;
+            $laborCost = $intervenantTache ? (float)($intervenantTache->prix_tache ?? 0) * (float)($this->duration_hours ?? 1) : 0;
+            
+            // Extract materials cost from intervention_information
+            $materialsCostInfo = $this->informations->where('nom', 'Coût_Matériel')->first();
+            if ($materialsCostInfo) {
+                // Extract numeric value from "XXX DH" format
+                $costString = $materialsCostInfo->pivot->information ?? '0';
+                $materialsCost = (float) preg_replace('/[^0-9.]/', '', $costString);
+            }
+            
+            // Total estimated cost = labor + materials
+            $estimatedCost = $laborCost + $materialsCost;
         }
 
         // Primary description is from intervention table, fallback to task description

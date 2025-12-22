@@ -30,6 +30,7 @@
         @service-click="handleServiceClick"
         @navigate-home="handleNavigateHome"
         @view-profile="handleViewProfileFromHome"
+        @navigate-reservations="handleNavigateToReservations"
       />
 
       <!-- Page d'accueil -->
@@ -435,6 +436,14 @@ const handleViewProfileFromHome = (payload) => {
   currentPage.value = "intervenant-profile";
   window.scrollTo({ top: 0, behavior: "smooth" });
 };
+
+const handleNavigateToReservations = () => {
+  console.log("Navigating to reservations from client home");
+  previousPage.value = "client-home";
+  currentPage.value = "client-reservations";
+  window.scrollTo({ top: 0, behavior: "smooth" });
+};
+
 
 // ============================================
 // NAVIGATION - PAGE DE PROFIL

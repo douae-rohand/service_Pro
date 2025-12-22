@@ -159,13 +159,12 @@ class ClientController extends Controller
             return response()->json(['message' => 'Accès refusé'], 403);
         }
 
-        // Helper to find public intervention IDs for this client
-        // Rule: Only public if BOTH parties have rated OR 7 days have passed (Logic centralized in model)
+        // Get public intervention IDs for this client
+        // Only interventions where evaluations are marked as public
         $publicInterventionIds = Intervention::where('client_id', $clientId)
             ->where('status', 'termine')
-            ->get()
-            ->filter(function($i) {
-                return $i->areRatingsPublic();
+            ->whereHas('evaluations', function($q) {
+                $q->where('is_public', true);
             })
             ->pluck('id');
 

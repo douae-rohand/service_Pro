@@ -632,6 +632,24 @@
       </div>
     </Transition>
 
+    <!-- Refuse Confirmation Modal -->
+    <div v-if="showRefuseModal" class="modal-overlay" @click.self="showRefuseModal = false">
+      <div class="confirmation-modal">
+        <div class="modal-header">
+          <h3 class="modal-title text-red">Refuser la réservation</h3>
+          <button @click="showRefuseModal = false" class="modal-close-btn">×</button>
+        </div>
+        <div class="modal-body">
+          <p>Êtes-vous sûr de vouloir refuser cette réservation ?</p>
+          <p class="warning-text">Cette action est irréversible.</p>
+        </div>
+        <div class="modal-footer">
+          <button @click="showRefuseModal = false" class="btn-secondary">Annuler</button>
+          <button @click="confirmRefusal" class="btn-danger">Refuser</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Loading Modal -->
     <LoadingModal :show="showLoadingModal" :message="loadingMessage" />
   </div>
@@ -642,44 +660,6 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Check, X, Clock, MapPin, Calendar, MessageSquare, Coins, Package, Star, Mail, AlertTriangle, FileText, Flag, History } from 'lucide-vue-next'
 // ... existing imports ...
 
-const showRefuseModal = ref(false)
-const refusalId = ref(null)
-// ... existing refs ...
-
-const refuseReservation = (id) => {
-  refusalId.value = id
-  showRefuseModal.value = true
-}
-
-const confirmRefusal = async () => {
-  if (!refusalId.value) return
-
-  try {
-    // Show loading modal
-    loadingMessage.value = 'Refus en cours...'
-    showLoadingModal.value = true
-    
-    await reservationService.refuseReservation(refusalId.value)
-
-    // Optimistic Update
-    const index = reservations.value.findIndex(r => r.id === refusalId.value)
-    if (index !== -1) {
-      reservations.value[index].status = 'refused'
-    }
-  } catch (err) {
-    alert(err.message || 'Erreur lors du refus de la réservation')
-    console.error(err)
-  } finally {
-    closeRefuseModal()
-    // Hide loading modal
-    showLoadingModal.value = false
-  }
-}
-
-const closeRefuseModal = () => {
-  showRefuseModal.value = false
-  refusalId.value = null
-}
 
 import reservationService from '@/services/intervenantReservationService'
 import evaluationService from '@/services/evaluationService'
@@ -716,6 +696,8 @@ const selectedInterventionId = ref(null)
 const notification = ref(null)
 const showLoadingModal = ref(false)
 const loadingMessage = ref('')
+const showRefuseModal = ref(false)
+const refusalId = ref(null)
 
 const fetchAllServices = async () => {
   try {
@@ -731,16 +713,20 @@ const fetchAllServices = async () => {
 
 const filteredReservations = computed(() => {
   return reservations.value.filter(r => {
-    const matchesTab = r.status === selectedTab.value
+    // Fix: Backend returns 'rejected', but tab is 'refused'
+    const statusMatch = selectedTab.value === 'refused' 
+      ? (r.status === 'rejected' || r.status === 'refused')
+      : r.status === selectedTab.value
+      
     const matchesService = selectedService.value === 'all' || r.service === selectedService.value
-    return matchesTab && matchesService
+    return statusMatch && matchesService
   })
 })
 
 const pendingCount = computed(() => reservations.value.filter(r => r.status === 'pending').length)
 const acceptedCount = computed(() => reservations.value.filter(r => r.status === 'accepted').length)
 const completedCount = computed(() => reservations.value.filter(r => r.status === 'completed').length)
-const refusedCount = computed(() => reservations.value.filter(r => r.status === 'refused').length)
+const refusedCount = computed(() => reservations.value.filter(r => r.status === 'rejected' || r.status === 'refused').length)
 
 const tabs = computed(() => [
   { id: 'pending', label: 'En Attente', color: '#E8793F', count: pendingCount.value },
@@ -772,7 +758,8 @@ const fetchReservations = async (silent = false) => {
     const response = await reservationService.getMyReservations()
     const fetchedReservations = response.reservations || []
     
-    // Loop removed as evaluation status is now provided by backend\n    // for (const reservation of fetchedReservations) { ... }
+    // Loop removed as evaluation status is now provided by backend
+    // for (const reservation of fetchedReservations) { ... }
     
     reservations.value = fetchedReservations
   } catch (err) {
@@ -799,33 +786,53 @@ const generateInvoice = async (id) => {
 
 const acceptReservation = async (id) => {
   try {
-    // Show loading modal
     loadingMessage.value = 'Acceptation en cours...'
     showLoadingModal.value = true
+    await reservationService.acceptReservation(id)
     
-    const response = await api.post(`intervenants/me/reservations/${id}/accept`)
-
-    // Optimistic Update: Update status locally without refresh
+    // Optimistic Update
     const index = reservations.value.findIndex(r => r.id === id)
     if (index !== -1) {
       reservations.value[index].status = 'accepted'
-    }
-
-    // Show notification
-    if (response.data.message) {
-      notification.value = response.data.message
-      setTimeout(() => {
-        notification.value = null
-      }, 5000)
     }
   } catch (err) {
     alert(err.message || 'Erreur lors de l\'acceptation de la réservation')
     console.error(err)
   } finally {
-    // Hide loading modal
     showLoadingModal.value = false
   }
 }
+
+const refuseReservation = (id) => {
+  refusalId.value = id
+  showRefuseModal.value = true
+}
+
+const confirmRefusal = async () => {
+  if (!refusalId.value) return
+  
+  showRefuseModal.value = false
+  
+  try {
+    loadingMessage.value = 'Refus en cours...'
+    showLoadingModal.value = true
+    
+    await reservationService.refuseReservation(refusalId.value)
+
+    // Optimistic Update
+    const index = reservations.value.findIndex(r => r.id === refusalId.value)
+    if (index !== -1) {
+      reservations.value[index].status = 'rejected' // Set to 'rejected' to match backend/filters
+    }
+  } catch (err) {
+    alert(err.message || 'Erreur lors du refus de la réservation')
+    console.error(err)
+  } finally {
+    showLoadingModal.value = false
+    refusalId.value = null
+  }
+}
+
 
 
 
@@ -1692,6 +1699,84 @@ onUnmounted(() => {
 .fade-slide-leave-to {
   opacity: 0;
   transform: translateY(20px) scale(0.95);
+}
+
+.confirmation-modal {
+  background: white;
+  border-radius: var(--radius-xl);
+  max-width: 28rem;
+  width: 90%;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-4) var(--spacing-6);
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.text-red {
+  color: #DC2626;
+}
+
+.modal-body {
+  padding: var(--spacing-6);
+  color: var(--color-gray-700);
+}
+
+.warning-text {
+  color: #DC2626;
+  font-size: 0.875rem;
+  margin-top: var(--spacing-2);
+}
+
+.modal-footer {
+  padding: var(--spacing-4) var(--spacing-6);
+  background: #F9FAFB;
+  border-top: 1px solid #E5E7EB;
+  border-bottom-left-radius: var(--radius-xl);
+  border-bottom-right-radius: var(--radius-xl);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-3);
+}
+
+.btn-secondary {
+  padding: 0.5rem 1rem;
+  background: white;
+  border: 1px solid #D1D5DB;
+  border-radius: var(--radius-md);
+  color: #374151;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  background: #F3F4F6;
+}
+
+.btn-danger {
+  padding: 0.5rem 1rem;
+  background: #DC2626;
+  border: none;
+  border-radius: var(--radius-md);
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-danger:hover {
+  background: #B91C1C;
 }
 
 /* Modal Overlay - Shared styling */

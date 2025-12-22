@@ -80,8 +80,10 @@ class InterventionControllerIntervenant extends Controller
              abort(403, 'Accès non autorisé.');
         }
 
-        // Privacy Filter
-        $isPublic = $intervention->areRatingsPublic();
+        // Privacy Filter - Check if evaluations are public
+        $isPublic = \App\Models\Evaluation::where('intervention_id', $id)
+            ->where('is_public', true)
+            ->exists();
         
         if (!$isPublic) {
             // Strict Privacy: Hide everything until public (blind date)

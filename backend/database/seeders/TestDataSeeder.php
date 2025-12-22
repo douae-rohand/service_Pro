@@ -553,6 +553,7 @@ class TestDataSeeder extends Seeder
                         'intervention_id' => $intervention1Id,
                         'critaire_id' => $critaireId,
                         'type_auteur' => $eval['type_auteur'],
+                        'is_public' => true, // Public - both parties rated (see below)
                         'created_at' => now()->subDays(14),
                         'updated_at' => now()->subDays(14),
                     ]);
@@ -566,6 +567,7 @@ class TestDataSeeder extends Seeder
                     'intervention_id' => $intervention2Id,
                     'critaire_id' => $critaireId,
                     'type_auteur' => 'client',
+                    'is_public' => false, // Private - only client rated
                     'created_at' => now()->subDays(9),
                     'updated_at' => now()->subDays(9),
                 ]);
@@ -578,6 +580,7 @@ class TestDataSeeder extends Seeder
                     'intervention_id' => $intervention1Id,
                     'critaire_id' => $critaireId,
                     'type_auteur' => 'intervenant',
+                    'is_public' => true, // Public - both parties rated for intervention1
                     'created_at' => now()->subDays(13),
                     'updated_at' => now()->subDays(13),
                 ]);
@@ -614,6 +617,7 @@ class TestDataSeeder extends Seeder
             
             if (!DB::table('commentaire')->where('intervention_id', $commentaire['intervention_id'])->where('type_auteur', $commentaire['type_auteur'])->where('commentaire', $commentaire['commentaire'])->exists()) {
                 DB::table('commentaire')->insert(array_merge($commentaire, [
+                    'is_public' => $commentaire['intervention_id'] == $intervention1Id ? true : false, // Public if intervention1 (both rated), else private
                     'created_at' => now()->subDays($daysAgo),
                     'updated_at' => now()->subDays($daysAgo),
                 ]));

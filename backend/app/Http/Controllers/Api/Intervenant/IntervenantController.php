@@ -64,7 +64,8 @@ class IntervenantController extends Controller
 
         // Optimisation : Eager loading des interventions et leurs évaluations pour éviter le N+1
         $query->with(['interventions.evaluations' => function ($q) {
-            $q->where('type_auteur', 'client');
+            $q->where('type_auteur', 'client')
+              ->where('is_public', true); // Only include public evaluations
         }]);
 
         // Sélectionner uniquement les colonnes nécessaires (inclure address pour géolocalisation)
@@ -600,16 +601,19 @@ class IntervenantController extends Controller
         $interventions = \App\Models\Intervention::where('intervenant_id', $id)
             ->where('status', 'terminée')
             ->whereHas('evaluations', function($q) {
-                $q->where('type_auteur', 'client');
+                $q->where('type_auteur', 'client')
+                  ->where('is_public', true); // Only show public evaluations
             })
             ->with([
                 'client.utilisateur',
                 'tache.service',
                 'evaluations' => function($q) {
-                    $q->where('type_auteur', 'client');
+                    $q->where('type_auteur', 'client')
+                      ->where('is_public', true); // Only include public evaluations
                 },
                 'commentaires' => function($q) {
-                    $q->where('type_auteur', 'client');
+                    $q->where('type_auteur', 'client')
+                      ->where('is_public', true); // Only include public comments
                 }
             ])
             ->orderBy('date_intervention', 'desc')
@@ -679,20 +683,29 @@ class IntervenantController extends Controller
 
         $intervenant = $user->intervenant;
 
-    // Get IDs of active services only (exclude archived/inactive)
-    $activeServiceIds = $intervenant->services()
-        ->wherePivot('status', 'active')
-        ->pluck('service.id')
-        ->toArray();
-
-    // Get taches with pivot data, service, materials, and completed jobs count
-    // Only for active services
-    $taches = $intervenant->taches()
-        ->whereIn('service_id', $activeServiceIds)
+    // CRITICAL FIX: Get tasks where the parent SERVICE has status='active' in intervenant_service
+    // This properly excludes tasks from services with status='demmande', 'refuse', 'archive', 'desactive'
+    $query = $intervenant->taches()
+        ->join('service', 'tache.service_id', '=', 'service.id')
+        ->join('intervenant_service', function($join) use ($intervenant) {
+            $join->on('service.id', '=', 'intervenant_service.service_id')
+                 ->where('intervenant_service.intervenant_id', '=', $intervenant->id)
+                 ->where('intervenant_service.status', '=', 'active'); // ONLY active services!
+        })
         ->with(['service', 'materiels'])
+        ->select('tache.*'); // Select only tache columns to avoid conflicts
+    
+    // DEBUG: Log the actual SQL query
+    \Log::info('MyTaches SQL Query:', [
+        'sql' => $query->toSql(),
+        'bindings' => $query->getBindings(),
+        'intervenant_id' => $intervenant->id
+    ]);
+    
+    $taches = $query->distinct()
         ->get()
         ->map(function ($tache) use ($intervenant) {
-                // Get pivot data (tarif, experience, archived, active)
+                // Get pivot data from intervenant_tache (tarif)
                 $pivot = $tache->pivot;
 
                 // Count completed interventions for this tache
@@ -727,11 +740,17 @@ class IntervenantController extends Controller
                     'name' => $tache->nom_tache,
                     'description' => $tache->description,
                     'hourlyRate' => (float) ($pivot->prix_tache ?? 0),
-                    'active' => $pivot->status ?? true,
+                    'active' => $pivot->status ?? true, // Status from intervenant_tache pivot
                     'completedJobs' => $completedJobs,
                     'materials' => $ownedMaterials,
                 ];
             });
+            
+        // DEBUG: Log the result count
+        \Log::info('MyTaches Result:', [
+            'count' => $taches->count(),
+            'intervenant_id' => $intervenant->id
+        ]);
 
         return response()->json($taches);
     }
@@ -1096,9 +1115,9 @@ class IntervenantController extends Controller
             return response()->json(['error' => 'Intervenant not found'], 404);
         }
 
-        // Get active, archived, and pending services
+        // Get ONLY active services (exclude demmande, archive, refuse, desactive)
         $activeServices = $intervenant->services()
-            ->wherePivotIn('status', ['active', 'archive', 'demmande'])
+            ->wherePivot('status', '=', 'active')  // ONLY ACTIVE!
             ->get()
             ->map(function ($service) {
                 return [
@@ -1108,11 +1127,15 @@ class IntervenantController extends Controller
                 ];
             });
 
+        // Get service IDs to filter tasks
+        $activeServiceIds = $activeServices->pluck('id')->toArray();
+
         // Get IDs of materials owned by the intervenant
         $intervenantMaterialIds = $intervenant->materiels->pluck('id')->toArray();
 
-        // Get all tasks (active and inactive) with their status
+        // Get ONLY tasks from active services
         $allTasks = $intervenant->taches()
+            ->whereIn('service_id', $activeServiceIds)  // Filter by active services!
             ->with('materiels')
             ->get()
             ->map(function ($tache) use ($intervenantMaterialIds) {
@@ -1651,12 +1674,11 @@ class IntervenantController extends Controller
                 $updatedAt = $intervention->updated_at;
                 $isWindowClosed = $updatedAt ? $updatedAt->copy()->addDays(7)->isPast() : false;
                 
+                // Check if evaluations are public (read from database)
+                $canViewPublic = $intervention->evaluations->where('is_public', true)->isNotEmpty();
+                
                 if ($hasIntervenantRated) {
                     $evaluationStatus = 'view_only';
-                    // Logic for public visibility: Both rated OR Window closed
-                    if (($hasIntervenantRated && $hasClientRated) || $isWindowClosed) {
-                            $canViewPublic = true;
-                    }
                 } elseif (!$isWindowClosed) {
                     $evaluationStatus = 'can_rate';
                 } else {

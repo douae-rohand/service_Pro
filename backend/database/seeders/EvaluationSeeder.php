@@ -19,6 +19,7 @@ class EvaluationSeeder extends Seeder
                 'critaire_id' => 1, // Qualité du travail
                 'note' => 5,
                 'type_auteur' => 'client',
+                'is_public' => true, // Public - both parties rated
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -27,6 +28,7 @@ class EvaluationSeeder extends Seeder
                 'critaire_id' => 2, // Ponctualité
                 'note' => 4,
                 'type_auteur' => 'client',
+                'is_public' => true, // Public - both parties rated
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -35,6 +37,7 @@ class EvaluationSeeder extends Seeder
                 'critaire_id' => 3, // Professionnalisme
                 'note' => 5,
                 'type_auteur' => 'client',
+                'is_public' => true, // Public - both parties rated
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -44,6 +47,7 @@ class EvaluationSeeder extends Seeder
                 'critaire_id' => 4, // Communication
                 'note' => 5,
                 'type_auteur' => 'intervenant',
+                'is_public' => true, // Public - both parties rated
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -53,6 +57,7 @@ class EvaluationSeeder extends Seeder
                 'critaire_id' => 1, // Qualité du travail
                 'note' => 4,
                 'type_auteur' => 'client',
+                'is_public' => false, // Private - only client rated
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -61,6 +66,7 @@ class EvaluationSeeder extends Seeder
                 'critaire_id' => 2, // Ponctualité
                 'note' => 5,
                 'type_auteur' => 'client',
+                'is_public' => false, // Private - only client rated
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -69,6 +75,7 @@ class EvaluationSeeder extends Seeder
                 'critaire_id' => 5, // Propreté
                 'note' => 4,
                 'type_auteur' => 'client',
+                'is_public' => false, // Private - only client rated
                 'created_at' => now(),
                 'updated_at' => now(),
             ],

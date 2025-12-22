@@ -1535,7 +1535,7 @@ class AdminController extends Controller
             ->pluck('count', 'service_id');
         
         // Calculer la note moyenne par service
-        $notesByService = DB::table('evaluation')
+        $notesByService =DB::table('evaluation')
             ->join('intervention', 'evaluation.intervention_id', '=', 'intervention.id')
             ->join('tache', 'intervention.tache_id', '=', 'tache.id')
             ->select('tache.service_id', DB::raw('AVG(evaluation.note) as avg_note'))

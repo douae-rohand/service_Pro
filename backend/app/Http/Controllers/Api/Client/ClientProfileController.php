@@ -31,7 +31,9 @@ class ClientProfileController extends Controller
             // Get average rating from intervenants (evaluations where type_auteur = 'intervenant')
             $intervenantEvaluations = Evaluation::whereHas('intervention', function($query) use ($clientId) {
                 $query->where('client_id', $clientId);
-            })->where('type_auteur', 'intervenant')->get();
+            })->where('type_auteur', 'intervenant')
+              ->where('is_public', true)
+              ->get();
 
             $averageRating = 0;
             if ($intervenantEvaluations->count() > 0) {
@@ -127,12 +129,14 @@ class ClientProfileController extends Controller
                 $query->where('client_id', $clientId);
             })
             ->where('type_auteur', 'intervenant')
+            ->where('is_public', true)
             ->with([
                 'intervention.intervenant.utilisateur',
                 'intervention.tache.service',
                 'critaire',
                 'intervention.commentaires' => function($query) {
-                    $query->where('type_auteur', 'intervenant');
+                    $query->where('type_auteur', 'intervenant')
+                          ->where('is_public', true);
                 }
             ])
             ->get();

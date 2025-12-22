@@ -68,8 +68,9 @@ class StatsController extends Controller
                 ->get();
 
             // Filter interventions to only include those with public ratings
+            // Check if any evaluation for this intervention is public
             $publicInterventions = $interventions->filter(function ($intervention) {
-                return $intervention->areRatingsPublic();
+                return $intervention->evaluations->where('is_public', true)->isNotEmpty();
             });
 
             // Calculate statistics
@@ -79,8 +80,10 @@ class StatsController extends Controller
             $reviews = [];
 
             foreach ($publicInterventions as $intervention) {
-                // Get evaluations for this intervention
-                $evaluations = $intervention->evaluations->where('type_auteur', 'client');
+                // Get PUBLIC evaluations only for this intervention
+                $evaluations = $intervention->evaluations
+                    ->where('type_auteur', 'client')
+                    ->where('is_public', true);
 
                 // Calculate average rating for this intervention
                 $interventionAvgRating = 0;

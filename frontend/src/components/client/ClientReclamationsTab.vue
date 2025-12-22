@@ -2,10 +2,6 @@
   <div class="client-reclamations-tab">
     <div class="tab-header">
       <h2 class="tab-title">Mes Réclamations</h2>
-      <button @click="showCreateModal = true" class="btn-create">
-        <Plus :size="20" />
-        Nouvelle Réclamation
-      </button>
     </div>
 
     <!-- Filters -->

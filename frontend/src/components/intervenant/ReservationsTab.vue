@@ -155,16 +155,23 @@
                   </span>
                 </div>
                 
-                <!-- Complaint Button - Always available for completed interventions -->
-                <div v-if="selectedTab === 'completed'" class="completed-actions">
-                  <button 
-                    @click="openComplaintModal(reservation)" 
-                    class="complaint-btn"
-                  >
-                    <Flag :size="16" />
-                    Réclamer
-                  </button>
-                </div>
+                  <!-- Past Complaints Button (Only if completed) -->
+                  <div v-if="selectedTab === 'completed'" class="completed-actions">
+                    <button 
+                      @click="openComplaintModal(reservation)" 
+                      class="complaint-btn"
+                    >
+                      <Flag :size="16" />
+                      Réclamer
+                    </button>
+                    <button 
+                      @click="openPastComplaintsModal(reservation)" 
+                      class="past-complaints-btn"
+                    >
+                      <History :size="16" />
+                      Réclamations passées
+                    </button>
+                  </div>
                 <div v-else-if="selectedTab === 'accepted'" class="accepted-actions">
                   <span class="status-badge status-accepted">
                     Confirmée
@@ -360,6 +367,101 @@
       </div>
     </div>
     
+    <!-- Past Complaints Modal -->
+    <div v-if="showPastComplaintsModal" class="modal-overlay" @click="closePastComplaintsModal">
+      <div class="complaint-modal-content" @click.stop>
+        <div class="complaint-modal-header">
+          <h2 class="complaint-modal-title">
+            <History :size="20" />
+            Réclamations passées
+          </h2>
+          <button @click="closePastComplaintsModal" class="modal-close-btn">×</button>
+        </div>
+        
+        <div class="complaint-modal-body">
+          <!-- Intervention Info Header -->
+          <div class="intervention-info">
+            <h4 class="info-title">Informations de l'intervention</h4>
+            <div class="info-grid">
+              <div class="info-item">
+                <span class="info-label">Service :</span>
+                <span class="info-value">{{ selectedReservation?.service || '-' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Sous-service :</span>
+                <span class="info-value">{{ selectedReservation?.task || '-' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Client :</span>
+                <span class="info-value">{{ selectedReservation?.clientName || '-' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Date :</span>
+                <span class="info-value">{{ selectedReservation ? formatDate(selectedReservation.date) : '-' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="isLoadingPastComplaints" class="loading-state">
+            Chargement des réclamations...
+          </div>
+          <div v-else-if="pastComplaints.length === 0" class="empty-state-small">
+            <p>Aucune réclamation passée pour cette intervention.</p>
+          </div>
+          <div v-else class="past-complaints-list">
+            <div v-for="complaint in pastComplaints" :key="complaint.id" class="complaint-card">
+              <div class="complaint-card-header">
+                <span class="complaint-date">
+                  <Calendar :size="14" />
+                  {{ formatDate(complaint.created_at) }}
+                </span>
+                <span 
+                  class="status-badge"
+                  :class="{
+                    'status-pending': complaint.statut === 'en_attente',
+                    'status-processing': complaint.statut === 'en_cours',
+                    'status-resolved': complaint.statut === 'resolue',
+                    'status-rejected': complaint.statut === 'rejete' || complaint.statut === 'rejeter'
+                  }"
+                >
+                  {{ formatStatus(complaint.statut) }}
+                </span>
+              </div>
+              
+              <div class="complaint-card-body">
+                <div class="complaint-row">
+                  <span class="row-label">Raison:</span>
+                  <span class="row-value">{{ complaint.raison }}</span>
+                </div>
+                <div class="complaint-row">
+                  <span class="row-label">Priorité:</span>
+                  <span class="priority-badge" :class="complaint.priorite">
+                    {{ complaint.priorite }}
+                  </span>
+                </div>
+                <div class="complaint-message-box">
+                  <span class="row-label">Message:</span>
+                  <p class="message-text">{{ complaint.message }}</p>
+                </div>
+              </div>
+
+              <div v-if="complaint.reponse_admin" class="admin-response-box">
+                 <div class="admin-header">
+                   <MessageSquare :size="14" />
+                   <strong>Réponse Admin</strong>
+                 </div>
+                 <p class="response-text">{{ complaint.reponse_admin }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="complaint-modal-footer">
+          <button @click="closePastComplaintsModal" class="btn-cancel">Fermer</button>
+        </div>
+      </div>
+    </div>
+    
     <!-- Client Profile Modal -->
     <ClientProfileModal
       :show="showClientProfile"
@@ -469,7 +571,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { Check, X, Clock, MapPin, Calendar, MessageSquare, Coins, Package, Star, Mail, AlertTriangle, FileText, Flag } from 'lucide-vue-next'
+import { Check, X, Clock, MapPin, Calendar, MessageSquare, Coins, Package, Star, Mail, AlertTriangle, FileText, Flag, History } from 'lucide-vue-next'
 // ... existing imports ...
 
 const showRefuseModal = ref(false)
@@ -535,6 +637,10 @@ const allServices = ref([])
 const showDetailsModal = ref(false)
 const selectedInterventionId = ref(null)
 const notification = ref(null)
+
+const showPastComplaintsModal = ref(false)
+const pastComplaints = ref([])
+const isLoadingPastComplaints = ref(false)
 
 const fetchAllServices = async () => {
   try {
@@ -748,6 +854,39 @@ const submitComplaint = async () => {
   } finally {
     isSubmittingComplaint.value = false
   }
+}
+
+const openPastComplaintsModal = async (reservation) => {
+  selectedReservation.value = reservation
+  showPastComplaintsModal.value = true
+  isLoadingPastComplaints.value = true
+  pastComplaints.value = []
+  
+  try {
+    const response = await api.get(`/interventions/${reservation.id}/my-reclamations`)
+    pastComplaints.value = response.data.reclamations || []
+  } catch (error) {
+    console.error('Error fetching past complaints:', error)
+    alert('Erreur lors du chargement des réclamations passées')
+  } finally {
+    isLoadingPastComplaints.value = false
+  }
+}
+
+const closePastComplaintsModal = () => {
+  showPastComplaintsModal.value = false
+  pastComplaints.value = []
+}
+
+const formatStatus = (status) => {
+  const map = {
+    'en_attente': 'En attente',
+    'en_cours': 'En cours',
+    'resolue': 'Résolue',
+    'rejeter': 'Rejetée',
+    'rejete': 'Rejetée'
+  }
+  return map[status] || status
 }
 
 const openPublicEvaluations = async (reservation) => {
@@ -1967,6 +2106,183 @@ onUnmounted(() => {
 
 .btn-cancel:hover {
   background: var(--color-gray-50);
+}
+
+/* Past Complaints List Styling */
+.past-complaints-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.complaint-card {
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+
+.complaint-card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.complaint-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-3) var(--spacing-4);
+  background-color: #F9FAFB;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.complaint-date {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  color: #6B7280;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.status-pending {
+  background-color: #FEF3C7;
+  color: #D97706;
+}
+
+.status-processing {
+  background-color: #DBEAFE;
+  color: #1E40AF;
+}
+
+.status-resolved {
+  background-color: #D1FAE5;
+  color: #059669;
+}
+
+.status-rejected {
+  background-color: #FEE2E2;
+  color: #DC2626;
+}
+
+.complaint-card-body {
+  padding: var(--spacing-4);
+}
+
+.complaint-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--spacing-3);
+}
+
+.row-label {
+  width: 80px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #6B7280;
+  flex-shrink: 0;
+}
+
+.row-value {
+  color: #111827;
+  font-weight: 500;
+}
+
+.priority-badge {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.priority-badge.basse {
+  background-color: #E5E7EB;
+  color: #374151;
+}
+
+.priority-badge.moyenne {
+  background-color: #FEF3C7;
+  color: #D97706;
+}
+
+.priority-badge.haute {
+  background-color: #FEE2E2;
+  color: #DC2626;
+}
+
+.complaint-message-box {
+  margin-top: var(--spacing-2);
+}
+
+.complaint-message-box .row-label {
+  display: block;
+  margin-bottom: var(--spacing-1);
+}
+
+.message-text {
+  background-color: #F9FAFB;
+  padding: var(--spacing-3);
+  border-radius: var(--radius-md);
+  margin: 0;
+  color: #4B5563;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  border: 1px solid #F3F4F6;
+}
+
+.admin-response-box {
+  margin: 0 var(--spacing-4) var(--spacing-4);
+  background-color: #F0F9FF; /* Light blue background */
+  border: 1px solid #BAE6FD;
+  border-radius: var(--radius-md);
+  padding: var(--spacing-3);
+}
+
+.admin-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  color: #0369A1;
+  margin-bottom: var(--spacing-2);
+  font-size: 0.875rem;
+}
+
+.response-text {
+  margin: 0;
+  color: #0C4A6E;
+  font-size: 0.9375rem;
+}
+
+.past-complaints-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  padding: var(--spacing-2) var(--spacing-3);
+  background-color: white;
+  border: 1px solid #E5E7EB;
+  border-radius: var(--radius-lg);
+  color: #4B5563;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.past-complaints-btn:hover {
+  background-color: #F9FAFB;
+  border-color: #D1D5DB;
+  color: #374151;
 }
 
 .btn-confirm-danger {

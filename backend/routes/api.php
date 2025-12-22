@@ -168,13 +168,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('intervenants/me/reservations/{id}/accept', [IntervenantController::class, 'acceptReservation']);
     Route::post('intervenants/me/reservations/{id}/refuse', [IntervenantController::class, 'refuseReservation']);
 
-    
+
     // Reclamations for interventions
     Route::post('/reclamations', [App\Http\Controllers\Api\Intervention\ReclamationController::class, 'store']);
-    
+    Route::get('/interventions/{id}/my-reclamations', [App\Http\Controllers\Api\Intervention\ReclamationController::class, 'myReclamations']);
+
     // SSE pour les réservations en temps réel
     Route::get('/reservations/stream', [App\Http\Controllers\Api\Intervention\ReservationSSEController::class, 'stream']);
-    
+
     // Actions sur Intervenant par ID (pour Admin ou autres)
     Route::put('intervenants/{id}/taches/{tacheId}/configure', [IntervenantController::class, 'configureTask']);
     Route::get('intervenants/{id}/services-with-activation', [IntervenantController::class, 'getServicesWithActivation']);
@@ -190,7 +191,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Interventions
     Route::apiResource('interventions', InterventionController::class);
-    
+
     // Intervenant Specific Interventions
     Route::apiResource('intervenant-interventions', InterventionControllerIntervenant::class);
     Route::get('intervenant-interventions/filter/upcoming', [InterventionControllerIntervenant::class, 'upcoming']);

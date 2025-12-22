@@ -151,11 +151,11 @@
             <div v-else>
               <h2>{{ formData.name }}</h2>
               <div class="info-item">
-                <MapPin :size="16" />
+                <MapPin :size="16"/>
                 <span>{{ intervenant.address || 'Adresse non spécifiée' }}</span>
               </div>
               <div class="info-item">
-                <MapPin :size="16" class="opacity-0" />
+                <MapPin :size="16"/>
                 <span class="font-medium mr-1">Ville:</span>
                 <span>{{ intervenant.ville || 'Non spécifiée' }}</span>
               </div>

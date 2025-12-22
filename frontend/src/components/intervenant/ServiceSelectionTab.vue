@@ -764,7 +764,20 @@ const activeServicesCount = computed(() => {
 })
 
 const activeTasksCount = computed(() => {
-  return Object.values(taskStates.value).filter(Boolean).length
+  let count = 0
+  // Iterate over all services to check their status
+  for (const serviceId in tasksByService.value) {
+    // Only count tasks if the parent service is active
+    if (serviceStates.value[serviceId]) {
+      const tasks = tasksByService.value[serviceId]
+      tasks.forEach(task => {
+        if (taskStates.value[task.id]) {
+          count++
+        }
+      })
+    }
+  }
+  return count
 })
 
 // Add service materials state

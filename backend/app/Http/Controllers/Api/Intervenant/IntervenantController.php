@@ -1115,9 +1115,10 @@ class IntervenantController extends Controller
             return response()->json(['error' => 'Intervenant not found'], 404);
         }
 
-        // Get ONLY active services (exclude demmande, archive, refuse, desactive)
+        // Get services with relevant statuses (active, archive, desactive, demmande)
+        // We include 'demmande' so the frontend knows there is a pending request
         $activeServices = $intervenant->services()
-            ->wherePivot('status', '=', 'active')  // ONLY ACTIVE!
+            ->wherePivotIn('status', ['active', 'archive', 'desactive', 'demmande'])
             ->get()
             ->map(function ($service) {
                 return [
@@ -1133,9 +1134,9 @@ class IntervenantController extends Controller
         // Get IDs of materials owned by the intervenant
         $intervenantMaterialIds = $intervenant->materiels->pluck('id')->toArray();
 
-        // Get ONLY tasks from active services
+        // Get tasks from these services
         $allTasks = $intervenant->taches()
-            ->whereIn('service_id', $activeServiceIds)  // Filter by active services!
+            ->whereIn('service_id', $activeServiceIds)
             ->with('materiels')
             ->get()
             ->map(function ($tache) use ($intervenantMaterialIds) {
@@ -1146,10 +1147,10 @@ class IntervenantController extends Controller
 
                 return [
                     'id' => $tache->id,
-                    'service_id' => $tache->service_id, // Essential for frontend grouping
+                    'service_id' => $tache->service_id,
                     'name' => $tache->nom_tache,
                     'price' => $tache->pivot->prix_tache,
-                    'status' => $tache->pivot->status,
+                    'status' => $tache->pivot->status, // This is the task status (active/inactive)
                     'materials' => $ownedMaterials,
                 ];
             });
@@ -1703,6 +1704,7 @@ class IntervenantController extends Controller
                 'service' => $tache && $tache->service ? $tache->service->nom_service : 'Service inconnu',
                 'task' => $tache ? $tache->nom_tache : 'Tâche inconnue',
                 'date' => $intervention->date_intervention ? $intervention->date_intervention->format('Y-m-d') : 'N/A',
+                'datetime' => $intervention->date_intervention, // Raw datetime for client-side formatting
                 'time' => $intervention->date_intervention ? $intervention->date_intervention->format('H:i') : 'N/A',
                 'duration_hours' => (float)$intervention->duration_hours,
                 'duration' => $intervention->duration_hours ? number_format($intervention->duration_hours, 1) . 'h' : 'N/A',

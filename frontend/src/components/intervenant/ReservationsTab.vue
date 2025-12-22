@@ -255,7 +255,9 @@
                 </div>
                 <div class="detail-item">
                   <Clock :size="18" class="icon-green" />
-                  <span>{{ reservation.time }} • {{ reservation.duration }}</span>
+                  <span v-if="reservation.time && reservation.time !== 'N/A'">{{ reservation.time }}</span>
+                  <span v-else>Non défini</span>
+                  <span v-if="reservation.duration && reservation.duration !== 'N/A'"> • {{ reservation.duration }}</span>
                 </div>
                 <div class="detail-item">
                   <MapPin :size="18" class="icon-red" />

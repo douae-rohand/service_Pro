@@ -21,8 +21,9 @@ const reservationService = {
         clientImage: r.clientImage || (r.client?.utilisateur?.photo
           ? (r.client.utilisateur.photo.startsWith('http') ? r.client.utilisateur.photo : `http://127.0.0.1:8000/storage/${r.client.utilisateur.photo}`)
           : 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=400&h=300&fit=crop'),
-        // Ensure time formatting if needed
-        date: r.date_intervention || r.date,
+        // Use raw strings from backend as requested
+        date: r.date || 'N/A',
+        time: r.time ? r.time.substring(0, 5) : 'N/A', // Ensure H:i format
         location: r.ville || r.location || 'Adresse non spécifiée'
       }));
 

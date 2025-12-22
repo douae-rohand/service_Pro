@@ -57,7 +57,19 @@
               <div class="service-details">
                 <p class="service-name">{{ intervention.tache?.service?.nom_service || 'Service non spécifié' }}</p>
                 <p class="task-name">{{ intervention.tache?.nom_tache || 'Tâche non spécifiée' }}</p>
+                <!-- Task Description (Static/Config) -->
                 <p class="description" v-if="intervention.tache?.description">{{ intervention.tache.description }}</p>
+              </div>
+            </div>
+
+            <!-- Client Description Block -->
+            <div v-if="intervention.message || intervention.description" class="info-block">
+              <div class="block-header">
+                <FileText :size="18" />
+                <h3>Description du client</h3>
+              </div>
+              <div class="service-details">
+                 <p class="description" style="color: #374151;">{{ intervention.message || intervention.description }}</p>
               </div>
             </div>
 
@@ -163,19 +175,9 @@
               </div>
 
               <div v-if="intervention.photos && intervention.photos.length > 0">
-                <!-- Avant Group -->
-                <div v-if="groupedPhotos.avant.length > 0" class="photo-group">
-                  <p class="photo-phase-label">Avant Intervention</p>
-                  <div class="photo-gallery">
-                    <div v-for="photo in groupedPhotos.avant" :key="photo.id" class="photo-item">
-                      <img :src="getImageUrl(photo.photo_path)" :alt="photo.description" class="gallery-img" @click="openImage(photo.photo_path)" />
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Après Group -->
-                <div v-if="groupedPhotos.apres.length > 0" class="photo-group" style="margin-top: 1.5rem;">
-                  <p class="photo-phase-label">Après Intervention</p>
+                <!-- Après Group Only -->
+                <div v-if="groupedPhotos.apres.length > 0" class="photo-group">
+                  <p class="photo-phase-label">Photos de l'intervention</p>
                   <div class="photo-gallery">
                     <div v-for="photo in groupedPhotos.apres" :key="photo.id" class="photo-item">
                       <img :src="getImageUrl(photo.photo_path)" :alt="photo.description" class="gallery-img" @click="openImage(photo.photo_path)" />
@@ -335,7 +337,7 @@ import { ref, watch, computed } from 'vue'
 import { X, User, MapPin, Clock, Package, Camera, PenTool as Tool, ClipboardList, Mail, Phone, Star, Plus, Lock } from 'lucide-vue-next'
 import api from '@/services/api'
 import interventionService from '@/services/interventionService'
-import { FileDown } from 'lucide-vue-next'
+import { FileDown, FileText } from 'lucide-vue-next'
 
 const props = defineProps({
   show: Boolean,
@@ -420,10 +422,15 @@ const formatDate = (dateStr) => {
 
 const formatTime = (dateStr) => {
   if (!dateStr) return 'N/A'
-  return new Date(dateStr).toLocaleTimeString('fr-FR', {
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+  // Handle "YYYY-MM-DDTHH:mm:ss" or "YYYY-MM-DD HH:mm:ss"
+  if (dateStr.includes('T')) {
+    return dateStr.split('T')[1].substring(0, 5)
+  }
+  if (dateStr.includes(' ')) {
+    return dateStr.split(' ')[1].substring(0, 5)
+  }
+  // Fallback
+  return dateStr.substring(0, 5)
 }
 
 const formatStatus = (status) => {

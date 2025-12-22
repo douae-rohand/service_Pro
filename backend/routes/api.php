@@ -195,6 +195,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('intervenant-interventions', InterventionControllerIntervenant::class);
     Route::get('intervenant-interventions/filter/upcoming', [InterventionControllerIntervenant::class, 'upcoming']);
     Route::get('intervenant-interventions/filter/completed', [InterventionControllerIntervenant::class, 'completed']);
+    Route::get('intervenant-interventions/pending-count/service/{serviceId}', [InterventionControllerIntervenant::class, 'countPendingByService']);
+    Route::get('intervenant-interventions/pending-count/tache/{tacheId}', [InterventionControllerIntervenant::class, 'countPendingByTache']);
+    Route::post('intervenant-interventions/pending-refuse/service/{serviceId}', [InterventionControllerIntervenant::class, 'refusePendingByService']);
+    Route::post('intervenant-interventions/pending-refuse/tache/{tacheId}', [InterventionControllerIntervenant::class, 'refusePendingByTache']);
+    Route::get('intervenant-interventions/{id}/slip', [InterventionControllerIntervenant::class, 'downloadSlip']);
 
     Route::get('interventions/index', [InterventionController::class, 'index']); // legacy?
     Route::get('interventions/filter/upcoming', [InterventionController::class, 'upcoming']);

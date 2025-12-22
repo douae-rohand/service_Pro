@@ -100,4 +100,105 @@ class PDFService
             'ttc' => $totalTTC
         ];
     }
+
+    /**
+     * Generate a payment slip PDF for an intervention.
+     *
+     * @param Intervention $intervention
+     * @return \App\Models\FichePayement
+     */
+    public function generatePaymentSlip(Intervention $intervention)
+    {
+        // Load relationships
+        $intervention->load([
+            'client.utilisateur', 
+            'intervenant.utilisateur', 
+            'tache.service',
+            'materiels'
+        ]);
+
+        // 1. Calculate Task Cost (HT)
+        $duration = $intervention->duration_hours ?? 1;
+        
+        $hourlyRate = 0;
+        $intervenantTache = \App\Models\IntervenantTache::where('intervenant_id', $intervention->intervenant_id)
+            ->where('tache_id', $intervention->tache_id)
+            ->first();
+            
+        if ($intervenantTache) {
+            $hourlyRate = $intervenantTache->prix_tache;
+        }
+
+        $htTache = $hourlyRate * $duration;
+
+        // 2. Calculate Materials Cost (HT)
+        $htMateriel = 0;
+        $materialsDetails = [];
+
+        // Use the IntervenantMateriel model to get prices
+        foreach ($intervention->materiels as $material) {
+            $intervenantMat = \App\Models\IntervenantMateriel::where('intervenant_id', $intervention->intervenant_id)
+                ->where('materiel_id', $material->id)
+                ->first();
+                
+            $price = $intervenantMat ? $intervenantMat->prix_materiel : 0;
+            
+            $materialsDetails[] = [
+                'name' => $material->nom_materiel,
+                'price' => $price
+            ];
+            
+            $htMateriel += $price;
+        }
+
+        // 3. Totals and Commission (TVA)
+        $htTotal = $htTache + $htMateriel;
+        $tvaTaux = 20.00; // Fixed 20%
+        $tvaMontant = $htTotal * ($tvaTaux / 100); // This is the platform commission
+        $ttc = $htTotal - $tvaMontant; // This is the net earnings for the intervenant
+
+        $data = [
+            'intervention' => $intervention,
+            'client' => $intervention->client,
+            'intervenant' => $intervention->intervenant,
+            'tache' => $intervention->tache,
+            'service' => $intervention->tache->service ?? null,
+            'date' => now()->format('d/m/Y'),
+            'slip_number' => 'PAY-' . $intervention->id . '-' . now()->timestamp,
+            // Calculation details
+            'duration' => $duration,
+            'hourly_rate' => $hourlyRate,
+            'ht_tache' => $htTache,
+            'materials_details' => $materialsDetails,
+            'ht_materiel' => $htMateriel,
+            'ht_total' => $htTotal,
+            'tva_taux' => $tvaTaux,
+            'tva_montant' => $tvaMontant,
+            'ttc' => $ttc
+        ];
+
+        // Generate PDF
+        $pdf = Pdf::loadView('pdf.payment_slip', $data);
+        $filename = 'slips/slip_' . $intervention->id . '_' . Str::random(10) . '.pdf';
+        
+        if (!Storage::disk('public')->exists('slips')) {
+            Storage::disk('public')->makeDirectory('slips');
+        }
+
+        Storage::disk('public')->put($filename, $pdf->output());
+
+        // Save to Database
+        return \App\Models\FichePayement::updateOrCreate(
+            ['intervention_id' => $intervention->id],
+            [
+                'ht_tache' => $htTache,
+                'ht_materiel' => $htMateriel,
+                'ht_total' => $htTotal,
+                'tva_taux' => $tvaTaux,
+                'tva_montant' => $tvaMontant,
+                'ttc' => $ttc,
+                'fichier_path' => $filename
+            ]
+        );
+    }
 }

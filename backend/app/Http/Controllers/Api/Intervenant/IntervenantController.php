@@ -383,6 +383,7 @@ class IntervenantController extends Controller
             'heure_debut' => $validated['available'] ? $validated['startTime'] : null,
             'heure_fin' => $validated['available'] ? $validated['endTime'] : null,
             'intervenant_id' => $intervenant->id,
+            'reason' => $validated['reason'],
         ]);
 
         return response()->json([

@@ -180,13 +180,20 @@ class IntervenantController extends Controller
             'admin_id' => 'nullable|exists:admin,id',
         ]);
 
-        $intervenant->update([
+        $updateData = [
             'address' => $validated['address'] ?? $request->input('address'),
             'ville' => $validated['ville'] ?? $request->input('ville'),
             'bio' => $validated['bio'] ?? $request->input('bio'),
-            'is_active' => $validated['is_active'] ?? $request->boolean('isActive'),
             'admin_id' => $validated['admin_id'] ?? $request->input('adminId'),
-        ]);
+        ];
+
+        if ($request->has('is_active')) {
+            $updateData['is_active'] = $request->boolean('is_active');
+        } elseif ($request->has('isActive')) {
+            $updateData['is_active'] = $request->boolean('isActive');
+        }
+
+        $intervenant->update($updateData);
 
         // Update service experience if provided
         if ($request->has('services') && is_array($request->services)) {

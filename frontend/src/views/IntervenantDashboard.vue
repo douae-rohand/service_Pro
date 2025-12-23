@@ -146,7 +146,7 @@ const fetchCurrentUser = async () => {
       name: `${user.prenom || ''} ${user.nom || ''}`.trim(),
       email: user.email || '',
       phone: user.telephone || '',
-      profileImage: user.profile_photo ? `http://127.0.0.1:8000/storage/${user.profile_photo}?t=${Date.now()}` : null,
+      profileImage: user.profile_photo ? `${user.profile_photo}${user.profile_photo.includes('?') ? '&' : '?'}t=${Date.now()}` : null,
       location: user.address || 'Non spécifié',
       memberSince: user.created_at ? new Date(user.created_at).getFullYear().toString() : new Date().getFullYear().toString()
     }
@@ -191,7 +191,7 @@ const handleLogout = async () => {
     window.location.href = '/'
   } catch (error) {
     console.error('Logout error:', error)
-    // Even if logout fails, clear local auth and redirect
+    // Même en cas d'erreur API, on nettoie le token localement et on recharge
     authService.setAuthToken(null)
     window.location.href = '/'
   }

@@ -47,3 +47,10 @@ Schedule::command('evaluations:mark-public')
     ->at('00:00')
     ->timezone('Africa/Casablanca');
 
+/**
+ * Tâche planifiée pour annuler les demandes en attente depuis 48h.
+ * S'exécute toutes les minutes (pour les tests).
+ */
+Schedule::command('intervention:cancel-stale')
+    ->everyMinute();
+

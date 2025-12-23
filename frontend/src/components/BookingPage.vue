@@ -1034,7 +1034,9 @@ export default {
           freeHours,
           message: hasEnoughTime 
             ? `Disponibilité confirmée pour ${this.estimatedHours} heure(s) le ${this.formatDate(this.bookingData.date)}`
-            : `Pas assez de créneaux disponibles pour ${this.estimatedHours} heure(s) le ${this.formatDate(this.bookingData.date)}`,
+            : freeHours >= this.estimatedHours 
+              ? `L'intervenant travaille à ces heures-là, mais il est déjà réservé par un autre client. Veuillez choisir une autre heure.`
+              : `Pas assez de créneaux libres disponibles pour ${this.estimatedHours} heure(s) le ${this.formatDate(this.bookingData.date)}`,
           details: hasEnoughTime
             ? `${possibleStartSlots.length} créneau(x) de départ possible(s)`
             : freeHours > 0
@@ -1067,35 +1069,44 @@ export default {
       return slots;
     },
     checkSlotAvailability(time, disponibilites) {
-      if (!disponibilites || disponibilites.length === 0) return true;
+      if (!disponibilites || disponibilites.length === 0) return false; // Par défaut, pas d'horaire = pas disponible
       
       const dateStr = this.bookingData.date;
       if (!dateStr) return false;
       
       const weekday = new Date(dateStr).toLocaleDateString('fr-FR', { weekday: 'long' }).toLowerCase();
-      
-      return disponibilites.some(d => {
+      const timeValue = this.timeToMinutes(time);
+
+      // Séparer les types pour donner la priorité aux exceptions (ponctuelles)
+      const ponctuelles = disponibilites.filter(d => String(d.type).toLowerCase() === 'ponctuelle');
+      const regulieres = disponibilites.filter(d => String(d.type).toLowerCase() === 'reguliere');
+
+      // 1. Si des disponibilités ponctuelles existent pour cette date, elles priment sur tout
+      if (ponctuelles.length > 0) {
+        return ponctuelles.some(d => {
+          const start = d.heure_debut || d.heureDebut;
+          const end = d.heure_fin || d.heureFin;
+          
+          if (!start || !end) return false; // Indisponible toute la journée si pas d'heures
+          
+          const startValue = this.timeToMinutes(start);
+          const endValue = this.timeToMinutes(end);
+          return timeValue >= startValue && timeValue < endValue;
+        });
+      }
+
+      // 2. Sinon, on vérifie l'emploi du temps régulier
+      return regulieres.some(d => {
+        if (String(d.jours_semaine).toLowerCase() !== weekday) return false;
+
         const start = d.heure_debut || d.heureDebut;
         const end = d.heure_fin || d.heureFin;
         
         if (!start || !end) return false;
         
-        const timeValue = this.timeToMinutes(time);
         const startValue = this.timeToMinutes(start);
         const endValue = this.timeToMinutes(end);
-        
-        const within = timeValue >= startValue && timeValue < endValue;
-        
-        if (String(d.type).toLowerCase() === 'reguliere' && d.jours_semaine) {
-          return within && String(d.jours_semaine).toLowerCase() === weekday;
-        }
-        
-        if (String(d.type).toLowerCase() === 'ponctuelle' && d.date_specific) {
-          const disponibiliteDate = new Date(d.date_specific).toISOString().split('T')[0];
-          return within && disponibiliteDate === dateStr;
-        }
-        
-        return false;
+        return timeValue >= startValue && timeValue < endValue;
       });
     },
     timeToMinutes(timeStr) {
@@ -1109,7 +1120,8 @@ export default {
         let allAvailable = true;
         
         for (let j = 0; j < this.estimatedHours; j++) {
-          if (!slots[i + j] || !slots[i + j].available) {
+          const slotToCheck = slots[i + j];
+          if (!slotToCheck || !slotToCheck.available || slotToCheck.reserved) {
             allAvailable = false;
             break;
           }
@@ -1123,16 +1135,15 @@ export default {
       return possibleStarts;
     },
     canSelectSlot(slot) {
-      // Permettre la sélection même si certains créneaux sont réservés (on vérifiera lors du clic)
-      if (!slot.available) return false;
-      
       const slotIndex = this.timeSlots.findIndex(s => s.time === slot.time);
       if (slotIndex === -1) return false;
       
-      // Vérifier qu'il y a assez de créneaux (même s'ils sont réservés, on affichera un message)
-      for (let i = 1; i < this.estimatedHours; i++) {
+      // Vérifier que TOUTE la plage horaire est disponible pour la durée estimée
+      for (let i = 0; i < this.estimatedHours; i++) {
         const nextSlot = this.timeSlots[slotIndex + i];
-        if (!nextSlot) {
+        
+        // Si un créneau de la plage n'existe pas, n'est pas disponible ou est déjà réservé
+        if (!nextSlot || !nextSlot.available || nextSlot.reserved) {
           return false;
         }
       }
@@ -1145,19 +1156,25 @@ export default {
       interventions.forEach(intervention => {
         if (!intervention.date_intervention) return;
         
-        const interventionDate = new Date(intervention.date_intervention);
-        const selectedDate = new Date(this.bookingData.date);
+        // Comparer les dates proprement (YYYY-MM-DD)
+        const interventionDateStr = new Date(intervention.date_intervention).toISOString().split('T')[0];
+        const selectedDateStr = this.bookingData.date;
         
-        // Vérifier si l'intervention est le même jour
-        if (interventionDate.toDateString() === selectedDate.toDateString()) {
-          const startTime = interventionDate.toTimeString().substring(0, 5); // HH:MM
-          const duration = Number(intervention.duration_hours || 1);
+        if (interventionDateStr === selectedDateStr) {
+          // Filtrer par statut : on ne bloque que si l'intervention est active
+          const status = (intervention.status || '').toLowerCase();
+          const blockingStatuses = ['en attend', 'en_attente', 'acceptee', 'acceptée', 'accepted', 'termine', 'terminee', 'completed', 'en cours', 'in-progress'];
           
-          // Ajouter tous les créneaux réservés
-          const startMinutes = this.timeToMinutes(startTime);
-          for (let i = 0; i < Math.ceil(duration); i++) {
-            const reservedTime = this.minutesToTime(startMinutes + (i * 60));
-            reserved.push(reservedTime);
+          if (blockingStatuses.includes(status)) {
+            const startTime = new Date(intervention.date_intervention).toTimeString().substring(0, 5); // HH:MM
+            const duration = Number(intervention.duration_hours || 1);
+            
+            // Ajouter tous les créneaux réservés
+            const startMinutes = this.timeToMinutes(startTime);
+            for (let i = 0; i < Math.ceil(duration); i++) {
+              const reservedTime = this.minutesToTime(startMinutes + (i * 60));
+              reserved.push(reservedTime);
+            }
           }
         }
       });

@@ -28,6 +28,7 @@ class EvaluationSeeder extends Seeder
                 'critaire_id' => 6, // Qualité du travail
                 'note' => 5,
                 'type_auteur' => 'client',
+                'is_public' => false,
                 'created_at' => $now->copy()->subDays(29),
                 'updated_at' => $now->copy()->subDays(29),
             ],
@@ -36,6 +37,7 @@ class EvaluationSeeder extends Seeder
                 'critaire_id' => 7, // Ponctualité
                 'note' => 3, // Note réduite à cause du retard (cohérent avec la réclamation)
                 'type_auteur' => 'client',
+                'is_public' => false,
                 'created_at' => $now->copy()->subDays(29),
                 'updated_at' => $now->copy()->subDays(29),
             ],
@@ -72,6 +74,7 @@ class EvaluationSeeder extends Seeder
                 'critaire_id' => 1, // Communication client
                 'note' => 5,
                 'type_auteur' => 'intervenant',
+                'is_public' => false,
                 'created_at' => $now->copy()->subDays(29),
                 'updated_at' => $now->copy()->subDays(29),
             ],
@@ -80,6 +83,7 @@ class EvaluationSeeder extends Seeder
                 'critaire_id' => 2, // Précision des instructions
                 'note' => 4,
                 'type_auteur' => 'intervenant',
+                'is_public' => false,
                 'created_at' => $now->copy()->subDays(29),
                 'updated_at' => $now->copy()->subDays(29),
             ],
@@ -102,6 +106,7 @@ class EvaluationSeeder extends Seeder
                 'critaire_id' => 6, // Qualité du travail
                 'note' => 5,
                 'type_auteur' => 'client',
+                'is_public' => false,
                 'created_at' => $now->copy()->subDays(24),
                 'updated_at' => $now->copy()->subDays(24),
             ],
@@ -119,6 +124,7 @@ class EvaluationSeeder extends Seeder
                 'critaire_id' => 8, // Professionnalisme
                 'note' => 5,
                 'type_auteur' => 'client',
+                'is_public' => false,
                 'created_at' => $now->copy()->subDays(24),
                 'updated_at' => $now->copy()->subDays(24),
             ],
@@ -127,6 +133,7 @@ class EvaluationSeeder extends Seeder
                 'critaire_id' => 10, // Propreté
                 'note' => 5,
                 'type_auteur' => 'client',
+                'is_public' => false,
                 'created_at' => $now->copy()->subDays(24),
                 'updated_at' => $now->copy()->subDays(24),
             ],
@@ -145,6 +152,7 @@ class EvaluationSeeder extends Seeder
                 'critaire_id' => 1, // Communication client
                 'note' => 5,
                 'type_auteur' => 'intervenant',
+                'is_public' => false,
                 'created_at' => $now->copy()->subDays(24),
                 'updated_at' => $now->copy()->subDays(24),
             ],
@@ -153,6 +161,7 @@ class EvaluationSeeder extends Seeder
                 'critaire_id' => 4, // Respect du planning
                 'note' => 3, // Note réduite à cause des annulations répétées (cohérent avec la réclamation)
                 'type_auteur' => 'intervenant',
+                'is_public' => false,
                 'created_at' => $now->copy()->subDays(24),
                 'updated_at' => $now->copy()->subDays(24),
             ],
@@ -166,6 +175,7 @@ class EvaluationSeeder extends Seeder
                 'critaire_id' => 6, // Qualité du travail
                 'note' => 5,
                 'type_auteur' => 'client',
+                'is_public' => false,
                 'created_at' => $now->copy()->subDays(19),
                 'updated_at' => $now->copy()->subDays(19),
             ],
@@ -174,6 +184,7 @@ class EvaluationSeeder extends Seeder
                 'critaire_id' => 7, // Ponctualité
                 'note' => 5,
                 'type_auteur' => 'client',
+                'is_public' => false,
                 'created_at' => $now->copy()->subDays(19),
                 'updated_at' => $now->copy()->subDays(19),
             ],
@@ -182,6 +193,7 @@ class EvaluationSeeder extends Seeder
                 'critaire_id' => 8, // Professionnalisme
                 'note' => 5,
                 'type_auteur' => 'client',
+                'is_public' => false,
                 'created_at' => $now->copy()->subDays(19),
                 'updated_at' => $now->copy()->subDays(19),
             ],
@@ -190,6 +202,7 @@ class EvaluationSeeder extends Seeder
                 'critaire_id' => 9, // Communication
                 'note' => 4, // Légèrement réduite à cause du problème de matériel
                 'type_auteur' => 'client',
+                'is_public' => false,
                 'created_at' => $now->copy()->subDays(19),
                 'updated_at' => $now->copy()->subDays(19),
             ],
@@ -198,6 +211,7 @@ class EvaluationSeeder extends Seeder
                 'critaire_id' => 10, // Propreté
                 'note' => 5,
                 'type_auteur' => 'client',
+                'is_public' => false,
                 'created_at' => $now->copy()->subDays(19),
                 'updated_at' => $now->copy()->subDays(19),
             ],
@@ -211,6 +225,7 @@ class EvaluationSeeder extends Seeder
                 'critaire_id' => 6, // Qualité du travail
                 'note' => 4,
                 'type_auteur' => 'client',
+                'is_public' => false,
                 'created_at' => $now->copy()->subDays(14),
                 'updated_at' => $now->copy()->subDays(14),
             ],
@@ -219,6 +234,7 @@ class EvaluationSeeder extends Seeder
                 'critaire_id' => 7, // Ponctualité
                 'note' => 3,
                 'type_auteur' => 'client',
+                'is_public' => false,
                 'created_at' => $now->copy()->subDays(14),
                 'updated_at' => $now->copy()->subDays(14),
             ],
@@ -227,6 +243,7 @@ class EvaluationSeeder extends Seeder
                 'critaire_id' => 8, // Professionnalisme
                 'note' => 4,
                 'type_auteur' => 'client',
+                'is_public' => false,
                 'created_at' => $now->copy()->subDays(14),
                 'updated_at' => $now->copy()->subDays(14),
             ],
@@ -235,6 +252,7 @@ class EvaluationSeeder extends Seeder
                 'critaire_id' => 10, // Propreté
                 'note' => 5,
                 'type_auteur' => 'client',
+                'is_public' => false,
                 'created_at' => $now->copy()->subDays(14),
                 'updated_at' => $now->copy()->subDays(14),
             ],
@@ -248,6 +266,7 @@ class EvaluationSeeder extends Seeder
                 'critaire_id' => 6, // Qualité du travail
                 'note' => 5,
                 'type_auteur' => 'client',
+                'is_public' => false,
                 'created_at' => $now->copy()->subDays(9),
                 'updated_at' => $now->copy()->subDays(9),
             ],
@@ -256,6 +275,7 @@ class EvaluationSeeder extends Seeder
                 'critaire_id' => 7, // Ponctualité
                 'note' => 5,
                 'type_auteur' => 'client',
+                'is_public' => false,
                 'created_at' => $now->copy()->subDays(9),
                 'updated_at' => $now->copy()->subDays(9),
             ],
@@ -264,6 +284,7 @@ class EvaluationSeeder extends Seeder
                 'critaire_id' => 8, // Professionnalisme
                 'note' => 5,
                 'type_auteur' => 'client',
+                'is_public' => false,
                 'created_at' => $now->copy()->subDays(9),
                 'updated_at' => $now->copy()->subDays(9),
             ],
@@ -282,6 +303,7 @@ class EvaluationSeeder extends Seeder
                 'critaire_id' => 1, // Communication client
                 'note' => 5,
                 'type_auteur' => 'intervenant',
+                'is_public' => false,
                 'created_at' => $now->copy()->subDays(9),
                 'updated_at' => $now->copy()->subDays(9),
             ],
@@ -290,6 +312,7 @@ class EvaluationSeeder extends Seeder
                 'critaire_id' => 4, // Respect du planning (inclut le respect des délais de paiement)
                 'note' => 2, // Note très basse à cause du paiement tardif (cohérent avec la réclamation)
                 'type_auteur' => 'intervenant',
+                'is_public' => false,
                 'created_at' => $now->copy()->subDays(9),
                 'updated_at' => $now->copy()->subDays(9),
             ],

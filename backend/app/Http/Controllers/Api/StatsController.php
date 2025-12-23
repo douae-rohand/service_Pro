@@ -23,8 +23,8 @@ class StatsController extends Controller
             // Compter tous les clients
             $allClients = Client::count();
 
-            // Compter tous les intervenants
-            $allIntervenants = Intervenant::count();
+            // Compter tous les intervenants actifs
+            $allIntervenants = Intervenant::where('is_active', true)->count();
 
             // Compter tous les sous-services (Taches)
             // Note: On suppose que "sous services" correspond au modèle Tache

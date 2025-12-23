@@ -602,7 +602,7 @@ export default {
             interv_count: intervenant.interv_count || 0,
             hourlyRate: hourlyRate,
             location: intervenant.ville || utilisateur.address || 'Non spécifiée',
-            image: intervenant.image_url || utilisateur.profile_photo || utilisateur.url || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=150&h=150&fit=crop',
+            image: utilisateur.profile_photo || utilisateur.url || `https://ui-avatars.com/api/?name=${encodeURIComponent(utilisateur.prenom + ' ' + utilisateur.nom)}&background=${this.service == 1 ? 'DCFCE7' : 'EBF4FF'}&color=${this.service == 1 ? '92B08B' : '4682B4'}&bold=true&length=1&size=128`,
             verified: intervenant.is_active !== false,
             specialties: specialties,
             taches: taches,
@@ -670,7 +670,11 @@ export default {
       this.currentPage = 1; // Reset to first page
     },
     handleImageError(event) {
-      event.target.src = 'https://via.placeholder.com/150?text=Image+non+disponible';
+      const name = event.target.alt || 'User';
+      const isJardinage = this.service == 1;
+      const bg = isJardinage ? 'DCFCE7' : 'EBF4FF';
+      const color = isJardinage ? '92B08B' : '4682B4';
+      event.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${bg}&color=${color}&bold=true&length=1&size=128`;
     },
     formatExperience
   }

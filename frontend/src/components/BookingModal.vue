@@ -8,6 +8,7 @@
             :src="intervenant.image"
             :alt="intervenant.name"
             class="w-16 h-16 rounded-full object-cover border-2 border-white"
+            @error="handleImageError"
           />
           <div>
             <h2 class="text-2xl font-bold">Choisir une tâche</h2>
@@ -97,6 +98,7 @@
           :alt="intervenant.name"
           class="w-12 h-12 rounded-full object-cover border-2"
           style="border-color: #92b08b"
+          @error="handleImageError"
         />
         <div class="flex-1">
           <h3 class="font-bold text-lg" style="color: #2f4f4f">{{ intervenant.name }}</h3>
@@ -1216,6 +1218,17 @@ export default {
         month: 'long', 
         day: 'numeric' 
       });
+    },
+
+    handleImageError(event) {
+      const name = event.target.alt || 'User';
+      // Tentative de détection du service via le service sélectionné ou les données de l'intervenant
+      const isJardinage = (this.selectedService && (this.selectedService.id == 1 || this.selectedService.nom_service === 'Jardinage')) || 
+                        (this.intervenant && this.intervenant.name && this.intervenant.name.toLowerCase().includes('jardin'));
+      
+      const bg = isJardinage ? 'DCFCE7' : 'EBF4FF';
+      const color = isJardinage ? '92B08B' : '4682B4';
+      event.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${bg}&color=${color}&bold=true&length=1&size=128`;
     }
   }
 };

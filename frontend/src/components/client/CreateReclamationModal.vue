@@ -11,7 +11,23 @@
       <form @submit.prevent="submitReclamation" class="reclamation-form">
         <div class="form-group">
           <label>Intervenant concerné <span class="required">*</span></label>
+          
+          <!-- Mode Lecture Seule quand lié à une intervention -->
+          <div v-if="preselectedIntervention" class="read-only-field flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-xl">
+            <img 
+              :src="preselectedIntervention.intervenant?.image || 'https://via.placeholder.com/150'" 
+              class="w-10 h-10 rounded-full object-cover border border-white shadow-sm"
+              alt="Avatar"
+            />
+            <div>
+              <p class="font-bold text-slate-800">{{ preselectedIntervention.intervenant?.name || 'Intervenant' }}</p>
+              <p class="text-xs text-slate-500">Sélection automatique (lié à l'intervention)</p>
+            </div>
+          </div>
+
+          <!-- Liste déroulante seulement si pas de présélection -->
           <select
+            v-else
             v-model="form.concernant_id"
             required
             :disabled="loadingIntervenants || preselectedIntervenantId"
@@ -25,9 +41,6 @@
               {{ intervenant.utilisateur?.prenom }} {{ intervenant.utilisateur?.nom }}
             </option>
           </select>
-          <p v-if="preselectedIntervenantId" class="form-hint">
-            Intervenant pré-sélectionné
-          </p>
         </div>
 
         <div v-if="preselectedIntervention" class="form-group info-box">

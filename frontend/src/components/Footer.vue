@@ -143,8 +143,8 @@
                   d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
                 />
               </svg>
-              <a href="mailto:contact@servicepro.fr" class="text-blue-100 hover:text-white transition-colors">
-                contact@servicepro.fr
+              <a href="mailto:contact@verdenet.com" class="text-blue-100 hover:text-white transition-colors">
+                contact@verdenet.com
               </a>
             </li>
           </ul>
@@ -153,7 +153,7 @@
 
       <div class="border-t border-blue-400/30 pt-8">
         <div class="flex flex-col md:flex-row justify-between items-center gap-4">
-          <p class="text-blue-100 text-sm">© 2025 ServicePro. Tous droits réservés.</p>
+          <p class="text-blue-100 text-sm">© 2025 Verde Net. Tous droits réservés.</p>
           <div class="flex gap-6">
             <a href="#" class="text-blue-100 hover:text-white text-sm transition-colors">
               Conditions d'utilisation

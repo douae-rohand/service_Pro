@@ -652,7 +652,7 @@ export default {
         this.intervenant = {
           id: data.id,
           name: fullName,
-          profileImage: data.utilisateur && data.utilisateur.url ? data.utilisateur.url : `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=random`,
+          profileImage: (data.utilisateur && data.utilisateur.profile_photo) || (data.utilisateur && data.utilisateur.url) || `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=${this.service === 'jardinage' ? 'DCFCE7' : 'EBF4FF'}&color=${this.service === 'jardinage' ? '92B08B' : '4682B4'}&bold=true&length=1&size=128`,
           rating: data.average_rating || 0,
           reviewCount: data.review_count || 0,
           location: data.ville || data.address || 'Localisation non spécifiée',
@@ -893,6 +893,14 @@ export default {
         console.error('Error checking favorite status:', error);
         this.isFavorite = false;
       }
+    },
+
+    handleImageError(event) {
+      const name = event.target.alt || 'User';
+      const isJardinage = this.service === 'jardinage';
+      const bg = isJardinage ? 'DCFCE7' : 'EBF4FF';
+      const color = isJardinage ? '92B08B' : '4682B4';
+      event.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${bg}&color=${color}&bold=true&length=1&size=128`;
     }
   }
 };

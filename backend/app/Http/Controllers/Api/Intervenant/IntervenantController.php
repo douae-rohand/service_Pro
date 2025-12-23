@@ -32,33 +32,31 @@ class IntervenantController extends Controller
                 'services'
             ]);
 
-            // Filtrer les intervenants actifs par défaut
-            // Si 'active' est présent et vaut 'false', on prend les inactifs
-            // Si 'active' est présent et vaut 'all', on prend tout
-            // Sinon (absent ou 'true'), on prend uniquement les actifs
+            // Default: strictly only active intervenants for clients
             $activeParam = $request->input('active');
-            
             if ($activeParam === 'all') {
-                // No filter
+                // No filter (for admin typically)
             } elseif ($activeParam === 'false' || $activeParam === '0') {
                 $query->where('is_active', false);
             } else {
-                // Default or explicitly true
-                $query->active();
+                // Default: strictly only active intervenants for clients
+                $query->where('is_active', true);
             }
 
-            // Filtrer par tâche spécifique
+            // Filtrer par tâche spécifique et s'assurer que la tâche est active pour cet intervenant
             if ($request->has('tacheId')) {
                 $query->whereHas('taches', function ($q) use ($request) {
-                    $q->where('id', $request->tacheId);
+                    $q->where('tache.id', $request->tacheId)
+                      ->where('intervenant_tache.status', 1);
                 });
             }
 
-            // Filtrer par service
+            // Filtrer par service et s'assurer que le service est actif pour cet intervenant
             $serviceId = $request->input('serviceId') ?: $request->input('service_id');
             if ($serviceId && $serviceId != 'all') {
-                $query->whereHas('taches', function ($q) use ($serviceId) {
-                    $q->where('service_id', $serviceId);
+                $query->whereHas('services', function ($q) use ($serviceId) {
+                    $q->where('service.id', $serviceId)
+                      ->where('intervenant_service.status', 'active');
                 });
             }
 
@@ -444,9 +442,9 @@ class IntervenantController extends Controller
             $query->where('is_active', false);
             Log::info('Filtering by active: FALSE');
         } else {
-            // Default or explicitly true
+            // Default: strictly only active intervenants for clients
             $query->where('is_active', true);
-            Log::info('Filtering by active: TRUE (Default)');
+            Log::info('Filtering by active: TRUE (Strict Default)');
         }
         
         // Filter by service - using serviceId parameter
@@ -454,8 +452,9 @@ class IntervenantController extends Controller
         if ($serviceId && $serviceId != 'all') {
             Log::info('Filtering by serviceId: ' . $serviceId);
             
-            $query->whereHas('taches', function ($q) use ($serviceId) {
-                $q->where('service_id', $serviceId);
+            $query->whereHas('services', function ($q) use ($serviceId) {
+                $q->where('service.id', $serviceId)
+                  ->where('intervenant_service.status', 'active');
             });
         }
 
@@ -465,7 +464,8 @@ class IntervenantController extends Controller
             Log::info('Filtering by tacheId: ' . $tacheId);
             
             $query->whereHas('taches', function ($q) use ($tacheId) {
-                $q->where('tache.id', $tacheId); // Explicit table name to avoid ambiguity if joined
+                $q->where('tache.id', $tacheId)
+                  ->where('intervenant_tache.status', 1);
             });
         }
         

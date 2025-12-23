@@ -699,7 +699,7 @@ export default {
               address: address,
               ville: ville
             },
-            image: intervenant.image_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(utilisateur.prenom + ' ' + utilisateur.nom)}&background=random&color=fff`,
+            image: utilisateur.profile_photo || utilisateur.url || `https://ui-avatars.com/api/?name=${encodeURIComponent(utilisateur.prenom + ' ' + utilisateur.nom)}&background=${this.serviceId == 1 ? 'DCFCE7' : 'EBF4FF'}&color=${this.serviceId == 1 ? '92B08B' : '4682B4'}&bold=true&length=1&size=128`,
             verified: intervenant.is_active !== false,
             otherSpecialties: otherSpecialties,
             experience: realExperience,
@@ -733,7 +733,11 @@ export default {
     },
     
     handleImageError(event) {
-      event.target.src = 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=150&h=150&fit=crop';
+      const name = event.target.alt || 'User';
+      const isJardinage = this.serviceId == 1;
+      const bg = isJardinage ? 'DCFCE7' : 'EBF4FF';
+      const color = isJardinage ? '92B08B' : '4682B4';
+      event.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${bg}&color=${color}&bold=true&length=1&size=128`;
     },
     
       handleReserve(intervenant) {

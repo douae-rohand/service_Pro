@@ -118,6 +118,7 @@
                   :alt="intervenant.name"
                   class="w-16 h-16 rounded-full object-cover border-3"
                   :style="{ borderColor: currentService.color }"
+                  @error="handleImageError"
                 />
                 <div class="flex-1">
                   <h3 class="text-lg">{{ intervenant.name }}</h3>
@@ -369,7 +370,7 @@ export default {
             reviewCount: intervenant.review_count || 0, // Nombre d'avis calculé depuis la base de données
             hourlyRate: hourlyRate,
             location: intervenant.ville || utilisateur.address || 'Non spécifiée',
-            image: intervenant.image_url || utilisateur.photo || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=150&h=150&fit=crop',
+            image: utilisateur.profile_photo || utilisateur.url || `https://ui-avatars.com/api/?name=${encodeURIComponent(`${utilisateur.nom || ''} ${utilisateur.prenom || ''}`.trim() || 'Intervenant')}&background=${serviceId == 1 ? 'DCFCE7' : 'EBF4FF'}&color=${serviceId == 1 ? '92B08B' : '4682B4'}&bold=true&length=1&size=128`,
             verified: intervenant.is_active !== false,
             specialties: specialties,
             experience: realExperience, // Ajout de l'expérience réelle
@@ -393,7 +394,14 @@ export default {
         this.intervenants = [];
       }
     },
-    formatExperience
+    formatExperience,
+    handleImageError(event) {
+      const name = event.target.alt || 'User';
+      const isJardinage = this.currentService && this.currentService.name === 'Jardinage';
+      const bg = isJardinage ? 'DCFCE7' : 'EBF4FF';
+      const color = isJardinage ? '92B08B' : '4682B4';
+      event.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${bg}&color=${color}&bold=true&length=1&size=128`;
+    }
   }
 };
 </script>

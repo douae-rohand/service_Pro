@@ -37,7 +37,7 @@ class ReclamationResolved extends Mailable
      */
     public function build()
     {
-        return $this->subject('✅ Votre réclamation a été résolue - Service Pro')
+        return $this->subject('✅ Votre réclamation a été résolue - Verde Net')
                     ->view('emails.reclamation-resolved')
                     ->with([
                         'reclamation' => $this->reclamation,

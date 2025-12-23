@@ -11,7 +11,7 @@
             <img src="../../assets/logo.png" alt="Logo" class="w-8 h-8 object-contain" />
           </div>
           <div>
-            <h1 class="text-lg font-bold text-gray-800 leading-tight">ServicePro</h1>
+            <h1 class="text-lg font-bold text-gray-800 leading-tight">Verde Net</h1>
             <p class="text-[10px] font-bold text-[#4682B4] uppercase tracking-wider">Espace Client</p>
           </div>
         </div>

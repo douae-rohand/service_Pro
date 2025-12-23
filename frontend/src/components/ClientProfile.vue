@@ -1,83 +1,103 @@
 <template>
   <div class="min-h-screen bg-gray-50/50 animate-fade-in pb-12">
-    <!-- Header Page Title Background -->
-    <div class="bg-white border-b border-gray-100 mb-8">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-         <h1 class="text-3xl font-bold bg-gradient-to-r from-[#2f4f4f] to-[#4682B4] bg-clip-text text-transparent">Mon Profil</h1>
-         <p class="text-gray-500 mt-2">Gérez vos informations personnelles et consultez votre activité.</p>
-      </div>
-    </div>
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10">
       <!-- Profile Summary Card -->
-      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8 relative overflow-hidden group">
-        <!-- Decorative background element -->
-        <div class="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-[#4682B4]/5 to-[#92B08B]/5 rounded-bl-full -mr-16 -mt-16 transition-transform duration-700 group-hover:scale-110"></div>
+      <div class="bg-white rounded-3xl shadow-lg shadow-slate-200/40 p-6 mb-8 relative overflow-hidden text-center">
+        <!-- Floating shapes background - Reduced size -->
+        <div class="absolute top-0 right-0 w-64 h-64 bg-[#4682B4]/5 rounded-full blur-3xl -mr-24 -mt-24 pointer-events-none"></div>
+        <div class="absolute bottom-0 left-0 w-64 h-64 bg-[#92B08B]/5 rounded-full blur-3xl -ml-24 -mb-24 pointer-events-none"></div>
 
-        <div class="flex flex-col md:flex-row items-center md:items-start gap-8 relative z-10">
-          <!-- Profile Picture -->
-          <div class="relative group-avatar">
-            <div class="w-32 h-32 rounded-full p-1 bg-gradient-to-br from-[#4682B4] to-[#92B08B] shadow-lg">
-              <img
-                v-if="currentUser"
-                :src="previewImage || currentUser.avatar || currentUser.profilePhoto || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser.name) + '&background=4682B4&color=fff'"
-                :alt="currentUser.name"
-                class="w-full h-full rounded-full object-cover border-4 border-white bg-white"
-              />
-            </div>
-            <label
-              for="avatar-upload"
-              class="absolute bottom-1 right-1 bg-white text-[#4682B4] rounded-full p-2.5 shadow-md border border-gray-100 hover:bg-[#4682B4] hover:text-white transition-all cursor-pointer transform hover:scale-110 active:scale-95"
-              title="Modifier la photo"
-            >
-              <Pencil :size="16" stroke-width="2.5" />
-            </label>
-            <input
-              id="avatar-upload"
-              type="file"
-              accept="image/jpeg,image/png,image/jpg,image/gif"
-              class="hidden"
-              @change="handleAvatarChange"
-            />
-            <div v-if="uploadingAvatar" class="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center backdrop-blur-sm">
-              <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-            </div>
+        <div class="relative z-10 flex flex-col items-center max-w-3xl mx-auto">
+          <!-- Avatar Section - Reduced Size -->
+          <div class="relative mb-4 group">
+             <div class="w-28 h-28 rounded-full p-1 bg-gradient-to-tr from-[#4682B4] to-[#92B08B] shadow-lg">
+               <div class="w-full h-full rounded-full border-4 border-white bg-white overflow-hidden relative">
+                  <img
+                    v-if="currentUser"
+                    :src="previewImage || currentUser.avatar || currentUser.profilePhoto || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser.name) + '&background=4682B4&color=fff'"
+                    :alt="currentUser.name"
+                    class="w-full h-full object-cover"
+                  />
+                  <!-- Upload Overlay -->
+                  <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer" @click="$refs.fileInput.click()">
+                    <Camera :size="20" class="text-white" />
+                  </div>
+               </div>
+             </div>
+             
+             <!-- Edit Button (Pencil) -->
+             <button 
+               @click="$refs.fileInput.click()"
+               class="absolute bottom-1 right-1 bg-white text-[#4682B4] rounded-full p-2 shadow-md border border-gray-100 hover:bg-[#4682B4] hover:text-white hover:scale-110 transition-all duration-300 group-hover:shadow-blue-200"
+               title="Modifier la photo"
+             >
+               <Pencil :size="14" stroke-width="2.5" />
+             </button>
+
+             <input
+               ref="fileInput"
+               type="file"
+               accept="image/jpeg,image/png,image/jpg,image/gif"
+               class="hidden"
+               @change="handleAvatarChange"
+             />
+             
+             <div v-if="uploadingAvatar" class="absolute inset-0 rounded-full flex items-center justify-center z-20">
+               <div class="absolute inset-0 bg-white/80 rounded-full backdrop-blur-[2px]"></div>
+               <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-[#4682B4] relative z-10"></div>
+             </div>
           </div>
 
-          <!-- User Info -->
-          <div class="flex-1 text-center md:text-left">
-            <div class="mb-4">
-              <h2 v-if="currentUser" class="text-3xl font-bold text-gray-800 mb-1">{{ currentUser.name }}</h2>
-              <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-100">
-                Client Vérifié
-              </span>
-            </div>
+          <!-- Name & Verification -->
+          <h2 v-if="currentUser" class="text-2xl font-black text-[#305C7D] mb-6 tracking-tight">{{ currentUser.name }}</h2>
+          <!-- "Client Vérifié" badge removed as requested -->
             
-            <div v-if="currentUser" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-600">
-              <div class="flex items-center gap-3 justify-center md:justify-start bg-gray-50 p-3 rounded-lg border border-gray-100 hover:bg-blue-50/50 transition-colors">
-                <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-[#4682B4]">
-                  <Mail :size="16" />
-                </div>
-                <span class="font-medium text-sm">{{ currentUser.email }}</span>
-              </div>
-              <div class="flex items-center gap-3 justify-center md:justify-start bg-gray-50 p-3 rounded-lg border border-gray-100 hover:bg-green-50/50 transition-colors">
-                <div class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-[#92B08B]">
-                  <Phone :size="16" />
-                </div>
-                <span class="font-medium text-sm">{{ currentUser.phone || 'Non renseigné' }}</span>
-              </div>
-              <div class="flex items-center gap-3 justify-center md:justify-start bg-gray-50 p-3 rounded-lg border border-gray-100 hover:bg-purple-50/50 transition-colors">
-                <div class="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
-                   <MapPin :size="16" />
-                </div>
-                <span class="font-medium text-sm">{{ currentUser.location || 'Non renseigné' }}</span>
-              </div>
-              <div class="flex items-center gap-3 justify-center md:justify-start bg-gray-50 p-3 rounded-lg border border-gray-100 hover:bg-yellow-50/50 transition-colors">
-                <div class="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-600">
-                   <Calendar :size="16" />
-                </div>
-                <span class="font-medium text-sm">Membre depuis {{ currentUser.memberSince }}</span>
-              </div>
+          <!-- Info Grid -->
+          <div v-if="currentUser" class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+            <!-- Email Card -->
+            <div class="group flex items-center gap-4 p-4 bg-gray-50/80 rounded-xl border border-gray-100 hover:bg-white hover:shadow-lg hover:shadow-blue-900/5 hover:-translate-y-0.5 transition-all duration-300">
+               <div class="w-10 h-10 rounded-xl bg-[#E1EFFE] flex items-center justify-center text-[#4682B4] group-hover:scale-105 transition-transform duration-300 shadow-inner">
+                 <Mail :size="18" stroke-width="2" />
+               </div>
+               <div class="text-left overflow-hidden">
+                 <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Email</p>
+                 <p class="font-bold text-gray-800 text-sm truncate" :title="currentUser.email">{{ currentUser.email }}</p>
+               </div>
+            </div>
+
+            <!-- Phone Card -->
+            <div class="group flex items-center gap-4 p-4 bg-gray-50/80 rounded-xl border border-gray-100 hover:bg-white hover:shadow-lg hover:shadow-green-900/5 hover:-translate-y-0.5 transition-all duration-300">
+               <div class="w-10 h-10 rounded-xl bg-[#E8F5E9] flex items-center justify-center text-[#92B08B] group-hover:scale-105 transition-transform duration-300 shadow-inner">
+                 <Phone :size="18" stroke-width="2" />
+               </div>
+               <div class="text-left">
+                 <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Téléphone</p>
+                 <p class="font-bold text-gray-800 text-sm">{{ currentUser.phone || 'Non renseigné' }}</p>
+               </div>
+            </div>
+
+            <!-- Location Card -->
+            <div class="group flex items-center gap-4 p-4 bg-gray-50/80 rounded-xl border border-gray-100 hover:bg-white hover:shadow-lg hover:shadow-purple-900/5 hover:-translate-y-0.5 transition-all duration-300">
+               <div class="w-10 h-10 rounded-xl bg-[#F3E8FF] flex items-center justify-center text-purple-500 group-hover:scale-105 transition-transform duration-300 shadow-inner">
+                  <MapPin :size="18" stroke-width="2" />
+               </div>
+               <div class="text-left">
+                 <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Localisation</p>
+                 <p class="font-bold text-gray-800 text-sm">{{ currentUser.location || 'Non renseigné' }}</p>
+               </div>
+            </div>
+
+            <!-- Member Since Card -->
+            <div class="group flex items-center gap-4 p-4 bg-gray-50/80 rounded-xl border border-gray-100 hover:bg-white hover:shadow-lg hover:shadow-yellow-900/5 hover:-translate-y-0.5 transition-all duration-300">
+               <div class="w-10 h-10 rounded-xl bg-[#FEF9C3] flex items-center justify-center text-yellow-600 group-hover:scale-105 transition-transform duration-300 shadow-inner">
+                  <Calendar :size="18" stroke-width="2" />
+               </div>
+               <div class="text-left">
+                 <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Membre depuis</p>
+                 <p class="font-bold text-gray-800 text-sm">{{ currentUser.memberSince }}</p>
+               </div>
             </div>
           </div>
         </div>
@@ -349,7 +369,9 @@ import {
   MessageCircle,
   MessageSquareText,
   AlertTriangle,
-  Check
+  Check,
+  Camera,
+  CheckCircle
 } from 'lucide-vue-next';
 import profileService from '@/services/profileService';
 import authService from '@/services/authService';
@@ -371,6 +393,8 @@ export default {
     MessageCircle,
     AlertTriangle,
     Check,
+    Camera,
+    CheckCircle,
     MyFavoritesTab,
     ClientReclamationsTab,
     MessageSquareText

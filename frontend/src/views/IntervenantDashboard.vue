@@ -5,7 +5,7 @@
       <!-- Sidebar Header -->
       <div class="sidebar-header">
         <div class="sidebar-header-content">
-          <h2 class="brand">ServicePro</h2>
+          <h2 class="brand">Verde Net</h2>
           <button @click="isSidebarOpen = false" class="close-btn">
             <X :size="20" />
           </button>

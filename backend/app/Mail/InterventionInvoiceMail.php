@@ -31,7 +31,7 @@ class InterventionInvoiceMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Votre facture ServicePro est disponible',
+            subject: 'Votre facture Verde Net est disponible',
         );
     }
 
@@ -55,7 +55,7 @@ class InterventionInvoiceMail extends Mailable
         $pdf = Pdf::loadView('pdf.invoice', ['intervention' => $this->intervention]);
         
         return [
-            Attachment::fromData(fn () => $pdf->output(), 'Facture-ServicePro-' . $this->intervention->id . '.pdf')
+            Attachment::fromData(fn () => $pdf->output(), 'Facture-VerdeNet-' . $this->intervention->id . '.pdf')
                 ->withMime('application/pdf'),
         ];
     }

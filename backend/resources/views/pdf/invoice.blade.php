@@ -97,7 +97,7 @@
 </head>
 <body>
     <div class="header">
-        <span class="company-name">ServicePro</span>
+        <span class="company-name">Verde Net</span>
         <span class="invoice-title">FACTURE</span>
     </div>
 
@@ -175,7 +175,7 @@
 
     <div class="footer">
         Merci de votre confiance !<br>
-        ServicePro - Plateforme de services à domicile - contact@servicepro.com
+        Verde Net - Plateforme de services à domicile - contact@verdenet.com
     </div>
 </body>
 </html>

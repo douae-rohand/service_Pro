@@ -116,13 +116,38 @@ class InterventionResource extends JsonResource
         // Transform invoice
         $invoice = null;
         if ($this->facture) {
+            // Calculate materials cost from intervention_information
+            $materialsCost = 0;
+            $materialsProvided = [];
+            
+            // Extract materials cost from intervention_information
+            $materialsCostInfo = $this->informations->where('nom', 'Coût_Matériel')->first();
+            if ($materialsCostInfo) {
+                // Extract numeric value from "XXX DH" format
+                $costString = $materialsCostInfo->pivot->information ?? '0';
+                $materialsCost = (float) preg_replace('/[^0-9.]/', '', $costString);
+            }
+            
+            // Get materials list
+            if ($this->materiels) {
+                foreach ($this->materiels as $materiel) {
+                    $materialsProvided[] = $materiel->nom_materiel;
+                }
+            }
+            
+            // Calculate labor cost (total TTC - materials cost)
+            $totalTTC = $this->facture->ttc ?? 0;
+            $laborCost = max(0, $totalTTC - $materialsCost);
+            
             $invoice = [
                 'date' => $this->facture->created_at?->format('Y-m-d'),
                 'actualDuration' => $this->duration_hours ? number_format($this->duration_hours, 1) . ' heures' : 'N/A',
-                'laborCost' => $this->facture->ttc ?? 0,
-                'materialsProvided' => [], // TODO: Extract from intervention_materiel with costs
-                'materialsCost' => 0, // TODO: Calculate from materials
-                'paymentDate' => $this->facture->created_at?->format('Y-m-d')
+                'laborCost' => $laborCost,
+                'materialsProvided' => $materialsProvided,
+                'materialsCost' => $materialsCost,
+                'materialsDescription' => !empty($materialsProvided) ? implode(', ', $materialsProvided) : 'Aucun matériel',
+                'paymentDate' => $this->facture->created_at?->format('Y-m-d'),
+                'num_facture' => $this->facture->num_facture ?? null
             ];
         }
 

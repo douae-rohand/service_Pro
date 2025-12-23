@@ -27,7 +27,7 @@ class ServiceActivated extends Mailable
      */
     public function build()
     {
-        return $this->subject('Service activé - Votre demande peut être acceptée - Service Pro')
+        return $this->subject('Service activé - Votre demande peut être acceptée - Verde Net')
                     ->view('emails.service-activated')
                     ->with([
                         'intervenant' => $this->intervenant,

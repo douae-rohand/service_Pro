@@ -189,7 +189,7 @@
 
     <div class="footer">
         <p>Total: {{ count($interventions) }} intervention(s)</p>
-        <p>Service Pro - Système de gestion des interventions</p>
+        <p>Verde Net - Système de gestion des interventions</p>
     </div>
 </body>
 </html>

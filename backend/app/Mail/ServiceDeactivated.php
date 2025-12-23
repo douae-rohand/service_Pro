@@ -27,7 +27,7 @@ class ServiceDeactivated extends Mailable
      */
     public function build()
     {
-        return $this->subject('Service désactivé - Service Pro')
+        return $this->subject('Service désactivé - Verde Net')
                     ->view('emails.service-deactivated')
                     ->with([
                         'intervenant' => $this->intervenant,

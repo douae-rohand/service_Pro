@@ -196,13 +196,29 @@ const interventionService = {
    * Transformer la facture
    */
   transformInvoice(facture, intervention) {
-    // TODO: Extract actual duration and materials from facture or intervention
+    // Use the invoice data from backend if available (from InterventionResource)
+    // The backend now provides: laborCost, materialsCost, materialsProvided, materialsDescription, actualDuration
+    if (intervention?.invoice) {
+      return {
+        date: intervention.invoice.date || facture.created_at || facture.createdAt,
+        actualDuration: intervention.invoice.actualDuration || (intervention.duration_hours ? `${intervention.duration_hours} heures` : 'N/A'),
+        laborCost: intervention.invoice.laborCost || 0,
+        materialsProvided: intervention.invoice.materialsProvided || [],
+        materialsCost: intervention.invoice.materialsCost || 0,
+        materialsDescription: intervention.invoice.materialsDescription || 'Aucun matériel',
+        paymentDate: intervention.invoice.paymentDate || facture.created_at || facture.createdAt,
+        num_facture: intervention.invoice.num_facture || null
+      };
+    }
+    
+    // Fallback: extract from facture and intervention if invoice object not available
     return {
       date: facture.created_at || facture.createdAt,
-      actualDuration: '2 heures', // TODO: Get from intervention or facture
-      laborCost: facture.ttc || 0, // TODO: Separate labor and materials
-      materialsProvided: [], // TODO: Extract from intervention_materiel
-      materialsCost: 0, // TODO: Calculate from materials
+      actualDuration: intervention?.duration_hours ? `${intervention.duration_hours} heures` : 'N/A',
+      laborCost: facture.ttc || 0,
+      materialsProvided: [],
+      materialsCost: 0,
+      materialsDescription: 'Aucun matériel',
       paymentDate: facture.created_at || facture.createdAt
     };
   },

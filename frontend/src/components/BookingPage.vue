@@ -205,36 +205,6 @@
           </div>
         </div>
 
-        <!-- Description détaillée -->
-        <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-100 shadow-sm transition-all hover:shadow-md">
-          <h4 class="text-lg font-bold mb-4 flex items-center gap-3 text-gray-800">
-            <div class="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center">
-               <FileText :size="20" class="text-purple-600" />
-            </div>
-            Description détaillée (optionnel)
-          </h4>
-          <div class="space-y-2">
-            <label class="block text-sm font-semibold text-gray-700">
-              Décrivez précisément votre besoin
-            </label>
-            <textarea
-              v-model="bookingData.description"
-              rows="4"
-              placeholder="Ex: J'ai besoin d'une aide pour nettoyer mon salon et ma cuisine. Le salon fait environ 20m² et la cuisine 15m²..."
-              class="w-full px-4 py-3 bg-gray-50/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all outline-none resize-none"
-              maxlength="500"
-            ></textarea>
-            <div class="flex justify-between items-center text-xs">
-              <p class="text-gray-500 flex items-center gap-1">
-                <AlertCircle :size="12" />
-                ⚠️ Ne partagez pas vos coordonnées personnelles (téléphone, email, réseaux sociaux)
-              </p>
-              <span class="text-gray-400 font-mono">
-                {{ (bookingData.description || '').length }}/500
-              </span>
-            </div>
-          </div>
-        </div>
 
         <!-- Materials -->
         <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-100 shadow-sm transition-all hover:shadow-md">
@@ -424,22 +394,10 @@
               class="rounded-3xl p-6 border transition-all"
               :class="dayAvailabilityResult.hasEnoughTime ? 'bg-green-50/50 border-green-100' : 'bg-red-50/50 border-red-100'"
             >
-              <div class="flex items-start gap-4">
-                <div 
-                  class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm"
-                  :class="dayAvailabilityResult.hasEnoughTime ? 'bg-green-500 text-white' : 'bg-red-500 text-white'"
-                >
-                  <Check v-if="dayAvailabilityResult.hasEnoughTime" :size="20" />
-                  <X v-else :size="20" />
-                </div>
-                <div class="flex-1">
-                  <p class="font-black text-lg" :class="dayAvailabilityResult.hasEnoughTime ? 'text-green-900' : 'text-red-900'">
-                    {{ dayAvailabilityResult.hasEnoughTime ? 'C\'est parfait !' : 'Oups, petit souci...' }}
-                  </p>
-                  <p class="text-sm mt-1 leading-relaxed" :class="dayAvailabilityResult.hasEnoughTime ? 'text-green-700' : 'text-red-700'">
+              <div class="text-center">
+                  <p class="font-bold text-lg leading-relaxed" :class="dayAvailabilityResult.hasEnoughTime ? 'text-green-700' : 'text-red-700'">
                     {{ dayAvailabilityResult.message }}
                   </p>
-                </div>
               </div>
               
               <div v-if="dayAvailabilityResult.availableSlots?.length > 0" class="mt-6 pt-6 border-t border-[#92B08B]/10">
@@ -889,8 +847,25 @@ export default {
     }
     
     // Handle preselection
-    if (preselectedServiceId) {
-      const matchingService = this.services.find(s => s.id == preselectedServiceId);
+    let serviceIdToSelect = preselectedServiceId;
+
+    // If we have a task but no service, try to find the service ID from the task
+    if (!serviceIdToSelect && preselectedTaskId) {
+      try {
+        console.log('🕵️ Deducing service ID from task ID:', preselectedTaskId);
+        const taskRes = await api.get(`taches/${preselectedTaskId}`);
+        const task = taskRes.data?.data || taskRes.data;
+        if (task && (task.service_id || task.service?.id)) {
+           serviceIdToSelect = task.service_id || task.service?.id;
+           console.log('✅ Deduced Service ID:', serviceIdToSelect);
+        }
+      } catch (e) {
+        console.error("⚠️ Failed to deduce service from task:", e);
+      }
+    }
+
+    if (serviceIdToSelect) {
+      const matchingService = this.services.find(s => s.id == serviceIdToSelect);
       if (matchingService) {
         await this.selectService(matchingService);
         

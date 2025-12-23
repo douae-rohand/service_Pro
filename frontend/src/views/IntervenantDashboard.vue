@@ -188,12 +188,12 @@ const handleLogout = async () => {
   try {
     await authService.logout()
     authService.setAuthToken(null)
-    router.push('/login')
+    window.location.href = '/'
   } catch (error) {
     console.error('Logout error:', error)
     // Even if logout fails, clear local auth and redirect
     authService.setAuthToken(null)
-    router.push('/login')
+    window.location.href = '/'
   }
   showProfileMenu.value = false
 }

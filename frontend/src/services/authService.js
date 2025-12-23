@@ -95,6 +95,10 @@ const authService = {
             }
         } : {};
 
+        if (data instanceof FormData) {
+            return api.post('auth/profile', data, config);
+        }
+
         return api.put('auth/profile', data, config);
     },
 

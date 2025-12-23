@@ -249,6 +249,8 @@ const intervenant = ref({
   services: [] // Add services array
 })
 
+const emit = defineEmits(['profile-updated'])
+
 const loading = ref(true)
 const isEditing = ref(false)
 const showSuccessMessage = ref(false)
@@ -403,6 +405,7 @@ const saveEdit = async () => {
     if (selectedFile.value) {
          const photoData = new FormData();
          photoData.append('profile_photo', selectedFile.value);
+         photoData.append('_method', 'PUT');
          // Assuming this endpoint exists and works for photo
          await authService.updateProfile(photoData); 
     }
@@ -417,6 +420,7 @@ const saveEdit = async () => {
     });
 
     await fetchCurrentUser()
+    emit('profile-updated')
     
     selectedFile.value = null
     isEditing.value = false

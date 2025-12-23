@@ -115,7 +115,7 @@ class TacheController extends Controller
             
             $tache = Tache::with(['materiels' => function($q) use ($intervenantId) {
                 if ($intervenantId) {
-                    $q->leftJoin('intervenant_materiel', function($join) use ($intervenantId) {
+                    $q->join('intervenant_materiel', function($join) use ($intervenantId) {
                         $join->on('materiel.id', '=', 'intervenant_materiel.materiel_id')
                              ->where('intervenant_materiel.intervenant_id', '=', $intervenantId);
                     })->select('materiel.*', 'intervenant_materiel.prix_materiel as cost');

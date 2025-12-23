@@ -37,6 +37,7 @@ class Utilisateur extends Authenticatable
         'email_verification_code',
         'email_verification_expires_at',
         'email_verified_at',
+        'estActive',
     ];
 
     /**
@@ -56,6 +57,7 @@ class Utilisateur extends Authenticatable
             'password' => 'hashed',
             'email_verified_at' => 'datetime',
             'email_verification_expires_at' => 'datetime',
+            'estActive' => 'boolean',
         ];
     }
 

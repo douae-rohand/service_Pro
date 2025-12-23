@@ -26,9 +26,10 @@ class EvaluationController extends Controller
 
         // Check if intervention is completed
         $status = strtolower($intervention->status ?? '');
-        if (!in_array($status, ['terminee', 'terminée', 'terminées'])) {
+        $completedStatuses = ['terminee', 'terminée', 'terminées', 'completed', 'termine'];
+        if (!in_array($status, $completedStatuses)) {
             return response()->json([
-                'message' => 'Vous ne pouvez évaluer que les interventions terminées',
+                'message' => 'Vous ne pouvez évaluer que les interventions terminées. Statut actuel: ' . $status,
                 'error' => 'invalid_status'
             ], 400);
         }

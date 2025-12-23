@@ -184,152 +184,130 @@
             </div>
           </div>
 
-          <!-- Historique Tab -->
-          <div v-if="activeTab === 'historique'" class="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <h3 class="text-xl font-bold mb-6 text-gray-800 flex items-center gap-2">
-               <Clock :size="24" class="text-[#4682B4]" />
-               Historique des services 
-               <span class="text-sm font-normal text-gray-500 ml-2 bg-gray-100 px-2 py-0.5 rounded-full">{{ history.length }}</span>
-            </h3>
-            
-            <div v-if="loadingHistory" class="flex flex-col items-center justify-center py-12">
-              <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-[#4682B4]"></div>
-              <p class="mt-4 text-gray-500 font-medium">Récupération de votre historique...</p>
-            </div>
-            
-            <div v-else-if="history.length === 0" class="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/50">
-              <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 mb-4">
-                 <Clock :size="32" />
-              </div>
-              <p class="text-lg font-bold text-gray-700">Aucun service terminé</p>
-              <p class="text-gray-500 max-w-sm mt-1">Vos futures interventions terminées apparaîtront ici.</p>
-            </div>
-            
-            <div v-else class="space-y-4">
-              <div
-                v-for="item in history"
-                :key="item.id"
-                class="bg-white rounded-2xl p-5 border border-gray-100 hover:shadow-md hover:border-[#4682B4]/30 transition-all group"
-              >
-                <div class="flex items-start justify-between">
-                  <div class="flex items-start gap-4">
-                     <div class="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-gray-600 group-hover:bg-[#4682B4] group-hover:text-white transition-colors">
-                        <Check :size="20" />
-                     </div>
-                     <div>
-                        <h4 class="font-bold text-lg text-gray-800">{{ item.serviceName }}</h4>
-                        <div class="flex items-center gap-2 text-sm text-gray-500 mt-1">
-                           <User :size="14" />
-                           <span>Intervenant: <span class="font-medium text-gray-700">{{ item.providerName }}</span></span>
-                        </div>
-                        <div class="flex items-center gap-2 text-sm text-gray-500 mt-1">
-                           <Calendar :size="14" />
-                           <span>{{ item.date }}</span>
-                        </div>
-                     </div>
-                  </div>
-                  
-                  <div class="text-right">
-                    <div class="inline-flex items-center px-3 py-1 rounded-lg bg-[#E8F5E9] text-[#6B8E6D] text-sm font-bold border border-[#6B8E6D]/20 mb-2">
-                       {{ item.price }} DH
-                    </div>
-                  </div>
-                </div>
-                
-                <div v-if="item.rating" class="mt-4 pt-4 border-t border-gray-50 flex items-center justify-between">
-                  <span class="text-sm font-medium text-gray-500">Votre évaluation</span>
-                  <div class="flex gap-0.5">
-                    <Star
-                      v-for="i in 5"
-                      :key="i"
-                      :size="16"
-                      :class="i <= Math.round(item.rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-200'"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
 
           <!-- Mes Évaluations Tab -->
           <div v-if="activeTab === 'evaluations'" class="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div v-if="loadingEvaluations" class="flex flex-col items-center justify-center py-12">
+            <div class="mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+              <div>
+                 <h3 class="text-xl font-bold text-gray-800 mb-1">Mes Évaluations</h3>
+                 <p class="text-gray-500 text-sm">Gérez et consultez les avis de la communauté.</p>
+              </div>
+
+              <!-- Sub-tab Switcher -->
+              <div class="flex p-1 bg-gray-100 rounded-xl">
+                <button 
+                  @click="evaluationSubTab = 'received'"
+                  class="px-4 py-2 rounded-lg text-sm font-bold transition-all"
+                  :class="evaluationSubTab === 'received' ? 'bg-white text-[#4682B4] shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+                >
+                  Avis reçus
+                </button>
+                <button 
+                  @click="evaluationSubTab = 'given'"
+                  class="px-4 py-2 rounded-lg text-sm font-bold transition-all"
+                  :class="evaluationSubTab === 'given' ? 'bg-white text-[#4682B4] shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+                >
+                  Avis donnés
+                </button>
+              </div>
+            </div>
+
+            <div v-if="loadingEvaluations || loadingHistory" class="flex flex-col items-center justify-center py-12">
               <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-[#4682B4]"></div>
               <p class="mt-4 text-gray-500 font-medium">Chargement des avis...</p>
             </div>
             
             <div v-else>
-              <div class="mb-8 flex items-end justify-between">
-                <div>
-                   <h3 class="text-xl font-bold text-gray-800 mb-1">Mes Évaluations</h3>
-                   <p class="text-gray-500 text-sm">Ce que les intervenants pensent de vous.</p>
-                </div>
-                <div v-if="evaluations.length > 0" class="flex items-center gap-2 bg-yellow-50 px-4 py-2 rounded-xl border border-yellow-100">
-                   <span class="text-2xl font-bold text-gray-800">{{ evalStatistics.averageRating || '0.0' }}</span>
-                   <div class="flex flex-col items-start leading-none">
-                      <div class="flex">
-                         <Star :size="12" class="fill-yellow-400 text-yellow-400" />
-                         <Star :size="12" class="fill-yellow-400 text-yellow-400" />
-                         <Star :size="12" class="fill-yellow-400 text-yellow-400" />
-                         <Star :size="12" class="fill-yellow-400 text-yellow-400" />
-                         <Star :size="12" class="fill-yellow-400 text-yellow-400" />
-                      </div>
-                      <span class="text-[10px] text-gray-500 font-medium uppercase mt-0.5">{{ evaluations.length }} avis</span>
+              <!-- Avis Reçus Content -->
+              <div v-if="evaluationSubTab === 'received'">
+                <div v-if="evaluations.length > 0" class="mb-6 flex items-center gap-2 bg-blue-50/50 px-4 py-2.5 rounded-xl border border-blue-100">
+                   <div class="flex items-center gap-1.5">
+                      <Star :size="18" class="fill-yellow-400 text-yellow-400" />
+                      <span class="text-xl font-black text-gray-800">{{ evalStatistics.averageRating || '0.0' }}</span>
                    </div>
+                   <div class="h-4 w-px bg-gray-300 mx-2"></div>
+                   <span class="text-xs text-gray-600 font-bold uppercase tracking-wider">{{ evaluations.length }} avis reçus</span>
                 </div>
-              </div>
 
-              <div v-if="filteredEvaluations.length === 0" class="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/50">
-                <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 mb-4">
-                   <Star :size="32" />
+                <div v-if="filteredEvaluations.length === 0" class="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-gray-100 rounded-3xl bg-gray-50/30">
+                  <div class="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center text-gray-400 mb-4 transform rotate-12">
+                     <Star :size="32" />
+                  </div>
+                  <p class="text-lg font-bold text-gray-700">Aucun avis reçu</p>
+                  <p class="text-gray-500 max-w-sm mt-1">Les avis laissés par les intervenants apparaîtront ici.</p>
                 </div>
-                <p class="text-lg font-bold text-gray-700">Aucune évaluation</p>
-                <p class="text-gray-500 max-w-sm mt-1">Les avis laissés par les intervenants apparaîtront ici.</p>
-              </div>
 
-              <div v-else class="grid grid-cols-1 gap-6">
-                <div
-                  v-for="evaluation in filteredEvaluations"
-                  :key="evaluation.interventionId"
-                  class="bg-white border border-gray-100 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 group"
-                >
-                  <div class="flex items-start gap-5">
-                    <!-- Avatar -->
-                    <div class="flex-shrink-0">
-                      <div class="relative">
-                        <img
-                          :src="evaluation.intervenantImage || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(evaluation.intervenantName) + '&background=4682B4&color=fff'"
-                          :alt="evaluation.intervenantName"
-                          class="w-14 h-14 rounded-full object-cover border-2 border-gray-100 shadow-sm group-hover:border-[#4682B4] transition-colors"
-                          @error="evaluation.intervenantImage = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(evaluation.intervenantName) + '&background=4682B4&color=fff'"
-                        />
-                      </div>
-                    </div>
-
-                    <!-- Content -->
-                    <div class="flex-1 min-w-0">
-                      <div class="flex items-start justify-between mb-3">
-                        <div class="flex-1">
-                          <h4 class="text-lg font-bold text-gray-900">{{ evaluation.intervenantName }}</h4>
-                          <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
-                             <span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-[#4682B4]">
-                                {{ evaluation.serviceName }}
-                             </span>
-                             <span class="flex items-center gap-1.5 text-xs text-gray-500">
-                               <Calendar :size="12" />
-                               {{ evaluation.date }}
-                             </span>
+                <div v-else class="grid grid-cols-1 gap-6">
+                  <div
+                    v-for="evaluation in filteredEvaluations"
+                    :key="evaluation.interventionId"
+                    class="bg-white border border-gray-100 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 group"
+                  >
+                    <div class="flex items-start gap-4">
+                      <img
+                        :src="evaluation.intervenantImage || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(evaluation.intervenantName) + '&background=F0F4F8&color=4682B4'"
+                        class="w-12 h-12 rounded-xl object-cover shadow-sm"
+                      />
+                      <div class="flex-1 min-w-0">
+                        <div class="flex items-start justify-between">
+                          <div>
+                            <h4 class="font-bold text-gray-900 group-hover:text-[#4682B4] transition-colors">{{ evaluation.intervenantName }}</h4>
+                            <p class="text-xs text-gray-500 mt-0.5">{{ evaluation.serviceName }} • {{ evaluation.date }}</p>
+                          </div>
+                          <div class="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-lg border border-yellow-100">
+                            <Star :size="14" class="fill-yellow-400 text-yellow-400" />
+                            <span class="font-black text-sm text-gray-800">{{ evaluation.overallRating }}</span>
                           </div>
                         </div>
-                        
-                        <div class="flex-shrink-0 flex items-center gap-1 bg-yellow-50 px-2.5 py-1 rounded-lg border border-yellow-100">
-                          <Star :size="16" class="fill-yellow-400 text-yellow-400" />
-                          <span class="font-bold text-gray-900">{{ evaluation.overallRating }}</span>
+                        <div v-if="evaluation.comment" class="mt-4 p-3 bg-gray-50 rounded-xl relative">
+                          <MessageSquareText :size="14" class="absolute -top-2 -left-2 text-gray-300 fill-white" />
+                          <p class="text-sm text-gray-600 italic leading-relaxed">"{{ evaluation.comment }}"</p>
                         </div>
                       </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-                      <div v-if="evaluation.comment" class="relative mt-4 pl-4 border-l-2 border-gray-200">
-                        <p class="text-gray-600 italic text-sm leading-relaxed">"{{ evaluation.comment }}"</p>
+              <!-- Avis Donnés Content -->
+              <div v-else>
+                <div v-if="givenEvaluations.length === 0" class="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-gray-100 rounded-3xl bg-gray-50/30">
+                  <div class="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center text-gray-400 mb-4 transform -rotate-12">
+                     <MessageSquareText :size="32" />
+                  </div>
+                  <p class="text-lg font-bold text-gray-700">Aucun avis donné</p>
+                  <p class="text-gray-500 max-w-sm mt-1">Vous n'avez pas encore laissé d'avis sur vos prestations passées.</p>
+                </div>
+
+                <div v-else class="grid grid-cols-1 gap-6">
+                  <div
+                    v-for="item in givenEvaluations"
+                    :key="item.id"
+                    class="bg-white border border-gray-100 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 group"
+                  >
+                    <div class="flex items-start gap-4">
+                      <img
+                        :src="item.providerImage || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(item.providerName) + '&background=F0F4F8&color=92B08B'"
+                        class="w-12 h-12 rounded-xl object-cover shadow-sm"
+                      />
+                      <div class="flex-1 min-w-0">
+                        <div class="flex items-start justify-between">
+                          <div>
+                            <h4 class="font-bold text-gray-900 group-hover:text-[#92B08B] transition-colors">{{ item.providerName }}</h4>
+                            <p class="text-xs text-gray-500 mt-0.5">{{ item.serviceName }} • {{ item.date }}</p>
+                          </div>
+                          <div class="flex items-center gap-1 bg-green-50 px-2 py-1 rounded-lg border border-green-100">
+                            <Star :size="14" class="fill-[#92B08B] text-[#92B08B]" />
+                            <span class="font-black text-sm text-gray-800">{{ item.rating }}</span>
+                          </div>
+                        </div>
+                        <div v-if="item.comment" class="mt-4 p-3 bg-[#92B08B]/5 rounded-xl border border-[#92B08B]/10 relative">
+                          <MessageSquareText :size="14" class="absolute -top-2 -left-2 text-[#92B08B]/40 fill-white" />
+                          <p class="text-sm text-gray-700 italic leading-relaxed">"{{ item.comment }}"</p>
+                        </div>
+                        <div v-else class="mt-3">
+                           <span class="text-xs font-medium text-gray-400 italic">Évaluation sans commentaire</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -369,6 +347,7 @@ import {
   Calendar,
   Pencil,
   MessageCircle,
+  MessageSquareText,
   AlertTriangle,
   Check
 } from 'lucide-vue-next';
@@ -393,7 +372,8 @@ export default {
     AlertTriangle,
     Check,
     MyFavoritesTab,
-    ClientReclamationsTab
+    ClientReclamationsTab,
+    MessageSquareText
   },
   props: {
     clientId: {
@@ -410,9 +390,9 @@ export default {
   data() {
     return {
       activeTab: 'informations',
+      evaluationSubTab: 'received',
       tabs: [
         { id: 'informations', label: 'Informations', icon: 'User' },
-        { id: 'historique', label: 'Historique', icon: 'Clock' },
         { id: 'evaluations', label: 'Mes Évaluations', icon: 'Star' },
         { id: 'favorites', label: 'Mes Favoris', icon: 'Heart' },
         { id: 'reclamations', label: 'Mes Réclamations', icon: 'AlertTriangle' }
@@ -444,10 +424,9 @@ export default {
   },
   watch: {
     activeTab(newTab) {
-      if (newTab === 'historique' && this.history.length === 0) {
-        this.loadHistory();
-      } else if (newTab === 'evaluations' && this.evaluations.length === 0) {
-        this.loadEvaluations();
+      if (newTab === 'evaluations') {
+        if (this.evaluations.length === 0) this.loadEvaluations();
+        if (this.history.length === 0) this.loadHistory();
       }
     }
   },
@@ -472,6 +451,10 @@ export default {
         });
       }
       return this.evaluations;
+    },
+    givenEvaluations() {
+      // Return history items that have a rating
+      return this.history.filter(item => item.rating !== null);
     }
   },
   methods: {

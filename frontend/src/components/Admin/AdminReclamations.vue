@@ -164,23 +164,105 @@
         </div>
 
         <!-- Linked Intervention -->
-        <div v-if="reclamation.intervention" class="bg-blue-50/50 rounded-lg p-2.5 mb-2.5 border border-blue-100 flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <div class="bg-blue-100 p-1.5 rounded-lg">
-              <Calendar :size="14" class="text-blue-600" />
+        <div v-if="reclamation.intervention" class="bg-blue-50/50 rounded-lg p-2.5 mb-2.5 border border-blue-100">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <div class="bg-blue-100 p-1.5 rounded-lg">
+                <Calendar :size="14" class="text-blue-600" />
+              </div>
+              <div>
+                <p class="text-[10px] text-blue-600 font-medium uppercase tracking-wider">Intervention liée</p>
+                <p class="text-xs font-semibold text-blue-900">{{ reclamation.intervention.service }}</p>
+                <p class="text-[10px] text-blue-700/70">{{ formatDateShort(reclamation.intervention.date) }}</p>
+              </div>
             </div>
-            <div>
-              <p class="text-[10px] text-blue-600 font-medium uppercase tracking-wider">Intervention liée</p>
-              <p class="text-xs font-semibold text-blue-900">{{ reclamation.intervention.service }}</p>
-              <p class="text-[10px] text-blue-700/70">{{ formatDateShort(reclamation.intervention.date) }}</p>
+            <button 
+              @click="viewInterventionDetails(reclamation.intervention.id)"
+              class="px-2 py-1 text-[10px] bg-white border border-blue-200 text-blue-600 rounded-md hover:bg-blue-50 transition-colors font-medium shadow-sm"
+            >
+              Détails intervention
+            </button>
+          </div>
+
+          <!-- Evaluations Section -->
+          <div v-if="reclamation.intervention.evaluations" class="mt-2.5 space-y-2">
+            <!-- Client Evaluations -->
+            <div v-if="reclamation.intervention.evaluations.client && reclamation.intervention.evaluations.client.count > 0" 
+                 class="bg-white rounded-lg p-2 border border-gray-200">
+              <div class="flex items-center justify-between mb-1.5">
+                <p class="text-[10px] font-semibold text-gray-700 uppercase">Évaluation Client</p>
+                <div v-if="reclamation.intervention.evaluations.client.average_note" class="flex items-center gap-1">
+                  <Star :size="10" fill="#FEE347" style="color: #FEE347" />
+                  <span class="text-xs font-semibold text-gray-800">{{ reclamation.intervention.evaluations.client.average_note }}/5</span>
+                </div>
+              </div>
+              
+              <!-- Evaluation Details -->
+              <div v-if="reclamation.intervention.evaluations.client.details && reclamation.intervention.evaluations.client.details.length > 0" 
+                   class="space-y-1 mb-1.5">
+                <div v-for="detail in reclamation.intervention.evaluations.client.details" 
+                     :key="detail.id" 
+                     class="flex items-center justify-between text-[10px]">
+                  <span class="text-gray-600">{{ detail.critere }}</span>
+                  <div class="flex items-center gap-0.5">
+                    <Star v-for="n in 5" :key="n" :size="8" 
+                          :fill="n <= detail.note ? '#FEE347' : 'none'"
+                          style="color: #FEE347" />
+                    <span class="ml-0.5 text-gray-700 font-medium">{{ detail.note }}/5</span>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Client Comment -->
+              <div v-if="reclamation.intervention.evaluations.client.comment" 
+                   class="bg-red-50 rounded p-1.5 border border-red-100">
+                <p class="text-[10px] text-red-700 font-medium mb-0.5">Commentaire client:</p>
+                <p class="text-[10px] text-red-800 italic">"{{ reclamation.intervention.evaluations.client.comment }}"</p>
+              </div>
+            </div>
+
+            <!-- Intervenant Evaluations -->
+            <div v-if="reclamation.intervention.evaluations.intervenant && reclamation.intervention.evaluations.intervenant.count > 0" 
+                 class="bg-white rounded-lg p-2 border border-gray-200">
+              <div class="flex items-center justify-between mb-1.5">
+                <p class="text-[10px] font-semibold text-gray-700 uppercase">Évaluation Intervenant</p>
+                <div v-if="reclamation.intervention.evaluations.intervenant.average_note" class="flex items-center gap-1">
+                  <Star :size="10" fill="#FEE347" style="color: #FEE347" />
+                  <span class="text-xs font-semibold text-gray-800">{{ reclamation.intervention.evaluations.intervenant.average_note }}/5</span>
+                </div>
+              </div>
+              
+              <!-- Evaluation Details -->
+              <div v-if="reclamation.intervention.evaluations.intervenant.details && reclamation.intervention.evaluations.intervenant.details.length > 0" 
+                   class="space-y-1 mb-1.5">
+                <div v-for="detail in reclamation.intervention.evaluations.intervenant.details" 
+                     :key="detail.id" 
+                     class="flex items-center justify-between text-[10px]">
+                  <span class="text-gray-600">{{ detail.critere }}</span>
+                  <div class="flex items-center gap-0.5">
+                    <Star v-for="n in 5" :key="n" :size="8" 
+                          :fill="n <= detail.note ? '#FEE347' : 'none'"
+                          style="color: #FEE347" />
+                    <span class="ml-0.5 text-gray-700 font-medium">{{ detail.note }}/5</span>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Intervenant Comment -->
+              <div v-if="reclamation.intervention.evaluations.intervenant.comment" 
+                   class="bg-orange-50 rounded p-1.5 border border-orange-100">
+                <p class="text-[10px] text-orange-700 font-medium mb-0.5">Commentaire intervenant:</p>
+                <p class="text-[10px] text-orange-800 italic">"{{ reclamation.intervention.evaluations.intervenant.comment }}"</p>
+              </div>
+            </div>
+
+            <!-- No Evaluations Message -->
+            <div v-if="(!reclamation.intervention.evaluations.client || reclamation.intervention.evaluations.client.count === 0) && 
+                       (!reclamation.intervention.evaluations.intervenant || reclamation.intervention.evaluations.intervenant.count === 0)" 
+                 class="text-[10px] text-gray-500 italic text-center py-1">
+              Aucune évaluation disponible pour cette intervention
             </div>
           </div>
-          <button 
-            @click="viewInterventionDetails(reclamation.intervention.id)"
-            class="px-2 py-1 text-[10px] bg-white border border-blue-200 text-blue-600 rounded-md hover:bg-blue-50 transition-colors font-medium shadow-sm"
-          >
-            Détails intervention
-          </button>
         </div>
 
         <div class="flex items-center gap-2.5 mb-2.5">
@@ -348,11 +430,86 @@
           </div>
 
           <!-- Linked Intervention (Archived) -->
-          <div v-if="reclamation.intervention" class="bg-gray-50 rounded-lg p-2.5 mb-2.5 border border-gray-200 flex items-center gap-2">
-            <Calendar :size="14" class="text-gray-400" />
-            <div>
-              <p class="text-[10px] text-gray-500 font-medium">Intervention : {{ reclamation.intervention.service }}</p>
-              <p class="text-[10px] text-gray-500">{{ formatDateShort(reclamation.intervention.date) }}</p>
+          <div v-if="reclamation.intervention" class="bg-gray-50 rounded-lg p-2.5 mb-2.5 border border-gray-200">
+            <div class="flex items-center gap-2 mb-2">
+              <Calendar :size="14" class="text-gray-400" />
+              <div>
+                <p class="text-[10px] text-gray-500 font-medium">Intervention : {{ reclamation.intervention.service }}</p>
+                <p class="text-[10px] text-gray-500">{{ formatDateShort(reclamation.intervention.date) }}</p>
+              </div>
+            </div>
+
+            <!-- Evaluations Section (Archived) -->
+            <div v-if="reclamation.intervention.evaluations" class="mt-2 space-y-2">
+              <!-- Client Evaluations -->
+              <div v-if="reclamation.intervention.evaluations.client && reclamation.intervention.evaluations.client.count > 0" 
+                   class="bg-white rounded-lg p-2 border border-gray-200">
+                <div class="flex items-center justify-between mb-1.5">
+                  <p class="text-[10px] font-semibold text-gray-700 uppercase">Évaluation Client</p>
+                  <div v-if="reclamation.intervention.evaluations.client.average_note" class="flex items-center gap-1">
+                    <Star :size="10" fill="#FEE347" style="color: #FEE347" />
+                    <span class="text-xs font-semibold text-gray-800">{{ reclamation.intervention.evaluations.client.average_note }}/5</span>
+                  </div>
+                </div>
+                
+                <!-- Evaluation Details -->
+                <div v-if="reclamation.intervention.evaluations.client.details && reclamation.intervention.evaluations.client.details.length > 0" 
+                     class="space-y-1 mb-1.5">
+                  <div v-for="detail in reclamation.intervention.evaluations.client.details" 
+                       :key="detail.id" 
+                       class="flex items-center justify-between text-[10px]">
+                    <span class="text-gray-600">{{ detail.critere }}</span>
+                    <div class="flex items-center gap-0.5">
+                      <Star v-for="n in 5" :key="n" :size="8" 
+                            :fill="n <= detail.note ? '#FEE347' : 'none'"
+                            style="color: #FEE347" />
+                      <span class="ml-0.5 text-gray-700 font-medium">{{ detail.note }}/5</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Client Comment -->
+                <div v-if="reclamation.intervention.evaluations.client.comment" 
+                     class="bg-red-50 rounded p-1.5 border border-red-100">
+                  <p class="text-[10px] text-red-700 font-medium mb-0.5">Commentaire client:</p>
+                  <p class="text-[10px] text-red-800 italic">"{{ reclamation.intervention.evaluations.client.comment }}"</p>
+                </div>
+              </div>
+
+              <!-- Intervenant Evaluations -->
+              <div v-if="reclamation.intervention.evaluations.intervenant && reclamation.intervention.evaluations.intervenant.count > 0" 
+                   class="bg-white rounded-lg p-2 border border-gray-200">
+                <div class="flex items-center justify-between mb-1.5">
+                  <p class="text-[10px] font-semibold text-gray-700 uppercase">Évaluation Intervenant</p>
+                  <div v-if="reclamation.intervention.evaluations.intervenant.average_note" class="flex items-center gap-1">
+                    <Star :size="10" fill="#FEE347" style="color: #FEE347" />
+                    <span class="text-xs font-semibold text-gray-800">{{ reclamation.intervention.evaluations.intervenant.average_note }}/5</span>
+                  </div>
+                </div>
+                
+                <!-- Evaluation Details -->
+                <div v-if="reclamation.intervention.evaluations.intervenant.details && reclamation.intervention.evaluations.intervenant.details.length > 0" 
+                     class="space-y-1 mb-1.5">
+                  <div v-for="detail in reclamation.intervention.evaluations.intervenant.details" 
+                       :key="detail.id" 
+                       class="flex items-center justify-between text-[10px]">
+                    <span class="text-gray-600">{{ detail.critere }}</span>
+                    <div class="flex items-center gap-0.5">
+                      <Star v-for="n in 5" :key="n" :size="8" 
+                            :fill="n <= detail.note ? '#FEE347' : 'none'"
+                            style="color: #FEE347" />
+                      <span class="ml-0.5 text-gray-700 font-medium">{{ detail.note }}/5</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Intervenant Comment -->
+                <div v-if="reclamation.intervention.evaluations.intervenant.comment" 
+                     class="bg-orange-50 rounded p-1.5 border border-orange-100">
+                  <p class="text-[10px] text-orange-700 font-medium mb-0.5">Commentaire intervenant:</p>
+                  <p class="text-[10px] text-orange-800 italic">"{{ reclamation.intervention.evaluations.intervenant.comment }}"</p>
+                </div>
+              </div>
             </div>
           </div>
 

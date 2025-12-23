@@ -14,7 +14,7 @@ class ClientSeeder extends Seeder
     {
         DB::table('client')->insert([
             [
-                'id' => 2, // References utilisateur with id=2
+                'id' => 2, // Mohammed Alami
                 'address' => '45 Avenue Hassan II, Rabat',
                 'ville' => 'Rabat',
                 'is_active' => true,
@@ -23,7 +23,7 @@ class ClientSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'id' => 3, // References utilisateur with id=3
+                'id' => 3, // Fatima Benjelloun
                 'address' => '78 Boulevard Zerktouni, Casablanca',
                 'ville' => 'Casablanca',
                 'is_active' => true,
@@ -32,9 +32,27 @@ class ClientSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'id' => 4, // References utilisateur with id=4
+                'id' => 4, // Karim El Fassi
                 'address' => '12 Rue de la Liberté, Marrakech',
                 'ville' => 'Marrakech',
+                'is_active' => true,
+                'admin_id' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 5, // Leila Idrissi
+                'address' => '90 Rue Oued Fès, Rabat',
+                'ville' => 'Rabat',
+                'is_active' => true,
+                'admin_id' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => 6, // Omar Mansouri
+                'address' => '15 Avenue Allal Ben Abdellah, Fes',
+                'ville' => 'Fes',
                 'is_active' => true,
                 'admin_id' => 1,
                 'created_at' => now(),

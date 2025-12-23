@@ -296,43 +296,93 @@
           <!-- Disponibilités Tab -->
           <div v-if="activeTab === 'disponibilites'" class="animate-fade-in">
             <h2 class="text-3xl font-bold mb-6" :style="{ color: primaryColor }">Disponibilités</h2>
-            <div class="space-y-3 mb-8">
-              <div
-                v-for="(day, index) in intervenant.availability"
-                :key="index"
-                class="flex items-center justify-between py-5 px-6 bg-gray-50 rounded-2xl border border-gray-100 hover:shadow-md transition-all"
-              >
-                <div class="flex flex-col">
-                  <span
-                    class="text-xl font-bold"
-                    :style="{ color: day.available ? primaryColor : '#9CA3AF' }"
-                  >
-                    {{ day.day }}
-                  </span>
-                  <span class="text-xs uppercase tracking-wider text-gray-400 mt-1">
-                    {{ day.type === 'reguliere' ? 'Chaque semaine' : 'Date spécifique' }}
-                  </span>
-                </div>
-                <div class="flex items-center gap-4">
-                  <div 
-                    class="px-4 py-2 rounded-full text-sm font-bold"
-                    :style="{ 
-                      backgroundColor: day.available ? primaryColor + '20' : '#F3F4F6',
-                      color: day.available ? primaryColor : '#9CA3AF'
-                    }"
-                  >
-                    {{ day.available ? 'Disponible' : 'Fermé' }}
+            
+            <!-- Section Hebdomadaire -->
+            <div v-if="regularAvailabilities.length > 0" class="mb-10">
+              <div class="flex items-center gap-3 mb-6 p-3 bg-gray-50 rounded-xl inline-flex border border-gray-100">
+                <CalendarIcon :size="20" class="text-gray-500" />
+                <h3 class="text-lg font-bold text-gray-700 uppercase tracking-wider">Horaires Hebdomadaires</h3>
+              </div>
+              
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div
+                  v-for="(day, index) in regularAvailabilities"
+                  :key="'reg-' + index"
+                  class="flex items-center justify-between py-4 px-6 bg-white rounded-2xl border-2 transition-all hover:shadow-md"
+                  :style="{ borderColor: day.available ? primaryColor + '20' : '#F3F4F6' }"
+                >
+                  <div class="flex flex-col">
+                    <span class="text-lg font-bold" :style="{ color: day.available ? primaryColor : '#9CA3AF' }">
+                      {{ day.day }}
+                    </span>
+                    <span class="text-[10px] uppercase font-bold text-gray-400">Régulier</span>
                   </div>
-                  <span
-                    class="text-lg font-bold min-w-[120px] text-right"
-                    :style="{ color: day.available ? '#374151' : '#9CA3AF' }"
-                  >
-                    {{ day.available ? day.hours : 'Non disponible' }}
-                  </span>
+                  <div class="flex items-center gap-4">
+                    <span class="text-sm font-bold" :style="{ color: day.available ? '#374151' : '#9CA3AF' }">
+                      {{ day.available ? day.hours : 'Non disponible' }}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
-          
+
+            <!-- Section Ponctuelle / Exceptions -->
+            <div v-if="punctualAvailabilities.length > 0">
+              <div class="flex items-center gap-3 mb-6 p-3 bg-gray-50 rounded-xl inline-flex border border-gray-100">
+                <CalendarClockIcon :size="20" class="text-gray-500" />
+                <h3 class="text-lg font-bold text-gray-700 uppercase tracking-wider">Modifications Exceptionnelles</h3>
+              </div>
+              
+              <div class="space-y-4">
+                <div
+                  v-for="(day, index) in punctualAvailabilities"
+                  :key="'ponc-' + index"
+                  class="flex items-center justify-between py-5 px-8 rounded-2xl border-l-8 transition-all hover:shadow-lg bg-white shadow-sm"
+                  :style="{ 
+                    borderLeftColor: day.available ? primaryColor : '#F87171',
+                    backgroundColor: day.available ? '#FFFFFF' : '#FEF2F2'
+                  }"
+                >
+                  <div class="flex items-center gap-6">
+                    <div 
+                      class="w-12 h-12 rounded-full flex items-center justify-center" 
+                      :style="{ backgroundColor: day.available ? primaryColor + '15' : '#FEE2E2' }"
+                    >
+                      <CheckCircleIcon v-if="day.available" :size="24" :style="{ color: primaryColor }" />
+                      <XIcon v-else :size="24" class="text-red-600" />
+                    </div>
+                    <div class="flex flex-col">
+                      <span class="text-xl font-bold" :class="day.available ? 'text-gray-900' : 'text-red-900'">
+                        {{ day.day }}
+                      </span>
+                      <span 
+                        class="text-xs font-semibold uppercase tracking-widest" 
+                        :style="{ color: day.available ? primaryColor : '#EF4444' }"
+                      >
+                        {{ day.available ? 'Disponibilité Ajoutée' : 'Absence Prévue' }}
+                      </span>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-6">
+                    <div class="text-right">
+                      <p 
+                        class="text-lg font-black" 
+                        :style="{ color: day.available ? '#374151' : '#991B1B' }"
+                      >
+                        {{ day.available ? day.hours : 'Non disponible' }}
+                      </p>
+                      <p v-if="!day.available" class="text-xs font-semibold text-red-500 italic">{{ day.reason || 'Intervenant absent ce jour' }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- État Vide -->
+            <div v-if="regularAvailabilities.length === 0 && punctualAvailabilities.length === 0" class="text-center py-12 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
+               <CalendarIcon :size="48" class="mx-auto text-gray-300 mb-4" />
+               <p class="text-gray-500 font-medium">Aucune disponibilité renseignée pour le moment.</p>
+            </div>
           </div>
         </div>
       </div>
@@ -403,7 +453,9 @@ import {
   CheckCircle as CheckCircleIcon, 
   Clock as ClockIcon,
   Camera as CameraIcon, 
-  X as XIcon
+  X as XIcon,
+  Calendar as CalendarIcon,
+  CalendarClock as CalendarClockIcon
 } from 'lucide-vue-next';
 import ImageWithFallback from './figma/ImageWithFallback.vue';
 import BookingModal from './BookingModal.vue';
@@ -423,6 +475,8 @@ export default {
     ClockIcon,
     CameraIcon,
     XIcon,
+    CalendarIcon,
+    CalendarClockIcon,
     ImageWithFallback,
     BookingModal
   },
@@ -525,6 +579,12 @@ export default {
         ...d,
         percentage: Math.round((d.count / total) * 100)
       }));
+    },
+    regularAvailabilities() {
+      return (this.intervenant.availability || []).filter(a => a.type === 'reguliere');
+    },
+    punctualAvailabilities() {
+      return (this.intervenant.availability || []).filter(a => a.type === 'ponctuelle');
     }
   },
   async created() {
@@ -742,11 +802,25 @@ export default {
     },
     
     mapAvailability(disponibilites) {
-      if (!disponibilites || !Array.isArray(disponibilites) || disponibilites.length === 0) return [];
+      if (!disponibilites) return [];
       
-      return disponibilites.map(d => {
+      // Handle both array and object formats
+      const rawList = Array.isArray(disponibilites) 
+        ? disponibilites 
+        : Object.values(disponibilites);
+        
+      if (rawList.length === 0) return [];
+
+      const dayOrder = {
+        'lundi': 1, 'mardi': 2, 'mercredi': 3, 'jeudi': 4, 
+        'vendredi': 5, 'samedi': 6, 'dimanche': 7
+      };
+
+      const mapped = rawList.map(d => {
         let dayLabel = '';
-        if (d.type === 'reguliere' && d.jours_semaine) {
+        const isReguliere = String(d.type).toLowerCase() === 'reguliere';
+        
+        if (isReguliere && d.jours_semaine) {
           dayLabel = d.jours_semaine.charAt(0).toUpperCase() + d.jours_semaine.slice(1);
         } else if (d.date_specific) {
           dayLabel = this.formatDate(d.date_specific);
@@ -754,12 +828,30 @@ export default {
           dayLabel = 'Disponible';
         }
         
+        // Punctual might be an "unavailability" (off day) if hours are missing
+        const isAvailable = !!(d.heure_debut && d.heure_fin);
+        
         return {
+          id: d.id,
           day: dayLabel,
-          available: true,
-          hours: `${this.formatTime(d.heure_debut)} - ${this.formatTime(d.heure_fin)}`,
-          type: d.type
+          available: isAvailable,
+          hours: isAvailable ? `${this.formatTime(d.heure_debut)} - ${this.formatTime(d.heure_fin)}` : 'Indisponible',
+          type: String(d.type).toLowerCase(),
+          reason: d.reason,
+          sortOrder: isReguliere ? dayOrder[String(d.jours_semaine).toLowerCase()] || 99 : 100,
+          dateValue: d.date_specific ? new Date(d.date_specific).getTime() : Infinity
         };
+      });
+
+      // Sort: Regular days by week order, then Punctual days by date
+      return mapped.sort((a, b) => {
+        if (a.type !== b.type) {
+          return a.type === 'reguliere' ? -1 : 1;
+        }
+        if (a.type === 'reguliere') {
+          return a.sortOrder - b.sortOrder;
+        }
+        return a.dateValue - b.dateValue;
       });
     },
     

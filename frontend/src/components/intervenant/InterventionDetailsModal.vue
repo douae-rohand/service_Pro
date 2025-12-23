@@ -35,7 +35,7 @@
                 <h3>Client</h3>
               </div>
               <div class="client-mini-card">
-                <img :src="getImageUrl(intervention.client?.utilisateur?.photo)" class="mini-avatar" />
+                <img :src="getImageUrl(intervention.client?.utilisateur?.profile_photo)" class="mini-avatar" />
                 <div class="mini-info">
                   <p class="name">{{ intervention.client?.utilisateur?.nom }} {{ intervention.client?.utilisateur?.prenom }}</p>
                   
@@ -62,16 +62,7 @@
               </div>
             </div>
 
-            <!-- Client Description Block -->
-            <div v-if="intervention.message || intervention.description" class="info-block">
-              <div class="block-header">
-                <FileText :size="18" />
-                <h3>Description du client</h3>
-              </div>
-              <div class="service-details">
-                 <p class="description" style="color: #374151;">{{ intervention.message || intervention.description }}</p>
-              </div>
-            </div>
+            <!-- Client Description Block - REMOVED -->
 
             <!-- Address Block -->
             <div class="info-block">

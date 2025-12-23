@@ -108,6 +108,16 @@ class Utilisateur extends Authenticatable
     }
 
     /**
+     * Get the user's profile photo as a full URL.
+     */
+    public function getProfilePhotoAttribute($value)
+    {
+        if (!$value) return null;
+        if (strpos($value, 'http') === 0) return $value;
+        return url('storage/' . $value);
+    }
+
+    /**
      * Check if user is admin
      */
     public function isAdmin()

@@ -287,7 +287,7 @@ const fetchCurrentUser = async () => {
         name: `${user.prenom} ${user.nom}`,
         email: user.email,
         phone: user.telephone || '',
-        profileImage: user.profile_photo ? `http://127.0.0.1:8000/storage/${user.profile_photo}?t=${Date.now()}` : null,
+        profileImage: user.profile_photo ? `${user.profile_photo}${user.profile_photo.includes('?') ? '&' : '?'}t=${Date.now()}` : null,
         location: fullIntervenant?.ville || fullIntervenant?.address || user.address || 'Non spécifié',
         address: fullIntervenant?.address || user.address || '',
         ville: fullIntervenant?.ville || '',

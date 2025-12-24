@@ -151,7 +151,6 @@
                 <th>Date</th>
                 <th>Durée</th>
                 <th>Montant</th>
-                <th>Note</th>
                 <th>Statut</th>
             </tr>
         </thead>
@@ -170,7 +169,6 @@
                 <td>{{ $intervention['date'] }}</td>
                 <td>{{ $intervention['duree'] }}</td>
                 <td class="montant">{{ $intervention['montant'] }} DH</td>
-                <td>{{ $intervention['note'] ?? '-' }}</td>
                 <td>
                     <span class="badge badge-{{ str_replace('é', 'e', str_replace('_', '-', strtolower($intervention['statut']))) }}">
                         {{ $intervention['statut'] }}

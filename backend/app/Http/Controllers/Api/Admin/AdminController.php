@@ -151,6 +151,9 @@ class AdminController extends Controller
             });
         }
 
+        // Tri par date de création décroissante (plus récent en premier)
+        $query->orderBy('created_at', 'desc');
+
         $clients = $query->get();
         
         // Récupérer tous les IDs d'interventions en une seule fois
@@ -415,6 +418,9 @@ class AdminController extends Controller
                   ->orWhere('email', 'like', "%{$search}%");
             });
         }
+
+        // Tri par date de création décroissante (plus récent en premier)
+        $query->orderBy('created_at', 'desc');
 
         $intervenants = $query->get();
         
@@ -1214,6 +1220,9 @@ class AdminController extends Controller
             }
 
             $pendingRequests = collect();
+            
+            // Tri par date de création décroissante (plus récent en premier)
+            $query->orderBy('created_at', 'desc');
             
             $pendingIntervenants = $query->get();
             
@@ -2267,6 +2276,11 @@ class AdminController extends Controller
             $query->whereDate('created_at', '<=', $request->dateFin);
         }
 
+        // Exclude specific status
+        if ($request->has('exclude_status') && $request->exclude_status !== '') {
+            $query->where('statut', '!=', $request->exclude_status);
+        }
+
         // Pagination robuste
         $perPage = (int) $request->input('per_page', 5);
         $perPage = $perPage > 0 ? $perPage : 5;
@@ -2875,7 +2889,8 @@ class AdminController extends Controller
             'evaluations' => function($q) {
                 $q->where('type_auteur', 'client');
             },
-            'informations'
+            'informations',
+            'intervenant.taches' // Preload for pricing calculation fallback
         ]);
 
         // Ne pas filtrer par défaut sur les services actifs : on veut un historique complet,
@@ -2909,28 +2924,38 @@ class AdminController extends Controller
             $query->where('date_intervention', '<=', $request->dateFin);
         }
 
-        $historique = $query->orderBy('date_intervention', 'desc')
+        // Modified ordering: Sort by creation date (reservation date) descending
+        // This ensures newly reserved interventions appear first
+        $historique = $query->orderBy('created_at', 'desc')
             ->paginate($request->get('per_page', 50));
 
         $transformedData = $historique->through(function($intervention) {
-            // Calculate average note
-            $note = null;
-            if ($intervention->evaluations && $intervention->evaluations->count() > 0) {
-                $avgNote = $intervention->evaluations->avg('note');
-                $note = $avgNote ? round($avgNote, 0) : null;
-            }
+            // Note calculation removed
 
             // Get duration from intervention_information or use default
-            $duree = '3h'; // Default
-            if ($intervention->informations && $intervention->informations->count() > 0) {
+            $dureeValue = 3.0; // Numeric standard default
+            $dureeStr = '3h'; // Display default
+            
+            // Try to find duration column in DB (duration_hours) first
+            if (isset($intervention->duration_hours) && $intervention->duration_hours > 0) {
+                 $dureeValue = (float) $intervention->duration_hours;
+                 $dureeStr = $dureeValue . 'h';
+            } elseif ($intervention->informations && $intervention->informations->count() > 0) {
+                // Fallback to informations table
                 foreach ($intervention->informations as $info) {
                     $infoName = strtolower($info->nom ?? '');
                     if (stripos($infoName, 'durée') !== false || stripos($infoName, 'duree') !== false || stripos($infoName, 'duration') !== false) {
-                        // Get from pivot 'information' column (which stores the value)
-                        $duree = $info->pivot->information ?? $duree;
-                        // Format duration if needed (e.g., "2.5" -> "2.5h")
-                        if (is_numeric($duree) && strpos($duree, 'h') === false) {
-                            $duree = $duree . 'h';
+                        $infoVal = $info->pivot->information ?? null;
+                        if ($infoVal) {
+                            $dureeStr = $infoVal;
+                            // Extract numeric part for calculation
+                            if (preg_match('/([\d\.]+)/', $infoVal, $matches)) {
+                                $dureeValue = (float) $matches[1];
+                            }
+                            // Format duration if needed
+                            if (is_numeric($dureeStr) && strpos($dureeStr, 'h') === false) {
+                                $dureeStr = $dureeStr . 'h';
+                            }
                         }
                         break;
                     }
@@ -2947,8 +2972,39 @@ class AdminController extends Controller
             $statut = $statusMap[$intervention->status] ?? $intervention->status;
 
             // Format amount
-            $montant = $intervention->facture && $intervention->facture->ttc ? 
-                number_format($intervention->facture->ttc, 0, ',', ' ') : 0;
+            // Logic: Use Invoice amount if available, otherwise calculate from Intervenant Rate and Material Cost
+            $montantValue = 0;
+            
+            if ($intervention->facture && $intervention->facture->ttc) {
+                $montantValue = $intervention->facture->ttc;
+            } else {
+                // Calculate fallback amount
+                // 1. Get Base Rate from Intervenant Tache Pivot
+                $baseRate = 0;
+                if ($intervention->intervenant && $intervention->intervenant->taches) {
+                    $tachePivot = $intervention->intervenant->taches->where('id', $intervention->tache_id)->first();
+                    if ($tachePivot && $tachePivot->pivot) {
+                        $baseRate = (float) ($tachePivot->pivot->prix_tache ?? 0);
+                    }
+                }
+                
+                // 2. Get Materials Cost
+                $materialsCost = 0;
+                if ($intervention->informations) {
+                    foreach ($intervention->informations as $info) {
+                        if ($info->nom === 'Coût_Matériel' || stripos($info->nom, 'matériel') !== false) {
+                             $val = $info->pivot->information ?? '0';
+                             $materialsCost = (float) preg_replace('/[^\d\.]/', '', $val);
+                             break;
+                        }
+                    }
+                }
+                
+                // Calculate Total
+                $montantValue = ($baseRate * $dureeValue) + $materialsCost;
+            }
+            
+            $montant = number_format((float)$montantValue, 0, ',', ' ');
 
             return [
                 'id' => $intervention->id,
@@ -2960,9 +3016,8 @@ class AdminController extends Controller
                     $intervention->tache->service->nom_service : 'N/A',
                 'tache' => $intervention->tache ? $intervention->tache->nom_tache : 'N/A',
                 'date' => $intervention->date_intervention ? \Carbon\Carbon::parse($intervention->date_intervention)->format('Y-m-d') : 'N/A',
-                'duree' => $duree,
+                'duree' => $dureeStr,
                 'montant' => $montant,
-                'note' => $note,
                 'statut' => $statut
             ];
         });
@@ -2983,7 +3038,8 @@ class AdminController extends Controller
             'evaluations' => function($q) {
                 $q->where('type_auteur', 'client');
             },
-            'informations'
+            'informations',
+            'intervenant.taches'
         ]);
 
         // Pas de filtre implicite sur services actifs : conserver tout l'historique.
@@ -3015,7 +3071,8 @@ class AdminController extends Controller
             $query->where('date_intervention', '<=', $request->dateFin);
         }
 
-        $interventions = $query->orderBy('date_intervention', 'desc')->get();
+        // Sort by created_at desc (same as main list)
+        $interventions = $query->orderBy('created_at', 'desc')->get();
 
         // Generate filename with date and time: historique_interventions_YYYY-MM-DD_HH-MM-SS.csv
         $filename = 'historique_interventions_' . date('Y-m-d_H-i-s') . '.csv';
@@ -3041,26 +3098,32 @@ class AdminController extends Controller
                 'Date',
                 'Durée',
                 'Montant (DH)',
-                'Note',
                 'Statut'
             ], ';');
 
             // Data rows
             foreach ($interventions as $intervention) {
-                $note = null;
-                if ($intervention->evaluations && $intervention->evaluations->count() > 0) {
-                    $avgNote = $intervention->evaluations->avg('note');
-                    $note = $avgNote ? round($avgNote, 0) : null;
-                }
+                // Note calculation removed
 
-                $duree = '3h';
-                if ($intervention->informations && $intervention->informations->count() > 0) {
+                // Duree Logic (Same as above)
+                $dureeValue = 3.0;
+                $dureeStr = '3h';
+                if (isset($intervention->duration_hours) && $intervention->duration_hours > 0) {
+                     $dureeValue = (float) $intervention->duration_hours;
+                     $dureeStr = $dureeValue . 'h';
+                } elseif ($intervention->informations && $intervention->informations->count() > 0) {
                     foreach ($intervention->informations as $info) {
                         $infoName = strtolower($info->nom ?? '');
                         if (stripos($infoName, 'durée') !== false || stripos($infoName, 'duree') !== false || stripos($infoName, 'duration') !== false) {
-                            $duree = $info->pivot->information ?? $duree;
-                            if (is_numeric($duree) && strpos($duree, 'h') === false) {
-                                $duree = $duree . 'h';
+                            $infoVal = $info->pivot->information ?? null;
+                            if ($infoVal) {
+                                $dureeStr = $infoVal;
+                                if (preg_match('/([\d\.]+)/', $infoVal, $matches)) {
+                                    $dureeValue = (float) $matches[1];
+                                }
+                                if (is_numeric($dureeStr) && strpos($dureeStr, 'h') === false) {
+                                    $dureeStr = $dureeStr . 'h';
+                                }
                             }
                             break;
                         }
@@ -3075,8 +3138,32 @@ class AdminController extends Controller
                 ];
                 $statut = $statusMap[$intervention->status] ?? $intervention->status;
 
-                $montant = $intervention->facture && $intervention->facture->ttc ? 
-                    number_format((float)$intervention->facture->ttc, 2, ',', ' ') : '0,00';
+                // Montant Logic (Same as above)
+                $montantValue = 0;
+                if ($intervention->facture && $intervention->facture->ttc) {
+                    $montantValue = $intervention->facture->ttc;
+                } else {
+                    $baseRate = 0;
+                    if ($intervention->intervenant && $intervention->intervenant->taches) {
+                        $tachePivot = $intervention->intervenant->taches->where('id', $intervention->tache_id)->first();
+                        if ($tachePivot && $tachePivot->pivot) {
+                            $baseRate = (float) ($tachePivot->pivot->prix_tache ?? 0);
+                        }
+                    }
+                    $materialsCost = 0;
+                    if ($intervention->informations) {
+                        foreach ($intervention->informations as $info) {
+                            if ($info->nom === 'Coût_Matériel' || stripos($info->nom, 'matériel') !== false) {
+                                 $val = $info->pivot->information ?? '0';
+                                 $materialsCost = (float) preg_replace('/[^\d\.]/', '', $val);
+                                 break;
+                            }
+                        }
+                    }
+                    $montantValue = ($baseRate * $dureeValue) + $materialsCost;
+                }
+
+                $montant = number_format((float)$montantValue, 2, ',', ' ');
 
                 fputcsv($file, [
                     $intervention->id,
@@ -3088,9 +3175,8 @@ class AdminController extends Controller
                         $intervention->tache->service->nom_service : 'N/A',
                     $intervention->tache ? $intervention->tache->nom_tache : 'N/A',
                     $intervention->date_intervention ? (\Carbon\Carbon::parse($intervention->date_intervention)->format('Y-m-d')) : 'N/A',
-                    $duree,
+                    $dureeStr,
                     $montant,
-                    $note ?? '-',
                     $statut
                 ], ';');
             }
@@ -3114,7 +3200,8 @@ class AdminController extends Controller
             'evaluations' => function($q) {
                 $q->where('type_auteur', 'client');
             },
-            'informations'
+            'informations',
+            'intervenant.taches'
         ]);
 
         // Pas de filtre implicite sur services actifs : conserver tout l'historique.
@@ -3146,7 +3233,8 @@ class AdminController extends Controller
             $query->where('date_intervention', '<=', $request->dateFin);
         }
 
-        $interventions = $query->orderBy('date_intervention', 'desc')->get();
+        // Sort by created_at desc
+        $interventions = $query->orderBy('created_at', 'desc')->get();
 
         // Transform data for PDF
         $data = $interventions->map(function($intervention) {
@@ -3156,14 +3244,25 @@ class AdminController extends Controller
                 $note = $avgNote ? round($avgNote, 0) : null;
             }
 
-            $duree = '3h';
-            if ($intervention->informations && $intervention->informations->count() > 0) {
+            // Duree Logic
+            $dureeValue = 3.0;
+            $dureeStr = '3h';
+            if (isset($intervention->duration_hours) && $intervention->duration_hours > 0) {
+                 $dureeValue = (float) $intervention->duration_hours;
+                 $dureeStr = $dureeValue . 'h';
+            } elseif ($intervention->informations && $intervention->informations->count() > 0) {
                 foreach ($intervention->informations as $info) {
                     $infoName = strtolower($info->nom ?? '');
                     if (stripos($infoName, 'durée') !== false || stripos($infoName, 'duree') !== false || stripos($infoName, 'duration') !== false) {
-                        $duree = $info->pivot->information ?? $duree;
-                        if (is_numeric($duree) && strpos($duree, 'h') === false) {
-                            $duree = $duree . 'h';
+                        $infoVal = $info->pivot->information ?? null;
+                        if ($infoVal) {
+                            $dureeStr = $infoVal;
+                            if (preg_match('/([\d\.]+)/', $infoVal, $matches)) {
+                                $dureeValue = (float) $matches[1];
+                            }
+                            if (is_numeric($dureeStr) && strpos($dureeStr, 'h') === false) {
+                                $dureeStr = $dureeStr . 'h';
+                            }
                         }
                         break;
                     }
@@ -3178,8 +3277,32 @@ class AdminController extends Controller
             ];
             $statut = $statusMap[$intervention->status] ?? $intervention->status;
 
-            $montant = $intervention->facture && $intervention->facture->ttc ? 
-                number_format((float)$intervention->facture->ttc, 2, ',', ' ') : '0,00';
+            // Montant Logic
+            $montantValue = 0;
+            if ($intervention->facture && $intervention->facture->ttc) {
+                $montantValue = $intervention->facture->ttc;
+            } else {
+                $baseRate = 0;
+                if ($intervention->intervenant && $intervention->intervenant->taches) {
+                    $tachePivot = $intervention->intervenant->taches->where('id', $intervention->tache_id)->first();
+                    if ($tachePivot && $tachePivot->pivot) {
+                        $baseRate = (float) ($tachePivot->pivot->prix_tache ?? 0);
+                    }
+                }
+                $materialsCost = 0;
+                if ($intervention->informations) {
+                    foreach ($intervention->informations as $info) {
+                        if ($info->nom === 'Coût_Matériel' || stripos($info->nom, 'matériel') !== false) {
+                             $val = $info->pivot->information ?? '0';
+                             $materialsCost = (float) preg_replace('/[^\d\.]/', '', $val);
+                             break;
+                        }
+                    }
+                }
+                $montantValue = ($baseRate * $dureeValue) + $materialsCost;
+            }
+
+            $montant = number_format((float)$montantValue, 2, ',', ' ');
 
             return [
                 'id' => $intervention->id,
@@ -3191,7 +3314,7 @@ class AdminController extends Controller
                     $intervention->tache->service->nom_service : 'N/A',
                 'tache' => $intervention->tache ? $intervention->tache->nom_tache : 'N/A',
                 'date' => $intervention->date_intervention ? \Carbon\Carbon::parse($intervention->date_intervention)->format('Y-m-d') : 'N/A',
-                'duree' => $duree,
+                'duree' => $dureeStr,
                 'montant' => $montant,
                 'note' => $note,
                 'statut' => $statut

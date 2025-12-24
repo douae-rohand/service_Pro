@@ -13,6 +13,7 @@ use App\Models\Service;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Portfolio;
 
 
 
@@ -147,7 +148,8 @@ class IntervenantController extends Controller
                     $q->where('type_auteur', 'client');
                 },
                 'interventions.client.utilisateur:id,nom,prenom',
-                'disponibilites'
+                'disponibilites',
+                'portfolio'
             ])->find($id);
 
             if (!$intervenant) {
@@ -180,13 +182,20 @@ class IntervenantController extends Controller
             'admin_id' => 'nullable|exists:admin,id',
         ]);
 
-        $intervenant->update([
+        $updateData = [
             'address' => $validated['address'] ?? $request->input('address'),
             'ville' => $validated['ville'] ?? $request->input('ville'),
             'bio' => $validated['bio'] ?? $request->input('bio'),
-            'is_active' => $validated['is_active'] ?? $request->boolean('isActive'),
             'admin_id' => $validated['admin_id'] ?? $request->input('adminId'),
-        ]);
+        ];
+
+        if ($request->has('is_active')) {
+            $updateData['is_active'] = $request->boolean('is_active');
+        } elseif ($request->has('isActive')) {
+            $updateData['is_active'] = $request->boolean('isActive');
+        }
+
+        $intervenant->update($updateData);
 
         // Update service experience if provided
         if ($request->has('services') && is_array($request->services)) {
@@ -376,6 +385,7 @@ class IntervenantController extends Controller
             'heure_debut' => $validated['available'] ? $validated['startTime'] : null,
             'heure_fin' => $validated['available'] ? $validated['endTime'] : null,
             'intervenant_id' => $intervenant->id,
+            'reason' => $validated['reason'],
         ]);
 
         return response()->json([
@@ -1814,5 +1824,60 @@ class IntervenantController extends Controller
         $intervention->save();
 
         return response()->json(['message' => 'Réservation refusée avec succès']);
+    }
+
+    /**
+     * Add a portfolio item
+     */
+    public function addPortfolioItem(Request $request)
+    {
+        $user = $request->user();
+        if (!$user || !$user->intervenant) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $validated = $request->validate([
+            'image' => 'required|image|max:10240', // 10MB
+            'description' => 'nullable|string|max:255',
+            'service_id' => 'nullable|exists:service,id',
+        ]);
+
+        $path = $request->file('image')->store('portfolio', 'public');
+
+        $portfolio = Portfolio::create([
+            'intervenant_id' => $user->intervenant->id,
+            'image_path' => $path,
+            'description' => $validated['description'] ?? null,
+            'service_id' => $validated['service_id'] ?? null,
+        ]);
+
+        return response()->json([
+            'message' => 'Image ajoutée au portfolio',
+            'portfolio' => $portfolio
+        ]);
+    }
+
+    /**
+     * Delete a portfolio item
+     */
+    public function deletePortfolioItem(Request $request, $id)
+    {
+         $user = $request->user();
+        if (!$user || !$user->intervenant) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $item = Portfolio::where('id', $id)
+            ->where('intervenant_id', $user->intervenant->id)
+            ->firstOrFail();
+
+        // Delete file
+        if (Storage::disk('public')->exists($item->image_path)) {
+            Storage::disk('public')->delete($item->image_path);
+        }
+
+        $item->delete();
+
+        return response()->json(['message' => 'Image supprimée']);
     }
 }

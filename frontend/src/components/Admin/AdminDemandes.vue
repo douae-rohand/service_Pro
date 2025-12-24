@@ -425,6 +425,7 @@ import { User, CheckCircle, XCircle, Eye, UserCheck, X, Download, FileText } fro
 import adminService from '@/services/adminService'
 import { useNotifications } from '@/composables/useNotifications'
 import { useServiceColor } from '@/composables/useServiceColor'
+import { useAdminRealtimeSync } from '@/composables/useAdminRealtimeSync'
 import { useSse } from '@/composables/useSse'
 
 const { success, error, info, confirm: confirmDialog } = useNotifications()
@@ -438,6 +439,11 @@ const props = defineProps({
 const emit = defineEmits(['back', 'stats-updated'])
 
 const demandes = ref([])
+// Synchronisation temps réel
+useAdminRealtimeSync(async () => {
+  await loadDemandes({ silent: true })
+}, { enabled: true })
+
 const loading = ref(false)
 const searchTerm = ref('')
 const filterService = ref('tous')
@@ -565,25 +571,77 @@ onMounted(() => {
   })
 })
 
-const loadDemandes = async () => {
+onMounted(() => {
+  loadServices()
+  loadDemandes()
+
+  // Initialize SSE for Admin
+  initSse('/sse/stream?type=admin', {
+    new_request: (data) => {
+      // Show notification
+      success(data.message || 'Nouvelle demande d\'activation reçue !')
+      
+      // Reload list
+      loadDemandes()
+      
+      // Emit update event
+      emit('stats-updated')
+    }
+  })
+})
+
+const loadDemandes = async (options = {}) => {
+  const { silent = false } = options
   try {
-    loading.value = true
+    if (!silent) {
+      loading.value = true
+    }
     const response = await adminService.getPendingRequests()
-    demandes.value = (response.data || []).map(demande => ({
+    const newDemandes = (response.data || []).map(demande => ({
       ...demande,
       statut: demande.statut || 'demmande' // Par défaut "demmande" si non défini
     }))
     
-    // Demandes chargées avec succès
+    if (silent) {
+      // Mise à jour intelligente : fusionner les données existantes avec les nouvelles
+      const demandesMap = new Map(demandes.value.map(d => [d.id + '_' + d.service_id, d]))
+      newDemandes.forEach(newDemande => {
+        const key = newDemande.id + '_' + newDemande.service_id
+        const existing = demandesMap.get(key)
+        if (existing) {
+          // Mettre à jour seulement si quelque chose a changé
+          const hasChanges = Object.keys(newDemande).some(k => {
+            const oldVal = existing[k]
+            const newVal = newDemande[k]
+            return JSON.stringify(oldVal) !== JSON.stringify(newVal)
+          })
+          if (hasChanges) {
+            Object.assign(existing, newDemande)
+          }
+        } else {
+          // Nouvelle demande : l'ajouter au début
+          demandes.value.unshift(newDemande)
+        }
+      })
+      // Retirer les demandes qui n'existent plus
+      const newKeys = new Set(newDemandes.map(d => d.id + '_' + d.service_id))
+      demandes.value = demandes.value.filter(d => newKeys.has(d.id + '_' + d.service_id))
+    } else {
+      demandes.value = newDemandes
+    }
   } catch (error) {
     console.error('Erreur chargement demandes:', error)
-    const errorMessage = error.response?.data?.message || 
-                        error.response?.data?.error || 
-                        'Erreur lors du chargement des demandes. Veuillez réessayer.'
-    demandes.value = []
-    error(errorMessage)
+    if (!silent) {
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          'Erreur lors du chargement des demandes. Veuillez réessayer.'
+      demandes.value = []
+      error(errorMessage)
+    }
   } finally {
-    loading.value = false
+    if (!silent) {
+      loading.value = false
+    }
   }
 }
 
@@ -825,6 +883,12 @@ const getStatutColor = (statut) => {
   }
   return colors[statut] || colors['demmande']
 }
+
+// Synchronisation en temps réel - Recharger les demandes toutes les 3 secondes
+useAdminRealtimeSync(async () => {
+  await loadDemandes({ silent: true })
+}, { enabled: true })
+
 
 onMounted(async () => {
   await Promise.all([loadServices(), loadDemandes()])

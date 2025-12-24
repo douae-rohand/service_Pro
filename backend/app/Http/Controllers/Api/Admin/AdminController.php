@@ -151,6 +151,9 @@ class AdminController extends Controller
             });
         }
 
+        // Tri par date de création décroissante (plus récent en premier)
+        $query->orderBy('created_at', 'desc');
+
         $clients = $query->get();
         
         // Récupérer tous les IDs d'interventions en une seule fois
@@ -416,6 +419,9 @@ class AdminController extends Controller
             });
         }
 
+        // Tri par date de création décroissante (plus récent en premier)
+        $query->orderBy('created_at', 'desc');
+
         $intervenants = $query->get();
         
         // Précharger toutes les données nécessaires en une seule fois pour éviter N+1
@@ -656,11 +662,19 @@ class AdminController extends Controller
         // Déterminer le statut : actif ou suspendu
         $statut = $intervenant->is_active ? 'actif' : 'suspendu';
         
-        // Récupérer TOUS les services (peu importe le statut) pour calculer l'expérience
-        // Mais filtrer uniquement les services ACTIVÉS pour l'affichage (limitation de 2 services)
-        $tousServices = $intervenant->services;
+        // Récupérer les services avec statuts actifs, désactivés ou archivés
+        // Exclure les services avec status 'refuse' et 'demmande' (gérés ailleurs)
+        $tousServices = $intervenant->services->filter(function($service) {
+            $pivotStatus = $service->pivot->status ?? null;
+            // Exclure les services refusés et en demande
+            if ($pivotStatus === 'refuse' || $pivotStatus === 'demmande') {
+                return false;
+            }
+            // Inclure seulement active, desactive, archive
+            return in_array($pivotStatus, ['active', 'desactive', 'archive']);
+        });
         
-        // Filtrer uniquement les services ACTIVÉS pour l'affichage
+        // Filtrer uniquement les services ACTIVÉS pour l'affichage principal
         // 1. Le service doit être actif dans la table pivot (intervenant_service.status = 'active')
         // 2. Le service lui-même doit être actif (service.status = 'active')
         $servicesActives = $tousServices->filter(function($service) {
@@ -755,6 +769,22 @@ class AdminController extends Controller
 
         // Si l'intervenant n'a pas de services
         if (!$hasServices) {
+            // Construire allServicesWithDetailsAll même s'il n'y a pas de services actifs
+            // Cela permet d'afficher les services désactivés ou archivés dans l'admin
+            $allServicesWithDetailsAll = $tousServices->map(function($service) {
+                $status = $service->pivot->status ?? null;
+                // S'assurer que le statut est une string (et non null)
+                $status = $status ? (string)$status : null;
+                
+                return [
+                    'nom_service' => $service->nom_service,
+                    'id' => $service->id,
+                    'experience' => $this->formatExperience($service->pivot->experience ?? null),
+                    'presentation' => $service->pivot->presentation ?? null,
+                    'status' => $status // Statut: active, desactive, ou archive (toujours string)
+                ];
+            })->toArray();
+            
             return response()->json([
                 'id' => $intervenant->id,
                 'nom' => $intervenant->utilisateur->nom ?? '',
@@ -767,8 +797,9 @@ class AdminController extends Controller
                 'experience' => null,
                 'service' => null,
                 'serviceId' => null,
-                'allServices' => [],
+                'allServices' => $tousServices->pluck('nom_service')->toArray(), // TOUS les services pour navigation
                 'allServicesWithDetails' => [],
+                'allServicesWithDetailsAll' => $allServicesWithDetailsAll, // TOUS les services avec détails pour toggle
                 'note' => 0,
                 'nbAvis' => 0,
                 'missions' => 0,
@@ -924,15 +955,19 @@ class AdminController extends Controller
             $experience = $this->formatExperience($servicePrincipal->pivot->experience ?? null);
         }
         
-        // Construire allServicesWithDetails avec TOUS les services (pour avoir toutes les expériences)
-        // Mais seulement afficher les services actifs dans le frontend (limitation de 2)
+        // Construire allServicesWithDetails avec TOUS les services (active, desactive, archive uniquement)
+        // Exclure refuse et demmande
         $allServicesWithDetails = $tousServices->map(function($service) {
+            $status = $service->pivot->status ?? null;
+            // S'assurer que le statut est une string (et non null)
+            $status = $status ? (string)$status : null;
+            
             return [
                 'nom_service' => $service->nom_service,
                 'id' => $service->id,
                 'experience' => $this->formatExperience($service->pivot->experience ?? null),
                 'presentation' => $service->pivot->presentation ?? null,
-                'status' => $service->pivot->status ?? null // Ajouter le statut pour pouvoir filtrer côté frontend
+                'status' => $status // Statut: active, desactive, ou archive (toujours string)
             ];
         })->toArray();
         
@@ -953,9 +988,9 @@ class AdminController extends Controller
             'experience' => $experience, // Experience du service principal (pour compatibilité)
             'service' => $servicePrincipal ? $servicePrincipal->nom_service : null,
             'serviceId' => $servicePrincipal ? $servicePrincipal->id : null,
-            'allServices' => $servicesActives->pluck('nom_service')->toArray(), // Seulement les services ACTIVÉS (pour compatibilité - limitation de 2)
+            'allServices' => $tousServices->pluck('nom_service')->toArray(), // TOUS les services (actifs et désactivés) pour navigation - permet de voir tous les services dans l'admin
             'allServicesWithDetails' => $allServicesWithDetailsActifs, // Services ACTIFS avec détails (nom, id, experience) - pour affichage (limitation de 2)
-            'allServicesWithDetailsAll' => $allServicesWithDetails, // TOUS les services avec détails (pour calculer l'expérience de tous les services)
+            'allServicesWithDetailsAll' => $allServicesWithDetails, // TOUS les services avec détails (nom, id, experience, presentation, status) - pour toggle
             'note' => $avgNote ? round($avgNote, 1) : 0,
             'nbAvis' => $nbAvis,
             'missions' => $interventions->count(),
@@ -1029,6 +1064,72 @@ class AdminController extends Controller
     }
 
     /**
+     * Toggle service status for an intervenant (Admin only)
+     * Cette méthode permet à l'admin d'activer/désactiver un service pour un intervenant
+     * sans supprimer la présentation et l'expérience
+     * 
+     * @param int $intervenantId
+     * @param int $serviceId
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function toggleIntervenantServiceStatus($intervenantId, $serviceId)
+    {
+        try {
+            $intervenant = Intervenant::findOrFail($intervenantId);
+            $service = Service::findOrFail($serviceId);
+
+            // Vérifier que la relation existe
+            $existing = DB::table('intervenant_service')
+                ->where('intervenant_id', $intervenantId)
+                ->where('service_id', $serviceId)
+                ->first();
+
+            if (!$existing) {
+                return response()->json([
+                    'error' => 'Relation intervenant-service non trouvée'
+                ], 404);
+            }
+
+            // Toggle le statut (active <-> desactive)
+            // Ne pas toucher aux statuts 'archive', 'refuse', 'demmande'
+            if (!in_array($existing->status, ['active', 'desactive'])) {
+                return response()->json([
+                    'error' => 'Impossible de modifier le statut de ce service. Statut actuel: ' . $existing->status
+                ], 400);
+            }
+            
+            $newStatus = ($existing->status === 'active') ? 'desactive' : 'active';
+
+            // Mettre à jour le statut SANS supprimer présentation et expérience
+            DB::table('intervenant_service')
+                ->where('intervenant_id', $intervenantId)
+                ->where('service_id', $serviceId)
+                ->update([
+                    'status' => $newStatus,
+                    'updated_at' => now(),
+                ]);
+
+            return response()->json([
+                'message' => $newStatus === 'active' ? 'Service activé pour cet intervenant' : 'Service désactivé pour cet intervenant',
+                'status' => $newStatus,
+                'isActive' => $newStatus === 'active'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Erreur toggleIntervenantServiceStatus: ' . $e->getMessage(), [
+                'intervenant_id' => $intervenantId,
+                'service_id' => $serviceId,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'error' => 'Erreur lors de la modification du statut du service',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Download a justificatif file
      */
     public function downloadJustificatif($id)
@@ -1070,14 +1171,26 @@ class AdminController extends Controller
     public function getPendingRequests(Request $request)
     {
         try {
-            // Récupérer uniquement les intervenants ACTIFS qui ont AU MOINS UN SERVICE avec status='demmande'
-            // ET qui concernent des services ACTIFS
+            // ========================================================================
+            // LOGIQUE DE FILTRAGE - AdminDemandes
+            // ========================================================================
+            // Cette méthode affiche UNIQUEMENT les demandes qui satisfont TOUTES ces conditions :
+            // 1. Intervenant ACTIF (is_active = true)
+            // 2. Service ACTIF (service.status = 'active')
+            // 3. Demande EN ATTENTE (intervenant_service.status = 'demmande')
+            //
+            // IMPORTANT : Si un intervenant ou un service est désactivé APRÈS la création
+            // de la demande, le statut 'demmande' reste INCHANGÉ en base de données,
+            // mais la demande DISPARAÎT de cette liste (filtrage dynamique).
+            // Si l'intervenant ou le service est réactivé, la demande RÉAPPARAÎT automatiquement.
+            // ========================================================================
+            
             $query = Intervenant::with(['utilisateur', 'services', 'taches.service', 'justificatifs'])
-                ->where('is_active', true) // Uniquement les intervenants actifs
+                ->where('is_active', true) // FILTRE 1 : Uniquement les intervenants actifs
                 ->whereHas('services', function($q) {
-                    // Seulement les services avec status = 'demmande' dans la table pivot
+                    // FILTRE 2 : Seulement les services avec status = 'demmande' dans la table pivot
                     $q->where('intervenant_service.status', 'demmande');
-                    // IMPORTANT : Filtrer uniquement les services ACTIFS (service.status = 'active')
+                    // FILTRE 3 : Filtrer uniquement les services ACTIFS (service.status = 'active')
                     // Cela garantit qu'on ne montre que les demandes pour des services actifs
                     if (Schema::hasColumn('service', 'status')) {
                         $q->where('service.status', 'active');
@@ -1107,6 +1220,9 @@ class AdminController extends Controller
             }
 
             $pendingRequests = collect();
+            
+            // Tri par date de création décroissante (plus récent en premier)
+            $query->orderBy('created_at', 'desc');
             
             $pendingIntervenants = $query->get();
             
@@ -2177,6 +2293,11 @@ class AdminController extends Controller
             $query->whereDate('created_at', '<=', $request->dateFin);
         }
 
+        // Exclude specific status
+        if ($request->has('exclude_status') && $request->exclude_status !== '') {
+            $query->where('statut', '!=', $request->exclude_status);
+        }
+
         // Pagination robuste
         $perPage = (int) $request->input('per_page', 5);
         $perPage = $perPage > 0 ? $perPage : 5;
@@ -2187,44 +2308,73 @@ class AdminController extends Controller
             ->latest('created_at')
             ->paginate($perPage, ['*'], 'page', $page);
         
-        // Précharger tous les clients et intervenants concernés en une seule fois (séparation stricte par type)
-        $clientIds = $reclamations->where('signale_par_type', 'Client')->pluck('signale_par_id')
-            ->merge($reclamations->where('concernant_type', 'Client')->pluck('concernant_id'))
-            ->filter()
-            ->unique();
-        
-        $intervenantIds = $reclamations->where('signale_par_type', 'Intervenant')->pluck('signale_par_id')
-            ->merge($reclamations->where('concernant_type', 'Intervenant')->pluck('concernant_id'))
-            ->filter()
-            ->unique();
-        
-        // Charger tous les clients avec leurs utilisateurs
-        $clients = Client::with('utilisateur:id,nom,prenom,email')
-            ->whereIn('id', $clientIds)
-            ->get()
-            ->keyBy('id');
-        
-        // Charger tous les intervenants avec leurs utilisateurs et interventions
-        $intervenants = Intervenant::with([
-            'utilisateur:id,nom,prenom,email',
-            'interventions:id,intervenant_id'
+        // Charger les interventions liées aux réclamations avec leurs relations
+        $interventionIds = $reclamations->pluck('intervention_id')->filter()->unique();
+        $linkedInterventions = Intervention::with([
+            'client.utilisateur:id,nom,prenom,email',
+            'intervenant.utilisateur:id,nom,prenom,email',
+            'tache.service:id,nom_service',
+            'evaluations.critaire:id,nom_critaire', // Charger les évaluations avec leurs critères
+            'commentaires' // Charger les commentaires
         ])
-        ->whereIn('id', $intervenantIds)
+        ->whereIn('id', $interventionIds)
         ->get()
         ->keyBy('id');
         
-        // Charger les interventions liées aux réclamations
-        $interventionIds = $reclamations->pluck('intervention_id')->filter()->unique();
-        $linkedInterventions = \App\Models\Intervention::with(['tache.service'])
-            ->whereIn('id', $interventionIds)
+        // Collecter tous les IDs de clients et intervenants depuis les interventions et les réclamations
+        $clientIds = collect();
+        $intervenantIds = collect();
+        
+        // Depuis les interventions
+        foreach ($linkedInterventions as $intervention) {
+            if ($intervention->client_id) {
+                $clientIds->push($intervention->client_id);
+            }
+            if ($intervention->intervenant_id) {
+                $intervenantIds->push($intervention->intervenant_id);
+            }
+        }
+        
+        // Depuis les réclamations (signale_par ET concernant) en normalisant la casse
+        $clientIds = $clientIds->merge(
+            $reclamations
+                ->filter(fn ($rec) => strtolower($rec->signale_par_type) === 'client')
+                ->pluck('signale_par_id')
+        );
+        $intervenantIds = $intervenantIds->merge(
+            $reclamations
+                ->filter(fn ($rec) => strtolower($rec->signale_par_type) === 'intervenant')
+                ->pluck('signale_par_id')
+        );
+        
+        // Collecter aussi les IDs depuis concernant_id et concernant_type
+        $clientIds = $clientIds->merge(
+            $reclamations->where('concernant_type', 'Client')->pluck('concernant_id')->filter()
+        );
+        $intervenantIds = $intervenantIds->merge(
+            $reclamations->where('concernant_type', 'Intervenant')->pluck('concernant_id')->filter()
+        );
+        
+        // Charger tous les clients avec leurs utilisateurs
+        $clients = Client::with('utilisateur:id,nom,prenom,email')
+            ->whereIn('id', $clientIds->filter()->unique())
+            ->get()
+            ->keyBy('id');
+        
+        // Charger tous les intervenants avec leurs utilisateurs
+        $intervenants = Intervenant::with('utilisateur:id,nom,prenom,email')
+            ->whereIn('id', $intervenantIds->filter()->unique())
             ->get()
             ->keyBy('id');
         
         // Précharger toutes les évaluations pour les intervenants
-        $allInterventionIds = $intervenants->pluck('interventions')->flatten()->pluck('id')->unique()->filter();
+        $allInterventionIdsForEvals = $intervenants->pluck('id')->map(function($id) {
+            return Intervention::where('intervenant_id', $id)->pluck('id');
+        })->flatten()->unique()->filter();
+        
         $evaluationsByIntervenant = [];
         
-        if ($allInterventionIds->isNotEmpty()) {
+        if ($allInterventionIdsForEvals->isNotEmpty()) {
             $evaluations = DB::table('evaluation')
                 ->join('intervention', 'evaluation.intervention_id', '=', 'intervention.id')
                 ->select(
@@ -2232,7 +2382,7 @@ class AdminController extends Controller
                     'evaluation.intervention_id',
                     'evaluation.note'
                 )
-                ->whereIn('evaluation.intervention_id', $allInterventionIds)
+                ->whereIn('evaluation.intervention_id', $allInterventionIdsForEvals)
                 ->where('evaluation.type_auteur', 'client')
                 ->get()
                 ->groupBy('intervenant_id');
@@ -2254,28 +2404,123 @@ class AdminController extends Controller
         }
         
         // Mapper les réclamations avec les données préchargées
+        // IMPORTANT: concernant_id et concernant_type sont maintenant dérivés de l'intervention
         $reclamationsData = $reclamations->getCollection()->map(function ($reclamation) use ($clients, $intervenants, $evaluationsByIntervenant, $linkedInterventions) {
             $signaleParName = 'N/A';
             $concernantName = 'N/A';
             $signaleParId = $reclamation->signale_par_id;
-            $signaleParType = $reclamation->signale_par_type;
-            $concernantId = $reclamation->concernant_id;
-            $concernantType = $reclamation->concernant_type;
+            // Normaliser la casse pour fiabiliser les comparaisons
+            $signaleParType = $reclamation->signale_par_type
+                ? ucfirst(strtolower($reclamation->signale_par_type))
+                : null;
+            $concernantId = null;
+            $concernantType = null;
             $signaleParNote = null;
             $signaleParNbAvis = null;
             $concernantNote = null;
             $concernantNbAvis = null;
+            $interventionData = null;
 
+            // Charger les données de l'intervention si elle existe
+            if ($reclamation->intervention_id && isset($linkedInterventions[$reclamation->intervention_id])) {
+                $intervention = $linkedInterventions[$reclamation->intervention_id];
+                
+                // Récupérer les évaluations du client et de l'intervenant
+                $clientEvaluations = $intervention->evaluations->where('type_auteur', 'client');
+                $intervenantEvaluations = $intervention->evaluations->where('type_auteur', 'intervenant');
+                
+                // Calculer la note moyenne du client
+                $clientAverageNote = $clientEvaluations->count() > 0 
+                    ? round($clientEvaluations->avg('note'), 1) 
+                    : null;
+                
+                // Calculer la note moyenne de l'intervenant
+                $intervenantAverageNote = $intervenantEvaluations->count() > 0 
+                    ? round($intervenantEvaluations->avg('note'), 1) 
+                    : null;
+                
+                // Récupérer les commentaires
+                $clientComment = $intervention->commentaires->where('type_auteur', 'client')->first();
+                $intervenantComment = $intervention->commentaires->where('type_auteur', 'intervenant')->first();
+                
+                // Construire les données de l'intervention avec les évaluations et commentaires
+                $interventionData = [
+                    'id' => $intervention->id,
+                    'service' => $intervention->tache->service->nom_service ?? 'N/A',
+                    'date' => $intervention->date_intervention,
+                    'status' => $intervention->status,
+                    'address' => $intervention->address,
+                    'ville' => $intervention->ville,
+                    'evaluations' => [
+                        'client' => [
+                            'average_note' => $clientAverageNote,
+                            'count' => $clientEvaluations->count(),
+                            'details' => $clientEvaluations->map(function($eval) {
+                                return [
+                                    'id' => $eval->id,
+                                    'note' => $eval->note,
+                                    'critere' => $eval->critaire->nom_critaire ?? 'N/A',
+                                ];
+                            })->values(),
+                            'comment' => $clientComment ? $clientComment->commentaire : null,
+                        ],
+                        'intervenant' => [
+                            'average_note' => $intervenantAverageNote,
+                            'count' => $intervenantEvaluations->count(),
+                            'details' => $intervenantEvaluations->map(function($eval) {
+                                return [
+                                    'id' => $eval->id,
+                                    'note' => $eval->note,
+                                    'critere' => $eval->critaire->nom_critaire ?? 'N/A',
+                                ];
+                            })->values(),
+                            'comment' => $intervenantComment ? $intervenantComment->commentaire : null,
+                        ],
+                    ],
+                ];
+                
+                // Dériver concernant_id et concernant_type depuis l'intervention
+                // Si signale_par est un Client, alors concernant est l'Intervenant de l'intervention
+                // Si signale_par est un Intervenant, alors concernant est le Client de l'intervention
+                if ($signaleParType === 'Client') {
+                    $concernantId = $intervention->intervenant_id;
+                    $concernantType = 'Intervenant';
+                } elseif ($signaleParType === 'Intervenant') {
+                    $concernantId = $intervention->client_id;
+                    $concernantType = 'Client';
+                }
+            } else {
+                // Si pas d'intervention, utiliser les valeurs stockées (pour compatibilité)
+                $concernantId = $reclamation->concernant_id;
+                $concernantType = $reclamation->concernant_type;
+            }
+
+            // Normaliser la casse du concernant pour fiabiliser l'affichage
+            $concernantType = $concernantType
+                ? ucfirst(strtolower($concernantType))
+                : null;
+
+            // Récupérer les informations de signale_par
             if ($signaleParId && $signaleParType) {
                 if ($signaleParType === 'Client' && isset($clients[$signaleParId])) {
                     $client = $clients[$signaleParId];
-                    if ($client->utilisateur) {
-                        $signaleParName = $client->utilisateur->prenom . ' ' . $client->utilisateur->nom;
+                    if ($client && $client->utilisateur) {
+                        $prenom = $client->utilisateur->prenom ?? '';
+                        $nom = $client->utilisateur->nom ?? '';
+                        $signaleParName = trim($prenom . ' ' . $nom);
+                        if (empty($signaleParName)) {
+                            $signaleParName = 'N/A';
+                        }
                     }
                 } elseif ($signaleParType === 'Intervenant' && isset($intervenants[$signaleParId])) {
                     $intervenant = $intervenants[$signaleParId];
-                    if ($intervenant->utilisateur) {
-                        $signaleParName = $intervenant->utilisateur->prenom . ' ' . $intervenant->utilisateur->nom;
+                    if ($intervenant && $intervenant->utilisateur) {
+                        $prenom = $intervenant->utilisateur->prenom ?? '';
+                        $nom = $intervenant->utilisateur->nom ?? '';
+                        $signaleParName = trim($prenom . ' ' . $nom);
+                        if (empty($signaleParName)) {
+                            $signaleParName = 'N/A';
+                        }
                         
                         // Utiliser les données préchargées
                         if (isset($evaluationsByIntervenant[$signaleParId])) {
@@ -2289,16 +2534,27 @@ class AdminController extends Controller
                 }
             }
 
+            // Récupérer les informations de concernant (dérivé de l'intervention)
             if ($concernantId && $concernantType) {
                 if ($concernantType === 'Client' && isset($clients[$concernantId])) {
                     $client = $clients[$concernantId];
-                    if ($client->utilisateur) {
-                        $concernantName = $client->utilisateur->prenom . ' ' . $client->utilisateur->nom;
+                    if ($client && $client->utilisateur) {
+                        $prenom = $client->utilisateur->prenom ?? '';
+                        $nom = $client->utilisateur->nom ?? '';
+                        $concernantName = trim($prenom . ' ' . $nom);
+                        if (empty($concernantName)) {
+                            $concernantName = 'N/A';
+                        }
                     }
                 } elseif ($concernantType === 'Intervenant' && isset($intervenants[$concernantId])) {
                     $intervenant = $intervenants[$concernantId];
-                    if ($intervenant->utilisateur) {
-                        $concernantName = $intervenant->utilisateur->prenom . ' ' . $intervenant->utilisateur->nom;
+                    if ($intervenant && $intervenant->utilisateur) {
+                        $prenom = $intervenant->utilisateur->prenom ?? '';
+                        $nom = $intervenant->utilisateur->nom ?? '';
+                        $concernantName = trim($prenom . ' ' . $nom);
+                        if (empty($concernantName)) {
+                            $concernantName = 'N/A';
+                        }
                         
                         // Utiliser les données préchargées
                         if (isset($evaluationsByIntervenant[$concernantId])) {
@@ -2333,11 +2589,7 @@ class AdminController extends Controller
                 'notes' => $reclamation->notes_admin,
                 'archived' => $reclamation->archived ?? false,
                 'intervention_id' => $reclamation->intervention_id,
-                'intervention' => isset($linkedInterventions[$reclamation->intervention_id]) ? [
-                    'id' => $linkedInterventions[$reclamation->intervention_id]->id,
-                    'service' => $linkedInterventions[$reclamation->intervention_id]->tache->service->nom_service ?? 'N/A',
-                    'date' => $linkedInterventions[$reclamation->intervention_id]->date_intervention,
-                ] : null,
+                'intervention' => $interventionData,
             ];
         });
 
@@ -2365,9 +2617,30 @@ class AdminController extends Controller
             'statut' => 'nullable|in:en_cours,en_attente,resolu' // For mark action
         ]);
 
-        $reclamation = Reclamation::findOrFail($id);
+        $reclamation = Reclamation::with('intervention.client.utilisateur', 'intervention.intervenant.utilisateur')->findOrFail($id);
         $oldStatus = $reclamation->statut;
         $message = '';
+
+        // Dériver concernant_id et concernant_type depuis l'intervention
+        $concernantId = null;
+        $concernantType = null;
+        
+        if ($reclamation->intervention_id && $reclamation->intervention) {
+            $intervention = $reclamation->intervention;
+            // Si signale_par est un Client, alors concernant est l'Intervenant de l'intervention
+            // Si signale_par est un Intervenant, alors concernant est le Client de l'intervention
+            if ($reclamation->signale_par_type === 'Client') {
+                $concernantId = $intervention->intervenant_id;
+                $concernantType = 'Intervenant';
+            } elseif ($reclamation->signale_par_type === 'Intervenant') {
+                $concernantId = $intervention->client_id;
+                $concernantType = 'Client';
+            }
+        } else {
+            // Si pas d'intervention, utiliser les valeurs stockées (pour compatibilité)
+            $concernantId = $reclamation->concernant_id;
+            $concernantType = $reclamation->concernant_type;
+        }
 
         if ($validated['action'] === 'reply') {
             // Action: Repondre - Send email to signale_par and concernant
@@ -2440,9 +2713,10 @@ class AdminController extends Controller
                 }
 
                 // Send email to concernant (person concerned) - Warning email with alerts
-                if ($reclamation->concernant_id) {
-                    if ($reclamation->concernant_type === 'Client') {
-                        $concernant = Client::with('utilisateur')->find($reclamation->concernant_id);
+                // Utiliser concernant_id et concernant_type dérivés de l'intervention
+                if ($concernantId && $concernantType) {
+                    if ($concernantType === 'Client') {
+                        $concernant = Client::with('utilisateur')->find($concernantId);
                         if ($concernant && $concernant->utilisateur && $concernant->utilisateur->email) {
                             Mail::to($concernant->utilisateur->email)->send(
                                 new ReclamationConcerned(
@@ -2456,10 +2730,10 @@ class AdminController extends Controller
                                     $signaleParName
                                 )
                             );
-                            Log::info("Email d'avertissement envoyé au concernant (Client) ID {$reclamation->concernant_id}");
+                            Log::info("Email d'avertissement envoyé au concernant (Client) ID {$concernantId}");
                         }
-                    } elseif ($reclamation->concernant_type === 'Intervenant') {
-                        $concernant = Intervenant::with('utilisateur')->find($reclamation->concernant_id);
+                    } elseif ($concernantType === 'Intervenant') {
+                        $concernant = Intervenant::with('utilisateur')->find($concernantId);
                         if ($concernant && $concernant->utilisateur && $concernant->utilisateur->email) {
                             Mail::to($concernant->utilisateur->email)->send(
                                 new ReclamationConcerned(
@@ -2473,7 +2747,7 @@ class AdminController extends Controller
                                     $signaleParName
                                 )
                             );
-                            Log::info("Email d'avertissement envoyé au concernant (Intervenant) ID {$reclamation->concernant_id}");
+                            Log::info("Email d'avertissement envoyé au concernant (Intervenant) ID {$concernantId}");
                         }
                     }
                 }
@@ -2527,14 +2801,15 @@ class AdminController extends Controller
                     }
                     
                     // Récupérer le nom de concernant pour l'affichage dans l'email
-                    if ($reclamation->concernant_id) {
-                        if ($reclamation->concernant_type === 'Client') {
-                            $concernantTemp = Client::with('utilisateur')->find($reclamation->concernant_id);
+                    // Utiliser concernant_id et concernant_type dérivés de l'intervention
+                    if ($concernantId && $concernantType) {
+                        if ($concernantType === 'Client') {
+                            $concernantTemp = Client::with('utilisateur')->find($concernantId);
                             if ($concernantTemp && $concernantTemp->utilisateur) {
                                 $concernantName = $concernantTemp->utilisateur->prenom . ' ' . $concernantTemp->utilisateur->nom;
                             }
-                        } elseif ($reclamation->concernant_type === 'Intervenant') {
-                            $concernantTemp = Intervenant::with('utilisateur')->find($reclamation->concernant_id);
+                        } elseif ($concernantType === 'Intervenant') {
+                            $concernantTemp = Intervenant::with('utilisateur')->find($concernantId);
                             if ($concernantTemp && $concernantTemp->utilisateur) {
                                 $concernantName = $concernantTemp->utilisateur->prenom . ' ' . $concernantTemp->utilisateur->nom;
                             }
@@ -2631,7 +2906,8 @@ class AdminController extends Controller
             'evaluations' => function($q) {
                 $q->where('type_auteur', 'client');
             },
-            'informations'
+            'informations',
+            'intervenant.taches' // Preload for pricing calculation fallback
         ]);
 
         // Ne pas filtrer par défaut sur les services actifs : on veut un historique complet,
@@ -2665,28 +2941,38 @@ class AdminController extends Controller
             $query->where('date_intervention', '<=', $request->dateFin);
         }
 
-        $historique = $query->orderBy('date_intervention', 'desc')
+        // Modified ordering: Sort by creation date (reservation date) descending
+        // This ensures newly reserved interventions appear first
+        $historique = $query->orderBy('created_at', 'desc')
             ->paginate($request->get('per_page', 50));
 
         $transformedData = $historique->through(function($intervention) {
-            // Calculate average note
-            $note = null;
-            if ($intervention->evaluations && $intervention->evaluations->count() > 0) {
-                $avgNote = $intervention->evaluations->avg('note');
-                $note = $avgNote ? round($avgNote, 0) : null;
-            }
+            // Note calculation removed
 
             // Get duration from intervention_information or use default
-            $duree = '3h'; // Default
-            if ($intervention->informations && $intervention->informations->count() > 0) {
+            $dureeValue = 3.0; // Numeric standard default
+            $dureeStr = '3h'; // Display default
+            
+            // Try to find duration column in DB (duration_hours) first
+            if (isset($intervention->duration_hours) && $intervention->duration_hours > 0) {
+                 $dureeValue = (float) $intervention->duration_hours;
+                 $dureeStr = $dureeValue . 'h';
+            } elseif ($intervention->informations && $intervention->informations->count() > 0) {
+                // Fallback to informations table
                 foreach ($intervention->informations as $info) {
                     $infoName = strtolower($info->nom ?? '');
                     if (stripos($infoName, 'durée') !== false || stripos($infoName, 'duree') !== false || stripos($infoName, 'duration') !== false) {
-                        // Get from pivot 'information' column (which stores the value)
-                        $duree = $info->pivot->information ?? $duree;
-                        // Format duration if needed (e.g., "2.5" -> "2.5h")
-                        if (is_numeric($duree) && strpos($duree, 'h') === false) {
-                            $duree = $duree . 'h';
+                        $infoVal = $info->pivot->information ?? null;
+                        if ($infoVal) {
+                            $dureeStr = $infoVal;
+                            // Extract numeric part for calculation
+                            if (preg_match('/([\d\.]+)/', $infoVal, $matches)) {
+                                $dureeValue = (float) $matches[1];
+                            }
+                            // Format duration if needed
+                            if (is_numeric($dureeStr) && strpos($dureeStr, 'h') === false) {
+                                $dureeStr = $dureeStr . 'h';
+                            }
                         }
                         break;
                     }
@@ -2703,8 +2989,39 @@ class AdminController extends Controller
             $statut = $statusMap[$intervention->status] ?? $intervention->status;
 
             // Format amount
-            $montant = $intervention->facture && $intervention->facture->ttc ? 
-                number_format($intervention->facture->ttc, 0, ',', ' ') : 0;
+            // Logic: Use Invoice amount if available, otherwise calculate from Intervenant Rate and Material Cost
+            $montantValue = 0;
+            
+            if ($intervention->facture && $intervention->facture->ttc) {
+                $montantValue = $intervention->facture->ttc;
+            } else {
+                // Calculate fallback amount
+                // 1. Get Base Rate from Intervenant Tache Pivot
+                $baseRate = 0;
+                if ($intervention->intervenant && $intervention->intervenant->taches) {
+                    $tachePivot = $intervention->intervenant->taches->where('id', $intervention->tache_id)->first();
+                    if ($tachePivot && $tachePivot->pivot) {
+                        $baseRate = (float) ($tachePivot->pivot->prix_tache ?? 0);
+                    }
+                }
+                
+                // 2. Get Materials Cost
+                $materialsCost = 0;
+                if ($intervention->informations) {
+                    foreach ($intervention->informations as $info) {
+                        if ($info->nom === 'Coût_Matériel' || stripos($info->nom, 'matériel') !== false) {
+                             $val = $info->pivot->information ?? '0';
+                             $materialsCost = (float) preg_replace('/[^\d\.]/', '', $val);
+                             break;
+                        }
+                    }
+                }
+                
+                // Calculate Total
+                $montantValue = ($baseRate * $dureeValue) + $materialsCost;
+            }
+            
+            $montant = number_format((float)$montantValue, 0, ',', ' ');
 
             return [
                 'id' => $intervention->id,
@@ -2716,9 +3033,8 @@ class AdminController extends Controller
                     $intervention->tache->service->nom_service : 'N/A',
                 'tache' => $intervention->tache ? $intervention->tache->nom_tache : 'N/A',
                 'date' => $intervention->date_intervention ? \Carbon\Carbon::parse($intervention->date_intervention)->format('Y-m-d') : 'N/A',
-                'duree' => $duree,
+                'duree' => $dureeStr,
                 'montant' => $montant,
-                'note' => $note,
                 'statut' => $statut
             ];
         });
@@ -2739,7 +3055,8 @@ class AdminController extends Controller
             'evaluations' => function($q) {
                 $q->where('type_auteur', 'client');
             },
-            'informations'
+            'informations',
+            'intervenant.taches'
         ]);
 
         // Pas de filtre implicite sur services actifs : conserver tout l'historique.
@@ -2771,7 +3088,8 @@ class AdminController extends Controller
             $query->where('date_intervention', '<=', $request->dateFin);
         }
 
-        $interventions = $query->orderBy('date_intervention', 'desc')->get();
+        // Sort by created_at desc (same as main list)
+        $interventions = $query->orderBy('created_at', 'desc')->get();
 
         // Generate filename with date and time: historique_interventions_YYYY-MM-DD_HH-MM-SS.csv
         $filename = 'historique_interventions_' . date('Y-m-d_H-i-s') . '.csv';
@@ -2797,26 +3115,32 @@ class AdminController extends Controller
                 'Date',
                 'Durée',
                 'Montant (DH)',
-                'Note',
                 'Statut'
             ], ';');
 
             // Data rows
             foreach ($interventions as $intervention) {
-                $note = null;
-                if ($intervention->evaluations && $intervention->evaluations->count() > 0) {
-                    $avgNote = $intervention->evaluations->avg('note');
-                    $note = $avgNote ? round($avgNote, 0) : null;
-                }
+                // Note calculation removed
 
-                $duree = '3h';
-                if ($intervention->informations && $intervention->informations->count() > 0) {
+                // Duree Logic (Same as above)
+                $dureeValue = 3.0;
+                $dureeStr = '3h';
+                if (isset($intervention->duration_hours) && $intervention->duration_hours > 0) {
+                     $dureeValue = (float) $intervention->duration_hours;
+                     $dureeStr = $dureeValue . 'h';
+                } elseif ($intervention->informations && $intervention->informations->count() > 0) {
                     foreach ($intervention->informations as $info) {
                         $infoName = strtolower($info->nom ?? '');
                         if (stripos($infoName, 'durée') !== false || stripos($infoName, 'duree') !== false || stripos($infoName, 'duration') !== false) {
-                            $duree = $info->pivot->information ?? $duree;
-                            if (is_numeric($duree) && strpos($duree, 'h') === false) {
-                                $duree = $duree . 'h';
+                            $infoVal = $info->pivot->information ?? null;
+                            if ($infoVal) {
+                                $dureeStr = $infoVal;
+                                if (preg_match('/([\d\.]+)/', $infoVal, $matches)) {
+                                    $dureeValue = (float) $matches[1];
+                                }
+                                if (is_numeric($dureeStr) && strpos($dureeStr, 'h') === false) {
+                                    $dureeStr = $dureeStr . 'h';
+                                }
                             }
                             break;
                         }
@@ -2831,8 +3155,32 @@ class AdminController extends Controller
                 ];
                 $statut = $statusMap[$intervention->status] ?? $intervention->status;
 
-                $montant = $intervention->facture && $intervention->facture->ttc ? 
-                    number_format((float)$intervention->facture->ttc, 2, ',', ' ') : '0,00';
+                // Montant Logic (Same as above)
+                $montantValue = 0;
+                if ($intervention->facture && $intervention->facture->ttc) {
+                    $montantValue = $intervention->facture->ttc;
+                } else {
+                    $baseRate = 0;
+                    if ($intervention->intervenant && $intervention->intervenant->taches) {
+                        $tachePivot = $intervention->intervenant->taches->where('id', $intervention->tache_id)->first();
+                        if ($tachePivot && $tachePivot->pivot) {
+                            $baseRate = (float) ($tachePivot->pivot->prix_tache ?? 0);
+                        }
+                    }
+                    $materialsCost = 0;
+                    if ($intervention->informations) {
+                        foreach ($intervention->informations as $info) {
+                            if ($info->nom === 'Coût_Matériel' || stripos($info->nom, 'matériel') !== false) {
+                                 $val = $info->pivot->information ?? '0';
+                                 $materialsCost = (float) preg_replace('/[^\d\.]/', '', $val);
+                                 break;
+                            }
+                        }
+                    }
+                    $montantValue = ($baseRate * $dureeValue) + $materialsCost;
+                }
+
+                $montant = number_format((float)$montantValue, 2, ',', ' ');
 
                 fputcsv($file, [
                     $intervention->id,
@@ -2844,9 +3192,8 @@ class AdminController extends Controller
                         $intervention->tache->service->nom_service : 'N/A',
                     $intervention->tache ? $intervention->tache->nom_tache : 'N/A',
                     $intervention->date_intervention ? (\Carbon\Carbon::parse($intervention->date_intervention)->format('Y-m-d')) : 'N/A',
-                    $duree,
+                    $dureeStr,
                     $montant,
-                    $note ?? '-',
                     $statut
                 ], ';');
             }
@@ -2870,7 +3217,8 @@ class AdminController extends Controller
             'evaluations' => function($q) {
                 $q->where('type_auteur', 'client');
             },
-            'informations'
+            'informations',
+            'intervenant.taches'
         ]);
 
         // Pas de filtre implicite sur services actifs : conserver tout l'historique.
@@ -2902,7 +3250,8 @@ class AdminController extends Controller
             $query->where('date_intervention', '<=', $request->dateFin);
         }
 
-        $interventions = $query->orderBy('date_intervention', 'desc')->get();
+        // Sort by created_at desc
+        $interventions = $query->orderBy('created_at', 'desc')->get();
 
         // Transform data for PDF
         $data = $interventions->map(function($intervention) {
@@ -2912,14 +3261,25 @@ class AdminController extends Controller
                 $note = $avgNote ? round($avgNote, 0) : null;
             }
 
-            $duree = '3h';
-            if ($intervention->informations && $intervention->informations->count() > 0) {
+            // Duree Logic
+            $dureeValue = 3.0;
+            $dureeStr = '3h';
+            if (isset($intervention->duration_hours) && $intervention->duration_hours > 0) {
+                 $dureeValue = (float) $intervention->duration_hours;
+                 $dureeStr = $dureeValue . 'h';
+            } elseif ($intervention->informations && $intervention->informations->count() > 0) {
                 foreach ($intervention->informations as $info) {
                     $infoName = strtolower($info->nom ?? '');
                     if (stripos($infoName, 'durée') !== false || stripos($infoName, 'duree') !== false || stripos($infoName, 'duration') !== false) {
-                        $duree = $info->pivot->information ?? $duree;
-                        if (is_numeric($duree) && strpos($duree, 'h') === false) {
-                            $duree = $duree . 'h';
+                        $infoVal = $info->pivot->information ?? null;
+                        if ($infoVal) {
+                            $dureeStr = $infoVal;
+                            if (preg_match('/([\d\.]+)/', $infoVal, $matches)) {
+                                $dureeValue = (float) $matches[1];
+                            }
+                            if (is_numeric($dureeStr) && strpos($dureeStr, 'h') === false) {
+                                $dureeStr = $dureeStr . 'h';
+                            }
                         }
                         break;
                     }
@@ -2934,8 +3294,32 @@ class AdminController extends Controller
             ];
             $statut = $statusMap[$intervention->status] ?? $intervention->status;
 
-            $montant = $intervention->facture && $intervention->facture->ttc ? 
-                number_format((float)$intervention->facture->ttc, 2, ',', ' ') : '0,00';
+            // Montant Logic
+            $montantValue = 0;
+            if ($intervention->facture && $intervention->facture->ttc) {
+                $montantValue = $intervention->facture->ttc;
+            } else {
+                $baseRate = 0;
+                if ($intervention->intervenant && $intervention->intervenant->taches) {
+                    $tachePivot = $intervention->intervenant->taches->where('id', $intervention->tache_id)->first();
+                    if ($tachePivot && $tachePivot->pivot) {
+                        $baseRate = (float) ($tachePivot->pivot->prix_tache ?? 0);
+                    }
+                }
+                $materialsCost = 0;
+                if ($intervention->informations) {
+                    foreach ($intervention->informations as $info) {
+                        if ($info->nom === 'Coût_Matériel' || stripos($info->nom, 'matériel') !== false) {
+                             $val = $info->pivot->information ?? '0';
+                             $materialsCost = (float) preg_replace('/[^\d\.]/', '', $val);
+                             break;
+                        }
+                    }
+                }
+                $montantValue = ($baseRate * $dureeValue) + $materialsCost;
+            }
+
+            $montant = number_format((float)$montantValue, 2, ',', ' ');
 
             return [
                 'id' => $intervention->id,
@@ -2947,7 +3331,7 @@ class AdminController extends Controller
                     $intervention->tache->service->nom_service : 'N/A',
                 'tache' => $intervention->tache ? $intervention->tache->nom_tache : 'N/A',
                 'date' => $intervention->date_intervention ? \Carbon\Carbon::parse($intervention->date_intervention)->format('Y-m-d') : 'N/A',
-                'duree' => $duree,
+                'duree' => $dureeStr,
                 'montant' => $montant,
                 'note' => $note,
                 'statut' => $statut

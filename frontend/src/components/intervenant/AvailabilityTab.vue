@@ -288,7 +288,7 @@ const fetchDisponibilites = async () => {
       available: !!dispo.heure_debut, // If there's a start time, it's available
       startTime: dispo.heure_debut ? dispo.heure_debut.substring(0, 5) : null,
       endTime: dispo.heure_fin ? dispo.heure_fin.substring(0, 5) : null,
-      reason: null // Reason field not in database yet
+      reason: dispo.reason
     }))
     
   } catch (error) {

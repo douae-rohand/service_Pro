@@ -29,7 +29,7 @@ class VerificationCode extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Code de vérification - Service Pro',
+            subject: 'Code de vérification - Verde Net',
         );
     }
 

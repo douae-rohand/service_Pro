@@ -205,36 +205,6 @@
           </div>
         </div>
 
-        <!-- Description détaillée -->
-        <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-100 shadow-sm transition-all hover:shadow-md">
-          <h4 class="text-lg font-bold mb-4 flex items-center gap-3 text-gray-800">
-            <div class="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center">
-               <FileText :size="20" class="text-purple-600" />
-            </div>
-            Description détaillée (optionnel)
-          </h4>
-          <div class="space-y-2">
-            <label class="block text-sm font-semibold text-gray-700">
-              Décrivez précisément votre besoin
-            </label>
-            <textarea
-              v-model="bookingData.description"
-              rows="4"
-              placeholder="Ex: J'ai besoin d'une aide pour nettoyer mon salon et ma cuisine. Le salon fait environ 20m² et la cuisine 15m²..."
-              class="w-full px-4 py-3 bg-gray-50/50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all outline-none resize-none"
-              maxlength="500"
-            ></textarea>
-            <div class="flex justify-between items-center text-xs">
-              <p class="text-gray-500 flex items-center gap-1">
-                <AlertCircle :size="12" />
-                ⚠️ Ne partagez pas vos coordonnées personnelles (téléphone, email, réseaux sociaux)
-              </p>
-              <span class="text-gray-400 font-mono">
-                {{ (bookingData.description || '').length }}/500
-              </span>
-            </div>
-          </div>
-        </div>
 
         <!-- Materials -->
         <div class="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-100 shadow-sm transition-all hover:shadow-md">
@@ -424,22 +394,10 @@
               class="rounded-3xl p-6 border transition-all"
               :class="dayAvailabilityResult.hasEnoughTime ? 'bg-green-50/50 border-green-100' : 'bg-red-50/50 border-red-100'"
             >
-              <div class="flex items-start gap-4">
-                <div 
-                  class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm"
-                  :class="dayAvailabilityResult.hasEnoughTime ? 'bg-green-500 text-white' : 'bg-red-500 text-white'"
-                >
-                  <Check v-if="dayAvailabilityResult.hasEnoughTime" :size="20" />
-                  <X v-else :size="20" />
-                </div>
-                <div class="flex-1">
-                  <p class="font-black text-lg" :class="dayAvailabilityResult.hasEnoughTime ? 'text-green-900' : 'text-red-900'">
-                    {{ dayAvailabilityResult.hasEnoughTime ? 'C\'est parfait !' : 'Oups, petit souci...' }}
-                  </p>
-                  <p class="text-sm mt-1 leading-relaxed" :class="dayAvailabilityResult.hasEnoughTime ? 'text-green-700' : 'text-red-700'">
+              <div class="text-center">
+                  <p class="font-bold text-lg leading-relaxed" :class="dayAvailabilityResult.hasEnoughTime ? 'text-green-700' : 'text-red-700'">
                     {{ dayAvailabilityResult.message }}
                   </p>
-                </div>
               </div>
               
               <div v-if="dayAvailabilityResult.availableSlots?.length > 0" class="mt-6 pt-6 border-t border-[#92B08B]/10">
@@ -889,8 +847,25 @@ export default {
     }
     
     // Handle preselection
-    if (preselectedServiceId) {
-      const matchingService = this.services.find(s => s.id == preselectedServiceId);
+    let serviceIdToSelect = preselectedServiceId;
+
+    // If we have a task but no service, try to find the service ID from the task
+    if (!serviceIdToSelect && preselectedTaskId) {
+      try {
+        console.log('🕵️ Deducing service ID from task ID:', preselectedTaskId);
+        const taskRes = await api.get(`taches/${preselectedTaskId}`);
+        const task = taskRes.data?.data || taskRes.data;
+        if (task && (task.service_id || task.service?.id)) {
+           serviceIdToSelect = task.service_id || task.service?.id;
+           console.log('✅ Deduced Service ID:', serviceIdToSelect);
+        }
+      } catch (e) {
+        console.error("⚠️ Failed to deduce service from task:", e);
+      }
+    }
+
+    if (serviceIdToSelect) {
+      const matchingService = this.services.find(s => s.id == serviceIdToSelect);
       if (matchingService) {
         await this.selectService(matchingService);
         
@@ -1034,7 +1009,9 @@ export default {
           freeHours,
           message: hasEnoughTime 
             ? `Disponibilité confirmée pour ${this.estimatedHours} heure(s) le ${this.formatDate(this.bookingData.date)}`
-            : `Pas assez de créneaux disponibles pour ${this.estimatedHours} heure(s) le ${this.formatDate(this.bookingData.date)}`,
+            : freeHours >= this.estimatedHours 
+              ? `L'intervenant travaille à ces heures-là, mais il est déjà réservé par un autre client. Veuillez choisir une autre heure.`
+              : `Pas assez de créneaux libres disponibles pour ${this.estimatedHours} heure(s) le ${this.formatDate(this.bookingData.date)}`,
           details: hasEnoughTime
             ? `${possibleStartSlots.length} créneau(x) de départ possible(s)`
             : freeHours > 0
@@ -1067,35 +1044,44 @@ export default {
       return slots;
     },
     checkSlotAvailability(time, disponibilites) {
-      if (!disponibilites || disponibilites.length === 0) return true;
+      if (!disponibilites || disponibilites.length === 0) return false; // Par défaut, pas d'horaire = pas disponible
       
       const dateStr = this.bookingData.date;
       if (!dateStr) return false;
       
       const weekday = new Date(dateStr).toLocaleDateString('fr-FR', { weekday: 'long' }).toLowerCase();
-      
-      return disponibilites.some(d => {
+      const timeValue = this.timeToMinutes(time);
+
+      // Séparer les types pour donner la priorité aux exceptions (ponctuelles)
+      const ponctuelles = disponibilites.filter(d => String(d.type).toLowerCase() === 'ponctuelle');
+      const regulieres = disponibilites.filter(d => String(d.type).toLowerCase() === 'reguliere');
+
+      // 1. Si des disponibilités ponctuelles existent pour cette date, elles priment sur tout
+      if (ponctuelles.length > 0) {
+        return ponctuelles.some(d => {
+          const start = d.heure_debut || d.heureDebut;
+          const end = d.heure_fin || d.heureFin;
+          
+          if (!start || !end) return false; // Indisponible toute la journée si pas d'heures
+          
+          const startValue = this.timeToMinutes(start);
+          const endValue = this.timeToMinutes(end);
+          return timeValue >= startValue && timeValue < endValue;
+        });
+      }
+
+      // 2. Sinon, on vérifie l'emploi du temps régulier
+      return regulieres.some(d => {
+        if (String(d.jours_semaine).toLowerCase() !== weekday) return false;
+
         const start = d.heure_debut || d.heureDebut;
         const end = d.heure_fin || d.heureFin;
         
         if (!start || !end) return false;
         
-        const timeValue = this.timeToMinutes(time);
         const startValue = this.timeToMinutes(start);
         const endValue = this.timeToMinutes(end);
-        
-        const within = timeValue >= startValue && timeValue < endValue;
-        
-        if (String(d.type).toLowerCase() === 'reguliere' && d.jours_semaine) {
-          return within && String(d.jours_semaine).toLowerCase() === weekday;
-        }
-        
-        if (String(d.type).toLowerCase() === 'ponctuelle' && d.date_specific) {
-          const disponibiliteDate = new Date(d.date_specific).toISOString().split('T')[0];
-          return within && disponibiliteDate === dateStr;
-        }
-        
-        return false;
+        return timeValue >= startValue && timeValue < endValue;
       });
     },
     timeToMinutes(timeStr) {
@@ -1109,7 +1095,8 @@ export default {
         let allAvailable = true;
         
         for (let j = 0; j < this.estimatedHours; j++) {
-          if (!slots[i + j] || !slots[i + j].available) {
+          const slotToCheck = slots[i + j];
+          if (!slotToCheck || !slotToCheck.available || slotToCheck.reserved) {
             allAvailable = false;
             break;
           }
@@ -1123,16 +1110,15 @@ export default {
       return possibleStarts;
     },
     canSelectSlot(slot) {
-      // Permettre la sélection même si certains créneaux sont réservés (on vérifiera lors du clic)
-      if (!slot.available) return false;
-      
       const slotIndex = this.timeSlots.findIndex(s => s.time === slot.time);
       if (slotIndex === -1) return false;
       
-      // Vérifier qu'il y a assez de créneaux (même s'ils sont réservés, on affichera un message)
-      for (let i = 1; i < this.estimatedHours; i++) {
+      // Vérifier que TOUTE la plage horaire est disponible pour la durée estimée
+      for (let i = 0; i < this.estimatedHours; i++) {
         const nextSlot = this.timeSlots[slotIndex + i];
-        if (!nextSlot) {
+        
+        // Si un créneau de la plage n'existe pas, n'est pas disponible ou est déjà réservé
+        if (!nextSlot || !nextSlot.available || nextSlot.reserved) {
           return false;
         }
       }
@@ -1145,19 +1131,25 @@ export default {
       interventions.forEach(intervention => {
         if (!intervention.date_intervention) return;
         
-        const interventionDate = new Date(intervention.date_intervention);
-        const selectedDate = new Date(this.bookingData.date);
+        // Comparer les dates proprement (YYYY-MM-DD)
+        const interventionDateStr = new Date(intervention.date_intervention).toISOString().split('T')[0];
+        const selectedDateStr = this.bookingData.date;
         
-        // Vérifier si l'intervention est le même jour
-        if (interventionDate.toDateString() === selectedDate.toDateString()) {
-          const startTime = interventionDate.toTimeString().substring(0, 5); // HH:MM
-          const duration = Number(intervention.duration_hours || 1);
+        if (interventionDateStr === selectedDateStr) {
+          // Filtrer par statut : on ne bloque que si l'intervention est active
+          const status = (intervention.status || '').toLowerCase();
+          const blockingStatuses = ['en attend', 'en_attente', 'acceptee', 'acceptée', 'accepted', 'termine', 'terminee', 'completed', 'en cours', 'in-progress'];
           
-          // Ajouter tous les créneaux réservés
-          const startMinutes = this.timeToMinutes(startTime);
-          for (let i = 0; i < Math.ceil(duration); i++) {
-            const reservedTime = this.minutesToTime(startMinutes + (i * 60));
-            reserved.push(reservedTime);
+          if (blockingStatuses.includes(status)) {
+            const startTime = new Date(intervention.date_intervention).toTimeString().substring(0, 5); // HH:MM
+            const duration = Number(intervention.duration_hours || 1);
+            
+            // Ajouter tous les créneaux réservés
+            const startMinutes = this.timeToMinutes(startTime);
+            for (let i = 0; i < Math.ceil(duration); i++) {
+              const reservedTime = this.minutesToTime(startMinutes + (i * 60));
+              reserved.push(reservedTime);
+            }
           }
         }
       });

@@ -13,6 +13,7 @@ use App\Models\Service;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Portfolio;
 
 
 
@@ -32,33 +33,31 @@ class IntervenantController extends Controller
                 'services'
             ]);
 
-            // Filtrer les intervenants actifs par défaut
-            // Si 'active' est présent et vaut 'false', on prend les inactifs
-            // Si 'active' est présent et vaut 'all', on prend tout
-            // Sinon (absent ou 'true'), on prend uniquement les actifs
+            // Default: strictly only active intervenants for clients
             $activeParam = $request->input('active');
-            
             if ($activeParam === 'all') {
-                // No filter
+                // No filter (for admin typically)
             } elseif ($activeParam === 'false' || $activeParam === '0') {
                 $query->where('is_active', false);
             } else {
-                // Default or explicitly true
-                $query->active();
+                // Default: strictly only active intervenants for clients
+                $query->where('is_active', true);
             }
 
-            // Filtrer par tâche spécifique
+            // Filtrer par tâche spécifique et s'assurer que la tâche est active pour cet intervenant
             if ($request->has('tacheId')) {
                 $query->whereHas('taches', function ($q) use ($request) {
-                    $q->where('id', $request->tacheId);
+                    $q->where('tache.id', $request->tacheId)
+                      ->where('intervenant_tache.status', 1);
                 });
             }
 
-            // Filtrer par service
+            // Filtrer par service et s'assurer que le service est actif pour cet intervenant
             $serviceId = $request->input('serviceId') ?: $request->input('service_id');
             if ($serviceId && $serviceId != 'all') {
-                $query->whereHas('taches', function ($q) use ($serviceId) {
-                    $q->where('service_id', $serviceId);
+                $query->whereHas('services', function ($q) use ($serviceId) {
+                    $q->where('service.id', $serviceId)
+                      ->where('intervenant_service.status', 'active');
                 });
             }
 
@@ -149,7 +148,8 @@ class IntervenantController extends Controller
                     $q->where('type_auteur', 'client');
                 },
                 'interventions.client.utilisateur:id,nom,prenom',
-                'disponibilites'
+                'disponibilites',
+                'portfolio'
             ])->find($id);
 
             if (!$intervenant) {
@@ -182,13 +182,20 @@ class IntervenantController extends Controller
             'admin_id' => 'nullable|exists:admin,id',
         ]);
 
-        $intervenant->update([
+        $updateData = [
             'address' => $validated['address'] ?? $request->input('address'),
             'ville' => $validated['ville'] ?? $request->input('ville'),
             'bio' => $validated['bio'] ?? $request->input('bio'),
-            'is_active' => $validated['is_active'] ?? $request->boolean('isActive'),
             'admin_id' => $validated['admin_id'] ?? $request->input('adminId'),
-        ]);
+        ];
+
+        if ($request->has('is_active')) {
+            $updateData['is_active'] = $request->boolean('is_active');
+        } elseif ($request->has('isActive')) {
+            $updateData['is_active'] = $request->boolean('isActive');
+        }
+
+        $intervenant->update($updateData);
 
         // Update service experience if provided
         if ($request->has('services') && is_array($request->services)) {
@@ -378,6 +385,7 @@ class IntervenantController extends Controller
             'heure_debut' => $validated['available'] ? $validated['startTime'] : null,
             'heure_fin' => $validated['available'] ? $validated['endTime'] : null,
             'intervenant_id' => $intervenant->id,
+            'reason' => $validated['reason'],
         ]);
 
         return response()->json([
@@ -444,9 +452,9 @@ class IntervenantController extends Controller
             $query->where('is_active', false);
             Log::info('Filtering by active: FALSE');
         } else {
-            // Default or explicitly true
+            // Default: strictly only active intervenants for clients
             $query->where('is_active', true);
-            Log::info('Filtering by active: TRUE (Default)');
+            Log::info('Filtering by active: TRUE (Strict Default)');
         }
         
         // Filter by service - using serviceId parameter
@@ -454,8 +462,9 @@ class IntervenantController extends Controller
         if ($serviceId && $serviceId != 'all') {
             Log::info('Filtering by serviceId: ' . $serviceId);
             
-            $query->whereHas('taches', function ($q) use ($serviceId) {
-                $q->where('service_id', $serviceId);
+            $query->whereHas('services', function ($q) use ($serviceId) {
+                $q->where('service.id', $serviceId)
+                  ->where('intervenant_service.status', 'active');
             });
         }
 
@@ -465,7 +474,8 @@ class IntervenantController extends Controller
             Log::info('Filtering by tacheId: ' . $tacheId);
             
             $query->whereHas('taches', function ($q) use ($tacheId) {
-                $q->where('tache.id', $tacheId); // Explicit table name to avoid ambiguity if joined
+                $q->where('tache.id', $tacheId)
+                  ->where('intervenant_tache.status', 1);
             });
         }
         
@@ -1599,158 +1609,133 @@ class IntervenantController extends Controller
      */
     public function myReservations(Request $request)
     {
-        // Get the current authenticated intervenant
-        $user = $request->user();
-        $intervenant = $user->intervenant ?? $user; // Fallback to user if intervenant relation not found (though they should have same ID)
-
-        if (!$intervenant) {
-            return response()->json(['message' => 'Intervenant non authentifié'], 401);
-        }
-
-        // Get all interventions for this intervenant with relationships and materials
-        $interventions = Intervention::with([
-            'client.utilisateur',
-            'tache.service',
-            'tache.materiels',
-            'materiels', // Materials used in this specific intervention
-            'evaluations' // Eager load evaluations for status calculation
-        ])
-        ->where('intervenant_id', $intervenant->id)
-        ->orderBy('date_intervention', 'desc')
-        ->get();
-
-        // Format the data for frontend
-        $formattedInterventions = $interventions->map(function ($intervention) use ($intervenant) {
-            $client = $intervention->client;
-            $clientUser = $client ? $client->utilisateur : null;
-            $tache = $intervention->tache;
-
-            // Get materials provided by client (from tache materiels, excluding intervenant's materials)
-            $clientProvidedMaterials = collect([]);
-            if ($tache && $tache->materiels) {
-                // Get IDs of materials provided by intervenant for this intervention
-                $intervenantMaterialIds = $intervention->materiels->pluck('id')->toArray();
-                
-                // Filter task materials to only include those NOT provided by intervenant
-                $clientProvidedMaterials = $tache->materiels->filter(function ($materiel) use ($intervenantMaterialIds) {
-                    return !in_array($materiel->id, $intervenantMaterialIds);
-                })->map(function ($materiel) {
-                    return [
-                        'id' => $materiel->id,
-                        'name' => $materiel->nom_materiel,
-                        'description' => $materiel->description,
-                        'provided_by' => 'client'
-                    ];
-                });
+        try {
+            $user = $request->user();
+            if (!$user) {
+                return response()->json(['message' => 'Utilisateur non authentifié'], 401);
             }
 
-            // Get materials used by intervenant in this intervention
-            $intervenantMaterials = collect([]);
-            if ($intervention->materiels) {
-                foreach ($intervention->materiels as $materiel) {
-                    $prixMateriel = 0;
-                    // Get price from Intervenant-Materiel pivot
-                    $intervenantMat = \App\Models\IntervenantMateriel::where('intervenant_id', $intervenant->id)
-                        ->where('materiel_id', $materiel->id)
-                        ->first();
-                    if ($intervenantMat) {
-                        $prixMateriel = $intervenantMat->prix_materiel;
+            // Explicitly find the intervenant to ensure we have a model instance
+            $intervenant = Intervenant::find($user->id);
+
+            if (!$intervenant) {
+                Log::warning('No intervenant found for user ID: ' . $user->id);
+                return response()->json([
+                    'reservations' => [],
+                    'stats' => ['pending' => 0, 'accepted' => 0, 'completed' => 0, 'earnings' => 0],
+                    'message' => 'Profil intervenant non trouvé'
+                ]);
+            }
+
+            Log::info('Fetching reservations for intervenant ID: ' . $intervenant->id);
+
+            // Fetch interventions with minimal initial relationships to isolate errors
+            $interventions = Intervention::where('intervenant_id', $intervenant->id)
+                ->with(['client.utilisateur', 'tache.service', 'tache.materiels', 'materiels', 'evaluations'])
+                ->orderBy('date_intervention', 'desc')
+                ->get();
+
+            Log::info('Found ' . $interventions->count() . ' interventions');
+
+            $formattedInterventions = $interventions->map(function ($intervention) use ($intervenant) {
+                try {
+                    $client = $intervention->client;
+                    $clientUser = $client ? $client->utilisateur : null;
+                    $tache = $intervention->tache;
+
+                    // Calculate materials
+                    $clientProvidedMaterials = collect([]);
+                    if ($tache && $tache->relationLoaded('materiels')) {
+                        $intervenantMaterialIds = $intervention->materiels->pluck('id')->toArray();
+                        $clientProvidedMaterials = $tache->materiels->filter(function ($m) use ($intervenantMaterialIds) {
+                            return !in_array($m->id, $intervenantMaterialIds);
+                        })->map(function ($m) {
+                            return ['id' => $m->id, 'name' => $m->nom_materiel, 'provided_by' => 'client'];
+                        })->values();
                     }
 
-                    $intervenantMaterials->push([
-                        'id' => $materiel->id,
-                        'name' => $materiel->nom_materiel,
-                        'description' => $materiel->description,
-                        'prix_materiel' => (float)$prixMateriel,
-                        'provided_by' => 'intervenant'
-                    ]);
+                    $intervenantMaterials = collect([]);
+                    if ($intervention->relationLoaded('materiels')) {
+                        foreach ($intervention->materiels as $m) {
+                            $price = DB::table('intervenant_materiel')
+                                ->where('intervenant_id', $intervenant->id)
+                                ->where('materiel_id', $m->id)
+                                ->value('prix_materiel') ?? 0;
+
+                            $intervenantMaterials->push([
+                                'id' => $m->id,
+                                'name' => $m->nom_materiel,
+                                'prix_materiel' => (float)$price,
+                                'provided_by' => 'intervenant'
+                            ]);
+                        }
+                    }
+
+                    $hourlyRate = 25.0;
+                    if ($tache) {
+                        $rate = DB::table('intervenant_tache')
+                            ->where('tache_id', $tache->id)
+                            ->where('intervenant_id', $intervenant->id)
+                            ->value('prix_tache');
+                        if ($rate !== null) $hourlyRate = (float)$rate;
+                    }
+
+                    $status = strtolower($intervention->status ?? 'pending');
+                    $evaluationStatus = 'none';
+                    if (in_array($status, ['termine', 'terminee', 'terminée', 'completed'])) {
+                        $hasRated = $intervention->evaluations->where('type_auteur', 'intervenant')->isNotEmpty();
+                        if ($hasRated) {
+                            $evaluationStatus = 'view_only';
+                        } else {
+                            $isExpired = $intervention->updated_at && $intervention->updated_at->addDays(7)->isPast();
+                            $evaluationStatus = $isExpired ? 'expired' : 'can_rate';
+                        }
+                    }
+
+                    return [
+                        'id' => $intervention->id,
+                        'clientName' => $clientUser ? ($clientUser->nom . ' ' . $clientUser->prenom) : 'Client inconnu',
+                        'clientImage' => $clientUser?->url ?? $clientUser?->profile_photo ?? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop',
+                        'service' => $tache?->service?->nom_service ?? 'Service inconnu',
+                        'task' => $tache?->nom_tache ?? 'Tâche inconnue',
+                        'date' => $intervention->date_intervention?->format('Y-m-d') ?? 'N/A',
+                        'datetime' => $intervention->date_intervention,
+                        'time' => $intervention->date_intervention?->format('H:i') ?? 'N/A',
+                        'duration_hours' => (float)$intervention->duration_hours,
+                        'duration' => number_format((float)$intervention->duration_hours, 1) . 'h',
+                        'hourlyRate' => $hourlyRate,
+                        'totalAmount' => (float)$intervention->duration_hours * $hourlyRate,
+                        'location' => trim(($intervention->address ? $intervention->address . ', ' : '') . ($intervention->ville ?? ''), ', '),
+                        'status' => $this->mapStatus($intervention->status),
+                        'message' => $intervention->description,
+                        'materials' => $clientProvidedMaterials->concat($intervenantMaterials),
+                        'evaluationStatus' => $evaluationStatus,
+                        'canViewPublic' => $intervention->evaluations->where('is_public', true)->isNotEmpty()
+                    ];
+                } catch (\Exception $mapEx) {
+                    Log::error('Error formatting intervention ID ' . $intervention->id . ': ' . $mapEx->getMessage());
+                    return ['id' => $intervention->id, 'error' => true];
                 }
-            }
-
-            // Combine all materials - merge works on Collections
-            $allMaterials = $clientProvidedMaterials->merge($intervenantMaterials);
-            
-            // Get hourly rate from the pivot table (intervenant_tache)
-            $hourlyRate = 25; // Default fallback
-            if ($tache && $intervenant) {
-                $pivot = \App\Models\IntervenantTache::where('tache_id', $tache->id)
-                    ->where('intervenant_id', $intervenant->id)
-                    ->first();
-                if ($pivot) {
-                    $hourlyRate = $pivot->prix_tache;
-                }
-            }
-
-            // Calculate Evaluation Status
-            $status = strtolower($intervention->status ?? '');
-            $evaluationStatus = 'none'; // default
-            $canViewPublic = false;
-
-            if (in_array($status, ['termine', 'terminee', 'terminée', 'completed'])) {
-                $intervenantRatings = $intervention->evaluations->where('type_auteur', 'intervenant');
-                $clientRatings = $intervention->evaluations->where('type_auteur', 'client');
-                
-                $hasIntervenantRated = $intervenantRatings->isNotEmpty();
-                $hasClientRated = $clientRatings->isNotEmpty();
-                
-                $updatedAt = $intervention->updated_at;
-                $isWindowClosed = $updatedAt ? $updatedAt->copy()->addDays(7)->isPast() : false;
-                
-                // Check if evaluations are public (read from database)
-                $canViewPublic = $intervention->evaluations->where('is_public', true)->isNotEmpty();
-                
-                if ($hasIntervenantRated) {
-                    $evaluationStatus = 'view_only';
-                } elseif (!$isWindowClosed) {
-                    $evaluationStatus = 'can_rate';
-                } else {
-                    $evaluationStatus = 'expired';
-                }
-            }
-
-            return [
-                'id' => $intervention->id,
-                'clientName' => $clientUser ? ($clientUser->nom . ' ' . $clientUser->prenom) : 'Client inconnu',
-                'clientImage' => ($clientUser && $clientUser->url) ? $clientUser->url : ($clientUser && $clientUser->profile_photo ? $clientUser->profile_photo : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop'),
-                'service' => $tache && $tache->service ? $tache->service->nom_service : 'Service inconnu',
-                'task' => $tache ? $tache->nom_tache : 'Tâche inconnue',
-                'date' => $intervention->date_intervention ? $intervention->date_intervention->format('Y-m-d') : 'N/A',
-                'datetime' => $intervention->date_intervention, // Raw datetime for client-side formatting
-                'time' => $intervention->date_intervention ? $intervention->date_intervention->format('H:i') : 'N/A',
-                'duration_hours' => (float)$intervention->duration_hours,
-                'duration' => $intervention->duration_hours ? number_format($intervention->duration_hours, 1) . 'h' : 'N/A',
-                'hourlyRate' => (float)$hourlyRate,
-                'location' => ($intervention->address ? $intervention->address . ', ' : '') . ($intervention->ville ?? ''),
-                'status' => $this->mapStatus($intervention->status),
-                'message' => $intervention->description,
-                'materials' => $allMaterials,
-                'clientProvidedMaterials' => $clientProvidedMaterials,
-                'intervenantMaterials' => $intervenantMaterials,
-                'evaluationStatus' => $evaluationStatus,
-                'canViewPublic' => $canViewPublic
-            ];
-        });
-
-        // Calculate intervenant-specific statistics
-        $pendingCount = $interventions->whereIn('status', ['en attend', 'en_attente', 'pending'])->count();
-        $acceptedCount = $interventions->whereIn('status', ['acceptee', 'acceptée', 'accepted', 'planifiee'])->count();
-        $completedCount = $interventions->whereIn('status', ['termine', 'terminee', 'terminée', 'completed'])->count();
-        
-        $totalEarnings = $formattedInterventions
-            ->where('status', 'completed')
-            ->sum(function ($item) {
-                return $item['duration_hours'] * $item['hourlyRate'];
             });
 
-        return response()->json([
-            'reservations' => $formattedInterventions,
-            'stats' => [
-                'pending' => $pendingCount,
-                'accepted' => $acceptedCount,
-                'completed' => $completedCount,
-                'earnings' => $totalEarnings
-            ]
-        ]);
+            // Stats
+            $stats = [
+                'pending' => $interventions->filter(fn($i) => in_array(strtolower($i->status), ['en attend', 'en_attente', 'pending']))->count(),
+                'accepted' => $interventions->filter(fn($i) => in_array(strtolower($i->status), ['acceptee', 'acceptée', 'accepted', 'planifiee']))->count(),
+                'completed' => $interventions->filter(fn($i) => in_array(strtolower($i->status), ['termine', 'terminee', 'terminée', 'completed']))->count(),
+                'earnings' => $formattedInterventions->filter(fn($i) => ($i['status'] ?? '') === 'completed')->sum(fn($i) => (float)($i['totalAmount'] ?? 0))
+            ];
+
+            return response()->json([
+                'reservations' => $formattedInterventions->filter(fn($i) => !isset($i['error'])),
+                'stats' => $stats
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('General error in myReservations: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
+            return response()->json(['message' => 'Erreur serveur', 'error' => $e->getMessage()], 500);
+        }
     }
 
     /**
@@ -1839,5 +1824,60 @@ class IntervenantController extends Controller
         $intervention->save();
 
         return response()->json(['message' => 'Réservation refusée avec succès']);
+    }
+
+    /**
+     * Add a portfolio item
+     */
+    public function addPortfolioItem(Request $request)
+    {
+        $user = $request->user();
+        if (!$user || !$user->intervenant) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $validated = $request->validate([
+            'image' => 'required|image|max:10240', // 10MB
+            'description' => 'nullable|string|max:255',
+            'service_id' => 'nullable|exists:service,id',
+        ]);
+
+        $path = $request->file('image')->store('portfolio', 'public');
+
+        $portfolio = Portfolio::create([
+            'intervenant_id' => $user->intervenant->id,
+            'image_path' => $path,
+            'description' => $validated['description'] ?? null,
+            'service_id' => $validated['service_id'] ?? null,
+        ]);
+
+        return response()->json([
+            'message' => 'Image ajoutée au portfolio',
+            'portfolio' => $portfolio
+        ]);
+    }
+
+    /**
+     * Delete a portfolio item
+     */
+    public function deletePortfolioItem(Request $request, $id)
+    {
+         $user = $request->user();
+        if (!$user || !$user->intervenant) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $item = Portfolio::where('id', $id)
+            ->where('intervenant_id', $user->intervenant->id)
+            ->firstOrFail();
+
+        // Delete file
+        if (Storage::disk('public')->exists($item->image_path)) {
+            Storage::disk('public')->delete($item->image_path);
+        }
+
+        $item->delete();
+
+        return response()->json(['message' => 'Image supprimée']);
     }
 }

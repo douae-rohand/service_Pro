@@ -70,12 +70,12 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Service Pro</h1>
+            <h1>Verde Net</h1>
         </div>
         <div class="content">
             <h2>Vérification de votre adresse email</h2>
             <p class="message">
-                Merci de vous être inscrit sur Service Pro ! Pour finaliser votre inscription, 
+                Merci de vous être inscrit sur Verde Net ! Pour finaliser votre inscription, 
                 veuillez utiliser le code de vérification ci-dessous :
             </p>
             <div class="code-box">
@@ -90,7 +90,7 @@
             </p>
         </div>
         <div class="footer">
-            <p>© {{ date('Y') }} Service Pro. Tous droits réservés.</p>
+            <p>© {{ date('Y') }} Verde Net. Tous droits réservés.</p>
             <p>Cet email a été envoyé automatiquement, merci de ne pas y répondre.</p>
         </div>
     </div>

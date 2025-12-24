@@ -10,7 +10,7 @@
       <!-- Sidebar Header -->
       <div class="p-6 border-b border-gray-200">
         <div class="flex items-center justify-between">
-          <h2 class="text-2xl" style="color: #92B08B">ServicePro</h2>
+          <h2 class="text-2xl" style="color: #92B08B">Verde Net</h2>
           <button
             @click="isSidebarOpen = false"
             class="lg:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"

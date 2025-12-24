@@ -701,13 +701,27 @@ export default {
     },
     
     getIntervenantImage(intervenant) {
-      if (intervenant.utilisateur?.url) return intervenant.utilisateur.url;
+      const utilisateur = intervenant.utilisateur || {};
+      if (utilisateur.profile_photo) return utilisateur.profile_photo;
+      if (utilisateur.url) return utilisateur.url;
       const name = this.getIntervenantName(intervenant);
-      return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff`;
+      
+      // Determine color based on service (Jardinage = 1, Ménage = 2)
+      let isJardinage = false;
+      if (intervenant.taches && intervenant.taches.length > 0) {
+        isJardinage = intervenant.taches.some(t => t.service_id == 1 || (t.service && t.service.id == 1));
+      }
+      
+      const bg = isJardinage ? 'DCFCE7' : 'EBF4FF';
+      const color = isJardinage ? '92B08B' : '4682B4';
+      
+      return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${bg}&color=${color}&bold=true&length=1&size=128`;
     },
     
     handleImageError(event) {
-      event.target.src = 'https://via.placeholder.com/150?text=Image+non+disponible';
+      const name = event.target.alt || 'User';
+      // Default to blue if we can't determine service easily in the error handler
+      event.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=EBF4FF&color=4682B4&bold=true&length=1&size=128`;
     },
     
     getIntervenantName(intervenant) {

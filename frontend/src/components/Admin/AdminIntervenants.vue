@@ -35,7 +35,7 @@
             class="px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
             style="border-color: #3B82F6"
           >
-            <option value="tous">Tous les services ({{ props.intervenants.length }})</option>
+            <option value="tous">Tous les services ({{ intervenants.length }})</option>
             <option
               v-for="service in allServices"
               :key="service.id"
@@ -279,19 +279,16 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { ArrowLeft, Search, User, Check, Star, Mail, Phone, UserCheck } from 'lucide-vue-next'
 import adminService from '@/services/adminService'
 import { useServiceColor } from '@/composables/useServiceColor'
+import { useAdminRealtimeSync } from '@/composables/useAdminRealtimeSync'
 
 const { getServiceColor: getServiceColorUtil, getServiceBadgeColors } = useServiceColor()
 
-const props = defineProps({
-  intervenants: {
-    type: Array,
-    required: true,
-    default: () => []
-  },
-  loading: Boolean
-})
+const props = defineProps({})
 
 const emit = defineEmits(['back', 'view-intervenant', 'suspend-intervenant'])
+
+const intervenants = ref([])
+const loading = ref(false)
 
 const searchTerm = ref('')
 const filterService = ref('tous')
@@ -304,8 +301,8 @@ const itemsPerPage = ref(10)
 
 // Compte le nombre d'intervenants pour un service donné
 const getServiceCount = (serviceName) => {
-  if (serviceName === 'tous') return props.intervenants.length
-  return props.intervenants.filter(i => {
+  if (serviceName === 'tous') return intervenants.value.length
+  return intervenants.value.filter(i => {
     if (i.allServices && Array.isArray(i.allServices)) {
       return i.allServices.includes(serviceName)
     }
@@ -316,14 +313,14 @@ const getServiceCount = (serviceName) => {
 // Status Filters with counts
 // Seulement 2 statuts : actif ou suspendu (pas en_attente)
 const statusFilters = computed(() => {
-  const actifsCount = props.intervenants.filter(i => i.statut === 'actif').length
-  const suspendusCount = props.intervenants.filter(i => i.statut === 'suspendu').length
+  const actifsCount = intervenants.value.filter(i => i.statut === 'actif').length
+  const suspendusCount = intervenants.value.filter(i => i.statut === 'suspendu').length
   
   return [
     { 
       value: 'tous', 
       label: 'Tous statuts', 
-      count: props.intervenants.length,
+      count: intervenants.value.length,
       activeColor: '#FFFACD' 
     },
     { 
@@ -343,7 +340,7 @@ const statusFilters = computed(() => {
 
 // Filtered Intervenants
 const filteredIntervenants = computed(() => {
-  return props.intervenants.filter(intervenant => {
+  return intervenants.value.filter(intervenant => {
     // Search filter
     const matchesSearch = (intervenant.nom || '').toLowerCase().includes(searchTerm.value.toLowerCase()) ||
                          (intervenant.prenom || '').toLowerCase().includes(searchTerm.value.toLowerCase()) ||
@@ -466,9 +463,70 @@ const getServiceColor = (intervenant) => {
   return '#94A3B8'
 }
 
-// Load services on mount
+const loadIntervenants = async (options = {}) => {
+  const { silent = false } = options
+  try {
+    if (!silent) {
+      loading.value = true
+    }
+    const response = await adminService.getIntervenants()
+    const newIntervenants = response.data?.data || response.data || []
+    
+    if (silent) {
+      // Mise à jour intelligente
+      // 1. Créer une map des intervenants existants pour un accès rapide
+      const intervenantsMap = new Map(intervenants.value.map(i => [i.id, i]))
+      
+      // 2. Construire la nouvelle liste en conservant l'ordre de l'API (qui est triée)
+      // tout en préservant les objets existants (pour éviter le re-render inutile)
+      const mergedIntervenants = newIntervenants.map(newIntervenant => {
+        const existing = intervenantsMap.get(newIntervenant.id)
+        if (existing) {
+          // L'intervenant existe déjà : mettre à jour ses propriétés si nécessaire
+          const hasChanges = Object.keys(newIntervenant).some(key => {
+            const oldVal = existing[key]
+            const newVal = newIntervenant[key]
+            if (Array.isArray(oldVal) && Array.isArray(newVal)) {
+              return JSON.stringify(oldVal) !== JSON.stringify(newVal)
+            }
+            return oldVal !== newVal
+          })
+          
+          if (hasChanges) {
+            Object.assign(existing, newIntervenant)
+          }
+          return existing
+        } else {
+          // Nouvel intervenant : utiliser le nouvel objet
+          return newIntervenant
+        }
+      })
+      
+      // 3. Remplacer la liste complète pour garantir l'ordre
+      intervenants.value = mergedIntervenants
+    } else {
+      intervenants.value = newIntervenants
+    }
+  } catch (error) {
+    console.error('Erreur chargement intervenants:', error)
+    if (!silent) {
+      intervenants.value = []
+    }
+  } finally {
+    if (!silent) {
+      loading.value = false
+    }
+  }
+}
+
+// Synchronisation en temps réel (3s polling)
+useAdminRealtimeSync(async () => {
+  await loadIntervenants({ silent: true })
+}, { enabled: true })
+
+// Load services and intervenants on mount
 onMounted(async () => {
-  await loadServices()
+  await Promise.all([loadServices(), loadIntervenants()])
 })
 </script>
 

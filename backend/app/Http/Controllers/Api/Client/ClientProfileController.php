@@ -69,12 +69,15 @@ class ClientProfileController extends Controller
     {
         try {
             $interventions = Intervention::where('client_id', $clientId)
-                ->whereIn('status', ['terminée', 'terminee', 'terminées', 'terminees', 'termine'])
+                ->whereIn('status', ['terminée', 'terminee', 'terminées', 'terminees', 'termine', 'completed'])
                 ->with([
                     'intervenant.utilisateur',
                     'tache.service',
                     'facture',
                     'evaluations' => function($query) {
+                        $query->where('type_auteur', 'client');
+                    },
+                    'commentaires' => function($query) {
                         $query->where('type_auteur', 'client');
                     }
                 ])
@@ -90,6 +93,9 @@ class ClientProfileController extends Controller
                     $overallRating = round($clientEvaluations->avg('note'), 1);
                 }
 
+                // Get client's comment
+                $comment = $intervention->commentaires->first()->commentaire ?? null;
+
                 // Get service name
                 $serviceName = $intervention->tache->service->nom_service ?? 'Service';
                 $taskName = $intervention->tache->nom_tache ?? '';
@@ -100,9 +106,19 @@ class ClientProfileController extends Controller
                     'serviceName' => $fullServiceName,
                     'providerId' => $intervention->intervenant_id,
                     'providerName' => trim(($intervention->intervenant->utilisateur->prenom ?? '') . ' ' . ($intervention->intervenant->utilisateur->nom ?? '')),
+                    'providerImage' => $intervention->intervenant->utilisateur->url ?? null,
                     'date' => $intervention->date_intervention ? $intervention->date_intervention->format('d/m/Y') : 'N/A',
                     'price' => $intervention->facture->ttc ?? 0,
-                    'rating' => $overallRating
+                    'rating' => $overallRating,
+                    'comment' => $comment,
+                    'invoice' => [
+                        'date' => $intervention->facture->created_at ?? $intervention->date_intervention,
+                        'num_facture' => $intervention->facture->num_facture ?? null,
+                        'laborCost' => $intervention->facture->ttc ?? 0,
+                        'materialsCost' => 0, // Placeholder as detailed breakdown not in DB
+                        'actualDuration' => $intervention->duration_hours ?? 1,
+                        'materialsDescription' => 'Aucun matériel facturé'
+                    ]
                 ];
             });
 

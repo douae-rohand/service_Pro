@@ -201,15 +201,17 @@
                     </div>
                   </l-tooltip>
                   <l-popup>
-                    <div class="p-2">
-                      <div class="font-bold mb-1">{{ iv.name }}</div>
-                      <button
-                        @click="viewProfile(iv)"
-                        class="mt-2 px-3 py-1 text-xs rounded text-white"
-                        :style="{ backgroundColor: currentService.color }"
-                      >
-                        Voir profil
-                      </button>
+                    <div class="p-2 min-w-[150px]">
+                      <div class="font-bold mb-2 text-gray-900 border-b pb-1 text-center">{{ iv.name }}</div>
+                      <div class="flex flex-col gap-2">
+                        <button
+                          @click="viewProfile(iv)"
+                          class="px-3 py-1.5 text-xs rounded-lg text-white font-bold transition-transform hover:scale-105"
+                          :style="{ backgroundColor: currentService.color }"
+                        >
+                          Voir profil
+                        </button>
+                      </div>
                     </div>
                   </l-popup>
                   </l-marker>
@@ -699,7 +701,7 @@ export default {
               address: address,
               ville: ville
             },
-            image: intervenant.image_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(utilisateur.prenom + ' ' + utilisateur.nom)}&background=random&color=fff`,
+            image: utilisateur.profile_photo || utilisateur.url || `https://ui-avatars.com/api/?name=${encodeURIComponent(utilisateur.prenom + ' ' + utilisateur.nom)}&background=${this.serviceId == 1 ? 'DCFCE7' : 'EBF4FF'}&color=${this.serviceId == 1 ? '92B08B' : '4682B4'}&bold=true&length=1&size=128`,
             verified: intervenant.is_active !== false,
             otherSpecialties: otherSpecialties,
             experience: realExperience,
@@ -733,7 +735,11 @@ export default {
     },
     
     handleImageError(event) {
-      event.target.src = 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=150&h=150&fit=crop';
+      const name = event.target.alt || 'User';
+      const isJardinage = this.serviceId == 1;
+      const bg = isJardinage ? 'DCFCE7' : 'EBF4FF';
+      const color = isJardinage ? '92B08B' : '4682B4';
+      event.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${bg}&color=${color}&bold=true&length=1&size=128`;
     },
     
       handleReserve(intervenant) {
@@ -864,7 +870,7 @@ export default {
             `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}&limit=1&countrycodes=ma`,
             {
               headers: {
-                'User-Agent': 'ServicePro App' // Requis par Nominatim
+                'User-Agent': 'VerdeNet App' // Requis par Nominatim
               }
             }
           );

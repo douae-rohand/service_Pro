@@ -17,7 +17,7 @@
         <p>Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet email.</p>
         
         <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-        <p style="font-size: 12px; color: #999;">Service Pro - Votre plateforme de services</p>
+        <p style="font-size: 12px; color: #999;">Verde Net - Votre plateforme de services</p>
     </div>
 </body>
 </html>

@@ -151,7 +151,6 @@
                 <th>Date</th>
                 <th>Durée</th>
                 <th>Montant</th>
-                <th>Note</th>
                 <th>Statut</th>
             </tr>
         </thead>
@@ -170,7 +169,6 @@
                 <td>{{ $intervention['date'] }}</td>
                 <td>{{ $intervention['duree'] }}</td>
                 <td class="montant">{{ $intervention['montant'] }} DH</td>
-                <td>{{ $intervention['note'] ?? '-' }}</td>
                 <td>
                     <span class="badge badge-{{ str_replace('é', 'e', str_replace('_', '-', strtolower($intervention['statut']))) }}">
                         {{ $intervention['statut'] }}
@@ -189,7 +187,7 @@
 
     <div class="footer">
         <p>Total: {{ count($interventions) }} intervention(s)</p>
-        <p>Service Pro - Système de gestion des interventions</p>
+        <p>Verde Net - Système de gestion des interventions</p>
     </div>
 </body>
 </html>

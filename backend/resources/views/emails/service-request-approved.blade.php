@@ -19,7 +19,7 @@
                     <!-- Header -->
                     <tr>
                         <td style="background: linear-gradient(135deg, #43a047 0%, #2e7d32 100%); padding: 30px 20px; text-align: center;">
-                            <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 600; letter-spacing: 0.5px;">Service Pro</h1>
+                            <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 600; letter-spacing: 0.5px;">Verde Net</h1>
                         </td>
                     </tr>
                     
@@ -75,7 +75,7 @@
                             <!-- Signature -->
                             <p style="margin: 30px 0 0 0; color: #333333; font-size: 15px; line-height: 1.7;">
                                 Cordialement,<br>
-                                <strong style="color: #43a047;">L'équipe Service Pro</strong>
+                                <strong style="color: #43a047;">L'équipe Verde Net</strong>
                             </p>
                         </td>
                     </tr>
@@ -87,7 +87,7 @@
                                 Cet email a été envoyé automatiquement. Merci de ne pas y répondre directement.
                             </p>
                             <p style="margin: 0; color: #999999; font-size: 12px; line-height: 1.6;">
-                                © {{ date('Y') }} Service Pro. Tous droits réservés.
+                                © {{ date('Y') }} Verde Net. Tous droits réservés.
                             </p>
                         </td>
                     </tr>

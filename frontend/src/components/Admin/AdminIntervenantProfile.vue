@@ -186,17 +186,54 @@
             v-if="intervenantData.allServices && intervenantData.allServices.length > 0"
           >
             <div class="mb-3 p-2.5 rounded-lg" style="background-color: #F0F9F4">
-              <h4 class="font-semibold text-sm" style="color: #2F4F4F">
-                Service : {{ currentService }}
-              </h4>
-              <div class="flex items-center gap-2 mt-1.5">
-                <p class="text-xs text-gray-600">
-                  {{ getTachesForService(currentService).length }} tâche(s) proposée(s) pour ce service
-                </p>
-                <span class="text-xs text-gray-500">•</span>
-                <p class="text-xs font-medium" style="color: #2F4F4F">
-                  Expérience : {{ getExperienceForCurrentService() }}
-                </p>
+              <div class="flex items-start justify-between gap-2">
+                <div class="flex-1">
+                  <h4 class="font-semibold text-sm" style="color: #2F4F4F">
+                    Service : {{ currentService }}
+                  </h4>
+                  <div class="flex items-center gap-2 mt-1.5 flex-wrap">
+                    <p class="text-xs text-gray-600">
+                      {{ getTachesForService(currentService).length }} tâche(s) proposée(s) pour ce service
+                    </p>
+                    <span class="text-xs text-gray-500">•</span>
+                    <p class="text-xs font-medium" style="color: #2F4F4F">
+                      Expérience : {{ getExperienceForCurrentService() }}
+                    </p>
+                    <!-- Message si service archivé -->
+                    <span v-if="isCurrentServiceArchived" class="text-xs text-gray-500 italic">
+                      • L'intervenant a archivé ce service
+                    </span>
+                  </div>
+                </div>
+                <!-- Toggle Switch pour activer/désactiver le service -->
+                <div class="flex flex-col items-end gap-1">
+                  <label class="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      :checked="isCurrentServiceActive"
+                      @change="toggleServiceStatus"
+                      :disabled="isTogglingService || isCurrentServiceArchived"
+                      class="sr-only peer"
+                    />
+                    <div 
+                      class="w-11 h-6 rounded-full transition-colors duration-200 peer-focus:outline-none"
+                      :style="{
+                        backgroundColor: isCurrentServiceActive ? '#4CAF50' : '#9CA3AF',
+                        opacity: isCurrentServiceArchived ? 0.7 : 1
+                      }"
+                    >
+                      <div 
+                        class="w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform duration-200 mt-0.5 ml-0.5"
+                        :style="{
+                          transform: isCurrentServiceActive ? 'translateX(20px)' : 'translateX(0px)'
+                        }"
+                      ></div>
+                    </div>
+                  </label>
+                  <span v-if="isCurrentServiceArchived" class="text-xs text-gray-500 italic text-right">
+                    (Archivé)
+                  </span>
+                </div>
               </div>
               <!-- Présentation du service -->
               <div v-if="getPresentationForCurrentService()" class="mt-2 pt-2 border-t" style="border-color: #E5E7EB">
@@ -638,6 +675,7 @@ import {
 } from 'lucide-vue-next'
 import adminService from '@/services/adminService'
 import { useServiceColor } from '@/composables/useServiceColor'
+import { useAdminRealtimeSync } from '@/composables/useAdminRealtimeSync'
 
 const { getServiceColor: getServiceColorUtil } = useServiceColor()
 
@@ -653,7 +691,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'suspend'])
-const { error: showError, success } = useNotifications()
+const { error: showError, success, info } = useNotifications()
 
 const activeTab = ref('apropos')
 const fullIntervenantData = ref(null)
@@ -667,6 +705,7 @@ const currentDocumentsPage = ref(1)
 const documentsPerPage = 4
 const dispoPerSection = 10
 const allServices = ref([])
+const isTogglingService = ref(false)
 
 const tabs = [
   { id: 'apropos', label: 'À propos' },
@@ -676,6 +715,56 @@ const tabs = [
   { id: 'photos', label: 'Photos' },
   { id: 'documents', label: 'Documents' }
 ]
+
+const loadServices = async () => {
+  try {
+    const response = await adminService.getServices()
+    // Handle paginated response structure (new) or direct array (old for compatibility)
+    allServices.value = response.data?.data || response.data || []
+  } catch (error) {
+    console.error('Erreur chargement services:', error)
+    allServices.value = []
+  }
+}
+
+const fetchIntervenantDetails = async (id, options = {}) => {
+  const { silent = false } = options
+  try {
+    if (!silent) {
+      loading.value = true
+    }
+    const response = await adminService.getIntervenantDetails(id)
+    
+    if (silent && fullIntervenantData.value) {
+      // Mise à jour intelligente : fusionner les données existantes avec les nouvelles
+      const newData = response.data
+      Object.keys(newData).forEach(key => {
+        if (JSON.stringify(fullIntervenantData.value[key]) !== JSON.stringify(newData[key])) {
+          fullIntervenantData.value[key] = newData[key]
+        }
+      })
+    } else {
+      fullIntervenantData.value = response.data
+    }
+    
+    // Debug: Log the response to see if allServicesWithDetailsAll is present
+    console.log('fetchIntervenantDetails response:', {
+      hasAllServicesWithDetailsAll: !!response.data?.allServicesWithDetailsAll,
+      allServicesWithDetailsAll: response.data?.allServicesWithDetailsAll,
+      allServices: response.data?.allServices
+    })
+  } catch (error) {
+    console.error('Erreur lors du chargement des détails:', error)
+    if (!silent) {
+      // Fallback to props data if API call fails
+      fullIntervenantData.value = props.intervenant
+    }
+  } finally {
+    if (!silent) {
+      loading.value = false
+    }
+  }
+}
 
 // Fetch full intervenant details when modal opens
 let isFetching = false
@@ -691,30 +780,24 @@ watch([() => props.isOpen, () => props.intervenant?.id], async ([isOpen, interve
   }
 }, { immediate: true })
 
-const loadServices = async () => {
-  try {
-    const response = await adminService.getServices()
-    // Handle paginated response structure (new) or direct array (old for compatibility)
-    allServices.value = response.data?.data || response.data || []
-  } catch (error) {
-    console.error('Erreur chargement services:', error)
-    allServices.value = []
-  }
-}
+// Synchronisation en temps réel - Recharger les détails de l'intervenant toutes les 3 secondes quand le modal est ouvert
+const { start: startSync, stop: stopSync } = useAdminRealtimeSync(
+  async ({ silent = false }) => {
+    if (props.isOpen && props.intervenant?.id && !isFetching) {
+      await fetchIntervenantDetails(props.intervenant.id, { silent })
+    }
+  },
+  { interval: 3000, loadOnMount: false, enabled: false }
+)
 
-const fetchIntervenantDetails = async (id) => {
-  try {
-    loading.value = true
-    const response = await adminService.getIntervenantDetails(id)
-    fullIntervenantData.value = response.data
-  } catch (error) {
-    console.error('Erreur lors du chargement des détails:', error)
-    // Fallback to props data if API call fails
-    fullIntervenantData.value = props.intervenant
-  } finally {
-    loading.value = false
+// Démarrer/arrêter la synchronisation selon l'état du modal
+watch(() => props.isOpen, (isOpen) => {
+  if (isOpen && props.intervenant?.id) {
+    startSync()
+  } else {
+    stopSync()
   }
-}
+}, { immediate: true })
 
 // Use fullIntervenantData if available, otherwise fallback to props.intervenant
 const intervenantData = computed(() => {
@@ -1219,6 +1302,134 @@ const handleImageError = (event, photo) => {
     `
     parent.innerHTML = ''
     parent.appendChild(placeholder)
+  }
+}
+
+// Obtenir le statut du service actuel
+const currentServiceStatus = computed(() => {
+  if (!intervenantData.value || !intervenantData.value.allServicesWithDetailsAll) {
+    return null
+  }
+  
+  // Vérifier que l'index est valide
+  const index = currentServiceIndex.value
+  if (index < 0 || index >= intervenantData.value.allServicesWithDetailsAll.length) {
+    return null
+  }
+  
+  // Utiliser l'index pour trouver le service correspondant dans allServicesWithDetailsAll
+  // car allServices et allServicesWithDetailsAll ont le même ordre (construits depuis $tousServices)
+  const serviceDetails = intervenantData.value.allServicesWithDetailsAll[index]
+  
+  // Retourner le statut si disponible
+  return serviceDetails?.status || null
+})
+
+// Vérifier si le service actuel est actif ou archivé (toggle vert)
+const isCurrentServiceActive = computed(() => {
+  const status = currentServiceStatus.value
+  // Le toggle est vert si le service est 'active' ou 'archive'
+  return status === 'active' || status === 'archive'
+})
+
+// Vérifier si le service est archivé
+const isCurrentServiceArchived = computed(() => {
+  return currentServiceStatus.value === 'archive'
+})
+
+// Récupérer l'ID du service actuel
+const getCurrentServiceId = () => {
+  if (!intervenantData.value || !intervenantData.value.allServicesWithDetailsAll) {
+    console.error('getCurrentServiceId: Missing data', {
+      hasIntervenantData: !!intervenantData.value,
+      hasAllServicesWithDetailsAll: !!intervenantData.value?.allServicesWithDetailsAll
+    })
+    return null
+  }
+  
+  // Debug: Log current state
+  console.log('getCurrentServiceId Debug:', {
+    currentServiceIndex: currentServiceIndex.value,
+    allServices: intervenantData.value.allServices,
+    allServicesWithDetailsAll: intervenantData.value.allServicesWithDetailsAll,
+    allServicesLength: intervenantData.value.allServices?.length,
+    allServicesWithDetailsAllLength: intervenantData.value.allServicesWithDetailsAll?.length
+  })
+  
+  // Vérifier que l'index est valide
+  const index = currentServiceIndex.value
+  if (index < 0 || index >= intervenantData.value.allServicesWithDetailsAll.length) {
+    console.error('getCurrentServiceId: Invalid index', {
+      index,
+      maxIndex: intervenantData.value.allServicesWithDetailsAll.length - 1
+    })
+    return null
+  }
+  
+  // Utiliser l'index pour trouver le service correspondant dans allServicesWithDetailsAll
+  // car allServices et allServicesWithDetailsAll ont le même ordre (construits depuis $tousServices)
+  const serviceDetails = intervenantData.value.allServicesWithDetailsAll[index]
+  
+  console.log('getCurrentServiceId: Service found', {
+    index,
+    serviceDetails
+  })
+  
+  // Retourner l'ID si disponible
+  return serviceDetails?.id || null
+}
+
+// Toggle le statut du service
+const toggleServiceStatus = async () => {
+  if (!intervenantData.value || !intervenantData.value.id) {
+    showError('Erreur: données de l\'intervenant non disponibles')
+    return
+  }
+  
+  // Ne pas permettre le toggle si le service est archivé
+  if (isCurrentServiceArchived.value) {
+    info('Ce service est archivé par l\'intervenant. L\'admin ne peut pas le modifier.')
+    return
+  }
+  
+  const serviceId = getCurrentServiceId()
+  if (!serviceId) {
+    showError('Erreur: impossible de récupérer l\'ID du service')
+    return
+  }
+  
+  try {
+    isTogglingService.value = true
+    
+    const response = await adminService.toggleIntervenantServiceStatus(
+      intervenantData.value.id,
+      serviceId
+    )
+    
+    // Mettre à jour le statut dans allServicesWithDetailsAll immédiatement pour une réactivité instantanée
+    if (intervenantData.value.allServicesWithDetailsAll) {
+      const serviceIndex = intervenantData.value.allServicesWithDetailsAll.findIndex(s => {
+        const serviceNom = s.nom_service || s.nom
+        const currentServiceName = currentService.value
+        if (!serviceNom || !currentServiceName) return false
+        return serviceNom.trim().toLowerCase() === currentServiceName.trim().toLowerCase()
+      })
+      
+      if (serviceIndex !== -1) {
+        // Mettre à jour le statut avec la valeur retournée par le serveur
+        intervenantData.value.allServicesWithDetailsAll[serviceIndex].status = response.data.status
+      }
+    }
+    
+    // Rafraîchir les données pour avoir les informations à jour depuis le serveur
+    await fetchIntervenantDetails(intervenantData.value.id)
+    
+    success(response.data.message || 'Statut du service mis à jour avec succès')
+  } catch (error) {
+    console.error('Erreur lors du toggle du service:', error)
+    showError(error.response?.data?.error || 'Erreur lors de la modification du statut du service')
+  } finally {
+    isTogglingService.value = false
   }
 }
 

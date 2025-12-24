@@ -34,7 +34,7 @@
             </ul>
 
             <p>Merci de votre confiance,</p>
-            <p>L'équipe ServicePro</p>
+            <p>L'équipe Verde Net</p>
         </div>
         <div class="footer">
             <p>Cet email a été envoyé automatiquement, merci de ne pas y répondre.</p>

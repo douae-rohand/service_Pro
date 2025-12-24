@@ -4,7 +4,7 @@
       <div class="login-card">
         <div class="login-header">
           <h1>Connexion</h1>
-          <p>Connectez-vous à votre espace ServicePro</p>
+          <p>Connectez-vous à votre espace Verde Net</p>
         </div>
 
         <form @submit.prevent="handleLogin" class="login-form">

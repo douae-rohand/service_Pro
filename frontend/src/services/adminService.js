@@ -101,6 +101,13 @@ const adminService = {
     },
 
     /**
+     * Activer/Désactiver un service pour un intervenant (Admin)
+     */
+    toggleIntervenantServiceStatus(intervenantId, serviceId) {
+        return api.post(`admin/intervenants/${intervenantId}/services/${serviceId}/toggle-status`);
+    },
+
+    /**
      * Récupérer les tâches d'un intervenant
      */
     getIntervenantTaches(id) {
@@ -221,7 +228,7 @@ const adminService = {
      * Exporter l'historique en CSV
      */
     exportHistoriqueCSV(params = {}) {
-        return api.get('admin/historique/export/csv', { 
+        return api.get('admin/historique/export/csv', {
             params,
             responseType: 'blob'
         });
@@ -231,7 +238,7 @@ const adminService = {
      * Exporter l'historique en PDF
      */
     exportHistoriquePDF(params = {}) {
-        return api.get('admin/historique/export/pdf', { 
+        return api.get('admin/historique/export/pdf', {
             params,
             responseType: 'blob'
         });

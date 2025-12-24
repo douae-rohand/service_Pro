@@ -167,6 +167,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('intervenants/me/reservations', [IntervenantController::class, 'myReservations']);
     Route::post('intervenants/me/reservations/{id}/accept', [IntervenantController::class, 'acceptReservation']);
     Route::post('intervenants/me/reservations/{id}/refuse', [IntervenantController::class, 'refuseReservation']);
+    
+    // Portfolio Routes
+    Route::post('intervenants/me/portfolio', [IntervenantController::class, 'addPortfolioItem']);
+    Route::delete('intervenants/me/portfolio/{id}', [IntervenantController::class, 'deletePortfolioItem']);
 
 
     // Reclamations for interventions
@@ -253,6 +257,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('intervenants', [AdminController::class, 'getIntervenants']);
         Route::get('intervenants/{id}', [AdminController::class, 'getIntervenantDetails']);
         Route::post('intervenants/{id}/toggle-status', [AdminController::class, 'toggleIntervenantStatus']);
+        Route::post('intervenants/{intervenantId}/services/{serviceId}/toggle-status', [AdminController::class, 'toggleIntervenantServiceStatus']);
         Route::get('justificatifs/{id}/download', [AdminController::class, 'downloadJustificatif']);
 
         Route::get('demandes', [AdminController::class, 'getPendingRequests']);
@@ -275,6 +280,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('historique', [AdminController::class, 'getHistorique']);
         Route::get('historique/export/csv', [AdminController::class, 'exportHistoriqueCSV']);
         Route::get('historique/export/pdf', [AdminController::class, 'exportHistoriquePDF']);
+        
+        // SSE
+        Route::get('stream', [\App\Http\Controllers\Api\Admin\AdminSSEController::class, 'stream']);
     });
 
     // Routes for current intervenant's taches

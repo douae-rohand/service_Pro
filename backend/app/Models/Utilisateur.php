@@ -37,6 +37,7 @@ class Utilisateur extends Authenticatable
         'email_verification_code',
         'email_verification_expires_at',
         'email_verified_at',
+        'estActive',
     ];
 
     /**
@@ -56,6 +57,7 @@ class Utilisateur extends Authenticatable
             'password' => 'hashed',
             'email_verified_at' => 'datetime',
             'email_verification_expires_at' => 'datetime',
+            'estActive' => 'boolean',
         ];
     }
 
@@ -105,6 +107,16 @@ class Utilisateur extends Authenticatable
     public function getFullNameAttribute()
     {
         return "{$this->prenom} {$this->nom}";
+    }
+
+    /**
+     * Get the user's profile photo as a full URL.
+     */
+    public function getProfilePhotoAttribute($value)
+    {
+        if (!$value) return null;
+        if (strpos($value, 'http') === 0) return $value;
+        return url('storage/' . $value);
     }
 
     /**

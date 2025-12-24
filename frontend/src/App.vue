@@ -144,7 +144,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import authService from '@/services/authService'
 import { demandService } from '@/services/demandService'
 import { useRoute, useRouter } from 'vue-router'
@@ -174,27 +174,118 @@ import { ArrowLeft } from 'lucide-vue-next'
 const route = useRoute()
 const router = useRouter()
 
-// Détecte si on est sur une route dashboard
+// ============================================
+// ÉTAT DE NAVIGATION & AUTHENTIFICATION
+// ============================================
+// Récupération synchrone de l'utilisateur pour éviter le scintillement landing page
+const cachedUser = authService.getUserSync();
+const currentUser = ref(cachedUser);
+
+// Détecte si on est sur une route dashboard (intervenant)
 const isDashboardRoute = computed(() => {
   return route.path.startsWith('/dashboard')
 })
 
-// ============================================
-// ÉTAT DE NAVIGATION
-// ============================================
-const currentPage = ref("home"); // 'home', 'client-home', 'service-detail', 'all-intervenants', 'task-intervenants', 'intervenant-profile'
-const previousPage = ref("home"); // Pour savoir d'où on vient lors du retour (générique)
-const profileBackRoute = ref("home"); // Spécifique: savoir où revenir quand on quitte le profil
-const currentUser = ref(null)
+// Initialisation intelligente de la page courante dès le setup
+const getInitialPage = () => {
+  const user = authService.getUserSync();
+  const savedPage = localStorage.getItem('current_app_page');
+  const savedIntervenantId = localStorage.getItem('selected_intervenant_id');
+
+  console.log('🔄 Initializing App. State:', { savedPage, hasUser: !!user, savedIntervenantId });
+
+  if (window.location.pathname.startsWith('/dashboard')) return 'home';
+
+  const validPages = [
+    'home', 'client-home', 'service-detail', 'all-intervenants', 
+    'task-intervenants', 'intervenant-profile', 'client-reservations', 
+    'client-favorites', 'client-profile', 'client-reclamations', 'booking', 'admin'
+  ];
+
+  if (savedPage && validPages.includes(savedPage) && savedPage !== 'home') {
+    // Si on est sur une page de profil mais qu'on n'a pas l'ID, on reset
+    if (savedPage === 'intervenant-profile' && (!savedIntervenantId || savedIntervenantId === 'null')) {
+      console.warn('⚠️ profile page saved but no ID found, resetting to home');
+      return user?.client ? 'client-home' : 'home';
+    }
+
+    const clientSpecificPages = [
+      'client-home', 'client-reservations', 'client-profile', 
+      'client-favorites', 'client-reclamations', 'booking',
+      'intervenant-profile', 'task-intervenants', 'service-detail' // On protège tout en mode client
+    ];
+    
+    if (clientSpecificPages.includes(savedPage) && !user) {
+      console.warn('⚠️ protected page but no user, resetting to home');
+      return 'home';
+    }
+    
+    console.log('✅ Restoring saved page:', savedPage);
+    return savedPage;
+  }
+  
+  if (user) {
+    if (user.admin) return 'admin';
+    if (user.client || user.intervenant_id === null) return 'client-home';
+  }
+  
+  return 'home';
+};
+
+const currentPage = ref(getInitialPage());
+const previousPage = ref("home"); 
+const profileBackRoute = ref("home"); 
 const clientStats = ref({ pending: 0, accepted: 0, inProgress: 0, completed: 0 })
+
 // ============================================
-// ÉTAT DES DONNÉES
+// ÉTAT DES DONNÉES (Persistées)
 // ============================================
-const selectedService = ref(null); // ID du service sélectionné (1 = Jardinage, 2 = Ménage)
-const selectedTaskId = ref(null); // ID de la tâche/sous-service sélectionné
-const selectedTaskName = ref(null); // Nom de la tâche/sous-service sélectionné
-const selectedIntervenantData = ref(null); // Données complètes de l'intervenant sélectionné
-const selectedIntervenantId = ref(null); // ID de l'intervenant (pour fallback API)
+const getSavedInt = (key) => {
+  const val = localStorage.getItem(key);
+  if (!val || val === 'null' || val === 'undefined') return null;
+  const parsed = parseInt(val);
+  return isNaN(parsed) ? null : parsed;
+};
+
+const selectedService = ref(getSavedInt('selected_service_id')); 
+const selectedTaskId = ref(getSavedInt('selected_task_id')); 
+const selectedTaskName = ref(localStorage.getItem('selected_task_name') || null); 
+const selectedIntervenantId = ref(getSavedInt('selected_intervenant_id'));
+const selectedIntervenantData = ref(null); 
+
+// Sauvegarder la page courante et les données dans le localStorage pour persistance
+watch(currentPage, (newPage) => {
+  console.log('📱 currentPage changed to:', newPage);
+  if (!isDashboardRoute.value && newPage !== 'home' || (newPage === 'home' && !currentUser.value)) {
+    localStorage.setItem('current_app_page', newPage);
+  } else if (newPage === 'home' && currentUser.value) {
+    // Si on navigue vers home en étant connecté, on garde client-home en préférence
+    localStorage.setItem('current_app_page', 'client-home');
+  }
+});
+
+// Watchers pour persister les IDs de sélection
+watch(selectedService, (val) => {
+  if (val) localStorage.setItem('selected_service_id', val);
+  else localStorage.removeItem('selected_service_id');
+});
+watch(selectedTaskId, (val) => {
+  if (val) localStorage.setItem('selected_task_id', val);
+  else localStorage.removeItem('selected_task_id');
+});
+watch(selectedTaskName, (val) => {
+  if (val) localStorage.setItem('selected_task_name', val);
+  else localStorage.removeItem('selected_task_name');
+});
+watch(selectedIntervenantId, (val) => {
+  if (val) localStorage.setItem('selected_intervenant_id', val);
+  else localStorage.removeItem('selected_intervenant_id');
+});
+
+// Redirection immédiate pour les intervenants si on n'est pas sur le dashboard
+if (cachedUser?.intervenant && !window.location.pathname.startsWith('/dashboard')) {
+  router.push('/dashboard');
+}
 
 // ============================================
 // ÉTAT DES MODALS
@@ -205,27 +296,41 @@ const showSignupModal = ref(false);
 // ============================================
 // COMPUTED - TYPE DE SERVICE
 // ============================================
-// Convertit l'ID du service en type (pour les couleurs du profil)
 const serviceType = computed(() => {
   if (selectedService.value === 1) return "jardinage";
   if (selectedService.value === 2) return "menage";
-  return "menage"; // fallback par défaut
+  return "menage"; 
 });
 
 // ============================================
 // NAVIGATION - PAGE D'ACCUEIL
 // ============================================
 const handleNavigateHome = () => {
-  console.log("Navigating to home");
+  const stack = new Error().stack;
+  console.log("Navigating to home. Triggered by:", stack.split('\n')[2]);
+  
   selectedService.value = null;
   selectedTaskId.value = null;
+  selectedTaskName.value = null;
   selectedIntervenantData.value = null;
   selectedIntervenantId.value = null;
   
+  // Nettoyer les persitances de données liées au parcours de recherche
+  localStorage.removeItem('selected_service_id');
+  localStorage.removeItem('selected_task_id');
+  localStorage.removeItem('selected_task_name');
+  localStorage.removeItem('selected_intervenant_id');
+  
+  const user = currentUser.value || authService.getUserSync();
+  
   // Si le client est connecté, on le redirige vers sa page d'accueil client
-  if (currentUser.value?.client) {
+  if (user?.client || user?.is_client || !user?.admin && !user?.intervenant && user) {
+    console.log("-> Redirecting to client-home");
     currentPage.value = "client-home";
+  } else if (user?.admin) {
+    currentPage.value = "admin";
   } else {
+    console.log("-> Redirecting to public home");
     currentPage.value = "home";
   }
   
@@ -251,7 +356,26 @@ const fetchClientStats = async (clientId) => {
 // Vérifier si l'utilisateur est connecté au chargement
 onMounted(async () => {
   const token = authService.getToken()
-  if (token) {
+  
+  // CRITICAL FIX: Clear stale user data if no token exists
+  if (!token) {
+    console.log('🧹 No token found, clearing stale user data from localStorage');
+    localStorage.removeItem('user');
+    currentUser.value = null;
+    
+    // Si pas de token, on s'assure qu'on ne reste pas sur une page protégée
+    const protectedPages = [
+      'client-home', 'client-reservations', 'client-profile', 'client-favorites', 
+      'client-reclamations', 'admin', 'booking', 'intervenant-profile', 
+      'task-intervenants', 'service-detail'
+    ]
+    if (protectedPages.includes(currentPage.value)) {
+      console.warn('🛡️ Access denied to protected page (no token), redirecting...');
+      currentPage.value = 'home'
+      localStorage.removeItem('current_app_page')
+    }
+  } else {
+    // Token exists, validate user
     try {
       const response = await authService.getCurrentUser()
       const user = response.data
@@ -262,22 +386,24 @@ onMounted(async () => {
         
         // Redirection basée sur le rôle
         if (user.admin) {
-          currentPage.value = 'admin'
+          if (currentPage.value === 'home') currentPage.value = 'admin'
         } else if (user.intervenant) {
-          // Les intervenants utilisent le router-view, donc on reste en mode router
-          if (!isDashboardRoute.value) {
-            router.push('/dashboard')
-          }
+          if (!isDashboardRoute.value) router.push('/dashboard')
         } else if (user.client) {
-          // Rediriger vers la page d'accueil client
-          currentPage.value = 'client-home'
-          // Charger les stats
+          // Si on est sur "home", on va vers "client-home"
+          if (currentPage.value === 'home') {
+            currentPage.value = 'client-home'
+          }
+          // On s'assure que clientStats est chargé
           fetchClientStats(user.client.id || user.id)
         }
       }
     } catch (error) {
       console.error('Erreur lors de la récupération de l\'utilisateur:', error)
       authService.setAuthToken(null)
+      currentUser.value = null
+      currentPage.value = 'home'
+      localStorage.removeItem('current_app_page')
     }
   }
   
@@ -514,6 +640,11 @@ const handleLogout = async () => {
     authService.setAuthToken(null);
     currentUser.value = null;
     currentPage.value = 'home';
+    localStorage.removeItem('current_app_page'); // Nettoyer la page persistée
+    localStorage.removeItem('selected_service_id');
+    localStorage.removeItem('selected_task_id');
+    localStorage.removeItem('selected_task_name');
+    localStorage.removeItem('selected_intervenant_id');
     window.location.reload(); // Recharger pour effacer l'état
   } catch (error) {
     console.error('Logout error:', error);
@@ -521,6 +652,11 @@ const handleLogout = async () => {
     authService.setAuthToken(null);
     currentUser.value = null;
     currentPage.value = 'home';
+    localStorage.removeItem('current_app_page'); // Nettoyer la page persistée
+    localStorage.removeItem('selected_service_id');
+    localStorage.removeItem('selected_task_id');
+    localStorage.removeItem('selected_task_name');
+    localStorage.removeItem('selected_intervenant_id');
     window.location.reload();
   }
 };
@@ -610,6 +746,7 @@ const handleAdminLogout = async () => {
   authService.setAuthToken(null)
   currentUser.value = null
   currentPage.value = 'home'
+  localStorage.removeItem('current_app_page')
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 

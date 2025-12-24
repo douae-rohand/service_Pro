@@ -37,3 +37,13 @@ Schedule::call(function () {
         }
     }
 })->everyMinute();
+
+/**
+ * Tâche planifiée pour marquer les évaluations comme publiques après 7 jours.
+ * S'exécute tous les jours à minuit.
+ */
+Schedule::command('evaluations:mark-public')
+    ->daily()
+    ->at('00:00')
+    ->timezone('Africa/Casablanca');
+

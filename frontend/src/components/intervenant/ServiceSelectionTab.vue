@@ -6,18 +6,39 @@
         <Check :size="20" />
       </div>
       <div>
-        <p class="erfolg-title">Votre demande a été envoyée avec succès !</p>
-        <p class="success-subtitle">Elle sera examinée par notre équipe dans les plus brefs délais.</p>
+        <p class="erfolg-title">{{ successMessage }}</p>
+        <p v-if="successSubtitle" class="success-subtitle">{{ successSubtitle }}</p>
       </div>
+    </div>
+
+    <!-- Pending Request Notification -->
+    <div v-if="showPendingNotification" class="pending-notification">
+      <div class="pending-icon">
+        <AlertTriangle :size="20" />
+      </div>
+      <div>
+        <p class="pending-title">Demande déjà en cours</p>
+        <p class="pending-subtitle">{{ pendingNotificationMessage }}</p>
+      </div>
+      <button @click="closePendingNotification" class="pending-close">×</button>
     </div>
 
     <!-- Stats -->
     <div class="stats-grid">
-      <div class="stat-card stat-green">
+      <div v-if="isLoading" class="stat-card skeleton-item border-l-4 border-green-500">
+        <div class="skeleton-text" style="width: 8rem; height: 1rem; margin-bottom: 0.5rem; background-color: #E2E8F0;"></div>
+        <div class="skeleton-text" style="width: 3rem; height: 2rem; background-color: #E2E8F0;"></div>
+      </div>
+      <div v-else class="stat-card stat-green">
         <p class="stat-label">Services Actifs</p>
         <p class="stat-value">{{ activeServicesCount }}</p>
       </div>
-      <div class="stat-card stat-blue">
+
+      <div v-if="isLoading" class="stat-card skeleton-item border-l-4 border-blue-500">
+        <div class="skeleton-text" style="width: 8rem; height: 1rem; margin-bottom: 0.5rem; background-color: #E2E8F0;"></div>
+        <div class="skeleton-text" style="width: 3rem; height: 2rem; background-color: #E2E8F0;"></div>
+      </div>
+      <div v-else class="stat-card stat-blue">
         <p class="stat-label">Sous-services Actifs</p>
         <p class="stat-value">{{ activeTasksCount }}</p>
       </div>
@@ -93,10 +114,25 @@
               <label>
                 Carte nationale ou Passeport <span class="required">*</span>
               </label>
-              <div class="upload-area" @click="triggerFileInput('idCard')">
-                <Upload :size="24" class="upload-icon" />
-                <p v-if="!activationForm.idCard">Cliquez pour télécharger</p>
-                <p v-else class="file-name">{{ activationForm.idCard.name }}</p>
+              <div 
+                class="upload-area" 
+                :class="{ 'upload-success': idCardDoc }"
+                @click="triggerFileInput('idCard')"
+              >
+                <div v-if="!idCardDoc">
+                  <Upload :size="24" class="upload-icon" />
+                  <p>Cliquez pour télécharger</p>
+                </div>
+                <div v-else class="file-success">
+                  <FileText :size="24" class="success-icon-file" />
+                  <div class="file-details">
+                    <p class="file-name">{{ idCardDoc.file.name }}</p>
+                    <p class="file-size">{{ (idCardDoc.file.size / 1024 / 1024).toFixed(2) }} MB</p>
+                  </div>
+                  <div class="change-file">
+                    <span class="change-text">Modifier</span>
+                  </div>
+                </div>
                 <input
                   ref="idCardInput"
                   type="file"
@@ -114,10 +150,25 @@
               <label>
                 Assurance professionnelle <span class="required">*</span>
               </label>
-              <div class="upload-area" @click="triggerFileInput('insurance')">
-                <Upload :size="24" class="upload-icon" />
-                <p v-if="!activationForm.insurance">Cliquez pour télécharger</p>
-                <p v-else class="file-name">{{ activationForm.insurance.name }}</p>
+              <div 
+                class="upload-area" 
+                :class="{ 'upload-success': insuranceDoc }"
+                @click="triggerFileInput('insurance')"
+              >
+                <div v-if="!insuranceDoc">
+                  <Upload :size="24" class="upload-icon" />
+                  <p>Cliquez pour télécharger</p>
+                </div>
+                <div v-else class="file-success">
+                   <FileText :size="24" class="success-icon-file" />
+                  <div class="file-details">
+                    <p class="file-name">{{ insuranceDoc.file.name }}</p>
+                    <p class="file-size">{{ (insuranceDoc.file.size / 1024 / 1024).toFixed(2) }} MB</p>
+                  </div>
+                   <div class="change-file">
+                    <span class="change-text">Modifier</span>
+                  </div>
+                </div>
                 <input
                   ref="insuranceInput"
                   type="file"
@@ -192,23 +243,29 @@
     </div>
 
     <!-- Loading State -->
-    <div v-if="isLoading || isLoadingUser" class="card">
-      <div class="empty-state">
-        <div class="loader"></div>
-        <p>Chargement des services...</p>
-      </div>
-    </div>
+    <!-- Loading State removed (using granular skeleton) -->
 
     <!-- Error State -->
     <div v-if="loadError && !isLoading" class="error-message">
       <p>{{ loadError }}</p>
-      <button @click="fetchServices" class="retry-btn">Réessayer</button>
+      <button @click="retryLoad" class="retry-btn">Réessayer</button>
     </div>
 
     <!-- Service Selection -->
-    <div v-if="!isLoading && !loadError && !authError && currentUser" class="card">
+    <div v-if="!authError && currentUser && !loadError" class="card">
       <h2>Choisissez vos services</h2>
-      <div class="services-grid">
+
+      <!-- Skeleton Loading for Services -->
+      <div v-if="isLoading" class="skeleton-wrapper services-grid">
+        <div v-for="n in 3" :key="n" class="service-card skeleton-card" style="border: 2px solid #cbd5e1; background-color: #f8fafc;">
+          <div class="service-header justify-between w-full" style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+            <div class="skeleton-text" style="width: 8rem; height: 1.5rem; background-color: #E2E8F0;"></div>
+            <div class="skeleton-toggle-placeholder" style="width: 3rem; height: 1.5rem; border-radius: 9999px; background-color: #E2E8F0;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div v-else class="services-grid">
         <div
           v-for="service in services"
           :key="service.id"
@@ -222,6 +279,7 @@
           <div class="service-header">
             <span class="service-name">{{ service.name }}</span>
             <div class="service-actions">
+              <!-- Bouton d'archivage visible si service est actif -->
               <button
                 v-if="serviceStates[service.id]"
                 @click="archiveService(service.id)"
@@ -230,15 +288,15 @@
               >
                 <Archive :size="16" />
               </button>
+              
+              <!-- Toggle masqué si service est actif, visible pour les autres états -->
               <button
+                v-if="!serviceStates[service.id]"
                 @click="toggleService(service.id, service.name)"
                 class="toggle-switch"
-                :style="{ backgroundColor: serviceStates[service.id] ? service.color : '#E0E0E0' }"
+                :style="{ backgroundColor: '#E0E0E0' }"
               >
-                <span
-                  class="toggle-slider"
-                  :class="{ 'toggle-slider-active': serviceStates[service.id] }"
-                ></span>
+                <span class="toggle-slider"></span>
               </button>
             </div>
           </div>
@@ -278,8 +336,8 @@
               </button>
             </div>
 
-            <!-- Task Configuration (shown when active) -->
-            <div v-if="taskStates[task.id] && taskFormVisible[task.id]" class="task-config">
+            <!-- Task Configuration (shown when active or configuring) -->
+            <div v-if="taskFormVisible[task.id]" class="task-config">
               <div class="form-group">
                 <label>Votre tarif horaire <span class="required">*</span></label>
                 <div class="input-with-suffix">
@@ -329,36 +387,42 @@
         </div>
         
         <div v-else class="service-materials">
-          <div
-            v-for="material in getMaterialsByService(serviceId)"
-            :key="material"
-            class="service-material-item"
-          >
-            <div class="material-header">
-              <div class="material-checkbox-section">
-                <input
-                  type="checkbox"
-                  :id="`material-${serviceId}-${material}`"
-                  :checked="materialSelections[`${serviceId}-${material}`] || false"
-                  @change="toggleMaterialSelection(serviceId, material)"
-                  :style="{ accentColor: getServiceColor(serviceId) }"
-                />
-                <label :for="`material-${serviceId}-${material}`" class="material-name">{{ material }}</label>
-              </div>
-              <div class="material-price-section">
-                <input
-                  type="number"
-                  v-model="serviceMaterialPrices[`${serviceId}-${material}`]"
-                  placeholder="Prix"
-                  min="0"
-                  step="0.01"
-                  class="price-field"
-                  required
-                />
-                <span class="price-suffix">DH</span>
+          <div v-if="isLoadingMaterials[serviceId]" class="loading-state py-4 text-center text-gray-500">
+             <span class="spinner inline-block w-4 h-4 mr-2 border-2 border-blue-500 rounded-full animate-spin border-t-transparent"></span>
+             Chargement des matériaux...
+          </div>
+          <template v-else>
+            <div
+              v-for="material in getMaterialsByService(serviceId)"
+              :key="material"
+              class="service-material-item"
+            >
+              <div class="material-header">
+                <div class="material-checkbox-section">
+                  <input
+                    type="checkbox"
+                    :id="`material-${serviceId}-${material.trim()}`"
+                    :checked="materialSelections[`${serviceId}-${material.trim()}`] || false"
+                    @change="toggleMaterialSelection(serviceId, material.trim())"
+                    :style="{ accentColor: getServiceColor(serviceId) }"
+                  />
+                  <label :for="`material-${serviceId}-${material.trim()}`" class="material-name">{{ material }}</label>
+                </div>
+                <div class="material-price-section">
+                  <input
+                    type="number"
+                    v-model="serviceMaterialPrices[`${serviceId}-${material.trim()}`]"
+                    placeholder="Prix"
+                    min="0"
+                    step="0.01"
+                    class="price-field"
+                    required
+                  />
+                  <span class="price-suffix">DH</span>
+                </div>
               </div>
             </div>
-          </div>
+          </template>
         </div>
         
         <!-- Save Service Materials Button (only shown when form is visible) -->
@@ -367,15 +431,16 @@
             @click="saveServiceMaterials(serviceId)"
             class="btn-save-task"
             :style="{ backgroundColor: getServiceColor(serviceId) }"
+            :disabled="isSavingMaterials[serviceId]"
           >
-            Enregistrer les matériaux
+            {{ isSavingMaterials[serviceId] ? 'Enregistrement...' : 'Enregistrer les matériaux' }}
           </button>
         </div>
       </div>
     </div>
 
     <!-- Empty State -->
-    <div v-if="currentUser && activeServicesCount === 0" class="card">
+    <div v-if="!isLoading && currentUser && activeServicesCount === 0" class="card">
       <div class="empty-state">
         <div class="empty-icon">
           <FileText :size="28" />
@@ -384,18 +449,96 @@
         <p class="text-sm">Activez vos services pour commencer à recevoir des demandes</p>
       </div>
     </div>
+
+    <!-- Loading Modal -->
+    <LoadingModal :show="showLoadingModal" :message="loadingMessage" />
+
+    <!-- Custom Confirmation Modal for Pending Interventions -->
+    <div v-if="showConfirmationModal" class="modal-overlay" @click.self="cancelConfirmation">
+      <div class="modal-container modal-sm">
+        <div class="modal-header bg-warning">
+          <h2 class="modal-title text-white">Attention : Réservations en attente</h2>
+          <button @click="cancelConfirmation" class="modal-close text-white">
+            <X :size="20" />
+          </button>
+        </div>
+
+        <div class="modal-body text-center py-6">
+          <div class="warning-icon-large mb-4">
+            <AlertTriangle :size="48" color="#F59E0B" />
+          </div>
+          <p class="text-lg font-semibold mb-2">
+            Il y a {{ confirmationModalData.count }} réservation(s) en attente pour "{{ confirmationModalData.name }}".
+          </p>
+          <p class="text-gray-600 mb-6">
+            Si vous confirmez la désactivation, toutes ces réservations seront automatiquement <strong>refusées</strong>.
+          </p>
+
+          <div class="action-buttons-vertical">
+            <button @click="confirmConfirmation" class="btn-confirm-danger">
+              <Check :size="18" />
+              Confirmer et refuser les réservations
+            </button>
+            <button @click="cancelConfirmation" class="btn-cancel-outline">
+              Annuler
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Generic UI Modal (replacing alert/confirm) -->
+    <div v-if="uiModal.show" class="modal-overlay" @click.self="handleUiModalCancel">
+      <div class="modal-container modal-sm">
+        <div class="modal-header" :class="uiModal.type === 'confirm' ? 'bg-warning' : 'bg-primary'">
+          <h2 class="modal-title" :class="uiModal.type === 'confirm' ? 'text-white' : ''">
+            {{ uiModal.title }}
+          </h2>
+          <button @click="handleUiModalCancel" class="modal-close" :class="uiModal.type === 'confirm' ? 'text-white' : ''">
+            <X :size="20" />
+          </button>
+        </div>
+
+        <div class="modal-body text-center py-6">
+          <div class="warning-icon-large mb-4">
+            <AlertTriangle v-if="uiModal.type === 'confirm'" :size="48" color="#F59E0B" />
+            <AlertCircle v-else-if="uiModal.type === 'error'" :size="48" color="#EF4444" />
+            <Check v-else :size="48" color="#92B08B" />
+          </div>
+          <p class="text-lg font-medium mb-4" style="white-space: pre-line;">
+            {{ uiModal.message }}
+          </p>
+
+          <div class="action-buttons-vertical">
+            <button @click="handleUiModalConfirm" class="btn-confirm" :style="uiModal.type === 'confirm' ? { backgroundColor: '#F59E0B' } : { backgroundColor: '#92B08B' }">
+              <Check :size="18" />
+              {{ uiModal.confirmText }}
+            </button>
+            <button v-if="uiModal.type === 'confirm'" @click="handleUiModalCancel" class="btn-cancel-outline">
+              {{ uiModal.cancelText }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Plus, Trash2, FileText, AlertCircle, Upload, Send, X, Archive, Check } from 'lucide-vue-next'
+import { Plus, Trash2, FileText, AlertCircle, Upload, Send, X, Archive, Check, AlertTriangle } from 'lucide-vue-next'
 import authService from '@/services/authService'
 import intervenantService from '@/services/intervenantService'
 import intervenantTacheService from '@/services/intervenantTacheService'
 import serviceService from '@/services/serviceService'
+import interventionService from '@/services/interventionService'
 import axios from 'axios'
+import LoadingModal from './LoadingModal.vue'
+import SkeletonLoader from './SkeletonLoader.vue'
+import { useSse } from '@/composables/useSse'
+
+const { initSse, closeSse } = useSse()
 
 const router = useRouter()
 const currentUser = ref(null)
@@ -404,8 +547,71 @@ const authError = ref(null)
 
 const showSuccessMessage = ref(false)
 const successMessage = ref('')
+const successSubtitle = ref('')
 const showActivationModal = ref(false)
 const currentService = ref(null)
+const showLoadingModal = ref(false)
+const loadingMessage = ref('')
+
+// Confirmation Modal State
+const showConfirmationModal = ref(false)
+const confirmationModalData = ref({ count: 0, name: '', id: '', type: '' })
+const confirmationPromise = ref(null)
+
+// Generic UI Modal State
+const uiModal = reactive({
+  show: false,
+  title: '',
+  message: '',
+  type: 'info', // 'info', 'confirm', 'error'
+  confirmText: 'OK',
+  cancelText: 'Annuler',
+  resolve: null
+})
+
+const showAlert = (message, title = 'Information') => {
+  return new Promise((resolve) => {
+    uiModal.title = title
+    uiModal.message = message
+    uiModal.type = 'info'
+    uiModal.confirmText = 'OK'
+    uiModal.show = true
+    uiModal.resolve = resolve
+  })
+}
+
+const showError = (message, title = 'Erreur') => {
+  return new Promise((resolve) => {
+    uiModal.title = title
+    uiModal.message = message
+    uiModal.type = 'error'
+    uiModal.confirmText = 'OK'
+    uiModal.show = true
+    uiModal.resolve = resolve
+  })
+}
+
+const showConfirm = (message, title = 'Confirmation', confirmText = 'Confirmer', cancelText = 'Annuler') => {
+  return new Promise((resolve) => {
+    uiModal.title = title
+    uiModal.message = message
+    uiModal.type = 'confirm'
+    uiModal.confirmText = confirmText
+    uiModal.cancelText = cancelText
+    uiModal.show = true
+    uiModal.resolve = resolve
+  })
+}
+
+const handleUiModalConfirm = () => {
+  uiModal.show = false
+  if (uiModal.resolve) uiModal.resolve(true)
+}
+
+const handleUiModalCancel = () => {
+  uiModal.show = false
+  if (uiModal.resolve) uiModal.resolve(false)
+}
 
 // Loading and error states
 const isLoading = ref(true)
@@ -423,6 +629,9 @@ const activationForm = ref({
   experienceMonths: 0,
   documents: [] // Array of { type: string, file: File }
 })
+
+const idCardDoc = computed(() => activationForm.value.documents.find(d => d.type === 'idCard'))
+const insuranceDoc = computed(() => activationForm.value.documents.find(d => d.type === 'insurance'))
 
 // Services data from API
 const services = ref([])
@@ -443,7 +652,7 @@ const materialsByService = ref({})
 // Fetch services from API
 const fetchServices = async () => {
   try {
-    isLoading.value = true
+    // isLoading managed by caller (onMounted or retryLoad)
     loadError.value = null
     
     const response = await serviceService.getAll()
@@ -482,11 +691,11 @@ const fetchServices = async () => {
     })
     serviceStates.value = initialStates
     
-    isLoading.value = false
+    // isLoading.value = false // REMOVED
   } catch (error) {
     console.error('Erreur lors du chargement des services:', error)
     loadError.value = 'Impossible de charger les services. Veuillez réessayer.'
-    isLoading.value = false
+    // isLoading.value = false // REMOVED
   }
 }
 
@@ -497,25 +706,49 @@ const loadIntervenantActiveData = async (intervenantId) => {
     
     // Activate the services that are active in DB
     if (data && data.services && data.services.length > 0) {
-      data.services.forEach(service => {
+      // Use Promise.all to properly await all material fetches
+      await Promise.all(data.services.map(async (service) => {
         if (service.status === 'active' && serviceStates.value[service.id] !== undefined) {
           serviceStates.value[service.id] = true
         } else if (service.status === 'archive' && serviceStates.value[service.id] !== undefined) {
           // If archived, we mark it so we can fast-reactivate
           archivedServices.value[service.id] = true
           serviceStates.value[service.id] = false
+        } else if (service.status === 'demmande') {
+          // If service has a pending request, mark it as pending
+          pendingRequestServices.value[service.id] = true
+          serviceStates.value[service.id] = false
         }
-      })
+
+        // Fetch and pre-fill materials for the service
+        try {
+          const resp = await intervenantService.getIntervenantMaterials(intervenantId, service.id)
+          const mats = resp.materials || []
+          mats.forEach(material => {
+            const trimmedName = material.name.trim()
+            const key = `${service.id}-${trimmedName}`
+            if (material.possessed) {
+              materialSelections[key] = true
+            } else {
+              materialSelections[key] = false
+            }
+            
+            if (material.price > 0) {
+              serviceMaterialPrices[key] = material.price
+            }
+          })
+        } catch (e) {
+          console.error(`Error loading materials for service ${service.id}:`, e)
+        }
+      }))
     }
     
     // Initialize all tasks with their actual status from DB
     if (data.tasks && data.tasks.length > 0) {
-      console.log('Initializing tasks from DB:', data.tasks)
       data.tasks.forEach(task => {
         if (task.id) {
           // Set the toggle state based on actual status from DB (handle both boolean and integer)
           taskStates.value[task.id] = task.status === true || task.status === 1
-          console.log(`Task ${task.id}: status=${task.status}, taskStates=${taskStates.value[task.id]}`)
           
           // Update tasksByService to include the task with correct status
           if (!tasksByService.value[task.service_id]) {
@@ -569,12 +802,7 @@ const loadIntervenantActiveData = async (intervenantId) => {
           }
         }
       })
-      console.log('Final taskStates after initialization:', taskStates.value)
-      console.log('Updated tasksByService:', tasksByService.value)
     }
-    
-    console.log('Loaded active services:', data.services)
-    console.log('Loaded active tasks:', data.tasks)
   } catch (error) {
     console.error('Erreur lors du chargement des données de l\'intervenant:', error)
   }
@@ -639,16 +867,56 @@ const loadAuthenticatedUser = async () => {
 
 // Load services on component mount
 onMounted(async () => {
-  // Load authenticated user first
-  await loadAuthenticatedUser()
-  
-  // Only proceed if user is authenticated and is an intervenant
-  if (currentUser.value && currentUser.value.id) {
-    await fetchServices()
-    // Load active services and tasks for the authenticated intervenant
-    await loadIntervenantActiveData(currentUser.value.id)
+  isLoading.value = true
+  try {
+    // Load authenticated user first
+    await loadAuthenticatedUser()
+
+    // Only proceed if user is authenticated and is an intervenant
+    if (currentUser.value && currentUser.value.id) {
+      await fetchServices()
+      // Load active services and tasks for the authenticated intervenant
+      await loadIntervenantActiveData(currentUser.value.id)
+
+      // Initialize SSE for Intervenant
+      initSse(`/sse/stream?type=intervenant&id=${currentUser.value.id}`, {
+        request_update: (data) => {
+          // Show notification based on status
+          if (data.status === 'active') {
+             // Use custom success message or standard one
+             showSuccessMessage.value = true
+             // You might want a dedicated toast here instead of the big success message div
+             // But for now, let's just reload the data to show the new status
+          } else if (data.status === 'refuse') {
+             // Show pending notification area repurposed or new notification
+             showPendingNotification.value = true
+             pendingNotificationMessage.value = data.message || `Votre demande pour ${data.service} a été refusée.`
+          }
+          
+          // Reload data
+          loadIntervenantActiveData(currentUser.value.id)
+        }
+      })
+    }
+  } catch (e) {
+    console.error("Error in initial load", e)
+  } finally {
+    isLoading.value = false
   }
 })
+
+const retryLoad = async () => {
+  isLoading.value = true
+  loadError.value = null
+  try {
+    await fetchServices()
+    if (currentUser.value && currentUser.value.id) {
+      await loadIntervenantActiveData(currentUser.value.id)
+    }
+  } finally {
+    isLoading.value = false
+  }
+}
 
 
 
@@ -659,142 +927,267 @@ const taskDescriptions = ref({})
 const taskMaterials = ref({})
 const taskMaterialPrices = ref({}) // New: Store prices for each material
 const taskFormVisible = ref({})
+const localActivations = reactive({}) // Track tasks activated locally but not yet saved
 
 const activeServicesCount = computed(() => {
   return Object.values(serviceStates.value).filter(Boolean).length
 })
 
 const activeTasksCount = computed(() => {
-  return Object.values(taskStates.value).filter(Boolean).length
+  let count = 0
+  // Iterate over all services to check their status
+  for (const serviceId in tasksByService.value) {
+    // Only count tasks if the parent service is active
+    if (serviceStates.value[serviceId]) {
+      const tasks = tasksByService.value[serviceId]
+      tasks.forEach(task => {
+        if (taskStates.value[task.id]) {
+          count++
+        }
+      })
+    }
+  }
+  return count
 })
 
 // Add service materials state
-const serviceMaterialPrices = ref({})
-const materialSelections = ref({})
+const serviceMaterialPrices = reactive({})
+const materialSelections = reactive({})
 const materialsFormVisible = ref({})
+const isSavingMaterials = ref({})
+
+
 
 // Add archived services state
 const archivedServices = ref({})
+
+// Add pending request state for services with 'demmande' status
+const pendingRequestServices = ref({})
+
+// Notification state for pending requests
+const showPendingNotification = ref(false)
+const pendingNotificationMessage = ref('')
+
+const showPendingRequestNotification = () => {
+  pendingNotificationMessage.value = 'Vous avez déjà déposé une demande pour ce service. Veuillez attendre que l\'administrateur traite votre demande. Un email vous sera envoyé une fois la demande traitée.'
+  showPendingNotification.value = true
+  
+  // Auto-hide after 5 seconds
+  setTimeout(() => {
+    showPendingNotification.value = false
+  }, 5000)
+}
+
+const closePendingNotification = () => {
+  showPendingNotification.value = false
+}
+
+const handlePendingInterventions = async (type, id, name) => {
+  try {
+    let pendingCount = 0
+    if (type === 'service') {
+      const response = await interventionService.countPendingByService(id)
+      pendingCount = response.count
+    } else {
+      const response = await interventionService.countPendingByTache(id)
+      pendingCount = response.count
+    }
+
+    if (pendingCount > 0) {
+      // Use custom beautiful modal
+      confirmationModalData.value = { count: pendingCount, name, id, type }
+      showConfirmationModal.value = true
+
+      return new Promise((resolve) => {
+        confirmationPromise.value = resolve
+      })
+    }
+    return true
+  } catch (error) {
+    console.error('Erreur lors de la vérification des interventions en attente:', error)
+    await showError('Une erreur est survenue lors de la vérification des réservations en attente. Par mesure de sécurité, l\'action a été annulée. Veuillez rafraîchir la page et réessayer.')
+    return false
+  }
+}
+
+const confirmConfirmation = async () => {
+  const { type, id } = confirmationModalData.value
+  try {
+    if (type === 'service') {
+      await interventionService.refusePendingByService(id)
+    } else {
+      await interventionService.refusePendingByTache(id)
+    }
+    closeConfirmationModal(true)
+  } catch (error) {
+    console.error('Error refusing interventions:', error)
+    await showError('Erreur lors du refus des interventions. Veuillez réessayer.')
+  }
+}
+
+const cancelConfirmation = () => {
+  closeConfirmationModal(false)
+}
+
+const closeConfirmationModal = (result) => {
+  showConfirmationModal.value = false
+  if (confirmationPromise.value) {
+    confirmationPromise.value(result)
+    confirmationPromise.value = null
+  }
+}
 
 const toggleService = async (serviceId, serviceName) => {
   // If service is archived, reactivate directly
   if (archivedServices.value[serviceId]) {
     try {
+      loadingMessage.value = 'Réactivation du service...'
+      showLoadingModal.value = true
+
       const response = await intervenantService.updateServiceStatus(
         currentUser.value.intervenant.id,
         serviceId,
         'active'
       )
-      
-      console.log('Service reactivated:', response)
-      
+
       // Update states
       archivedServices.value[serviceId] = false
       serviceStates.value[serviceId] = true
     } catch (error) {
       console.error('Error reactivating service:', error)
-      alert('Erreur lors de la réactivation du service')
+      await showError('Erreur lors de la réactivation du service')
+    } finally {
+      showLoadingModal.value = false
     }
     return
   }
   
-  // If activating the service, show the activation request modal
+  // If activating the service, check if there's already a pending request
   if (!serviceStates.value[serviceId]) {
+    // Check if there's already a pending request for this service
+    if (pendingRequestServices.value[serviceId]) {
+      // Show notification that request is already pending
+      showPendingRequestNotification()
+      return
+    }
+    
     const service = services.value.find(s => s.id === serviceId)
     if (service) {
       currentService.value = service
       showActivationModal.value = true
     }
   } else {
-    // Deactivating - call API to update status in database
+    // Deactivating - check for pending interventions first
+    const proceed = await handlePendingInterventions('service', serviceId, serviceName)
+    if (!proceed) return
+
+    // Call API to update status in database
     try {
+      loadingMessage.value = 'Désactivation du service...'
+      showLoadingModal.value = true
+
       const response = await intervenantService.toggleService(
         currentUser.value.intervenant.id,
         serviceId
       )
-      
-      console.log('Service toggle response:', response)
-      
+
       // Update local state after successful API call
       serviceStates.value[serviceId] = false
     } catch (error) {
       console.error('Error toggling service:', error)
       // Revert the state if API call failed
       serviceStates.value[serviceId] = true
-      alert('Erreur lors de la désactivation du service')
+      await showError('Erreur lors de la désactivation du service')
+    } finally {
+      showLoadingModal.value = false
     }
   }
 }
 
 const archiveService = async (serviceId) => {
+  const serviceName = getServiceName(serviceId)
+  const proceed = await handlePendingInterventions('service', serviceId, serviceName)
+  if (!proceed) return
+
   try {
+    loadingMessage.value = 'Archivage du service...'
+    showLoadingModal.value = true
+
     const response = await intervenantService.updateServiceStatus(
       currentUser.value.intervenant.id,
       serviceId,
       'archive'
     )
-    
-    console.log('Service archived:', response)
-    
+
     // Update states
     serviceStates.value[serviceId] = false
     archivedServices.value[serviceId] = true
   } catch (error) {
     console.error('Error archiving service:', error)
-    alert('Erreur lors de l\'archivage du service')
+    await showError('Erreur lors de l\'archivage du service')
+  } finally {
+    showLoadingModal.value = false
   }
 }
+
+const isLoadingMaterials = ref({})
 
 // Load service materials with existing prices and selections
 const loadServiceMaterials = async (serviceId) => {
   if (!currentUser.value) return
   
-  try {
-    const response = await intervenantService.getIntervenantMaterials(
-      currentUser.value.intervenant.id,
-      serviceId
-    )
-    
-    const materials = response.materials || []
-    
-    // Pre-fill prices and selections
-    materials.forEach(material => {
-      const key = `${serviceId}-${material.name}`
-      
-      // Set selection status (possessed)
-      if (material.possessed) {
-        materialSelections.value[key] = true
-      }
-      
-      // Set price
-      if (material.price > 0) {
-        serviceMaterialPrices.value[key] = material.price
-      }
-    })
-    
-    // Show the form
-    materialsFormVisible.value[serviceId] = true
-  } catch (error) {
-    console.error('Error loading service materials:', error)
-    // Still show the form even if loading fails
-    materialsFormVisible.value[serviceId] = true
+  // Toggle form visibility
+  materialsFormVisible.value[serviceId] = !materialsFormVisible.value[serviceId]
+
+  if (materialsFormVisible.value[serviceId]) {
+    // Reset saving state
+    isSavingMaterials.value[serviceId] = false
+    // Set loading state
+    isLoadingMaterials.value[serviceId] = true
+
+    try {
+      const response = await intervenantService.getIntervenantMaterials(
+        currentUser.value.intervenant.id,
+        serviceId
+      )
+
+      const materials = response.materials || []
+
+      // Pre-fill prices and selections
+      materials.forEach(material => {
+        const key = `${serviceId}-${material.name.trim()}`
+        if (material.possessed) materialSelections[key] = true
+        else materialSelections[key] = false // Explicitly set to false if not possessed
+        
+        if (material.price > 0) serviceMaterialPrices[key] = material.price
+        else serviceMaterialPrices[key] = '' // Clear if no price
+      })
+
+    } catch (error) {
+      console.error('Error loading service materials:', error)
+    } finally {
+      isLoadingMaterials.value[serviceId] = false
+    }
   }
 }
 
 const saveServiceMaterials = async (serviceId) => {
   if (!currentUser.value) return
   
+  isSavingMaterials.value[serviceId] = true
+
   // Collect selected materials with prices
   const materials = []
   const serviceMaterials = getMaterialsByService(serviceId)
   
   for (const material of serviceMaterials) {
-    const isSelected = materialSelections.value[`${serviceId}-${material}`]
-    const price = serviceMaterialPrices.value[`${serviceId}-${material}`]
+    const isSelected = materialSelections[`${serviceId}-${material.trim()}`]
+    const price = serviceMaterialPrices[`${serviceId}-${material.trim()}`]
     
     if (isSelected) {
       if (!price || price <= 0) {
-        alert(`Le prix est obligatoire pour le matériau : ${material}`)
+        await showAlert(`Le prix est obligatoire pour le matériau : ${material}`, 'Prix manquant')
+        isSavingMaterials.value[serviceId] = false
         return
       }
       materials.push({
@@ -806,20 +1199,29 @@ const saveServiceMaterials = async (serviceId) => {
   
   // Allow saving with no materials (user can have zero materials)
   try {
-    console.log('Saving service materials:', {
-      serviceId: serviceId,
-      materials: materials
-    })
-    
     // Send data to backend (can be empty array)
     const response = await intervenantService.updateServiceMaterials(
       currentUser.value.intervenant.id,
       serviceId,
       materials
     )
-    
-    console.log('Save response:', response)
-    
+
+    // Refresh the materials from backend to ensure state is perfectly synced
+    try {
+      const resp = await intervenantService.getIntervenantMaterials(currentUser.value.intervenant.id, serviceId)
+      const mats = resp.materials || []
+      mats.forEach(material => {
+        const key = `${serviceId}-${material.name.trim()}`
+        if (material.possessed) materialSelections[key] = true
+        else delete materialSelections[key]
+        
+        if (material.price > 0) serviceMaterialPrices[key] = material.price
+        else delete serviceMaterialPrices[key]
+      })
+    } catch (e) {
+      console.error('Error refreshing materials after save:', e)
+    }
+
     // Hide the materials form after successful save
     materialsFormVisible.value[serviceId] = false
     
@@ -828,9 +1230,16 @@ const saveServiceMaterials = async (serviceId) => {
     successMessage.value = materials.length > 0 
       ? 'Matériaux enregistrés avec succès !' 
       : 'Aucun matériau sélectionné - Configuration enregistrée !'
+    successSubtitle.value = ''
+
+    setTimeout(() => {
+      showSuccessMessage.value = false
+    }, 3000)
   } catch (error) {
     console.error('Error saving service materials:', error)
-    alert(`Erreur lors de l'enregistrement: ${error.response?.data?.message || error.message}`)
+    await showError(`Erreur lors de l'enregistrement: ${error.response?.data?.message || error.message}`)
+  } finally {
+    isSavingMaterials.value[serviceId] = false
   }
 }
 
@@ -838,42 +1247,84 @@ const saveServiceMaterials = async (serviceId) => {
 const toggleMaterialSelection = async (serviceId, material) => {
   if (!currentUser.value) return
   
-  const key = `${serviceId}-${material}`
-  const currentState = materialSelections.value[key] || false
+  const trimmedMaterial = material.trim()
+  const key = `${serviceId}-${trimmedMaterial}`
+  const currentState = materialSelections[key] || false
   
-  // Toggle selection
-  materialSelections.value[key] = !currentState
-  
-  // If unchecking, clear the price and delete from database
+  // If we are about to UNCHECK a material
   if (currentState) {
-    serviceMaterialPrices.value[key] = ''
-    
-    // Find the material ID to delete from database
-    try {
-      const serviceMaterials = getMaterialsByService(serviceId)
-      const materialIndex = serviceMaterials.indexOf(material)
-      
-      if (materialIndex !== -1) {
-        // Get material details to find its ID
-        const response = await intervenantService.getIntervenantMaterials(
-          currentUser.value.intervenant.id,
-          serviceId
-        )
+    // 1. Check if any active tasks for this service require this material
+    const serviceTasks = getTasksByService(serviceId)
+    const activeTasksRequiringMaterial = serviceTasks.filter(task => {
+      return taskStates.value[task.id] && 
+             task.required_materials && 
+             task.required_materials.some(rm => rm.trim() === trimmedMaterial)
+    })
+
+    if (activeTasksRequiringMaterial.length > 0) {
+      const taskNames = activeTasksRequiringMaterial.map(t => t.name || t.nom_tache).join(', ')
+      const confirmRemove = await showConfirm(
+        `Ce matériau est requis pour les sous-services actifs suivants :\n${taskNames}.\n\nSi vous retirez ce matériau, ces sous-services seront automatiquement désactivés. Voulez-vous continuer ?`,
+        'Attention : Matériau requis',
+        'Confirmer et désactiver',
+        'Annuler'
+      )
+
+      if (!confirmRemove) {
+        // User cancelled - keep the material checked
+        materialSelections[key] = true
+        return
+      }
+
+      // User accepted - deactivate affected tasks
+      try {
+        showLoadingModal.value = true
+        loadingMessage.value = 'Désactivation des sous-services liés...'
         
-        const materialData = response.materials.find(m => m.name === material)
-        if (materialData) {
-          // Delete from database
-          await intervenantService.deleteIntervenantMaterial(
-            currentUser.value.intervenant.id,
-            materialData.id
-          )
-          console.log(`Material ${material} removed from database`)
-        }
+        await Promise.all(activeTasksRequiringMaterial.map(async (task) => {
+          // Only call backend if status is currently active (redundancy check)
+          await intervenantTacheService.toggleActive(task.id)
+          taskStates.value[task.id] = false
+          // Also hide configuration form if open
+          delete taskFormVisible.value[task.id]
+        }))
+      } catch (error) {
+        console.error('Error deactivating dependent tasks:', error)
+        await showError('Une erreur est survenue lors de la désactivation des sous-services. L\'action a été annulée.')
+        materialSelections[key] = true
+        showLoadingModal.value = false
+        return
+      } finally {
+        showLoadingModal.value = false
+      }
+    }
+
+    // Proceed with material removal
+    serviceMaterialPrices[key] = ''
+    materialSelections[key] = false
+    
+    try {
+      // Get material details to find its ID
+      const response = await intervenantService.getIntervenantMaterials(
+        currentUser.value.intervenant.id,
+        serviceId
+      )
+      
+      const materialData = response.materials.find(m => m.name.trim() === trimmedMaterial)
+      if (materialData) {
+        // Delete from database
+        await intervenantService.deleteIntervenantMaterial(
+          currentUser.value.intervenant.id,
+          materialData.id
+        )
       }
     } catch (error) {
       console.error('Error removing material from database:', error)
       // Still clear the UI even if database deletion fails
     }
+  } else {
+    // Simply check the material
+    materialSelections[key] = true
   }
 }
 
@@ -1006,7 +1457,12 @@ const submitActivationRequest = async () => {
     
     // Show success message
     showSuccessMessage.value = true
-    successMessage.value = 'Demande d\'activation envoyée avec succès !'
+    successMessage.value = 'Votre demande a été envoyée avec succès !'
+    successSubtitle.value = 'Elle sera examinée par notre équipe dans les plus brefs délais.'
+    
+    setTimeout(() => {
+      showSuccessMessage.value = false
+    }, 5000)
     
     // Update service state to show it's pending
     serviceStates.value[currentService.value.id] = false // Will be updated when data is refreshed
@@ -1020,31 +1476,92 @@ const submitActivationRequest = async () => {
   } catch (error) {
     console.error('Error submitting activation request:', error)
     alert(`Erreur lors de l'envoi de la demande: ${error.response?.data?.message || error.message}`)
+  } finally {
+    // Hide loading modal
+    showLoadingModal.value = false
   }
 }
 
 const toggleTask = async (taskId) => {
+  // FIND THE TASK AND SERVICE ID
+  let task = null
+  let serviceId = null
+  for (const sId in tasksByService.value) {
+    const t = tasksByService.value[sId].find(t => t.id == taskId)
+    if (t) {
+      task = t
+      serviceId = sId
+      break
+    }
+  }
+
+  // Pre-check for required materials if activating
+  if (!taskStates.value[taskId]) {
+    if (task && task.required_materials && task.required_materials.length > 0) {
+      const missing = task.required_materials.filter(mName => !materialSelections[`${serviceId}-${mName.trim()}`])
+      if (missing.length > 0) {
+        await showAlert(
+          `Pour activer ce sous-service (${task.name}), vous devez posséder les matériaux suivants :\n\n${missing.join(', ')}\n\nVeuillez les configurer dans la section "Matériaux" ci-dessous avant d'activer.`,
+          'Attention : Matériaux requis'
+        )
+        return
+      }
+    }
+  }
+
+  // Case 1: Activating locally (first time or no price)
+  // If task is inactive and has NO price set in the base data
+  if (!taskStates.value[taskId] && (!taskPrices.value[taskId] || taskPrices.value[taskId] <= 0)) {
+    taskStates.value[taskId] = true // Slide visually
+    taskFormVisible.value[taskId] = true // Show form
+    localActivations[taskId] = true // Mark as local draft
+    return
+  }
+
+  // Case 2: Canceling a local activation (draft)
+  if (taskStates.value[taskId] && localActivations[taskId]) {
+    taskStates.value[taskId] = false
+    taskFormVisible.value[taskId] = false
+    delete localActivations[taskId]
+    return
+  }
+
   try {
+    loadingMessage.value = 'Mise à jour du statut...'
+    showLoadingModal.value = true
+
     // If activating check if we already have a price configured
     if (!taskStates.value[taskId] && taskPrices.value[taskId] && taskPrices.value[taskId] > 0) {
         // Direct reactivation (no form needed)
         const response = await intervenantTacheService.toggleActive(taskId)
-        console.log('Task reactivated directly:', response.data)
         
         taskStates.value[taskId] = true
         // Ensure form is hidden
         taskFormVisible.value[taskId] = false
-        
-        // Show lightweight success message
-        // showSuccessMessage.value = true
-        // successMessage.value = 'Service réactivé avec succès !'
+
         return
     }
 
     // Standard toggle logic
+    if (taskStates.value[taskId]) {
+      // Deactivating - check for pending interventions first
+      let taskName = 'ce sous-service'
+      for (const serviceId in tasksByService.value) {
+        const t = tasksByService.value[serviceId].find(t => t.id === taskId)
+        if (t) {
+          taskName = t.name || t.nom_tache
+          break
+        }
+      }
+
+      const proceed = await handlePendingInterventions('task', taskId, taskName)
+      if (!proceed) {
+        return
+      }
+    }
+
     // Call API to toggle the status in database
     const response = await intervenantTacheService.toggleActive(taskId)
-    console.log('Task toggle response:', response)
     
     // Update local task state based on response
     if (response && response.active !== undefined) {
@@ -1056,7 +1573,6 @@ const toggleTask = async (taskId) => {
     
     if (!taskStates.value[taskId]) {
       // Désactiver : masquer le formulaire
-      // NOTE: We do NOT delete the price/materials data here anymore, so it can be restored on reactivation
       delete taskFormVisible.value[taskId]
     } else {
       // Activer : afficher le formulaire
@@ -1070,7 +1586,9 @@ const toggleTask = async (taskId) => {
     console.error('Error toggling task:', error)
     // Revert the state if API call failed
     taskStates.value[taskId] = !taskStates.value[taskId]
-    alert('Erreur lors de la modification du statut de la tâche')
+    await showError('Erreur lors de la modification du statut de la tâche')
+  } finally {
+    showLoadingModal.value = false
   }
 }
 // Save task configuration and hide form
@@ -1083,46 +1601,28 @@ const saveTaskConfig = async (taskId) => {
     return
   }
   
-  // Validate material prices
-  const materials = taskMaterials.value[taskId] || []
-  const materialsWithPrices = []
-  
-  for (const material of materials) {
-    const price = taskMaterialPrices.value[`${taskId}-${material}`]
-    if (!price || price <= 0) {
-      alert(`Le prix pour ${material} est obligatoire`)
-      return
-    }
-    materialsWithPrices.push({
-      name: material,
-      price: parseFloat(price)
-    })
-  }
+  // Material validation removed as materials are now managed at the service level
   
   try {
-    console.log('Saving task config:', {
-      taskId: taskId,
-      hourlyRate: taskPrices.value[taskId],
-      materials: materialsWithPrices
-    })
-    
     // Send data to backend using the correct service
     const response = await intervenantTacheService.updateMyTache(taskId, {
-      hourlyRate: taskPrices.value[taskId],
-      materials: materialsWithPrices
+      hourlyRate: taskPrices.value[taskId]
     })
-    
-    console.log('Save response:', response)
-    
+
     // Hide the form but keep the task active
     taskFormVisible.value[taskId] = false
+    
+    // Clear local activation draft flag
+    if (localActivations[taskId]) {
+      delete localActivations[taskId]
+    }
     
     // Ensure task state remains active (this fixes the toggle issue)
     taskStates.value[taskId] = true
     
-    // Show success message
-    showSuccessMessage.value = true
-    successMessage.value = 'Configuration enregistrée avec succès !'
+    // Success message removed as per request (sub-services don't need "pending review" notification)
+    // showSuccessMessage.value = true
+    // successMessage.value = 'Configuration enregistrée avec succès !'
   } catch (error) {
     console.error('Erreur complète:', error)
     console.error('Response data:', error.response?.data)
@@ -1229,6 +1729,68 @@ const getMaterialsByService = (serviceId) => {
   font-size: 0.75rem;
   color: var(--color-gray-500);
   margin: 0;
+}
+
+/* Pending Request Notification */
+.pending-notification {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-4);
+  padding: var(--spacing-4);
+  background: #FEF3E2;
+  border-left: 4px solid #F59E0B;
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--spacing-4);
+  position: relative;
+}
+
+.pending-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background-color: #FEF3E2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #F59E0B;
+  flex-shrink: 0;
+}
+
+.pending-title {
+  font-size: 0.875rem;
+  color: var(--color-dark);
+  margin: 0 0 var(--spacing-1) 0;
+  font-weight: 600;
+}
+
+.pending-subtitle {
+  font-size: 0.75rem;
+  color: var(--color-gray-600);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.pending-close {
+  position: absolute;
+  top: var(--spacing-3);
+  right: var(--spacing-3);
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: var(--color-gray-500);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.pending-close:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: var(--color-dark);
 }
 
 /* Modal Styles */
@@ -1408,6 +1970,65 @@ const getMaterialsByService = (serviceId) => {
   font-size: 0.75rem;
   color: var(--color-gray-500);
   margin-top: var(--spacing-2);
+}
+
+.upload-success {
+  border-color: var(--color-primary-green);
+  background: #F0F9FF; /* Light blue/green tint */
+}
+
+.file-success {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  text-align: left;
+}
+
+.success-icon-file {
+  color: var(--color-primary-green);
+}
+
+.file-details {
+  flex: 1;
+}
+
+.file-size {
+  font-size: 0.75rem;
+  color: var(--color-gray-500);
+  margin: 0;
+}
+
+.change-file {
+  font-size: 0.75rem;
+  color: var(--color-primary-green);
+  font-weight: 500;
+  text-decoration: underline;
+}
+
+/* Skeleton Styles */
+.skeleton-card {
+  border-color: #e5e7eb !important;
+  background-color: #ffffff !important;
+  pointer-events: none;
+}
+
+.skeleton-text {
+  background-color: #f3f4f6;
+  border-radius: 0.25rem;
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.skeleton-toggle-placeholder {
+  width: 3rem;
+  height: 1.5rem;
+  background-color: #e5e7eb;
+  border-radius: 9999px;
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 .additional-doc-item {
@@ -2011,5 +2632,111 @@ const getMaterialsByService = (serviceId) => {
 
 .task-checkbox-item span {
   line-height: 1.2;
+}
+
+/* Confirmation Modal Specific Styles */
+.modal-sm {
+  max-width: 450px;
+}
+
+.bg-warning {
+  background-color: #F59E0B !important;
+}
+
+.text-white {
+  color: white !important;
+}
+
+.warning-icon-large {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.btn-confirm-danger {
+  width: 100%;
+  padding: 0.875rem;
+  background-color: #EF4444;
+  color: white;
+  border: none;
+  border-radius: var(--radius-lg);
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+  box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.2);
+}
+
+.btn-confirm-danger:hover {
+  background-color: #DC2626;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.3);
+}
+
+.btn-cancel-outline {
+  width: 100%;
+  padding: 0.875rem;
+  background-color: transparent;
+  color: var(--color-gray-600);
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--radius-lg);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-cancel-outline:hover {
+  background-color: var(--color-gray-50);
+  color: var(--color-dark);
+}
+
+.action-buttons-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.text-center { text-align: center; }
+.py-6 { padding-top: 1.5rem; padding-bottom: 1.5rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+.mb-4 { margin-bottom: 1rem; }
+.mb-6 { margin-bottom: 1.5rem; }
+.font-semibold { font-weight: 600; }
+.text-lg { font-size: 1.125rem; }
+.text-gray-600 { color: #4B5563; }
+
+/* Generic UI Modal Styles */
+.bg-primary {
+  background-color: #92B08B !important;
+}
+
+.btn-confirm {
+  width: 100%;
+  padding: 0.875rem;
+  color: white;
+  border: none;
+  border-radius: var(--radius-lg);
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+}
+
+.btn-confirm:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+}
+
+.font-medium {
+  font-weight: 500;
 }
 </style>

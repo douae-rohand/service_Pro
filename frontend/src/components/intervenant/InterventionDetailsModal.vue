@@ -35,7 +35,7 @@
                 <h3>Client</h3>
               </div>
               <div class="client-mini-card">
-                <img :src="getImageUrl(intervention.client?.utilisateur?.photo)" class="mini-avatar" />
+                <img :src="getImageUrl(intervention.client?.utilisateur?.profile_photo)" class="mini-avatar" />
                 <div class="mini-info">
                   <p class="name">{{ intervention.client?.utilisateur?.nom }} {{ intervention.client?.utilisateur?.prenom }}</p>
                   
@@ -57,9 +57,12 @@
               <div class="service-details">
                 <p class="service-name">{{ intervention.tache?.service?.nom_service || 'Service non spécifié' }}</p>
                 <p class="task-name">{{ intervention.tache?.nom_tache || 'Tâche non spécifiée' }}</p>
+                <!-- Task Description (Static/Config) -->
                 <p class="description" v-if="intervention.tache?.description">{{ intervention.tache.description }}</p>
               </div>
             </div>
+
+            <!-- Client Description Block - REMOVED -->
 
             <!-- Address Block -->
             <div class="info-block">
@@ -123,10 +126,10 @@
               </div>
               
               <!-- Client Provided -->
-              <div v-if="intervention.tache?.materiels?.length > 0" class="materials-group">
+              <div v-if="clientProvidedMaterials.length > 0" class="materials-group">
                 <p class="mat-label-small">Fournis par le client :</p>
                 <div class="materials-list">
-                  <div v-for="mat in intervention.tache.materiels" :key="'c'+mat.id" class="material-tag client-mat">
+                  <div v-for="mat in clientProvidedMaterials" :key="'c'+mat.id" class="material-tag client-mat">
                     {{ mat.nom_materiel }}
                   </div>
                 </div>
@@ -142,7 +145,7 @@
                 </div>
               </div>
 
-              <p v-if="!intervention.materiels?.length && !intervention.tache?.materiels?.length" class="empty-hint">Aucun matériel spécifique renseigné</p>
+              <p v-if="!intervention.materiels?.length && !clientProvidedMaterials.length" class="empty-hint">Aucun matériel spécifique renseigné</p>
             </div>
 
             <!-- Photo Gallery Block -->
@@ -163,19 +166,9 @@
               </div>
 
               <div v-if="intervention.photos && intervention.photos.length > 0">
-                <!-- Avant Group -->
-                <div v-if="groupedPhotos.avant.length > 0" class="photo-group">
-                  <p class="photo-phase-label">Avant Intervention</p>
-                  <div class="photo-gallery">
-                    <div v-for="photo in groupedPhotos.avant" :key="photo.id" class="photo-item">
-                      <img :src="getImageUrl(photo.photo_path)" :alt="photo.description" class="gallery-img" @click="openImage(photo.photo_path)" />
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Après Group -->
-                <div v-if="groupedPhotos.apres.length > 0" class="photo-group" style="margin-top: 1.5rem;">
-                  <p class="photo-phase-label">Après Intervention</p>
+                <!-- Après Group Only -->
+                <div v-if="groupedPhotos.apres.length > 0" class="photo-group">
+                  <p class="photo-phase-label">Photos de l'intervention</p>
                   <div class="photo-gallery">
                     <div v-for="photo in groupedPhotos.apres" :key="photo.id" class="photo-item">
                       <img :src="getImageUrl(photo.photo_path)" :alt="photo.description" class="gallery-img" @click="openImage(photo.photo_path)" />
@@ -183,7 +176,52 @@
                   </div>
                 </div>
               </div>
-              <p v-else class="empty-hint">Aucune photo pour le moment</p>
+            <p v-else class="empty-hint">Aucune photo pour le moment</p>
+            </div>
+
+            <!-- Fiche de Payement Section (Intervenant Side) -->
+            <div v-if="intervention.status === 'acceptee' || intervention.status === 'termine'" class="info-block payment-slip-section">
+              <div class="block-header">
+                <FileDown :size="18" />
+                <h3>Fiche de Payement (Détails HT)</h3>
+              </div>
+              <div class="payment-slip-card">
+                <div v-if="paymentSlip" class="slip-details">
+                  <div class="slip-row">
+                    <span>Main d'œuvre (HT)</span>
+                    <span class="value">{{ paymentSlip.ht_tache }} MAD</span>
+                  </div>
+                  <div class="slip-row">
+                    <span>Matériels (HT)</span>
+                    <span class="value">{{ paymentSlip.ht_materiel }} MAD</span>
+                  </div>
+                  <div class="slip-row total-brut">
+                    <span>Total Brut (HT)</span>
+                    <span class="value">{{ paymentSlip.ht_total }} MAD</span>
+                  </div>
+                  <div class="slip-row commission">
+                    <span>Commission Plateforme ({{ paymentSlip.tva_taux }}%)</span>
+                    <span class="value text-danger">- {{ paymentSlip.tva_montant }} MAD</span>
+                  </div>
+                  <div class="slip-row total-ttc">
+                    <span>Gains Nets (Versement)</span>
+                    <span class="value">{{ paymentSlip.ttc }} MAD</span>
+                  </div>
+                  
+                  <div class="commission-notice">
+                    <p>* La commission de {{ paymentSlip.tva_taux }}% correspond aux frais de service de la plateforme.</p>
+                  </div>
+
+                  <button @click="handleDownloadSlip" class="btn-download-slip" :disabled="downloadingSlip">
+                    <FileDown v-if="!downloadingSlip" :size="18" />
+                    <span v-else class="loader-xs"></span>
+                    {{ downloadingSlip ? 'Chargement...' : 'Télécharger la fiche (PDF)' }}
+                  </button>
+                </div>
+                <div v-else class="empty-slip">
+                  <p>La fiche de payement est en cours de génération...</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -289,6 +327,8 @@
 import { ref, watch, computed } from 'vue'
 import { X, User, MapPin, Clock, Package, Camera, PenTool as Tool, ClipboardList, Mail, Phone, Star, Plus, Lock } from 'lucide-vue-next'
 import api from '@/services/api'
+import interventionService from '@/services/interventionService'
+import { FileDown, FileText } from 'lucide-vue-next'
 
 const props = defineProps({
   show: Boolean,
@@ -318,6 +358,10 @@ const intervenantComment = computed(() => {
   return intervention.value?.commentaires?.find(c => c.type_auteur === 'intervenant')
 })
 
+const paymentSlip = computed(() => {
+  return intervention.value?.fiche_payement || intervention.value?.fichePayement
+})
+
 const groupedPhotos = computed(() => {
   const groups = { avant: [], apres: [] }
   if (!intervention.value?.photos) return groups
@@ -330,6 +374,19 @@ const groupedPhotos = computed(() => {
     }
   })
   return groups
+})
+
+const clientProvidedMaterials = computed(() => {
+  if (!intervention.value?.tache?.materiels) return []
+  
+  const taskMaterials = intervention.value.tache.materiels
+  const intervenantMaterials = intervention.value.materiels || []
+  
+  // Get IDs of materials provided by intervenant
+  const intervenantMaterialIds = intervenantMaterials.map(m => m.id)
+  
+  // Filter task materials to only include those NOT provided by intervenant
+  return taskMaterials.filter(material => !intervenantMaterialIds.includes(material.id))
 })
 
 watch(() => props.show, (newVal) => {
@@ -369,10 +426,15 @@ const formatDate = (dateStr) => {
 
 const formatTime = (dateStr) => {
   if (!dateStr) return 'N/A'
-  return new Date(dateStr).toLocaleTimeString('fr-FR', {
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+  // Handle "YYYY-MM-DDTHH:mm:ss" or "YYYY-MM-DD HH:mm:ss"
+  if (dateStr.includes('T')) {
+    return dateStr.split('T')[1].substring(0, 5)
+  }
+  if (dateStr.includes(' ')) {
+    return dateStr.split(' ')[1].substring(0, 5)
+  }
+  // Fallback
+  return dateStr.substring(0, 5)
 }
 
 const formatStatus = (status) => {
@@ -439,6 +501,34 @@ const handleFileUpload = async (event) => {
     error.value = "Erreur lors du téléchargement des photos. Veuillez réessayer."
   } finally {
     uploading.value = false
+  }
+}
+
+const downloadingSlip = ref(false)
+
+const handleDownloadSlip = async () => {
+  if (!props.interventionId) return
+  
+  downloadingSlip.value = true
+  try {
+    const response = await interventionService.downloadSlip(props.interventionId)
+    
+    // Create a URL for the blob
+    const url = window.URL.createObjectURL(new Blob([response.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `fiche_payement_${props.interventionId}.pdf`)
+    document.body.appendChild(link)
+    link.click()
+    
+    // Cleanup
+    link.remove()
+    window.URL.revokeObjectURL(url)
+  } catch (err) {
+    console.error('Error downloading slip:', err)
+    alert("Erreur lors du téléchargement de la fiche de payement.")
+  } finally {
+    downloadingSlip.value = false
   }
 }
 </script>
@@ -986,6 +1076,130 @@ const handleFileUpload = async (event) => {
 .privacy-notice.small { 
   font-size: 0.7rem; 
   margin-top: 0.25rem; 
+}
+
+/* Payment Slip styles */
+.payment-slip-card {
+  background: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 1rem;
+  padding: 1.5rem;
+}
+
+.slip-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.slip-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+  color: #4B5563;
+}
+
+.slip-row .value {
+  font-weight: 600;
+  color: #111827;
+}
+
+.total-brut {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #E5E7EB;
+  font-weight: 700;
+  color: #111827;
+}
+
+.commission {
+  font-size: 0.8125rem;
+  color: #6B7280;
+}
+
+.commission .value.text-danger {
+  color: #DC2626;
+  font-weight: 600;
+}
+
+.total-ttc {
+  margin-top: 0.5rem;
+  padding: 1rem;
+  background: white;
+  border-radius: 0.75rem;
+  border: 1px solid #E8793F;
+  font-size: 1.0625rem;
+  font-weight: 800;
+  color: #E8793F;
+}
+
+.commission-notice {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: #FFFBEB;
+  border-radius: 0.5rem;
+  border-left: 3px solid #F59E0B;
+}
+
+.commission-notice p {
+  font-size: 0.75rem;
+  color: #92400E;
+  margin: 0;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.total-ttc .value {
+  color: #E8793F;
+}
+
+.btn-download-slip {
+  margin-top: 1.5rem;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.875rem;
+  background: #E8793F;
+  color: white;
+  border: none;
+  border-radius: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 6px -1px rgba(232, 121, 63, 0.2);
+}
+
+.btn-download-slip:hover:not(:disabled) {
+  background: #D96A30;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 15px -3px rgba(232, 121, 63, 0.3);
+}
+
+.btn-download-slip:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.empty-slip {
+  text-align: center;
+  color: #9CA3AF;
+  font-style: italic;
+  font-size: 0.875rem;
+}
+
+.loader-xs {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 @media (max-width: 992px) {

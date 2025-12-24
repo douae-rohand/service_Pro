@@ -66,6 +66,14 @@ class EvaluationController extends Controller
 
         DB::beginTransaction();
         try {
+            // Check if intervenant has already rated this intervention
+            $intervenantHasRated = Evaluation::where('intervention_id', $interventionId)
+                ->where('type_auteur', 'intervenant')
+                ->exists();
+            
+            // If both parties have now rated, set is_public to true
+            $isPublic = $intervenantHasRated;
+            
             // Get all criteria for mapping if needed
             $criteria = Critaire::where('type', 'intervenant')->get();
             $criteriaMap = [];
@@ -102,8 +110,21 @@ class EvaluationController extends Controller
                         'critaire_id' => $critaireId,
                         'note' => $note,
                         'type_auteur' => 'client',
+                        'is_public' => $isPublic,
                     ]);
                 }
+            }
+
+            // If both parties have rated, update intervenant's evaluations to public
+            if ($isPublic) {
+                Evaluation::where('intervention_id', $interventionId)
+                    ->where('type_auteur', 'intervenant')
+                    ->update(['is_public' => true]);
+                    
+                // Also update comments to public
+                Commentaire::where('intervention_id', $interventionId)
+                    ->where('type_auteur', 'intervenant')
+                    ->update(['is_public' => true]);
             }
 
             // Create comment if provided
@@ -112,6 +133,7 @@ class EvaluationController extends Controller
                     'intervention_id' => $interventionId,
                     'commentaire' => $validated['comment'],
                     'type_auteur' => 'client',
+                    'is_public' => $isPublic,
                 ]);
             }
 
@@ -245,24 +267,44 @@ class EvaluationController extends Controller
                 ], 403);
             }
 
+            // Check if client has already rated this intervention
+            $clientHasRated = Evaluation::where('intervention_id', $interventionId)
+                ->where('type_auteur', 'client')
+                ->exists();
+            
+            // If both parties have now rated, set is_public to true
+            $isPublic = $clientHasRated;
+            
             // Store evaluations
             foreach ($request->evaluations as $evaluation) {
                 Evaluation::create([
                     'intervention_id' => $interventionId,
                     'critaire_id' => $evaluation['critaire_id'],
                     'note' => $evaluation['note'],
-                    'type_auteur' => 'intervenant'
+                    'type_auteur' => 'intervenant',
+                    'is_public' => $isPublic,
                 ]);
+            }
+
+            // If both parties have rated, update client's evaluations to public
+            if ($isPublic) {
+                Evaluation::where('intervention_id', $interventionId)
+                    ->where('type_auteur', 'client')
+                    ->update(['is_public' => true]);
+                    
+                // Also update comments to public
+                Commentaire::where('intervention_id', $interventionId)
+                    ->where('type_auteur', 'client')
+                    ->update(['is_public' => true]);
             }
 
             // Store comment if provided
             if ($request->has('comment') && !empty($request->comment)) {
-                \DB::table('commentaire')->insert([
+                Commentaire::create([
                     'intervention_id' => $interventionId,
                     'commentaire' => $request->comment,
                     'type_auteur' => 'intervenant',
-                    'created_at' => now(),
-                    'updated_at' => now()
+                    'is_public' => $isPublic,
                 ]);
             }
 
@@ -337,7 +379,7 @@ class EvaluationController extends Controller
             }
 
             // Check if within 7-day voting window
-            $interventionDate = $intervention->updated_at; // Assuming this is when intervention was marked as completed
+            $interventionDate = $intervention->updated_at;
             $sevenDaysAgo = now()->subDays(7);
             $isWithinWindow = $interventionDate->greaterThan($sevenDaysAgo);
 
@@ -346,10 +388,10 @@ class EvaluationController extends Controller
                 ->where('type_auteur', 'intervenant')
                 ->count();
 
-            // Check if client has also rated
-            $clientHasRated = Evaluation::where('intervention_id', $interventionId)
-                ->where('type_auteur', 'client')
-                ->count() > 0;
+            // Check if evaluations are public (read from database)
+            $arePublic = Evaluation::where('intervention_id', $interventionId)
+                ->where('is_public', true)
+                ->exists();
 
             // Determine voting status
             if (!$isWithinWindow && $existingRatings === 0) {
@@ -367,9 +409,7 @@ class EvaluationController extends Controller
                     'can_view' => true,
                     'reason' => 'Déjà évalué',
                     'status' => 'view_only',
-                    'client_has_rated' => $clientHasRated,
-                    'both_parties_rated' => $clientHasRated && $existingRatings > 0,
-                    'is_public' => $intervention->areRatingsPublic()
+                    'is_public' => $arePublic
                 ]);
             }
 
@@ -406,36 +446,43 @@ class EvaluationController extends Controller
         try {
             $intervention = Intervention::findOrFail($interventionId);
 
-            // Logic centralized in model: Both parties voted OR 7-day window passed
-            if (!$intervention->areRatingsPublic()) {
+            // Check if there are any public evaluations for this intervention
+            $hasPublicEvaluations = Evaluation::where('intervention_id', $interventionId)
+                ->where('is_public', true)
+                ->exists();
+
+            if (!$hasPublicEvaluations) {
                 return response()->json([
                     'message' => 'Les évaluations ne sont pas encore publiques',
                     'can_view' => false
                 ], 403);
             }
 
+            // Fetch only public evaluations
             $intervenantRatings = Evaluation::where('intervention_id', $interventionId)
                 ->where('type_auteur', 'intervenant')
+                ->where('is_public', true)
                 ->with('critaire')
                 ->get();
 
             $clientRatings = Evaluation::where('intervention_id', $interventionId)
                 ->where('type_auteur', 'client')
+                ->where('is_public', true)
                 ->with('critaire')
                 ->get();
 
             $bothPartiesVoted = $intervenantRatings->count() > 0 && $clientRatings->count() > 0;
             $windowPassed = $intervention->updated_at->addDays(7)->isPast();
 
-            // Get comments
-            $intervenantComment = \DB::table('commentaire')
-                ->where('intervention_id', $interventionId)
+            // Get public comments only
+            $intervenantComment = Commentaire::where('intervention_id', $interventionId)
                 ->where('type_auteur', 'intervenant')
+                ->where('is_public', true)
                 ->first();
 
-            $clientComment = \DB::table('commentaire')
-                ->where('intervention_id', $interventionId)
+            $clientComment = Commentaire::where('intervention_id', $interventionId)
                 ->where('type_auteur', 'client')
+                ->where('is_public', true)
                 ->first();
 
             return response()->json([
@@ -461,16 +508,16 @@ class EvaluationController extends Controller
      */
     public function getClientAverageRating(int $clientId): JsonResponse
     {
+        // Get completed interventions for this client
         $clientInterventions = Intervention::where('client_id', $clientId)
             ->where('status', 'termine')
-            ->get()
-            ->filter(function ($i) {
-                return $i->areRatingsPublic();
-            })
             ->pluck('id');
 
+        // Get only public evaluations from intervenant
         $evaluations = Evaluation::whereIn('intervention_id', $clientInterventions)
             ->where('type_auteur', 'intervenant')
+            ->where('is_public', true)
+            ->with('critaire')
             ->get();
 
         if ($evaluations->isEmpty()) {

@@ -57,7 +57,7 @@ class Reclamation extends Model
     }
 
     /**
-     * Get the intervention associated with the reclamation.
+     * Get the intervention related to this reclamation.
      */
     public function intervention()
     {

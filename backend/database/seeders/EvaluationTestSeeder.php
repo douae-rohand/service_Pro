@@ -53,10 +53,10 @@ class EvaluationTestSeeder extends Seeder
         ]);
         // Client rating
         DB::table('evaluation')->insert([
-            ['note' => 5, 'intervention_id' => $case2, 'critaire_id' => 6, 'type_auteur' => 'client', 'created_at' => now()],
+            ['note' => 5, 'intervention_id' => $case2, 'critaire_id' => 6, 'type_auteur' => 'client', 'is_public' => false, 'created_at' => now()],
         ]);
         DB::table('commentaire')->insert([
-            ['commentaire' => 'HIDDEN COMMENT - You should not see this yet!', 'intervention_id' => $case2, 'type_auteur' => 'client', 'created_at' => now()],
+            ['commentaire' => 'HIDDEN COMMENT - You should not see this yet!', 'intervention_id' => $case2, 'type_auteur' => 'client', 'is_public' => false, 'created_at' => now()],
         ]);
         $this->command->info("Case 2 (Client Rated): Intervention ID $case2");
 
@@ -75,7 +75,7 @@ class EvaluationTestSeeder extends Seeder
         ]);
         // Intervenant rating
         DB::table('evaluation')->insert([
-            ['note' => 4, 'intervention_id' => $case3, 'critaire_id' => 1, 'type_auteur' => 'intervenant', 'created_at' => now()],
+            ['note' => 4, 'intervention_id' => $case3, 'critaire_id' => 1, 'type_auteur' => 'intervenant', 'is_public' => false, 'created_at' => now()],
         ]);
         $this->command->info("Case 3 (You Rated): Intervention ID $case3");
 
@@ -94,12 +94,12 @@ class EvaluationTestSeeder extends Seeder
         ]);
         // Both ratings
         DB::table('evaluation')->insert([
-            ['note' => 5, 'intervention_id' => $case4, 'critaire_id' => 6, 'type_auteur' => 'client', 'created_at' => now()],
-            ['note' => 5, 'intervention_id' => $case4, 'critaire_id' => 1, 'type_auteur' => 'intervenant', 'created_at' => now()],
+            ['note' => 5, 'intervention_id' => $case4, 'critaire_id' => 6, 'type_auteur' => 'client', 'is_public' => true, 'created_at' => now()],
+            ['note' => 5, 'intervention_id' => $case4, 'critaire_id' => 1, 'type_auteur' => 'intervenant', 'is_public' => true, 'created_at' => now()],
         ]);
         DB::table('commentaire')->insert([
-            ['commentaire' => 'PUBLIC COMMENT - Visible to all!', 'intervention_id' => $case4, 'type_auteur' => 'client', 'created_at' => now()],
-            ['commentaire' => 'Also visible!', 'intervention_id' => $case4, 'type_auteur' => 'intervenant', 'created_at' => now()],
+            ['commentaire' => 'PUBLIC COMMENT - Visible to all!', 'intervention_id' => $case4, 'type_auteur' => 'client', 'is_public' => true, 'created_at' => now()],
+            ['commentaire' => 'Also visible!', 'intervention_id' => $case4, 'type_auteur' => 'intervenant', 'is_public' => true, 'created_at' => now()],
         ]);
         $this->command->info("Case 4 (Both Rated): Intervention ID $case4");
 
@@ -118,10 +118,10 @@ class EvaluationTestSeeder extends Seeder
         ]);
         // Only Client rated
         DB::table('evaluation')->insert([
-            ['note' => 2, 'intervention_id' => $case5, 'critaire_id' => 6, 'type_auteur' => 'client', 'created_at' => now()],
+            ['note' => 2, 'intervention_id' => $case5, 'critaire_id' => 6, 'type_auteur' => 'client', 'is_public' => true, 'created_at' => now()],
         ]);
         DB::table('commentaire')->insert([
-            ['commentaire' => 'EXPIRED REVEAL - Visible because > 7 days passed!', 'intervention_id' => $case5, 'type_auteur' => 'client', 'created_at' => now()],
+            ['commentaire' => 'EXPIRED REVEAL - Visible because > 7 days passed!', 'intervention_id' => $case5, 'type_auteur' => 'client', 'is_public' => true, 'created_at' => now()],
         ]);
         $this->command->info("Case 5 (Expired): Intervention ID $case5");
 

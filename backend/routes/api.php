@@ -168,8 +168,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('intervenants/me/reservations/{id}/accept', [IntervenantController::class, 'acceptReservation']);
     Route::post('intervenants/me/reservations/{id}/refuse', [IntervenantController::class, 'refuseReservation']);
 
-    // Reclamations
-    Route::post('/reclamations', [App\Http\Controllers\Api\ReclamationController::class, 'store']);
+
+    // Reclamations for interventions
+    Route::post('/reclamations', [App\Http\Controllers\Api\Intervention\ReclamationController::class, 'store']);
+    Route::get('/interventions/{id}/my-reclamations', [App\Http\Controllers\Api\Intervention\ReclamationController::class, 'myReclamations']);
+
+    // SSE pour les réservations en temps réel
+    Route::get('/reservations/stream', [App\Http\Controllers\Api\Intervention\ReservationSSEController::class, 'stream']);
+    
+    // Generic SSE Stream for Notifications
+    Route::get('/sse/stream', [App\Http\Controllers\Api\SseController::class, 'stream']);
 
     // Actions sur Intervenant par ID (pour Admin ou autres)
     Route::put('intervenants/{id}/taches/{tacheId}/configure', [IntervenantController::class, 'configureTask']);
@@ -186,11 +194,16 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Interventions
     Route::apiResource('interventions', InterventionController::class);
-    
+
     // Intervenant Specific Interventions
     Route::apiResource('intervenant-interventions', InterventionControllerIntervenant::class);
     Route::get('intervenant-interventions/filter/upcoming', [InterventionControllerIntervenant::class, 'upcoming']);
     Route::get('intervenant-interventions/filter/completed', [InterventionControllerIntervenant::class, 'completed']);
+    Route::get('intervenant-interventions/pending-count/service/{serviceId}', [InterventionControllerIntervenant::class, 'countPendingByService']);
+    Route::get('intervenant-interventions/pending-count/tache/{tacheId}', [InterventionControllerIntervenant::class, 'countPendingByTache']);
+    Route::post('intervenant-interventions/pending-refuse/service/{serviceId}', [InterventionControllerIntervenant::class, 'refusePendingByService']);
+    Route::post('intervenant-interventions/pending-refuse/tache/{tacheId}', [InterventionControllerIntervenant::class, 'refusePendingByTache']);
+    Route::get('intervenant-interventions/{id}/slip', [InterventionControllerIntervenant::class, 'downloadSlip']);
 
     Route::get('interventions/index', [InterventionController::class, 'index']); // legacy?
     Route::get('interventions/filter/upcoming', [InterventionController::class, 'upcoming']);

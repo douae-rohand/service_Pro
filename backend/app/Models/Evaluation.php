@@ -21,6 +21,7 @@ class Evaluation extends Model
         'intervention_id',
         'critaire_id',
         'type_auteur',
+        'is_public',
     ];
 
     protected function casts(): array

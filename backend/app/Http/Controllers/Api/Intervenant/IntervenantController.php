@@ -8,9 +8,9 @@ use App\Models\Disponibilite;
 use App\Models\Tache;
 use App\Models\Intervention;
 use App\Models\Materiel;
+use Illuminate\Support\Facades\Log;
 use App\Models\Service;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -62,7 +62,8 @@ class IntervenantController extends Controller
 
         // Optimisation : Eager loading des interventions et leurs évaluations pour éviter le N+1
         $query->with(['interventions.evaluations' => function ($q) {
-            $q->where('type_auteur', 'client');
+            $q->where('type_auteur', 'client')
+              ->where('is_public', true); // Only include public evaluations
         }]);
 
         // Sélectionner uniquement les colonnes nécessaires (inclure address pour géolocalisation)
@@ -600,16 +601,19 @@ class IntervenantController extends Controller
         $interventions = \App\Models\Intervention::where('intervenant_id', $id)
             ->where('status', 'terminée')
             ->whereHas('evaluations', function($q) {
-                $q->where('type_auteur', 'client');
+                $q->where('type_auteur', 'client')
+                  ->where('is_public', true); // Only show public evaluations
             })
             ->with([
                 'client.utilisateur',
                 'tache.service',
                 'evaluations' => function($q) {
-                    $q->where('type_auteur', 'client');
+                    $q->where('type_auteur', 'client')
+                      ->where('is_public', true); // Only include public evaluations
                 },
                 'commentaires' => function($q) {
-                    $q->where('type_auteur', 'client');
+                    $q->where('type_auteur', 'client')
+                      ->where('is_public', true); // Only include public comments
                 }
             ])
             ->orderBy('date_intervention', 'desc')
@@ -679,20 +683,29 @@ class IntervenantController extends Controller
 
         $intervenant = $user->intervenant;
 
-    // Get IDs of active services only (exclude archived/inactive)
-    $activeServiceIds = $intervenant->services()
-        ->wherePivot('status', 'active')
-        ->pluck('service.id')
-        ->toArray();
-
-    // Get taches with pivot data, service, materials, and completed jobs count
-    // Only for active services
-    $taches = $intervenant->taches()
-        ->whereIn('service_id', $activeServiceIds)
+    // CRITICAL FIX: Get tasks where the parent SERVICE has status='active' in intervenant_service
+    // This properly excludes tasks from services with status='demmande', 'refuse', 'archive', 'desactive'
+    $query = $intervenant->taches()
+        ->join('service', 'tache.service_id', '=', 'service.id')
+        ->join('intervenant_service', function($join) use ($intervenant) {
+            $join->on('service.id', '=', 'intervenant_service.service_id')
+                 ->where('intervenant_service.intervenant_id', '=', $intervenant->id)
+                 ->where('intervenant_service.status', '=', 'active'); // ONLY active services!
+        })
         ->with(['service', 'materiels'])
+        ->select('tache.*'); // Select only tache columns to avoid conflicts
+    
+    // DEBUG: Log the actual SQL query
+    \Log::info('MyTaches SQL Query:', [
+        'sql' => $query->toSql(),
+        'bindings' => $query->getBindings(),
+        'intervenant_id' => $intervenant->id
+    ]);
+    
+    $taches = $query->distinct()
         ->get()
         ->map(function ($tache) use ($intervenant) {
-                // Get pivot data (tarif, experience, archived, active)
+                // Get pivot data from intervenant_tache (tarif)
                 $pivot = $tache->pivot;
 
                 // Count completed interventions for this tache
@@ -727,11 +740,18 @@ class IntervenantController extends Controller
                     'name' => $tache->nom_tache,
                     'description' => $tache->description,
                     'hourlyRate' => (float) ($pivot->prix_tache ?? 0),
-                    'active' => $pivot->status ?? true,
+                    'active' => $pivot->status ?? true, // Status from intervenant_tache pivot
                     'completedJobs' => $completedJobs,
                     'materials' => $ownedMaterials,
+                    'required_materials' => $tache->materiels->pluck('nom_materiel')->toArray(),
                 ];
             });
+            
+        // DEBUG: Log the result count
+        \Log::info('MyTaches Result:', [
+            'count' => $taches->count(),
+            'intervenant_id' => $intervenant->id
+        ]);
 
         return response()->json($taches);
     }
@@ -1096,9 +1116,10 @@ class IntervenantController extends Controller
             return response()->json(['error' => 'Intervenant not found'], 404);
         }
 
-        // Get active and archived services
+        // Get services with relevant statuses (active, archive, desactive, demmande)
+        // We include 'demmande' so the frontend knows there is a pending request
         $activeServices = $intervenant->services()
-            ->wherePivotIn('status', ['active', 'archive'])
+            ->wherePivotIn('status', ['active', 'archive', 'desactive', 'demmande'])
             ->get()
             ->map(function ($service) {
                 return [
@@ -1108,11 +1129,15 @@ class IntervenantController extends Controller
                 ];
             });
 
+        // Get service IDs to filter tasks
+        $activeServiceIds = $activeServices->pluck('id')->toArray();
+
         // Get IDs of materials owned by the intervenant
         $intervenantMaterialIds = $intervenant->materiels->pluck('id')->toArray();
 
-        // Get all tasks (active and inactive) with their status
+        // Get tasks from these services
         $allTasks = $intervenant->taches()
+            ->whereIn('service_id', $activeServiceIds)
             ->with('materiels')
             ->get()
             ->map(function ($tache) use ($intervenantMaterialIds) {
@@ -1123,11 +1148,12 @@ class IntervenantController extends Controller
 
                 return [
                     'id' => $tache->id,
-                    'service_id' => $tache->service_id, // Essential for frontend grouping
+                    'service_id' => $tache->service_id,
                     'name' => $tache->nom_tache,
                     'price' => $tache->pivot->prix_tache,
-                    'status' => $tache->pivot->status,
+                    'status' => $tache->pivot->status, // This is the task status (active/inactive)
                     'materials' => $ownedMaterials,
+                    'required_materials' => $tache->materiels->pluck('nom_materiel')->toArray(),
                 ];
             });
 
@@ -1297,13 +1323,16 @@ class IntervenantController extends Controller
                 ]);
             }
 
-            DB::commit();
+        DB::commit();
 
-            return response()->json([
-                'message' => 'Demande d\'activation envoyée avec succès',
-                'status' => 'demmande',
-                'isActive' => false
-            ]);
+        // Notify Admin via SSE
+        \Illuminate\Support\Facades\Cache::put('admin_new_request', time(), 60);
+
+        return response()->json([
+            'message' => 'Demande d\'activation envoyée avec succès',
+            'status' => 'demmande',
+            'isActive' => false
+        ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -1583,7 +1612,8 @@ class IntervenantController extends Controller
             'client.utilisateur',
             'tache.service',
             'tache.materiels',
-            'materiels' // Materials used in this specific intervention
+            'materiels', // Materials used in this specific intervention
+            'evaluations' // Eager load evaluations for status calculation
         ])
         ->where('intervenant_id', $intervenant->id)
         ->orderBy('date_intervention', 'desc')
@@ -1595,10 +1625,16 @@ class IntervenantController extends Controller
             $clientUser = $client ? $client->utilisateur : null;
             $tache = $intervention->tache;
 
-            // Get materials provided by client (from tache materiels)
+            // Get materials provided by client (from tache materiels, excluding intervenant's materials)
             $clientProvidedMaterials = collect([]);
             if ($tache && $tache->materiels) {
-                $clientProvidedMaterials = $tache->materiels->map(function ($materiel) {
+                // Get IDs of materials provided by intervenant for this intervention
+                $intervenantMaterialIds = $intervention->materiels->pluck('id')->toArray();
+                
+                // Filter task materials to only include those NOT provided by intervenant
+                $clientProvidedMaterials = $tache->materiels->filter(function ($materiel) use ($intervenantMaterialIds) {
+                    return !in_array($materiel->id, $intervenantMaterialIds);
+                })->map(function ($materiel) {
                     return [
                         'id' => $materiel->id,
                         'name' => $materiel->nom_materiel,
@@ -1611,14 +1647,24 @@ class IntervenantController extends Controller
             // Get materials used by intervenant in this intervention
             $intervenantMaterials = collect([]);
             if ($intervention->materiels) {
-                $intervenantMaterials = $intervention->materiels->map(function ($materiel) {
-                    return [
+                foreach ($intervention->materiels as $materiel) {
+                    $prixMateriel = 0;
+                    // Get price from Intervenant-Materiel pivot
+                    $intervenantMat = \App\Models\IntervenantMateriel::where('intervenant_id', $intervenant->id)
+                        ->where('materiel_id', $materiel->id)
+                        ->first();
+                    if ($intervenantMat) {
+                        $prixMateriel = $intervenantMat->prix_materiel;
+                    }
+
+                    $intervenantMaterials->push([
                         'id' => $materiel->id,
                         'name' => $materiel->nom_materiel,
                         'description' => $materiel->description,
+                        'prix_materiel' => (float)$prixMateriel,
                         'provided_by' => 'intervenant'
-                    ];
-                });
+                    ]);
+                }
             }
 
             // Combine all materials - merge works on Collections
@@ -1635,6 +1681,33 @@ class IntervenantController extends Controller
                 }
             }
 
+            // Calculate Evaluation Status
+            $status = strtolower($intervention->status ?? '');
+            $evaluationStatus = 'none'; // default
+            $canViewPublic = false;
+
+            if (in_array($status, ['termine', 'terminee', 'terminée', 'completed'])) {
+                $intervenantRatings = $intervention->evaluations->where('type_auteur', 'intervenant');
+                $clientRatings = $intervention->evaluations->where('type_auteur', 'client');
+                
+                $hasIntervenantRated = $intervenantRatings->isNotEmpty();
+                $hasClientRated = $clientRatings->isNotEmpty();
+                
+                $updatedAt = $intervention->updated_at;
+                $isWindowClosed = $updatedAt ? $updatedAt->copy()->addDays(7)->isPast() : false;
+                
+                // Check if evaluations are public (read from database)
+                $canViewPublic = $intervention->evaluations->where('is_public', true)->isNotEmpty();
+                
+                if ($hasIntervenantRated) {
+                    $evaluationStatus = 'view_only';
+                } elseif (!$isWindowClosed) {
+                    $evaluationStatus = 'can_rate';
+                } else {
+                    $evaluationStatus = 'expired';
+                }
+            }
+
             return [
                 'id' => $intervention->id,
                 'clientName' => $clientUser ? ($clientUser->nom . ' ' . $clientUser->prenom) : 'Client inconnu',
@@ -1642,6 +1715,7 @@ class IntervenantController extends Controller
                 'service' => $tache && $tache->service ? $tache->service->nom_service : 'Service inconnu',
                 'task' => $tache ? $tache->nom_tache : 'Tâche inconnue',
                 'date' => $intervention->date_intervention ? $intervention->date_intervention->format('Y-m-d') : 'N/A',
+                'datetime' => $intervention->date_intervention, // Raw datetime for client-side formatting
                 'time' => $intervention->date_intervention ? $intervention->date_intervention->format('H:i') : 'N/A',
                 'duration_hours' => (float)$intervention->duration_hours,
                 'duration' => $intervention->duration_hours ? number_format($intervention->duration_hours, 1) . 'h' : 'N/A',
@@ -1651,7 +1725,9 @@ class IntervenantController extends Controller
                 'message' => $intervention->description,
                 'materials' => $allMaterials,
                 'clientProvidedMaterials' => $clientProvidedMaterials,
-                'intervenantMaterials' => $intervenantMaterials
+                'intervenantMaterials' => $intervenantMaterials,
+                'evaluationStatus' => $evaluationStatus,
+                'canViewPublic' => $canViewPublic
             ];
         });
 
@@ -1668,15 +1744,11 @@ class IntervenantController extends Controller
 
         return response()->json([
             'reservations' => $formattedInterventions,
-            'statistics' => [
+            'stats' => [
                 'pending' => $pendingCount,
                 'accepted' => $acceptedCount,
                 'completed' => $completedCount,
-                'total_earnings' => $totalEarnings,
-                'total_interventions' => $interventions->count(),
-                'completion_rate' => $interventions->count() > 0
-                    ? round(($completedCount / $interventions->count()) * 100, 1)
-                    : 0
+                'earnings' => $totalEarnings
             ]
         ]);
     }

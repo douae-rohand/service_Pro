@@ -8,144 +8,222 @@
 
     <!-- Profile Card -->
     <div class="profile-card">
-      <div class="card-header">
-        <h1>Mon Profil</h1>
-        <button v-if="!isEditing" @click="startEdit" class="edit-btn">
-          <Edit2 :size="16" />
-          Modifier
-        </button>
-        <div v-else class="button-group">
-          <button @click="saveEdit" class="save-btn">
-            <Check :size="16" />
-            Enregistrer
+      <div v-if="loading">
+        <!-- Card Header Skeleton -->
+        <div class="card-header">
+           <div class="skeleton-text w-32 h-8"></div>
+           <div class="skeleton-box w-24 h-9 rounded-lg"></div>
+        </div>
+
+        <div class="profile-section">
+           <!-- Avatar Skeleton -->
+           <div class="avatar-container">
+              <div class="avatar-wrapper">
+                 <div class="skeleton-box w-32 h-32 rounded-full"></div>
+              </div>
+           </div>
+           
+           <!-- Profile Details Skeleton -->
+           <div class="profile-details w-full">
+              <div class="skeleton-text w-48 h-8 mb-4"></div>
+              <div class="info-item">
+                 <div class="skeleton-box w-4 h-4 rounded mr-2"></div>
+                 <div class="skeleton-text w-64 h-5"></div>
+              </div>
+              <div class="info-item">
+                 <div class="skeleton-box w-4 h-4 rounded mr-2"></div>
+                 <div class="skeleton-text w-40 h-5"></div>
+              </div>
+              <div class="info-item">
+                 <div class="skeleton-box w-4 h-4 rounded mr-2"></div>
+                 <div class="skeleton-text w-56 h-5"></div>
+              </div>
+           </div>
+        </div>
+
+        <!-- Contact Info Skeleton -->
+        <div class="section">
+           <div class="skeleton-text w-48 h-6 mb-4"></div>
+           <div class="grid grid-cols-2 gap-4">
+              <div class="form-group">
+                 <div class="skeleton-text w-16 h-4 mb-2"></div>
+                 <div class="info-item border border-gray-100 p-3 rounded-lg">
+                    <div class="skeleton-box w-4 h-4 rounded mr-2"></div>
+                    <div class="skeleton-text w-full h-5"></div>
+                 </div>
+              </div>
+              <div class="form-group">
+                 <div class="skeleton-text w-24 h-4 mb-2"></div>
+                 <div class="info-item border border-gray-100 p-3 rounded-lg">
+                    <div class="skeleton-box w-4 h-4 rounded mr-2"></div>
+                    <div class="skeleton-text w-full h-5"></div>
+                 </div>
+              </div>
+           </div>
+        </div>
+
+        <!-- Professional Info Skeleton -->
+        <div class="section">
+           <div class="skeleton-text w-56 h-6 mb-4"></div>
+           <div class="form-group mb-6">
+              <div class="skeleton-text w-32 h-4 mb-3"></div>
+              <div class="services-list-view">
+                 <div v-for="n in 2" :key="n" class="service-item-view flex justify-between">
+                    <div class="skeleton-text w-32 h-5"></div>
+                    <div class="skeleton-box w-16 h-6 rounded-full"></div>
+                 </div>
+              </div>
+           </div>
+           <div class="form-group">
+              <div class="skeleton-text w-32 h-4 mb-2"></div>
+              <div class="skeleton-text w-full h-4 mb-2"></div>
+              <div class="skeleton-text w-full h-4 mb-2"></div>
+              <div class="skeleton-text w-3/4 h-4"></div>
+           </div>
+        </div>
+      </div>
+
+      <template v-else>
+        <div class="card-header">
+          <h1>Mon Profil</h1>
+          <button v-if="!isEditing" @click="startEdit" class="edit-btn">
+            <Edit2 :size="16" />
+            Modifier
           </button>
-          <button @click="cancelEdit" class="cancel-btn">
-            <X :size="16" />
-            Annuler
-          </button>
+          <div v-else class="button-group">
+            <button @click="saveEdit" class="save-btn" :disabled="isSavingProfile">
+              <span v-if="isSavingProfile" class="spinner inline-block w-4 h-4 mr-2 border-2 border-white rounded-full animate-spin border-t-transparent"></span>
+              <Check v-else :size="16" />
+              {{ isSavingProfile ? 'Enregistrement...' : 'Enregistrer' }}
+            </button>
+            <button @click="cancelEdit" class="cancel-btn" :disabled="isSavingProfile">
+              <X :size="16" />
+              Annuler
+            </button>
+          </div>
         </div>
-      </div>
 
-      <!-- Profile Image & Basic Info -->
-      <div class="profile-section">
-        <div class="avatar-container">
-          <div v-if="intervenant.profileImage" class="avatar-wrapper">
-            <img :src="intervenant.profileImage" :alt="formData.name" class="avatar" />
-            <div v-if="isEditing" class="avatar-upload">
-              <input 
-                type="file" 
-                ref="fileInput" 
-                @change="handleFileUpload" 
-                accept="image/*" 
-                style="display: none;"
-              />
-              <button @click="$refs.fileInput.click()" class="upload-btn">
-                <Camera :size="16" />
-                Changer
-              </button>
+        <!-- Profile Image & Basic Info -->
+        <div class="profile-section">
+          <div class="avatar-container">
+            <div v-if="intervenant.profileImage" class="avatar-wrapper">
+              <img :src="intervenant.profileImage" :alt="formData.name" class="avatar" />
+              <div v-if="isEditing" class="avatar-upload">
+                <input 
+                  type="file" 
+                  ref="fileInput" 
+                  @change="handleFileUpload" 
+                  accept="image/*" 
+                  style="display: none;"
+                />
+                <button @click="$refs.fileInput.click()" class="upload-btn" :disabled="isSavingProfile">
+                  <Camera :size="16" />
+                  Changer
+                </button>
+              </div>
+            </div>
+            <div v-else class="avatar-placeholder">
+              <User :size="48" />
+              <div v-if="isEditing" class="avatar-upload-placeholder">
+                <input 
+                  type="file" 
+                  ref="fileInput" 
+                  @change="handleFileUpload" 
+                  accept="image/*" 
+                  style="display: none;"
+                />
+                <button @click="$refs.fileInput.click()" class="upload-btn-placeholder" :disabled="isSavingProfile">
+                  <Camera :size="16" />
+                  Ajouter
+                </button>
+              </div>
             </div>
           </div>
-          <div v-else class="avatar-placeholder">
-            <User :size="48" />
-            <div v-if="isEditing" class="avatar-upload-placeholder">
-              <input 
-                type="file" 
-                ref="fileInput" 
-                @change="handleFileUpload" 
-                accept="image/*" 
-                style="display: none;"
-              />
-              <button @click="$refs.fileInput.click()" class="upload-btn-placeholder">
-                <Camera :size="16" />
-                Ajouter
-              </button>
+          <div class="profile-details">
+            <div v-if="isEditing" class="form-group">
+              <label>Adresse</label>
+              <input v-model="formData.address" type="text" placeholder="123 Rue Exemple" />
+            </div>
+            <div v-if="isEditing" class="form-group" style="margin-top: 10px;">
+              <label>Ville</label>
+              <input v-model="formData.ville" type="text" placeholder="Casablanca" />
+            </div>
+            <div v-else>
+              <h2>{{ formData.name }}</h2>
+              <div class="info-item">
+                <MapPin :size="16"/>
+                <span>{{ intervenant.address || 'Adresse non spécifiée' }}</span>
+              </div>
+              <div class="info-item">
+                <MapPin :size="16"/>
+                <span class="font-medium mr-1">Ville:</span>
+                <span>{{ intervenant.ville || 'Non spécifiée' }}</span>
+              </div>
+              <div class="info-item">
+                <Calendar :size="16" />
+                <span>Membre depuis {{ intervenant.memberSince }}</span>
+              </div>
             </div>
           </div>
         </div>
-        <div class="profile-details">
-          <div v-if="isEditing" class="form-group">
-            <label>Adresse</label>
-            <input v-model="formData.address" type="text" placeholder="123 Rue Exemple" />
-          </div>
-          <div v-if="isEditing" class="form-group" style="margin-top: 10px;">
-            <label>Ville</label>
-            <input v-model="formData.ville" type="text" placeholder="Casablanca" />
-          </div>
-          <div v-else>
-            <h2>{{ formData.name }}</h2>
-            <div class="info-item">
-              <MapPin :size="16" />
-              <span>{{ intervenant.address || 'Adresse non spécifiée' }}</span>
-            </div>
-            <div class="info-item">
-              <MapPin :size="16" class="opacity-0" />
-              <span class="font-medium mr-1">Ville:</span>
-              <span>{{ intervenant.ville || 'Non spécifiée' }}</span>
-            </div>
-            <div class="info-item">
-              <Calendar :size="16" />
-              <span>Membre depuis {{ intervenant.memberSince }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      <!-- Contact Information -->
-      <div class="section">
-        <h3>Informations de contact</h3>
-        <div class="grid grid-cols-2">
+        <!-- Contact Information -->
+        <div class="section">
+          <h3>Informations de contact</h3>
+          <div class="grid grid-cols-2">
+            <div class="form-group">
+              <label>Email</label>
+              <input v-if="isEditing" v-model="formData.email" type="email" />
+              <div v-else class="info-item">
+                <Mail :size="16" />
+                <span>{{ formData.email }}</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Téléphone</label>
+              <input v-if="isEditing" v-model="formData.phone" type="tel" />
+              <div v-else class="info-item">
+                <Phone :size="16" />
+                <span>{{ formData.phone }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Professional Information -->
+        <div class="section">
+          <h3>Informations professionnelles</h3>
           <div class="form-group">
-            <label>Email</label>
-            <input v-if="isEditing" v-model="formData.email" type="email" />
-            <div v-else class="info-item">
-              <Mail :size="16" />
-              <span>{{ formData.email }}</span>
+            <label>Expérience par Service</label>
+            
+            <!-- Edit Mode: List of services with inputs -->
+            <div v-if="isEditing" class="services-list-edit">
+              <div v-for="(service, index) in formData.services" :key="service.id" class="service-item-edit">
+                  <span class="service-name">{{ service.nom_service }}</span>
+                  <div class="experience-input-group">
+                      <input v-model="service.experience" type="number" step="0.5" min="0" />
+                      <span class="unit">ans</span>
+                  </div>
+              </div>
+              <p v-if="formData.services.length === 0" class="no-services">Aucun service actif.</p>
+            </div>
+
+            <!-- View Mode: List of services with experience badges -->
+            <div v-else class="services-list-view">
+              <div v-for="service in intervenant.services" :key="service.id" class="service-item-view">
+                  <span class="service-name-view">{{ service.nom_service }}</span>
+                  <span class="experience-badge">{{ formatExperience(service.pivot?.experience) }}</span>
+              </div>
+               <p v-if="!intervenant.services || intervenant.services.length === 0" class="no-services">Aucun service actif.</p>
             </div>
           </div>
           <div class="form-group">
-            <label>Téléphone</label>
-            <input v-if="isEditing" v-model="formData.phone" type="tel" />
-            <div v-else class="info-item">
-              <Phone :size="16" />
-              <span>{{ formData.phone }}</span>
-            </div>
+            <label>Bio / Description</label>
+            <textarea v-if="isEditing" v-model="formData.bio" rows="3"></textarea>
+            <p v-else>{{ formData.bio }}</p>
           </div>
         </div>
-      </div>
-
-      <!-- Professional Information -->
-      <div class="section">
-        <h3>Informations professionnelles</h3>
-        <div class="form-group">
-          <label>Expérience par Service</label>
-          
-          <!-- Edit Mode: List of services with inputs -->
-          <div v-if="isEditing" class="services-list-edit">
-            <div v-for="(service, index) in formData.services" :key="service.id" class="service-item-edit">
-                <span class="service-name">{{ service.nom_service }}</span>
-                <div class="experience-input-group">
-                    <input v-model="service.experience" type="number" step="0.5" min="0" />
-                    <span class="unit">ans</span>
-                </div>
-            </div>
-            <p v-if="formData.services.length === 0" class="no-services">Aucun service actif.</p>
-          </div>
-
-          <!-- View Mode: List of services with experience badges -->
-          <div v-else class="services-list-view">
-            <div v-for="service in intervenant.services" :key="service.id" class="service-item-view">
-                <span class="service-name-view">{{ service.nom_service }}</span>
-                <span class="experience-badge">{{ formatExperience(service.pivot?.experience) }}</span>
-            </div>
-             <p v-if="!intervenant.services || intervenant.services.length === 0" class="no-services">Aucun service actif.</p>
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Bio / Description</label>
-          <textarea v-if="isEditing" v-model="formData.bio" rows="3"></textarea>
-          <p v-else>{{ formData.bio }}</p>
-        </div>
-      </div>
+      </template>
     </div>
   </div>
 </template>
@@ -156,6 +234,7 @@ import { Edit2, Check, X, MapPin, Phone, Mail, Calendar, Camera, User } from 'lu
 import authService from '@/services/authService'
 import intervenantService from '@/services/intervenantService' // Import intervenantService
 import api from '@/services/api' // Import api for direct put if needed
+import SkeletonLoader from './SkeletonLoader.vue'
 
 const intervenant = ref({
   id: null,
@@ -170,10 +249,13 @@ const intervenant = ref({
   services: [] // Add services array
 })
 
+const emit = defineEmits(['profile-updated'])
+
 const loading = ref(true)
 const isEditing = ref(false)
 const showSuccessMessage = ref(false)
 const selectedFile = ref(null)
+const isSavingProfile = ref(false)
 
 const formData = ref({
   name: '',
@@ -273,6 +355,9 @@ const startEdit = () => {
 }
 
 const saveEdit = async () => {
+  if (isSavingProfile.value) return 
+
+  isSavingProfile.value = true
   try {
     // 1. Save Profile Photo & Basic Info (Phone, Bio, Address, Ville)
     // We need to send both address and ville. authService.updateProfile might need to be checked if it handles separate fields.
@@ -320,6 +405,7 @@ const saveEdit = async () => {
     if (selectedFile.value) {
          const photoData = new FormData();
          photoData.append('profile_photo', selectedFile.value);
+         photoData.append('_method', 'PUT');
          // Assuming this endpoint exists and works for photo
          await authService.updateProfile(photoData); 
     }
@@ -334,6 +420,7 @@ const saveEdit = async () => {
     });
 
     await fetchCurrentUser()
+    emit('profile-updated')
     
     selectedFile.value = null
     isEditing.value = false
@@ -344,10 +431,13 @@ const saveEdit = async () => {
   } catch (error) {
     console.error('Error updating profile:', error)
     alert('Erreur lors de la mise à jour du profil')
+  } finally {
+    isSavingProfile.value = false
   }
 }
 
 const cancelEdit = () => {
+  if (isSavingProfile.value) return
   selectedFile.value = null
   fetchCurrentUser()
   isEditing.value = false
@@ -378,6 +468,26 @@ const formatExperience = (value) => {
 </script>
 
 <style scoped>
+/* Skeleton Styles */
+.skeleton-item {
+  border-color: #e5e7eb !important;
+  background-color: #ffffff !important;
+  pointer-events: none;
+}
+.skeleton-box {
+  background-color: #f3f4f6;
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+.skeleton-text {
+  background-color: #f3f4f6;
+  border-radius: 4px;
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 .profile-container {
   max-width: 80rem;
 }
@@ -510,60 +620,68 @@ const formatExperience = (value) => {
 
 .avatar-upload-placeholder {
   position: absolute;
-  bottom: 0;
-  right: 0;
+  bottom: -10px;
+  right: -10px;
   background: var(--color-primary-green);
-  border-radius: 50%;
-  padding: 0.25rem;
+  border-radius: 9999px;
+  padding: 0.25rem 0.75rem;
   border: 2px solid white;
   box-shadow: var(--shadow-md);
+  min-width: max-content;
 }
 
 .upload-btn-placeholder {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.5rem;
+  gap: 0.375rem;
+  padding: 0;
   background: transparent;
   color: white;
   border: none;
-  border-radius: 50%;
+  border-radius: 9999px;
   cursor: pointer;
   transition: background-color 0.2s;
   font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .upload-btn-placeholder:hover {
-  background-color: #A5C09E;
+  opacity: 0.9;
 }
 
 .avatar-upload {
   position: absolute;
-  bottom: 0;
-  right: 0;
+  bottom: -10px;
+  right: -10px;
   background: var(--color-primary-green);
-  border-radius: 50%;
-  padding: 0.25rem;
+  border-radius: 9999px;
+  padding: 0.25rem 0.75rem;
   border: 2px solid white;
   box-shadow: var(--shadow-md);
+  min-width: max-content;
 }
 
 .upload-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.5rem;
+  gap: 0.375rem;
+  padding: 0;
   background: transparent;
   color: white;
   border: none;
-  border-radius: 50%;
+  border-radius: 9999px;
   cursor: pointer;
   transition: background-color 0.2s;
   font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .upload-btn:hover {
-  background-color: #A5C09E;
+  opacity: 0.9;
 }
 
 .profile-details {

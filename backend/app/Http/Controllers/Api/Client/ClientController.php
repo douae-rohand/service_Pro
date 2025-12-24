@@ -151,7 +151,7 @@ class ClientController extends Controller
         $intervention = Intervention::with('client.utilisateur')->findOrFail($interventionId);
         $clientId = $intervention->client_id;
         $client = $intervention->client;
-        
+
         $currentUser = Auth::user();
         $intervenant = $currentUser->intervenant;
 
@@ -159,23 +159,26 @@ class ClientController extends Controller
             return response()->json(['message' => 'Accès refusé'], 403);
         }
 
-        // Helper to find public intervention IDs for this client
-        // Rule: Only public if BOTH parties have rated OR 7 days have passed (Logic centralized in model)
+        // Get public intervention IDs for this client
+        // Only interventions where evaluations are marked as public
         $publicInterventionIds = Intervention::where('client_id', $clientId)
             ->where('status', 'termine')
-            ->get()
-            ->filter(function($i) {
-                return $i->areRatingsPublic();
+            ->whereHas('evaluations', function ($q) {
+                $q->where('is_public', true);
             })
             ->pluck('id');
 
         // Get ALL past interventions for this client from ALL intervenants
         $pastInterventions = Intervention::where('client_id', $clientId)
             ->where('status', 'termine')
-            ->with(['tache.service', 'intervenant.utilisateur', 'evaluations' => function($q) {
-                // We only want the ratings given BY the intervenant to the client
-                $q->where('type_auteur', 'intervenant');
-            }])
+            ->with([
+                'tache.service',
+                'intervenant.utilisateur',
+                'evaluations' => function ($q) {
+                    // We only want the ratings given BY the intervenant to the client
+                    $q->where('type_auteur', 'intervenant');
+                }
+            ])
             ->orderBy('date_intervention', 'desc')
             ->get()
             ->filter(function ($i) use ($publicInterventionIds) {
@@ -186,15 +189,15 @@ class ClientController extends Controller
             ->map(function ($i) use ($publicInterventionIds, $intervenant) {
                 $isPublic = true; // By definition, since we filtered above
                 $isMine = $i->intervenant_id === $intervenant->id;
-                
+
                 // Get the ratings given by the intervenant for this specific intervention
-                $ratings = $i->evaluations->map(function($e) {
+                $ratings = $i->evaluations->map(function ($e) {
                     return [
                         'criteria' => $e->critaire->nom_critaire,
                         'note' => $e->note
                     ];
                 });
-                
+
                 $ratingAvg = $i->evaluations->avg('note') ?? 0;
 
                 return [
@@ -242,15 +245,15 @@ class ClientController extends Controller
             ->whereIn('intervention.id', $publicInterventionIds)
             ->where('commentaire.type_auteur', 'intervenant')
             ->select(
-                'commentaire.commentaire', 
-                'commentaire.created_at', 
+                'commentaire.commentaire',
+                'commentaire.created_at',
                 'intervention.date_intervention',
                 'utilisateur.nom',
                 'utilisateur.prenom'
             )
             ->orderBy('intervention.date_intervention', 'desc')
             ->get()
-            ->map(function($comment) {
+            ->map(function ($comment) {
                 return [
                     'commentaire' => $comment->commentaire,
                     'date_intervention' => $comment->date_intervention,
@@ -266,7 +269,7 @@ class ClientController extends Controller
                 'phone' => $client->utilisateur->numTel ?? 'Non renseigné',
                 'address' => $client->address ?? 'Non renseignée',
                 'ville' => $client->ville ?? 'Non renseignée',
-                'photo' => $client->utilisateur->profilePicture ?? 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop',
+                'photo' => $client->utilisateur->profile_photo ?? 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop',
                 'member_since' => $client->created_at
             ],
             'rating_summary' => [
@@ -285,28 +288,28 @@ class ClientController extends Controller
     public function getFavorites($id)
     {
         $client = Client::findOrFail($id);
-        
+
         $favorites = $client->intervenantsFavoris()
             ->with([
                 'utilisateur',
                 'services',
                 'taches.service',
-                'interventions' => function($query) use ($id) {
+                'interventions' => function ($query) use ($id) {
                     $query->where('client_id', $id);
                 }
             ])
             ->get();
 
         // Transform data for frontend
-        $favoritesData = $favorites->map(function($intervenant) use ($id) {
+        $favoritesData = $favorites->map(function ($intervenant) use ($id) {
             $clientInterventions = $intervenant->interventions;
             $lastIntervention = $clientInterventions->sortByDesc('date_intervention')->first();
-            
+
             // Calculate average rating
-            $evaluations = \App\Models\Evaluation::whereHas('intervention', function($query) use ($intervenant) {
+            $evaluations = \App\Models\Evaluation::whereHas('intervention', function ($query) use ($intervenant) {
                 $query->where('intervenant_id', $intervenant->id);
             })->where('type_auteur', 'client')->get();
-            
+
             $averageRating = null;
             $totalReviews = 0;
             if ($evaluations->count() > 0) {
@@ -316,7 +319,7 @@ class ClientController extends Controller
 
             // Get services offered
             $services = $intervenant->services->pluck('nom_service')->toArray();
-            
+
             // Get hourly rate (from intervenant_tache)
             $hourlyRate = null;
             if ($intervenant->taches->count() > 0) {

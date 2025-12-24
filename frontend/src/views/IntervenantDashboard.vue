@@ -5,7 +5,7 @@
       <!-- Sidebar Header -->
       <div class="sidebar-header">
         <div class="sidebar-header-content">
-          <h2 class="brand">Verde Net</h2>
+          <img :src="logo" alt="Verde Net" class="sidebar-logo" />
           <button @click="isSidebarOpen = false" class="close-btn">
             <X :size="20" />
           </button>
@@ -90,7 +90,7 @@
 
       <!-- Tab Content -->
       <main class="content">
-        <router-view />
+        <router-view @profile-updated="fetchCurrentUser" />
       </main>
     </div>
   </div>
@@ -101,6 +101,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Menu, X, User, LogOut, Briefcase, Calendar, Star, ClipboardList, History, MessageCircle } from 'lucide-vue-next'
 import authService from '@/services/authService'
+import logo from '@/assets/logo.png'
 
 const route = useRoute()
 const router = useRouter()
@@ -231,13 +232,14 @@ const handleLogout = async () => {
 .sidebar-header-content {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
+  position: relative;
 }
 
-.brand {
-  font-size: 1.5rem;
-  color: var(--color-primary-green);
-  margin: 0;
+.sidebar-logo {
+  height: 6rem;
+  width: auto;
+  object-fit: contain;
 }
 
 .close-btn {
@@ -251,10 +253,19 @@ const handleLogout = async () => {
   background-color: var(--color-gray-100);
 }
 
+.close-btn {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
 .sidebar-subtitle {
-  font-size: 0.875rem;
+  font-size: 1rem;
+  font-weight: bold;
+  text-align: center;
   color: var(--color-gray-600);
-  margin-top: var(--spacing-1);
+  margin-top: var(--spacing-2);
 }
 
 .nav {

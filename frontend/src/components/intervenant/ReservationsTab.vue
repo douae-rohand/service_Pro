@@ -5,29 +5,43 @@
       {{ error }}
     </div>
 
-    <!-- Loading State -->
-    <div v-if="loading" class="loading-state">
-      <p>Chargement des réservations...</p>
-    </div>
+    <!-- Loading State removed (using granular skeleton) -->
 
     <!-- Stats -->
-    <div v-if="!loading" class="stats-grid">
-      <div class="stat-card stat-orange">
+    <div class="stats-grid">
+      <!-- Pending Stat -->
+      <div v-if="loading" class="stat-card skeleton-item border-l-4 border-orange-400">
+        <div class="skeleton-text w-24 h-4 mb-2"></div>
+        <div class="skeleton-text w-12 h-8"></div>
+      </div>
+      <div v-else class="stat-card stat-orange">
         <p class="stat-label">En Attente</p>
         <p class="stat-value">{{ pendingCount }}</p>
       </div>
-      <div class="stat-card stat-green">
+
+      <!-- Accepted Stat -->
+      <div v-if="loading" class="stat-card skeleton-item border-l-4 border-green-500">
+        <div class="skeleton-text w-24 h-4 mb-2"></div>
+        <div class="skeleton-text w-12 h-8"></div>
+      </div>
+      <div v-else class="stat-card stat-green">
         <p class="stat-label">Acceptées</p>
         <p class="stat-value">{{ acceptedCount }}</p>
       </div>
-      <div class="stat-card stat-blue">
+
+      <!-- Completed Stat -->
+      <div v-if="loading" class="stat-card skeleton-item border-l-4 border-blue-500">
+        <div class="skeleton-text w-24 h-4 mb-2"></div>
+        <div class="skeleton-text w-12 h-8"></div>
+      </div>
+      <div v-else class="stat-card stat-blue">
         <p class="stat-label">Complétées</p>
         <p class="stat-value">{{ completedCount }}</p>
       </div>
     </div>
 
     <!-- Reservations Card -->
-    <div v-if="!loading" class="card">
+    <div class="card">
       <h1>Gérer mes réservations</h1>
       <p class="subtitle">Acceptez ou refusez les demandes de réservation de vos clients</p>
 
@@ -49,7 +63,17 @@
       </div>
 
       <!-- Service Filter Bar -->
-      <div class="filter-bar" v-if="allServices.length > 0">
+      <!-- Service Filter Bar -->
+      <div v-if="loading" class="filter-bar skeleton-item justify-start gap-4">
+        <div class="skeleton-box w-6 h-6 rounded-md"></div>
+        <div class="skeleton-text w-32 h-5"></div>
+        <div class="flex gap-2 ml-4">
+           <div class="skeleton-text w-24 h-8 rounded-full"></div>
+           <div class="skeleton-text w-24 h-8 rounded-full"></div>
+           <div class="skeleton-text w-24 h-8 rounded-full"></div>
+        </div>
+      </div>
+      <div v-else-if="allServices.length > 0" class="filter-bar">
         <div class="filter-label">
           <Package :size="16" />
           <span>Filtrer par service :</span>
@@ -75,7 +99,42 @@
       </div>
 
       <!-- Reservations List -->
-      <TransitionGroup name="list" tag="div" class="reservations-list">
+      <div v-if="loading" class="reservations-list">
+        <div v-for="n in 3" :key="n" class="reservation-card skeleton-item">
+           <div class="reservation-content">
+             <!-- Client Info Skeleton -->
+             <div class="client-info">
+               <div class="skeleton-box w-12 h-12 rounded-full"></div>
+               <div class="w-full">
+                 <div class="skeleton-text w-32 h-5 mb-2"></div>
+                 <div class="flex gap-2">
+                   <div class="skeleton-text w-20 h-4"></div>
+                   <div class="skeleton-text w-24 h-4"></div>
+                 </div>
+               </div>
+             </div>
+             
+             <!-- Details Skeleton -->
+             <div class="reservation-details">
+               <div class="reservation-header justify-end mb-4">
+                  <div class="flex gap-2">
+                    <div class="skeleton-box w-24 h-9 rounded-lg"></div>
+                    <div class="skeleton-box w-24 h-9 rounded-lg"></div>
+                  </div>
+               </div>
+               
+               <div class="details-grid">
+                 <div class="detail-item"><div class="skeleton-text w-24 h-6"></div></div>
+                 <div class="detail-item"><div class="skeleton-text w-32 h-6"></div></div>
+                 <div class="detail-item"><div class="skeleton-text w-40 h-6"></div></div>
+                 <div class="detail-item"><div class="skeleton-text w-20 h-6"></div></div>
+               </div>
+             </div>
+           </div>
+        </div>
+      </div>
+
+      <TransitionGroup v-else name="list" tag="div" class="reservations-list">
         <div
           v-for="reservation in filteredReservations"
           :key="reservation.id"
@@ -99,13 +158,13 @@
               <div class="reservation-header">
                 <!-- Actions for Pending -->
                 <div v-if="selectedTab === 'pending'" class="action-buttons">
-                  <button @click="acceptReservation(reservation.id)" class="accept-btn">
+                  <button @click="handleAcceptReservation(reservation.id)" class="accept-btn">
                     <Check :size="18" />
                     Accepter
                   </button>
                   <button @click="refuseReservation(reservation.id)" class="refuse-btn">
                     <X :size="18" />
-                    Reyyfuser
+                    Refuser
                   </button>
                 </div>
 
@@ -114,10 +173,10 @@
                   <span class="status-badge status-completed">
                     Terminée
                   </span>
-                  <button @click="generateInvoice(reservation.id)" class="invoice-btn">
-                    <FileText :size="16" />
-                    Facture
-                  </button>
+<!--                  <button @click="generateInvoice(reservation.id)" class="invoice-btn">-->
+<!--                    <FileText :size="16" />-->
+<!--                    Facture-->
+<!--                  </button>-->
 
                   <!-- View both evaluations (public) - HIGHEST PRIORITY -->
                   <button 
@@ -131,22 +190,24 @@
                   
                   <!-- Can rate -->
                   <button 
-                    v-else-if="reservation.evaluationStatus === 'can_rate'" 
+                    v-if="reservation.evaluationStatus === 'can_rate' || reservation.evaluationStatus === 'unknown'"
                     @click="openRatingModal(reservation)" 
                     class="rating-btn"
+                    :disabled="openingRatingId === reservation.id"
                   >
                     <Star :size="16" />
-                    Évaluer
+                    <span v-if="openingRatingId === reservation.id" class="spinner" style="width: 1rem; height: 1rem; border-width: 2px;"></span>
+                    <span v-else>Évaluer</span>
                   </button>
-                  
-                  <!-- View own evaluation (waiting for client) -->
                   <button 
-                    v-else-if="reservation.evaluationStatus === 'view_only'" 
+                    v-else-if="reservation.evaluationStatus === 'view_only' && !reservation.canViewPublic" 
                     @click="openRatingModal(reservation)" 
                     class="rating-btn"
+                    :disabled="openingRatingId === reservation.id"
                   >
                     <Star :size="16" />
-                    Voir mon évaluation
+                    <span v-if="openingRatingId === reservation.id" class="spinner" style="width: 1rem; height: 1rem; border-width: 2px;"></span>
+                    <span v-else>Voir mon évaluation</span>
                   </button>
                   
                   <!-- Expired -->
@@ -154,14 +215,32 @@
                     Période expirée
                   </span>
                 </div>
+                
+                  <!-- Past Complaints Button (Only if completed) -->
+                  <div v-if="selectedTab === 'completed'" class="completed-actions">
+                    <button 
+                      @click="openComplaintModal(reservation)" 
+                      class="complaint-btn"
+                    >
+                      <Flag :size="16" />
+                      Réclamer
+                    </button>
+                    <button 
+                      @click="openPastComplaintsModal(reservation)" 
+                      class="past-complaints-btn"
+                    >
+                      <History :size="16" />
+                      Réclamations passées
+                    </button>
+                  </div>
                 <div v-else-if="selectedTab === 'accepted'" class="accepted-actions">
                   <span class="status-badge status-accepted">
                     Confirmée
                   </span>
-                  <button @click="generateInvoice(reservation.id)" class="invoice-btn">
-                    <FileText :size="16" />
-                    Facture
-                  </button>
+<!--                  <button @click="generateInvoice(reservation.id)" class="invoice-btn">-->
+<!--                    <FileText :size="16" />-->
+<!--                    Facture-->
+<!--                  </button>-->
                 </div>
                 <span v-else-if="selectedTab === 'refused'" class="status-badge status-refused">
                   Refusée
@@ -176,7 +255,9 @@
                 </div>
                 <div class="detail-item">
                   <Clock :size="18" class="icon-green" />
-                  <span>{{ reservation.time }} • {{ reservation.duration }}</span>
+                  <span v-if="reservation.time && reservation.time !== 'N/A'">{{ reservation.time }}</span>
+                  <span v-else>Non défini</span>
+                  <span v-if="reservation.duration && reservation.duration !== 'N/A'"> • {{ reservation.duration }}</span>
                 </div>
                 <div class="detail-item">
                   <MapPin :size="18" class="icon-red" />
@@ -237,7 +318,7 @@
         </div>
       </TransitionGroup>
 
-      <div v-if="filteredReservations.length === 0" class="empty-state">
+      <div v-if="!loading && filteredReservations.length === 0" class="empty-state">
         <p>Aucune réservation {{ 
           selectedTab === 'pending' ? 'en attente' : 
           selectedTab === 'accepted' ? 'acceptée' : 
@@ -255,6 +336,195 @@
       @rating-submitted="onRatingSubmitted"
     />
     
+    <!-- Complaint Modal -->
+    <div v-if="showComplaintModal" class="modal-overlay" @click="closeComplaintModal">
+      <div class="complaint-modal-content" @click.stop>
+        <div class="complaint-modal-header">
+          <h2 class="complaint-modal-title">
+            <Flag :size="20" />
+            Réclamation sur intervention
+          </h2>
+          <button @click="closeComplaintModal" class="modal-close-btn">×</button>
+        </div>
+        
+        <div class="complaint-modal-body">
+          <!-- Intervention Information -->
+          <div class="intervention-info">
+            <h4 class="info-title">Informations de l'intervention</h4>
+            <div class="info-grid">
+              <div class="info-item">
+                <span class="info-label">Service :</span>
+                <span class="info-value">{{ selectedReservation?.service || '-' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Sous-service :</span>
+                <span class="info-value">{{ selectedReservation?.task || '-' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Client concerné :</span>
+                <span class="info-value">{{ selectedReservation?.clientName || '-' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Date :</span>
+                <span class="info-value">{{ selectedReservation ? formatDate(selectedReservation.date) : '-' }}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="complaint-form">
+            <div class="form-group">
+              <label class="form-label">Raison de la réclamation *</label>
+              <input 
+                v-model="complaintForm.raison" 
+                type="text" 
+                class="form-input"
+                placeholder="Ex: Problème de paiement, comportement inapproprié..."
+                required
+              />
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Priorité *</label>
+              <select 
+                v-model="complaintForm.priorite" 
+                class="form-select"
+                required
+              >
+                <option value="">Sélectionner une priorité</option>
+                <option value="basse">Basse</option>
+                <option value="moyenne">Moyenne</option>
+                <option value="haute">Haute</option>
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Sujet de la réclamation *</label>
+              <textarea 
+                v-model="complaintForm.sujet" 
+                class="form-textarea"
+                rows="4"
+                placeholder="Décrivez en détail le problème rencontré..."
+                required
+              ></textarea>
+            </div>
+          </div>
+        </div>
+        
+        <div class="complaint-modal-footer">
+          <button 
+            @click="closeComplaintModal" 
+            class="btn-cancel"
+            :disabled="isSubmittingComplaint"
+          >
+            Annuler
+          </button>
+          <button 
+            @click="submitComplaint" 
+            class="btn-submit"
+            :disabled="isSubmittingComplaint || !isComplaintFormValid"
+          >
+            <span v-if="isSubmittingComplaint" class="spinner"></span>
+            {{ isSubmittingComplaint ? 'Envoi en cours...' : 'Envoyer la réclamation' }}
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Past Complaints Modal -->
+    <div v-if="showPastComplaintsModal" class="modal-overlay" @click="closePastComplaintsModal">
+      <div class="complaint-modal-content" @click.stop>
+        <div class="complaint-modal-header">
+          <h2 class="complaint-modal-title">
+            <History :size="20" />
+            Réclamations passées
+          </h2>
+          <button @click="closePastComplaintsModal" class="modal-close-btn">×</button>
+        </div>
+        
+        <div class="complaint-modal-body">
+          <!-- Intervention Info Header -->
+          <div class="intervention-info">
+            <h4 class="info-title">Informations de l'intervention</h4>
+            <div class="info-grid">
+              <div class="info-item">
+                <span class="info-label">Service :</span>
+                <span class="info-value">{{ selectedReservation?.service || '-' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Sous-service :</span>
+                <span class="info-value">{{ selectedReservation?.task || '-' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Client :</span>
+                <span class="info-value">{{ selectedReservation?.clientName || '-' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Date :</span>
+                <span class="info-value">{{ selectedReservation ? formatDate(selectedReservation.date) : '-' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="isLoadingPastComplaints" class="loading-state">
+            Chargement des réclamations...
+          </div>
+          <div v-else-if="pastComplaints.length === 0" class="empty-state-small">
+            <p>Aucune réclamation passée pour cette intervention.</p>
+          </div>
+          <div v-else class="past-complaints-list">
+            <div v-for="complaint in pastComplaints" :key="complaint.id" class="complaint-card">
+              <div class="complaint-card-header">
+                <span class="complaint-date">
+                  <Calendar :size="14" />
+                  {{ formatDate(complaint.created_at) }}
+                </span>
+                <span 
+                  class="status-badge"
+                  :class="{
+                    'status-pending': complaint.statut === 'en_attente',
+                    'status-processing': complaint.statut === 'en_cours',
+                    'status-resolved': complaint.statut === 'resolue',
+                    'status-rejected': complaint.statut === 'rejete' || complaint.statut === 'rejeter'
+                  }"
+                >
+                  {{ formatStatus(complaint.statut) }}
+                </span>
+              </div>
+              
+              <div class="complaint-card-body">
+                <div class="complaint-row">
+                  <span class="row-label">Raison:</span>
+                  <span class="row-value">{{ complaint.raison }}</span>
+                </div>
+                <div class="complaint-row">
+                  <span class="row-label">Priorité:</span>
+                  <span class="priority-badge" :class="complaint.priorite">
+                    {{ complaint.priorite }}
+                  </span>
+                </div>
+                <div class="complaint-message-box">
+                  <span class="row-label">Message:</span>
+                  <p class="message-text">{{ complaint.message }}</p>
+                </div>
+              </div>
+
+              <div v-if="complaint.reponse_admin" class="admin-response-box">
+                 <div class="admin-header">
+                   <MessageSquare :size="14" />
+                   <strong>Réponse Admin</strong>
+                 </div>
+                 <p class="response-text">{{ complaint.reponse_admin }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="complaint-modal-footer">
+          <button @click="closePastComplaintsModal" class="btn-cancel">Fermer</button>
+        </div>
+      </div>
+    </div>
+    
     <!-- Client Profile Modal -->
     <ClientProfileModal
       :show="showClientProfile"
@@ -266,7 +536,11 @@
     <!-- Public Evaluations Modal -->
     <div v-if="showPublicModal" class="modal-overlay" @click="closePublicModal">
       <div class="public-modal-content" @click.stop>
-        <div class="public-modal-body" v-if="selectedReservation?.publicData">
+        <div v-if="isLoadingPublicData" class="loading-state py-12 text-center text-gray-500">
+           <span class="spinner inline-block w-8 h-8 text-blue-500 border-4 border-gray-200 border-t-blue-500 mb-4"></span>
+           <p>Chargement de l'évaluation...</p>
+        </div>
+        <div class="public-modal-body" v-else-if="selectedReservation?.publicData">
           <h2 class="public-modal-title">Évaluations Mutuelles</h2>
           
           <div class="evaluations-grid">
@@ -311,10 +585,10 @@
           
           <div class="visibility-info">
             <p v-if="selectedReservation.publicData.both_parties_voted">
-              ✅ Les deux parties ont évalué
+              Les deux parties ont évalué
             </p>
             <p v-else-if="selectedReservation.publicData.window_passed">
-              ⏰ Délai de 7 jours expiré
+              Délai de 7 jours expiré
             </p>
           </div>
           
@@ -324,7 +598,7 @@
         </div>
 
         <!-- Empty State -->
-        <div v-if="filteredReservations.length === 0" class="empty-state">
+        <div v-if="!loading && filteredReservations.length === 0" class="empty-state">
           <div class="empty-icon">
             <Clock :size="48" v-if="selectedTab === 'pending'" />
             <Calendar :size="48" v-else />
@@ -359,61 +633,62 @@
         <button @click="notification = null" class="notif-close">×</button>
       </div>
     </Transition>
+
+    <!-- Refuse Confirmation Modal -->
+    <div v-if="showRefuseModal" class="modal-overlay" @click.self="showRefuseModal = false">
+      <div class="confirmation-modal">
+        <div class="modal-header">
+          <h3 class="modal-title text-red">Refuser la réservation</h3>
+          <button @click="showRefuseModal = false" class="modal-close-btn">×</button>
+        </div>
+        <div class="modal-body">
+          <p>Êtes-vous sûr de vouloir refuser cette réservation ?</p>
+          <p class="warning-text">Cette action est irréversible.</p>
+        </div>
+        <div class="modal-footer">
+          <button @click="showRefuseModal = false" class="btn-secondary">Annuler</button>
+          <button @click="confirmRefusal" class="btn-danger">Refuser</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading Modal -->
+    <LoadingModal :show="showLoadingModal" :message="loadingMessage" />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { Check, X, Clock, MapPin, Calendar, MessageSquare, Coins, Package, Star, Mail, AlertTriangle, FileText } from 'lucide-vue-next'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { Check, X, Clock, MapPin, Calendar, MessageSquare, Coins, Package, Star, Mail, AlertTriangle, FileText, Flag, History } from 'lucide-vue-next'
 // ... existing imports ...
 
-const showRefuseModal = ref(false)
-const refusalId = ref(null)
-// ... existing refs ...
-
-const refuseReservation = (id) => {
-  refusalId.value = id
-  showRefuseModal.value = true
-}
-
-const confirmRefusal = async () => {
-  if (!refusalId.value) return
-
-  try {
-    await reservationService.refuseReservation(refusalId.value)
-
-    // Optimistic Update
-    const index = reservations.value.findIndex(r => r.id === refusalId.value)
-    if (index !== -1) {
-      reservations.value[index].status = 'refused'
-    }
-  } catch (err) {
-    alert(err.message || 'Erreur lors du refus de la réservation')
-    console.error(err)
-  } finally {
-    closeRefuseModal()
-  }
-}
-
-const closeRefuseModal = () => {
-  showRefuseModal.value = false
-  refusalId.value = null
-}
 
 import reservationService from '@/services/intervenantReservationService'
 import evaluationService from '@/services/evaluationService'
 import api from '@/services/api'
+import reservationSSEService from '@/services/reservationSSEService'
 import ClientRatingModal from './ClientRatingModal.vue'
 import ClientProfileModal from './ClientProfileModal.vue'
 import InterventionDetailsModal from './InterventionDetailsModal.vue'
+import LoadingModal from './LoadingModal.vue'
+import SkeletonLoader from './SkeletonLoader.vue'
 
 const selectedTab = ref('pending')
 const reservations = ref([])
-const loading = ref(false)
+const loading = ref(true)
 const error = ref(null)
 const showRatingModal = ref(false)
 const selectedReservation = ref(null)
+const showComplaintModal = ref(false)
+const isSubmittingComplaint = ref(false)
+const complaintForm = ref({
+  raison: '',
+  priorite: '',
+  sujet: '',
+  intervention_id: null
+})
 const showPublicModal = ref(false)
+const isLoadingPublicData = ref(false)
 const showClientProfile = ref(false)
 const selectedClientId = ref(null)
 const selectedService = ref('all')
@@ -421,6 +696,15 @@ const allServices = ref([])
 const showDetailsModal = ref(false)
 const selectedInterventionId = ref(null)
 const notification = ref(null)
+const showLoadingModal = ref(false)
+const loadingMessage = ref('')
+const showRefuseModal = ref(false)
+const refusalId = ref(null)
+
+// Variables pour les réclamations passées
+const showPastComplaintsModal = ref(false)
+const pastComplaints = ref([])
+const isLoadingPastComplaints = ref(false)
 
 const fetchAllServices = async () => {
   try {
@@ -436,16 +720,20 @@ const fetchAllServices = async () => {
 
 const filteredReservations = computed(() => {
   return reservations.value.filter(r => {
-    const matchesTab = r.status === selectedTab.value
+    // Fix: Backend returns 'rejected', but tab is 'refused'
+    const statusMatch = selectedTab.value === 'refused' 
+      ? (r.status === 'rejected' || r.status === 'refused')
+      : r.status === selectedTab.value
+      
     const matchesService = selectedService.value === 'all' || r.service === selectedService.value
-    return matchesTab && matchesService
+    return statusMatch && matchesService
   })
 })
 
 const pendingCount = computed(() => reservations.value.filter(r => r.status === 'pending').length)
 const acceptedCount = computed(() => reservations.value.filter(r => r.status === 'accepted').length)
 const completedCount = computed(() => reservations.value.filter(r => r.status === 'completed').length)
-const refusedCount = computed(() => reservations.value.filter(r => r.status === 'refused').length)
+const refusedCount = computed(() => reservations.value.filter(r => r.status === 'rejected' || r.status === 'refused').length)
 
 const tabs = computed(() => [
   { id: 'pending', label: 'En Attente', color: '#E8793F', count: pendingCount.value },
@@ -464,8 +752,15 @@ const formatDate = (dateStr) => {
 }
 
 const calculateTotal = (reservation) => {
-  const hours = parseInt(reservation.duration)
-  return reservation.hourlyRate * hours
+  const hours = parseFloat(reservation.duration_hours || reservation.duration || 0)
+  const laborTotal = reservation.hourlyRate * hours
+  
+  // Sum material prices (intervenant materials only)
+  const materialTotal = (reservation.intervenantMaterials || []).reduce((sum, mat) => {
+    return sum + (parseFloat(mat.prix_materiel) || 0)
+  }, 0)
+  
+  return (laborTotal + materialTotal).toFixed(2)
 }
 
 const fetchReservations = async (silent = false) => {
@@ -477,20 +772,8 @@ const fetchReservations = async (silent = false) => {
     const response = await reservationService.getMyReservations()
     const fetchedReservations = response.reservations || []
     
-    // Check evaluation status for completed reservations
-    for (const reservation of fetchedReservations) {
-      if (reservation.status === 'completed') {
-        try {
-          const statusData = await evaluationService.canRateClient(reservation.id)
-          reservation.evaluationStatus = statusData.status
-          reservation.canViewPublic = statusData.is_public === true
-        } catch (err) {
-          console.error('Error checking evaluation status:', err)
-          reservation.evaluationStatus = 'unknown'
-          reservation.canViewPublic = false
-        }
-      }
-    }
+    // Loop removed as evaluation status is now provided by backend
+    // for (const reservation of fetchedReservations) { ... }
     
     reservations.value = fetchedReservations
   } catch (err) {
@@ -501,105 +784,170 @@ const fetchReservations = async (silent = false) => {
   }
 }
 
-const generateInvoice = async (id) => {
+// }
+
+const handleAcceptReservation = async (id) => {
   try {
-    const data = await reservationService.generateInvoice(id)
-    if (data.url) {
-      window.open(data.url, '_blank')
+    loadingMessage.value = 'Acceptation en cours...'
+    showLoadingModal.value = true
+    
+    const response = await reservationService.acceptReservation(id)
+    
+    // Check for mail_sent flag from backend
+    if (response && response.mail_sent) {
+      notification.value = "Réservation acceptée. Un email avec les détails du client vous a été envoyé."
     } else {
-      alert('Erreur: URL de facture manquante')
+      notification.value = "Réservation acceptée avec succès."
     }
+    
+    // Auto hide notification
+    setTimeout(() => {
+      notification.value = null
+    }, 5000)
+    
+    // Refresh list
+    fetchReservations(true)
   } catch (err) {
-    alert(err.message || 'Erreur lors de la génération de la facture')
-    console.error(err)
+    error.value = err.message || "Erreur lors de l'acceptation"
+    setTimeout(() => { error.value = null }, 3000)
+  } finally {
+    showLoadingModal.value = false
   }
 }
 
-const acceptReservation = async (id) => {
-  try {
-    const response = await api.post(`intervenants/me/reservations/${id}/accept`)
 
-    // Optimistic Update: Update status locally without refresh
-    const index = reservations.value.findIndex(r => r.id === id)
+const refuseReservation = (id) => {
+  refusalId.value = id
+  showRefuseModal.value = true
+}
+
+const confirmRefusal = async () => {
+  if (!refusalId.value) return
+  
+  showRefuseModal.value = false
+  
+  try {
+    loadingMessage.value = 'Refus en cours...'
+    showLoadingModal.value = true
+    
+    await reservationService.refuseReservation(refusalId.value)
+
+    // Optimistic Update
+    const index = reservations.value.findIndex(r => r.id === refusalId.value)
     if (index !== -1) {
-      reservations.value[index].status = 'accepted'
-    }
-
-    // Show notification
-    if (response.data.message) {
-      notification.value = response.data.message
-      setTimeout(() => {
-        notification.value = null
-      }, 5000)
+      reservations.value[index].status = 'rejected' // Set to 'rejected' to match backend/filters
     }
   } catch (err) {
-    alert(err.message || 'Erreur lors de l\'acceptation de la réservation')
+    alert(err.message || 'Erreur lors du refus de la réservation')
     console.error(err)
+  } finally {
+    showLoadingModal.value = false
+    refusalId.value = null
   }
 }
 
 
 
-const openRatingModal = async (reservation) => {
-  try {
-    console.log('Checking rating permissions for intervention:', reservation.id)
-    console.log('Reservation data:', reservation)
-    
-    // First check current auth status
-    const authResponse = await api.get('debug/auth')
-    console.log('Current auth status:', authResponse.data)
-    
-    // Then check specific intervention
-    const interventionResponse = await api.get(`debug/intervention/${reservation.id}`)
-    console.log('Intervention debug:', interventionResponse.data)
-    
-    const data = await evaluationService.canRateClient(reservation.id)
-    console.log('Rating permission response:', data)
-    
-    // Allow modal to open for both can_rate and can_view scenarios
-    if (data.can_rate || data.can_view) {
-      selectedReservation.value = reservation
-      showRatingModal.value = true
-    } else {
-      alert(data.reason || 'Vous ne pouvez pas évaluer ce client')
-    }
-  } catch (err) {
-    console.error('Rating permission error:', err)
-    const errorMessage = err.response?.data?.reason || 
-                        err.response?.data?.message || 
-                        err.message || 
-                        'Erreur lors de la vérification des permissions d\'évaluation'
-    alert(errorMessage)
-  }
-}
 
 const closeRatingModal = () => {
   showRatingModal.value = false
   selectedReservation.value = null
 }
 
-const openPublicEvaluations = async (reservation) => {
+const openComplaintModal = (reservation) => {
+  selectedReservation.value = reservation
+  complaintForm.value = {
+    raison: '',
+    priorite: '',
+    sujet: '',
+    intervention_id: reservation.id
+  }
+  showComplaintModal.value = true
+}
+
+const closeComplaintModal = () => {
+  showComplaintModal.value = false
+  selectedReservation.value = null
+  complaintForm.value = {
+    raison: '',
+    priorite: '',
+    sujet: '',
+    intervention_id: null
+  }
+}
+
+const isComplaintFormValid = computed(() => {
+  return complaintForm.value.raison.trim() !== '' && 
+         complaintForm.value.priorite !== '' && 
+         complaintForm.value.sujet.trim() !== ''
+})
+
+const submitComplaint = async () => {
+  if (!isComplaintFormValid.value) return
+  
+  isSubmittingComplaint.value = true
+  
   try {
-    console.log('Opening public evaluations for reservation:', reservation.id)
+    const response = await api.post('/reclamations', {
+      intervention_id: complaintForm.value.intervention_id,
+      raison: complaintForm.value.raison,
+      priorite: complaintForm.value.priorite,
+      message: complaintForm.value.sujet
+    })
+    
+    notification.value = 'Réclamation envoyée avec succès! Elle sera traitée dans les plus brefs délais et vous recevrez une réponse par email'
+    setTimeout(() => {
+      notification.value = null
+    }, 5000)
+    closeComplaintModal()
+    
+  } catch (error) {
+    console.error('Error submitting complaint:', error)
+    notification.value = 'Erreur lors de l\'envoi de la réclamation'
+    setTimeout(() => {
+      notification.value = null
+    }, 3000)
+  } finally {
+    isSubmittingComplaint.value = false
+  }
+}
+
+const openingRatingId = ref(null)
+
+const openRatingModal = async (reservation) => {
+  if (openingRatingId.value) return // Prevent multiple opens
+  
+  openingRatingId.value = reservation.id
+  selectedReservation.value = { ...reservation }
+  // showRatingModal.value = true // Moved to after possible check if needed, or keeping immediate
+  
+  // Note: ClientRatingModal fetches data on mount/show. 
+  // We just show it immediately to let it display its own loading state.
+  showRatingModal.value = true
+  openingRatingId.value = null
+}
+
+const openPublicEvaluations = async (reservation) => {
+  selectedReservation.value = { ...reservation }
+  showPublicModal.value = true
+  isLoadingPublicData.value = true
+
+  try {
     const data = await evaluationService.getPublicEvaluations(reservation.id)
-    console.log('Public evaluations data received:', data)
-    console.log('Intervenant ratings:', data.intervenant_ratings)
-    console.log('Client ratings:', data.client_ratings)
     
     if (data.can_view) {
-      selectedReservation.value = {
-        ...reservation,
-        publicData: data
-      }
-      console.log('Setting selectedReservation with publicData:', selectedReservation.value)
-      showPublicModal.value = true
+      selectedReservation.value.publicData = data
     } else {
       alert('Les évaluations ne sont pas encore disponibles')
+      closePublicModal()
     }
   } catch (err) {
     console.error('Error loading public evaluations:', err)
     console.error('Error response:', err.response?.data)
     alert(err.response?.data?.message || 'Erreur lors du chargement des évaluations')
+    closePublicModal()
+  } finally {
+    isLoadingPublicData.value = false
   }
 }
 
@@ -641,27 +989,130 @@ const onRatingSubmitted = async () => {
   await fetchReservations()
 }
 
+const openPastComplaintsModal = async (reservation) => {
+  selectedReservation.value = reservation
+  showPastComplaintsModal.value = true
+  isLoadingPastComplaints.value = true
+  pastComplaints.value = []
+  
+  try {
+    const response = await api.get(`/interventions/${reservation.id}/my-reclamations`)
+    pastComplaints.value = response.data.reclamations || []
+  } catch (error) {
+    console.error('Error fetching past complaints:', error)
+    alert('Erreur lors du chargement des réclamations passées')
+  } finally {
+    isLoadingPastComplaints.value = false
+  }
+}
+
+const closePastComplaintsModal = () => {
+  showPastComplaintsModal.value = false
+  pastComplaints.value = []
+}
+
+const formatStatus = (status) => {
+  const map = {
+    'en_attente': 'En attente',
+    'en_cours': 'En cours',
+    'resolue': 'Résolue',
+    'rejeter': 'Rejetée',
+    'rejete': 'Rejetée'
+  }
+  return map[status] || status
+}
+
+const showNotification = (message, type = 'info') => {
+  notification.value = { message, type }
+  setTimeout(() => {
+    notification.value = null
+  }, 3000)
+}
+
 const pollInterval = ref(null)
 
 onMounted(async () => {
   await Promise.all([
     fetchReservations(),
     fetchAllServices()
-  ])
+  ]);
 
-  // Poll for updates every 30 seconds (Silent Refresh)
+  // Configurer SSE pour les notifications temps réel
+  const setupSSE = () => {
+    // Récupérer l'ID de l'intervenant connecté depuis les réservations ou le localStorage
+    const intervenantId = localStorage.getItem('intervenant_id') || 
+                        (reservations.value.length > 0 ? reservations.value[0].intervenant_id : null)
+    
+    if (intervenantId) {
+      reservationSSEService.connect(intervenantId)
+      
+      // Écouter les nouvelles réservations
+      reservationSSEService.addListener('new_reservation', (data) => {
+        console.log('Nouvelle réservation reçue:', data)
+        
+        // Ajouter la nouvelle réservation à la liste
+        reservations.value.unshift(data.reservation)
+        
+        // Mettre à jour les statistiques
+        updateStats()
+        
+        // Afficher une notification
+        showNotification('Nouvelle réservation reçue!', 'success')
+      })
+      
+      // Écouter les mises à jour de statut
+      reservationSSEService.addListener('status_update', (data) => {
+        console.log('Mise à jour de statut:', data)
+        
+        // Mettre à jour la réservation dans la liste
+        const index = reservations.value.findIndex(r => r.id === data.reservation_id)
+        if (index !== -1) {
+          reservations.value[index] = { ...reservations.value[index], ...data.updates }
+        }
+        
+        // Mettre à jour les statistiques
+        updateStats()
+      })
+    }
+  }
+
+  // Initialiser SSE après avoir récupéré les réservations
+  setTimeout(setupSSE, 1000)
+
+  // Poll for updates every 30 seconds (Silent Refresh) - backup
   pollInterval.value = setInterval(() => {
     fetchReservations(true)
   }, 30000)
 })
 
-import { onUnmounted } from 'vue' // Ensure this is imported
 onUnmounted(() => {
   if (pollInterval.value) clearInterval(pollInterval.value)
+  // Déconnecter SSE
+  reservationSSEService.disconnect()
 })
 </script>
 
 <style scoped>
+/* Skeleton Styles */
+.skeleton-item {
+  border-color: #e5e7eb !important;
+  background-color: #ffffff !important;
+  pointer-events: none;
+}
+.skeleton-box {
+  background-color: #f3f4f6;
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+.skeleton-text {
+  background-color: #f3f4f6;
+  border-radius: 4px;
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 .container {
   max-width: 80rem;
 }
@@ -1063,6 +1514,25 @@ onUnmounted(() => {
   background-color: #DC2626;
 }
 
+.complaint-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  padding: var(--spacing-2) var(--spacing-3);
+  background-color: #EF4444;
+  color: var(--color-white);
+  border: none;
+  border-radius: var(--radius-lg);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.complaint-btn:hover {
+  background-color: #DC2626;
+}
+
 .details-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -1277,6 +1747,84 @@ onUnmounted(() => {
   transform: translateY(20px) scale(0.95);
 }
 
+.confirmation-modal {
+  background: white;
+  border-radius: var(--radius-xl);
+  max-width: 28rem;
+  width: 90%;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-4) var(--spacing-6);
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.text-red {
+  color: #DC2626;
+}
+
+.modal-body {
+  padding: var(--spacing-6);
+  color: var(--color-gray-700);
+}
+
+.warning-text {
+  color: #DC2626;
+  font-size: 0.875rem;
+  margin-top: var(--spacing-2);
+}
+
+.modal-footer {
+  padding: var(--spacing-4) var(--spacing-6);
+  background: #F9FAFB;
+  border-top: 1px solid #E5E7EB;
+  border-bottom-left-radius: var(--radius-xl);
+  border-bottom-right-radius: var(--radius-xl);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-3);
+}
+
+.btn-secondary {
+  padding: 0.5rem 1rem;
+  background: white;
+  border: 1px solid #D1D5DB;
+  border-radius: var(--radius-md);
+  color: #374151;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  background: #F3F4F6;
+}
+
+.btn-danger {
+  padding: 0.5rem 1rem;
+  background: #DC2626;
+  border: none;
+  border-radius: var(--radius-md);
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-danger:hover {
+  background: #B91C1C;
+}
+
 /* Modal Overlay - Shared styling */
 .modal-overlay {
   position: fixed;
@@ -1293,15 +1841,204 @@ onUnmounted(() => {
 }
 
 /* Public Evaluations Modal */
+/* Public Evaluations Modal */
 .public-modal-content {
-  background: #FEF9E6;
+  background: white;
   border-radius: var(--radius-xl);
   max-width: 65rem;
   width: 95%;
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  border: 3px solid #FEE347;
+  border: 1px solid #E5E7EB;
+}
+
+/* Complaint Modal */
+.complaint-modal-content {
+  background: white;
+  border-radius: var(--radius-xl);
+  max-width: 32rem;
+  width: 95%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.complaint-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-6);
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.complaint-modal-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin: 0;
+  color: #EF4444;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #6B7280;
+  cursor: pointer;
+  padding: var(--spacing-1);
+  line-height: 1;
+}
+
+.modal-close-btn:hover {
+  color: #374151;
+}
+
+.complaint-modal-body {
+  padding: var(--spacing-6);
+}
+
+.intervention-info {
+  background-color: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: var(--radius-md);
+  padding: var(--spacing-4);
+  margin-bottom: var(--spacing-6);
+}
+
+.info-title {
+  margin: 0 0 var(--spacing-3) 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-3);
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.info-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6B7280;
+}
+
+.info-value {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #111827;
+}
+
+.complaint-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.form-label {
+  font-weight: 500;
+  color: #374151;
+  font-size: 0.875rem;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  padding: var(--spacing-3);
+  border: 1px solid #D1D5DB;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  transition: border-color 0.2s;
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: #EF4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.complaint-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-3);
+  padding: var(--spacing-6);
+  border-top: 1px solid #E5E7EB;
+  background-color: #F9FAFB;
+}
+
+.btn-cancel,
+.btn-submit {
+  padding: var(--spacing-3) var(--spacing-4);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+
+.btn-cancel {
+  background-color: white;
+  color: #6B7280;
+  border-color: #D1D5DB;
+}
+
+.btn-cancel:hover:not(:disabled) {
+  background-color: #F3F4F6;
+  color: #374151;
+}
+
+.btn-submit {
+  background-color: #EF4444;
+  color: white;
+}
+
+.btn-submit:hover:not(:disabled) {
+  background-color: #DC2626;
+}
+
+.btn-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.spinner {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .public-modal-body {
@@ -1540,6 +2277,183 @@ onUnmounted(() => {
   background: var(--color-gray-50);
 }
 
+/* Past Complaints List Styling */
+.past-complaints-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.complaint-card {
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+
+.complaint-card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.complaint-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-3) var(--spacing-4);
+  background-color: #F9FAFB;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.complaint-date {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  color: #6B7280;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.status-pending {
+  background-color: #FEF3C7;
+  color: #D97706;
+}
+
+.status-processing {
+  background-color: #DBEAFE;
+  color: #1E40AF;
+}
+
+.status-resolved {
+  background-color: #D1FAE5;
+  color: #059669;
+}
+
+.status-rejected {
+  background-color: #FEE2E2;
+  color: #DC2626;
+}
+
+.complaint-card-body {
+  padding: var(--spacing-4);
+}
+
+.complaint-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--spacing-3);
+}
+
+.row-label {
+  width: 80px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #6B7280;
+  flex-shrink: 0;
+}
+
+.row-value {
+  color: #111827;
+  font-weight: 500;
+}
+
+.priority-badge {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.priority-badge.basse {
+  background-color: #E5E7EB;
+  color: #374151;
+}
+
+.priority-badge.moyenne {
+  background-color: #FEF3C7;
+  color: #D97706;
+}
+
+.priority-badge.haute {
+  background-color: #FEE2E2;
+  color: #DC2626;
+}
+
+.complaint-message-box {
+  margin-top: var(--spacing-2);
+}
+
+.complaint-message-box .row-label {
+  display: block;
+  margin-bottom: var(--spacing-1);
+}
+
+.message-text {
+  background-color: #F9FAFB;
+  padding: var(--spacing-3);
+  border-radius: var(--radius-md);
+  margin: 0;
+  color: #4B5563;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  border: 1px solid #F3F4F6;
+}
+
+.admin-response-box {
+  margin: 0 var(--spacing-4) var(--spacing-4);
+  background-color: #F0F9FF; /* Light blue background */
+  border: 1px solid #BAE6FD;
+  border-radius: var(--radius-md);
+  padding: var(--spacing-3);
+}
+
+.admin-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  color: #0369A1;
+  margin-bottom: var(--spacing-2);
+  font-size: 0.875rem;
+}
+
+.response-text {
+  margin: 0;
+  color: #0C4A6E;
+  font-size: 0.9375rem;
+}
+
+.past-complaints-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  padding: var(--spacing-2) var(--spacing-3);
+  background-color: white;
+  border: 1px solid #E5E7EB;
+  border-radius: var(--radius-lg);
+  color: #4B5563;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.past-complaints-btn:hover {
+  background-color: #F9FAFB;
+  border-color: #D1D5DB;
+  color: #374151;
+}
+
 .btn-confirm-danger {
   padding: 0.5rem 1rem;
   background: #DC2626;
@@ -1579,5 +2493,40 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 1rem;
+}
+/* Skeleton Styles */
+.skeleton-item {
+  border-color: #e5e7eb !important;
+  background-color: #ffffff !important;
+  pointer-events: none;
+}
+.skeleton-box {
+  background-color: #E2E8F0; /* Darker contrast */
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+.skeleton-text {
+  background-color: #E2E8F0; /* Darker contrast */
+  border-radius: 4px;
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+/* Spinner for buttons and loading states */
+.spinner {
+  display: inline-block;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  border-top-color: currentColor;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.rating-btn:disabled, .details-link-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 </style>

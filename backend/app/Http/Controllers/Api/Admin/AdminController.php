@@ -1327,6 +1327,16 @@ class AdminController extends Controller
                 'updated_at' => now()
                 // La présentation et l'expérience sont préservées automatiquement
             ]);
+            
+            $serviceName = $service->nom_service;
+
+            // Notify Intervenant via SSE
+            \Illuminate\Support\Facades\Cache::put("intervenant_request_update_{$id}", [
+                'status' => 'active',
+                'service' => $serviceName,
+                'message' => "Votre demande pour le service '{$serviceName}' a été acceptée.",
+                'timestamp' => time()
+            ], 60);
 
             // Récupérer tous les services activés (anciens + nouveau) pour le retour
             $intervenant->refresh();
@@ -1336,7 +1346,6 @@ class AdminController extends Controller
                 ->toArray();
 
             // Log de l'action
-            $serviceName = $service->nom_service;
             $this->logAdminAction('approve_request', 'intervenant', $id, 
                 "Demande d'intervenant ID {$id} approuvée pour le service: {$serviceName}");
 
@@ -1445,13 +1454,21 @@ class AdminController extends Controller
             $serviceName = $service->nom_service;
             
             // Mettre le statut à 'refuse' au lieu de détacher le service
-            // Cela permet de conserver l'historique et de ne pas afficher cette demande dans la liste
-            $intervenant->services()->updateExistingPivot($serviceId, [
-                'status' => 'refuse',
-                'updated_at' => now()
-            ]);
-            
-            // L'intervenant reste dans la base
+        // Cela permet de conserver l'historique et de ne pas afficher cette demande dans la liste
+        $intervenant->services()->updateExistingPivot($serviceId, [
+            'status' => 'refuse',
+            'updated_at' => now()
+        ]);
+
+        // Notify Intervenant via SSE
+        \Illuminate\Support\Facades\Cache::put("intervenant_request_update_{$id}", [
+            'status' => 'refuse',
+            'service' => $serviceName,
+            'message' => "Votre demande pour le service '{$serviceName}' a été refusée.",
+            'timestamp' => time()
+        ], 60);
+        
+        // L'intervenant reste dans la base
             // Si c'était sa première demande et qu'elle est rejetée, is_active reste false
             // Si c'était une demande supplémentaire, is_active reste true et les services activés restent
             // Les tâches associées restent également (elles peuvent être réactivées si la demande est réapprouvée plus tard)
@@ -1535,7 +1552,7 @@ class AdminController extends Controller
             ->pluck('count', 'service_id');
         
         // Calculer la note moyenne par service
-        $notesByService = DB::table('evaluation')
+        $notesByService =DB::table('evaluation')
             ->join('intervention', 'evaluation.intervention_id', '=', 'intervention.id')
             ->join('tache', 'intervention.tache_id', '=', 'tache.id')
             ->select('tache.service_id', DB::raw('AVG(evaluation.note) as avg_note'))

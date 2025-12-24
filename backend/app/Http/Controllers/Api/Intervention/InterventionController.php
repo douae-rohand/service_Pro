@@ -339,8 +339,10 @@ class InterventionController extends Controller
             'informations'
         ])->findOrFail($id);
 
-        // Privacy Filter
-        $isPublic = $intervention->areRatingsPublic();
+        // Privacy Filter - Check if evaluations are public
+        $isPublic = \App\Models\Evaluation::where('intervention_id', $id)
+            ->where('is_public', true)
+            ->exists();
         $currentUser = Auth::user();
 
         // Access Control

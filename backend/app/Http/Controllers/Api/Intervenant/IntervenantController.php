@@ -132,38 +132,50 @@ class IntervenantController extends Controller
      */
         public function show($id)
         {
-            $intervenant = Intervenant::with([
-                'utilisateur:id,nom,prenom,address,url,profile_photo',
-                'taches:id,nom_tache,service_id',
-                'taches.service:id,nom_service',
-                'services',
-                'interventions' => function($q) {
-                    $q->orderBy('date_intervention', 'desc');
-                },
-                'interventions.photos',
-                'interventions.evaluations' => function($q) {
-                    $q->where('type_auteur', 'client');
-                },
-                'interventions.commentaires' => function($q) {
-                    $q->where('type_auteur', 'client');
-                },
-                'interventions.client.utilisateur:id,nom,prenom',
-                'disponibilites',
-                'portfolio'
-            ])->find($id);
+            try {
+                $intervenant = Intervenant::with([
+                    'utilisateur:id,nom,prenom,address,url,profile_photo',
+                    'taches:id,nom_tache,service_id',
+                    'taches.service:id,nom_service',
+                    'services',
+                    'interventions' => function($q) {
+                        $q->orderBy('date_intervention', 'desc');
+                    },
+                    'interventions.photos',
+                    'interventions.evaluations' => function($q) {
+                        $q->where('type_auteur', 'client');
+                    },
+                    'interventions.commentaires' => function($q) {
+                        $q->where('type_auteur', 'client');
+                    },
+                    'interventions.client.utilisateur:id,nom,prenom',
+                    'disponibilites',
+                    'portfolio'
+                ])->find($id);
 
-            if (!$intervenant) {
+                if (!$intervenant) {
+                    return response()->json([
+                        'message' => 'Intervenant introuvable'
+                    ], 404);
+                }
+
+                $ratingInfo = $intervenant->getRatingInfo();
+                $intervenant->average_rating = $ratingInfo['average_rating'];
+                $intervenant->review_count = $ratingInfo['review_count'];
+                $intervenant->interv_count = $intervenant->interventions()->count();
+
+                return response()->json($intervenant);
+            } catch (\Exception $e) {
+                \Log::error('Error in IntervenantController@show: ' . $e->getMessage(), [
+                    'id' => $id,
+                    'trace' => $e->getTraceAsString()
+                ]);
+                
                 return response()->json([
-                    'message' => 'Intervenant introuvable'
-                ], 404);
+                    'message' => 'Erreur lors de la récupération des informations de l\'intervenant',
+                    'error' => config('app.debug') ? $e->getMessage() : null
+                ], 500);
             }
-
-            $ratingInfo = $intervenant->getRatingInfo();
-            $intervenant->average_rating = $ratingInfo['average_rating'];
-            $intervenant->review_count = $ratingInfo['review_count'];
-            $intervenant->interv_count = $intervenant->interventions()->count();
-
-            return response()->json($intervenant);
         }
 
 

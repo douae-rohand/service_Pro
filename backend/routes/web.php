@@ -1,10 +1,16 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Broadcast;
 
 Route::get('/', function () {
     return view('welcome');
 });
+
+// Broadcasting authentication route
+Route::post('/broadcasting/auth', function () {
+    return Broadcast::auth(request());
+})->middleware('web');
 
 // Serve profile photos from storage
 Route::get('/storage/profiles/{filename}', function ($filename) {

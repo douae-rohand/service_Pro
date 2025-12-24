@@ -16,6 +16,11 @@ const intervenantService = {
   // Récupérer un intervenant spécifique
   async getIntervenant(id) {
     try {
+      // Validate ID to prevent null/undefined calls
+      if (!id || id === 'null' || id === 'undefined') {
+        throw new Error('Invalid intervenant ID provided');
+      }
+      
       console.log(`🔍[SERVICE] getIntervenant calling API for id: ${id}`);
       const res = await api.get(`intervenants/${id}`)
       console.log('✅[SERVICE] getIntervenant Response:', res.data);
@@ -29,6 +34,10 @@ const intervenantService = {
   // Récupérer les services d'un intervenant
   async getIntervenantServices(intervenantId) {
     try {
+      if (!intervenantId || intervenantId === 'null' || intervenantId === 'undefined') {
+        throw new Error('Invalid intervenant ID provided');
+      }
+      
       const res = await api.get(`intervenants/${intervenantId}/services`)
       return res.data
     } catch (error) {
@@ -40,6 +49,10 @@ const intervenantService = {
   // Récupérer les tâches d'un intervenant
   async getIntervenantTaches(intervenantId) {
     try {
+      if (!intervenantId || intervenantId === 'null' || intervenantId === 'undefined') {
+        throw new Error('Invalid intervenant ID provided');
+      }
+      
       const res = await api.get(`intervenants/${intervenantId}/taches`)
       return res.data
     } catch (error) {

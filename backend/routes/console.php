@@ -54,3 +54,12 @@ Schedule::command('evaluations:mark-public')
 Schedule::command('intervention:cancel-stale')
     ->everyMinute();
 
+/**
+ * Tâche planifiée pour envoyer les rappels d'évaluation.
+ * S'exécute tous les jours à 9h00.
+ */
+Schedule::command('evaluations:send-reminders')
+    ->everyMinute()
+    ->at('11:00')
+    ->timezone('Africa/Casablanca');
+

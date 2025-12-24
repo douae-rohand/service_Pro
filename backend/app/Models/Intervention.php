@@ -26,6 +26,8 @@ class Intervention extends Model
         'client_id',
         'intervenant_id',
         'tache_id',
+        'client_last_reminder_sent_at',
+        'intervenant_last_reminder_sent_at',
     ];
 
     protected function casts(): array
@@ -33,6 +35,8 @@ class Intervention extends Model
         return [
             'date_intervention' => 'datetime',
             'duration_hours' => 'decimal:2',
+            'client_last_reminder_sent_at' => 'datetime',
+            'intervenant_last_reminder_sent_at' => 'datetime',
         ];
     }
 

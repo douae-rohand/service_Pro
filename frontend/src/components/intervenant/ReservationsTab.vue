@@ -666,7 +666,7 @@ import { Check, X, Clock, MapPin, Calendar, MessageSquare, Coins, Package, Star,
 import reservationService from '@/services/intervenantReservationService'
 import evaluationService from '@/services/evaluationService'
 import api from '@/services/api'
-import reservationSSEService from '@/services/reservationSSEService'
+
 import ClientRatingModal from './ClientRatingModal.vue'
 import ClientProfileModal from './ClientProfileModal.vue'
 import InterventionDetailsModal from './InterventionDetailsModal.vue'
@@ -1037,47 +1037,7 @@ onMounted(async () => {
     fetchAllServices()
   ]);
 
-  // Configurer SSE pour les notifications temps réel
-  const setupSSE = () => {
-    // Récupérer l'ID de l'intervenant connecté depuis les réservations ou le localStorage
-    const intervenantId = localStorage.getItem('intervenant_id') || 
-                        (reservations.value.length > 0 ? reservations.value[0].intervenant_id : null)
-    
-    if (intervenantId) {
-      reservationSSEService.connect(intervenantId)
-      
-      // Écouter les nouvelles réservations
-      reservationSSEService.addListener('new_reservation', (data) => {
-        console.log('Nouvelle réservation reçue:', data)
-        
-        // Ajouter la nouvelle réservation à la liste
-        reservations.value.unshift(data.reservation)
-        
-        // Mettre à jour les statistiques
-        updateStats()
-        
-        // Afficher une notification
-        showNotification('Nouvelle réservation reçue!', 'success')
-      })
-      
-      // Écouter les mises à jour de statut
-      reservationSSEService.addListener('status_update', (data) => {
-        console.log('Mise à jour de statut:', data)
-        
-        // Mettre à jour la réservation dans la liste
-        const index = reservations.value.findIndex(r => r.id === data.reservation_id)
-        if (index !== -1) {
-          reservations.value[index] = { ...reservations.value[index], ...data.updates }
-        }
-        
-        // Mettre à jour les statistiques
-        updateStats()
-      })
-    }
-  }
 
-  // Initialiser SSE après avoir récupéré les réservations
-  setTimeout(setupSSE, 1000)
 
   // Poll for updates every 30 seconds (Silent Refresh) - backup
   pollInterval.value = setInterval(() => {
@@ -1087,8 +1047,6 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (pollInterval.value) clearInterval(pollInterval.value)
-  // Déconnecter SSE
-  reservationSSEService.disconnect()
 })
 </script>
 

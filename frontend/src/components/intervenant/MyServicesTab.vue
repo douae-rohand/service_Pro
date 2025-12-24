@@ -5,6 +5,11 @@
       {{ error }}
     </div>
 
+    <!-- Success Notification Toast -->
+    <div v-if="notification" class="success-notification">
+      {{ notification }}
+    </div>
+
     <!-- Stats -->
     <div class="stats-grid">
       <template v-if="loading">
@@ -171,7 +176,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Edit2, Trash2, Coins } from 'lucide-vue-next'
 import intervenantTacheService from '@/services/intervenantTacheService'
 import SkeletonLoader from './SkeletonLoader.vue'
@@ -179,6 +184,7 @@ import SkeletonLoader from './SkeletonLoader.vue'
 const services = ref([])
 const loading = ref(true)
 const error = ref(null)
+const notification = ref(null)
 
 const materialsByService = {
   menage: [
@@ -241,6 +247,56 @@ const fetchServices = async () => {
 
 onMounted(() => {
   fetchServices()
+  
+  // Setup real-time listener for service status updates
+  const userStr = localStorage.getItem('user')
+  console.log('[MyServicesTab] User from localStorage:', userStr)
+  
+  if (userStr && window.Echo) {
+    try {
+      const user = JSON.parse(userStr)
+      const userId = user.id
+      console.log('[MyServicesTab] Setting up listener for user ID:', userId)
+      console.log('[MyServicesTab] Echo instance:', window.Echo)
+      
+      window.Echo.private(`intervenant.${userId}`)
+        .listen('ServiceRequestStatusUpdated', (event) => {
+          console.log('[MyServicesTab] ✅ Received status update:', event)
+          
+          // Show notification
+          notification.value = event.message
+          setTimeout(() => {
+            notification.value = null
+          }, 5000)
+          
+          // Refresh services to get updated status
+          fetchServices()
+        })
+      
+      console.log('[MyServicesTab] Listener setup complete for channel: intervenant.' + userId)
+    } catch (err) {
+      console.error('[MyServicesTab] Error setting up real-time listener:', err)
+    }
+  } else {
+    console.warn('[MyServicesTab] Cannot setup listener:', {
+      hasUser: !!userStr,
+      hasEcho: !!window.Echo
+    })
+  }
+})
+
+onUnmounted(() => {
+  // Clean up Echo listener
+  const userStr = localStorage.getItem('user')
+  if (userStr && window.Echo) {
+    try {
+      const user = JSON.parse(userStr)
+      const userId = user.id
+      window.Echo.leave(`intervenant.${userId}`)
+    } catch (err) {
+      console.error('Error cleaning up Echo:', err)
+    }
+  }
 })
 
 const toggleActive = async (id) => {
@@ -681,6 +737,31 @@ const deleteService = async (id) => {
   border-radius: var(--radius-lg);
   margin-bottom: var(--spacing-4);
   border: 1px solid #FCA5A5;
+}
+
+.success-notification {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  padding: var(--spacing-4);
+  background-color: #D1FAE5;
+  color: #065F46;
+  border-radius: var(--radius-lg);
+  border: 1px solid #6EE7B7;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  z-index: 1000;
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 @media (max-width: 768px) {

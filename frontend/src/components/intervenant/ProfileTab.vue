@@ -223,6 +223,37 @@
             <p v-else>{{ formData.bio }}</p>
           </div>
         </div>
+
+        <!-- Portfolio -->
+        <div class="section">
+           <div class="flex justify-between items-center mb-4">
+               <h3>Mon Portfolio</h3>
+               <div v-if="isEditing">
+                  <input 
+                      type="file" 
+                      ref="portfolioFileInput"
+                      @change="handlePortfolioUpload"
+                      accept="image/*"
+                      class="hidden"
+                      style="display:none;"
+                  />
+                   <button @click="$refs.portfolioFileInput.click()" class="add-portfolio-btn" :disabled="isUploadingPortfolio">
+                        <Plus :size="16" class="mr-1" />
+                        {{ isUploadingPortfolio ? 'Ajout...' : 'Ajouter Photo' }}
+                   </button>
+               </div>
+           </div>
+           
+           <div class="portfolio-grid" v-if="portfolioItems.length > 0">
+               <div v-for="item in portfolioItems" :key="item.id" class="portfolio-item-card">
+                    <img :src="item.image" loading="lazy" />
+                    <button v-if="isEditing" @click="deletePortfolioItem(item.id)" class="delete-portfolio-btn">
+                        <Trash2 :size="14" />
+                    </button>
+               </div>
+           </div>
+           <p v-else class="text-gray-500 text-sm">Aucune photo dans le portfolio.</p>
+        </div>
       </template>
     </div>
   </div>
@@ -230,7 +261,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { Edit2, Check, X, MapPin, Phone, Mail, Calendar, Camera, User } from 'lucide-vue-next'
+import { Edit2, Check, X, MapPin, Phone, Mail, Calendar, Camera, User, Trash2, Plus } from 'lucide-vue-next'
 import authService from '@/services/authService'
 import intervenantService from '@/services/intervenantService' // Import intervenantService
 import api from '@/services/api' // Import api for direct put if needed
@@ -256,6 +287,9 @@ const isEditing = ref(false)
 const showSuccessMessage = ref(false)
 const selectedFile = ref(null)
 const isSavingProfile = ref(false)
+const portfolioItems = ref([])
+const isUploadingPortfolio = ref(false)
+const portfolioFileInput = ref(null)
 
 const formData = ref({
   name: '',
@@ -309,6 +343,23 @@ const fetchCurrentUser = async () => {
             nom_service: s.nom_service,
             experience: s.pivot?.experience || 0
         }))
+      }
+
+      // Load Portfolio
+      const getImageUrl = (path) => {
+          if (!path) return '';
+          if (path.startsWith('http')) return path;
+          return `http://127.0.0.1:8000/storage/${path.replace(/^\/+/, '')}`;
+      };
+
+      if (fullIntervenant?.portfolio) {
+          portfolioItems.value = fullIntervenant.portfolio.map(item => ({
+              id: item.id,
+              image: getImageUrl(item.image_path),
+              description: item.description
+          }));
+      } else {
+          portfolioItems.value = [];
       }
     }
   } catch (error) {
@@ -465,6 +516,53 @@ const formatExperience = (value) => {
   
   return parts.join(' et ');
 }
+
+const handlePortfolioUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+        alert('Veuillez sélectionner une image.');
+        return;
+    }
+
+    try {
+        isUploadingPortfolio.value = true;
+        const formData = new FormData();
+        formData.append('image', file);
+        
+        const response = await api.post('intervenants/me/portfolio', formData);
+        
+        // Add to list
+        const newItem = response.data.portfolio;
+        const getImageUrl = (path) => `http://127.0.0.1:8000/storage/${path.replace(/^\/+/, '')}`;
+        
+        portfolioItems.value.push({
+            id: newItem.id,
+            image: getImageUrl(newItem.image_path),
+            description: newItem.description
+        });
+        
+    } catch (error) {
+        console.error('Error uploading portfolio:', error);
+        alert('Erreur lors de l\'upload de l\'image.');
+    } finally {
+        isUploadingPortfolio.value = false;
+        if (portfolioFileInput.value) portfolioFileInput.value.value = '';
+    }
+};
+
+const deletePortfolioItem = async (id) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette image ?')) return;
+    
+    try {
+        await api.delete(`intervenants/me/portfolio/${id}`);
+        portfolioItems.value = portfolioItems.value.filter(item => item.id !== id);
+    } catch (error) {
+        console.error('Error deleting portfolio item:', error);
+        alert('Erreur lors de la suppression.');
+    }
+};
 </script>
 
 <style scoped>
@@ -816,5 +914,61 @@ const formatExperience = (value) => {
     border-radius: 9999px;
     font-size: 0.875rem;
     font-weight: 500;
+}
+
+.portfolio-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 12px;
+}
+.portfolio-item-card {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    aspect-ratio: 1;
+    border: 1px solid #e5e7eb;
+}
+.portfolio-item-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.delete-portfolio-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: rgba(255, 255, 255, 0.9);
+    border: none;
+    border-radius: 50%;
+    padding: 4px;
+    cursor: pointer;
+    color: #ef4444;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.delete-portfolio-btn:hover {
+    background: #ef4444;
+    color: white;
+}
+.add-portfolio-btn {
+    display: flex;
+    align-items: center;
+    background: #f0fdf4;
+    color: #16a34a;
+    border: 1px dashed #16a34a;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.add-portfolio-btn:hover {
+    background: #dcfce7;
+}
+.add-portfolio-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
 }
 </style>

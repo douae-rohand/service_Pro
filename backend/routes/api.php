@@ -167,6 +167,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('intervenants/me/reservations', [IntervenantController::class, 'myReservations']);
     Route::post('intervenants/me/reservations/{id}/accept', [IntervenantController::class, 'acceptReservation']);
     Route::post('intervenants/me/reservations/{id}/refuse', [IntervenantController::class, 'refuseReservation']);
+    
+    // Portfolio Routes
+    Route::post('intervenants/me/portfolio', [IntervenantController::class, 'addPortfolioItem']);
+    Route::delete('intervenants/me/portfolio/{id}', [IntervenantController::class, 'deletePortfolioItem']);
 
 
     // Reclamations for interventions

@@ -671,15 +671,29 @@ export default {
         
         console.log('✅ Parsed data:', data);
         
+        const getImageUrl = (path) => {
+          if (!path) return '';
+          if (path.startsWith('http')) return path;
+          return `http://127.0.0.1:8000/storage/${path.replace(/^\/+/, '')}`;
+        };
+
         const mappedPhotos = [];
         if (data.interventions) {
              data.interventions.forEach(intervention => {
                  if (intervention.photos) {
                      intervention.photos.forEach(photo => {
-                         if (photo.photo_path) mappedPhotos.push(photo.photo_path);
+                         const path = typeof photo === 'string' ? photo : photo.photo_path;
+                         if (path) mappedPhotos.push(getImageUrl(path));
                      });
                  }
              });
+        }
+
+        // Add Portfolio images
+        if (data.portfolio) {
+            data.portfolio.forEach(item => {
+                 if (item.image_path) mappedPhotos.push(getImageUrl(item.image_path));
+            });
         }
         
         const reviews = this.mapReviews(data.interventions);

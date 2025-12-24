@@ -336,8 +336,8 @@
               </button>
             </div>
 
-            <!-- Task Configuration (shown when active) -->
-            <div v-if="taskStates[task.id] && taskFormVisible[task.id]" class="task-config">
+            <!-- Task Configuration (shown when active or configuring) -->
+            <div v-if="taskFormVisible[task.id]" class="task-config">
               <div class="form-group">
                 <label>Votre tarif horaire <span class="required">*</span></label>
                 <div class="input-with-suffix">
@@ -401,17 +401,17 @@
                 <div class="material-checkbox-section">
                   <input
                     type="checkbox"
-                    :id="`material-${serviceId}-${material}`"
-                    :checked="materialSelections[`${serviceId}-${material}`] || false"
-                    @change="toggleMaterialSelection(serviceId, material)"
+                    :id="`material-${serviceId}-${material.trim()}`"
+                    :checked="materialSelections[`${serviceId}-${material.trim()}`] || false"
+                    @change="toggleMaterialSelection(serviceId, material.trim())"
                     :style="{ accentColor: getServiceColor(serviceId) }"
                   />
-                  <label :for="`material-${serviceId}-${material}`" class="material-name">{{ material }}</label>
+                  <label :for="`material-${serviceId}-${material.trim()}`" class="material-name">{{ material }}</label>
                 </div>
                 <div class="material-price-section">
                   <input
                     type="number"
-                    v-model="serviceMaterialPrices[`${serviceId}-${material}`]"
+                    v-model="serviceMaterialPrices[`${serviceId}-${material.trim()}`]"
                     placeholder="Prix"
                     min="0"
                     step="0.01"
@@ -486,6 +486,41 @@
         </div>
       </div>
     </div>
+    
+    <!-- Generic UI Modal (replacing alert/confirm) -->
+    <div v-if="uiModal.show" class="modal-overlay" @click.self="handleUiModalCancel">
+      <div class="modal-container modal-sm">
+        <div class="modal-header" :class="uiModal.type === 'confirm' ? 'bg-warning' : 'bg-primary'">
+          <h2 class="modal-title" :class="uiModal.type === 'confirm' ? 'text-white' : ''">
+            {{ uiModal.title }}
+          </h2>
+          <button @click="handleUiModalCancel" class="modal-close" :class="uiModal.type === 'confirm' ? 'text-white' : ''">
+            <X :size="20" />
+          </button>
+        </div>
+
+        <div class="modal-body text-center py-6">
+          <div class="warning-icon-large mb-4">
+            <AlertTriangle v-if="uiModal.type === 'confirm'" :size="48" color="#F59E0B" />
+            <AlertCircle v-else-if="uiModal.type === 'error'" :size="48" color="#EF4444" />
+            <Check v-else :size="48" color="#92B08B" />
+          </div>
+          <p class="text-lg font-medium mb-4" style="white-space: pre-line;">
+            {{ uiModal.message }}
+          </p>
+
+          <div class="action-buttons-vertical">
+            <button @click="handleUiModalConfirm" class="btn-confirm" :style="uiModal.type === 'confirm' ? { backgroundColor: '#F59E0B' } : { backgroundColor: '#92B08B' }">
+              <Check :size="18" />
+              {{ uiModal.confirmText }}
+            </button>
+            <button v-if="uiModal.type === 'confirm'" @click="handleUiModalCancel" class="btn-cancel-outline">
+              {{ uiModal.cancelText }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -520,6 +555,61 @@ const loadingMessage = ref('')
 const showConfirmationModal = ref(false)
 const confirmationModalData = ref({ count: 0, name: '', id: '', type: '' })
 const confirmationPromise = ref(null)
+
+// Generic UI Modal State
+const uiModal = reactive({
+  show: false,
+  title: '',
+  message: '',
+  type: 'info', // 'info', 'confirm', 'error'
+  confirmText: 'OK',
+  cancelText: 'Annuler',
+  resolve: null
+})
+
+const showAlert = (message, title = 'Information') => {
+  return new Promise((resolve) => {
+    uiModal.title = title
+    uiModal.message = message
+    uiModal.type = 'info'
+    uiModal.confirmText = 'OK'
+    uiModal.show = true
+    uiModal.resolve = resolve
+  })
+}
+
+const showError = (message, title = 'Erreur') => {
+  return new Promise((resolve) => {
+    uiModal.title = title
+    uiModal.message = message
+    uiModal.type = 'error'
+    uiModal.confirmText = 'OK'
+    uiModal.show = true
+    uiModal.resolve = resolve
+  })
+}
+
+const showConfirm = (message, title = 'Confirmation', confirmText = 'Confirmer', cancelText = 'Annuler') => {
+  return new Promise((resolve) => {
+    uiModal.title = title
+    uiModal.message = message
+    uiModal.type = 'confirm'
+    uiModal.confirmText = confirmText
+    uiModal.cancelText = cancelText
+    uiModal.show = true
+    uiModal.resolve = resolve
+  })
+}
+
+const handleUiModalConfirm = () => {
+  uiModal.show = false
+  if (uiModal.resolve) uiModal.resolve(true)
+}
+
+const handleUiModalCancel = () => {
+  uiModal.show = false
+  if (uiModal.resolve) uiModal.resolve(false)
+}
 
 // Loading and error states
 const isLoading = ref(true)
@@ -614,7 +704,8 @@ const loadIntervenantActiveData = async (intervenantId) => {
     
     // Activate the services that are active in DB
     if (data && data.services && data.services.length > 0) {
-      data.services.forEach(service => {
+      // Use Promise.all to properly await all material fetches
+      await Promise.all(data.services.map(async (service) => {
         if (service.status === 'active' && serviceStates.value[service.id] !== undefined) {
           serviceStates.value[service.id] = true
         } else if (service.status === 'archive' && serviceStates.value[service.id] !== undefined) {
@@ -626,7 +717,28 @@ const loadIntervenantActiveData = async (intervenantId) => {
           pendingRequestServices.value[service.id] = true
           serviceStates.value[service.id] = false
         }
-      })
+
+        // Fetch and pre-fill materials for the service
+        try {
+          const resp = await intervenantService.getIntervenantMaterials(intervenantId, service.id)
+          const mats = resp.materials || []
+          mats.forEach(material => {
+            const trimmedName = material.name.trim()
+            const key = `${service.id}-${trimmedName}`
+            if (material.possessed) {
+              materialSelections[key] = true
+            } else {
+              materialSelections[key] = false
+            }
+            
+            if (material.price > 0) {
+              serviceMaterialPrices[key] = material.price
+            }
+          })
+        } catch (e) {
+          console.error(`Error loading materials for service ${service.id}:`, e)
+        }
+      }))
     }
     
     // Initialize all tasks with their actual status from DB
@@ -795,6 +907,7 @@ const taskDescriptions = ref({})
 const taskMaterials = ref({})
 const taskMaterialPrices = ref({}) // New: Store prices for each material
 const taskFormVisible = ref({})
+const localActivations = reactive({}) // Track tasks activated locally but not yet saved
 
 const activeServicesCount = computed(() => {
   return Object.values(serviceStates.value).filter(Boolean).length
@@ -818,8 +931,8 @@ const activeTasksCount = computed(() => {
 })
 
 // Add service materials state
-const serviceMaterialPrices = ref({})
-const materialSelections = ref({})
+const serviceMaterialPrices = reactive({})
+const materialSelections = reactive({})
 const materialsFormVisible = ref({})
 const isSavingMaterials = ref({})
 
@@ -872,7 +985,7 @@ const handlePendingInterventions = async (type, id, name) => {
     return true
   } catch (error) {
     console.error('Erreur lors de la vérification des interventions en attente:', error)
-    alert('Une erreur est survenue lors de la vérification des réservations en attente. Par mesure de sécurité, l\'action a été annulée. Veuillez rafraîchir la page et réessayer.')
+    await showError('Une erreur est survenue lors de la vérification des réservations en attente. Par mesure de sécurité, l\'action a été annulée. Veuillez rafraîchir la page et réessayer.')
     return false
   }
 }
@@ -888,7 +1001,7 @@ const confirmConfirmation = async () => {
     closeConfirmationModal(true)
   } catch (error) {
     console.error('Error refusing interventions:', error)
-    alert('Erreur lors du refus des interventions. Veuillez réessayer.')
+    await showError('Erreur lors du refus des interventions. Veuillez réessayer.')
   }
 }
 
@@ -922,7 +1035,7 @@ const toggleService = async (serviceId, serviceName) => {
       serviceStates.value[serviceId] = true
     } catch (error) {
       console.error('Error reactivating service:', error)
-      alert('Erreur lors de la réactivation du service')
+      await showError('Erreur lors de la réactivation du service')
     } finally {
       showLoadingModal.value = false
     }
@@ -964,7 +1077,7 @@ const toggleService = async (serviceId, serviceName) => {
       console.error('Error toggling service:', error)
       // Revert the state if API call failed
       serviceStates.value[serviceId] = true
-      alert('Erreur lors de la désactivation du service')
+      await showError('Erreur lors de la désactivation du service')
     } finally {
       showLoadingModal.value = false
     }
@@ -991,7 +1104,7 @@ const archiveService = async (serviceId) => {
     archivedServices.value[serviceId] = true
   } catch (error) {
     console.error('Error archiving service:', error)
-    alert('Erreur lors de l\'archivage du service')
+    await showError('Erreur lors de l\'archivage du service')
   } finally {
     showLoadingModal.value = false
   }
@@ -1022,9 +1135,12 @@ const loadServiceMaterials = async (serviceId) => {
 
       // Pre-fill prices and selections
       materials.forEach(material => {
-        const key = `${serviceId}-${material.name}`
-        if (material.possessed) materialSelections.value[key] = true
-        if (material.price > 0) serviceMaterialPrices.value[key] = material.price
+        const key = `${serviceId}-${material.name.trim()}`
+        if (material.possessed) materialSelections[key] = true
+        else materialSelections[key] = false // Explicitly set to false if not possessed
+        
+        if (material.price > 0) serviceMaterialPrices[key] = material.price
+        else serviceMaterialPrices[key] = '' // Clear if no price
       })
 
     } catch (error) {
@@ -1045,12 +1161,12 @@ const saveServiceMaterials = async (serviceId) => {
   const serviceMaterials = getMaterialsByService(serviceId)
   
   for (const material of serviceMaterials) {
-    const isSelected = materialSelections.value[`${serviceId}-${material}`]
-    const price = serviceMaterialPrices.value[`${serviceId}-${material}`]
+    const isSelected = materialSelections[`${serviceId}-${material.trim()}`]
+    const price = serviceMaterialPrices[`${serviceId}-${material.trim()}`]
     
     if (isSelected) {
       if (!price || price <= 0) {
-        alert(`Le prix est obligatoire pour le matériau : ${material}`)
+        await showAlert(`Le prix est obligatoire pour le matériau : ${material}`, 'Prix manquant')
         isSavingMaterials.value[serviceId] = false
         return
       }
@@ -1070,6 +1186,22 @@ const saveServiceMaterials = async (serviceId) => {
       materials
     )
 
+    // Refresh the materials from backend to ensure state is perfectly synced
+    try {
+      const resp = await intervenantService.getIntervenantMaterials(currentUser.value.intervenant.id, serviceId)
+      const mats = resp.materials || []
+      mats.forEach(material => {
+        const key = `${serviceId}-${material.name.trim()}`
+        if (material.possessed) materialSelections[key] = true
+        else delete materialSelections[key]
+        
+        if (material.price > 0) serviceMaterialPrices[key] = material.price
+        else delete serviceMaterialPrices[key]
+      })
+    } catch (e) {
+      console.error('Error refreshing materials after save:', e)
+    }
+
     // Hide the materials form after successful save
     materialsFormVisible.value[serviceId] = false
     
@@ -1085,7 +1217,7 @@ const saveServiceMaterials = async (serviceId) => {
     }, 3000)
   } catch (error) {
     console.error('Error saving service materials:', error)
-    alert(`Erreur lors de l'enregistrement: ${error.response?.data?.message || error.message}`)
+    await showError(`Erreur lors de l'enregistrement: ${error.response?.data?.message || error.message}`)
   } finally {
     isSavingMaterials.value[serviceId] = false
   }
@@ -1095,41 +1227,84 @@ const saveServiceMaterials = async (serviceId) => {
 const toggleMaterialSelection = async (serviceId, material) => {
   if (!currentUser.value) return
   
-  const key = `${serviceId}-${material}`
-  const currentState = materialSelections.value[key] || false
+  const trimmedMaterial = material.trim()
+  const key = `${serviceId}-${trimmedMaterial}`
+  const currentState = materialSelections[key] || false
   
-  // Toggle selection
-  materialSelections.value[key] = !currentState
-  
-  // If unchecking, clear the price and delete from database
+  // If we are about to UNCHECK a material
   if (currentState) {
-    serviceMaterialPrices.value[key] = ''
-    
-    // Find the material ID to delete from database
-    try {
-      const serviceMaterials = getMaterialsByService(serviceId)
-      const materialIndex = serviceMaterials.indexOf(material)
-      
-      if (materialIndex !== -1) {
-        // Get material details to find its ID
-        const response = await intervenantService.getIntervenantMaterials(
-          currentUser.value.intervenant.id,
-          serviceId
-        )
+    // 1. Check if any active tasks for this service require this material
+    const serviceTasks = getTasksByService(serviceId)
+    const activeTasksRequiringMaterial = serviceTasks.filter(task => {
+      return taskStates.value[task.id] && 
+             task.required_materials && 
+             task.required_materials.some(rm => rm.trim() === trimmedMaterial)
+    })
+
+    if (activeTasksRequiringMaterial.length > 0) {
+      const taskNames = activeTasksRequiringMaterial.map(t => t.name || t.nom_tache).join(', ')
+      const confirmRemove = await showConfirm(
+        `Ce matériau est requis pour les sous-services actifs suivants :\n${taskNames}.\n\nSi vous retirez ce matériau, ces sous-services seront automatiquement désactivés. Voulez-vous continuer ?`,
+        'Attention : Matériau requis',
+        'Confirmer et désactiver',
+        'Annuler'
+      )
+
+      if (!confirmRemove) {
+        // User cancelled - keep the material checked
+        materialSelections[key] = true
+        return
+      }
+
+      // User accepted - deactivate affected tasks
+      try {
+        showLoadingModal.value = true
+        loadingMessage.value = 'Désactivation des sous-services liés...'
         
-        const materialData = response.materials.find(m => m.name === material)
-        if (materialData) {
-          // Delete from database
-          await intervenantService.deleteIntervenantMaterial(
-            currentUser.value.intervenant.id,
-            materialData.id
-          )
-        }
+        await Promise.all(activeTasksRequiringMaterial.map(async (task) => {
+          // Only call backend if status is currently active (redundancy check)
+          await intervenantTacheService.toggleActive(task.id)
+          taskStates.value[task.id] = false
+          // Also hide configuration form if open
+          delete taskFormVisible.value[task.id]
+        }))
+      } catch (error) {
+        console.error('Error deactivating dependent tasks:', error)
+        await showError('Une erreur est survenue lors de la désactivation des sous-services. L\'action a été annulée.')
+        materialSelections[key] = true
+        showLoadingModal.value = false
+        return
+      } finally {
+        showLoadingModal.value = false
+      }
+    }
+
+    // Proceed with material removal
+    serviceMaterialPrices[key] = ''
+    materialSelections[key] = false
+    
+    try {
+      // Get material details to find its ID
+      const response = await intervenantService.getIntervenantMaterials(
+        currentUser.value.intervenant.id,
+        serviceId
+      )
+      
+      const materialData = response.materials.find(m => m.name.trim() === trimmedMaterial)
+      if (materialData) {
+        // Delete from database
+        await intervenantService.deleteIntervenantMaterial(
+          currentUser.value.intervenant.id,
+          materialData.id
+        )
       }
     } catch (error) {
       console.error('Error removing material from database:', error)
       // Still clear the UI even if database deletion fails
     }
+  } else {
+    // Simply check the material
+    materialSelections[key] = true
   }
 }
 
@@ -1288,6 +1463,49 @@ const submitActivationRequest = async () => {
 }
 
 const toggleTask = async (taskId) => {
+  // FIND THE TASK AND SERVICE ID
+  let task = null
+  let serviceId = null
+  for (const sId in tasksByService.value) {
+    const t = tasksByService.value[sId].find(t => t.id == taskId)
+    if (t) {
+      task = t
+      serviceId = sId
+      break
+    }
+  }
+
+  // Pre-check for required materials if activating
+  if (!taskStates.value[taskId]) {
+    if (task && task.required_materials && task.required_materials.length > 0) {
+      const missing = task.required_materials.filter(mName => !materialSelections[`${serviceId}-${mName.trim()}`])
+      if (missing.length > 0) {
+        await showAlert(
+          `Pour activer ce sous-service (${task.name}), vous devez posséder les matériaux suivants :\n\n${missing.join(', ')}\n\nVeuillez les configurer dans la section "Matériaux" ci-dessous avant d'activer.`,
+          'Attention : Matériaux requis'
+        )
+        return
+      }
+    }
+  }
+
+  // Case 1: Activating locally (first time or no price)
+  // If task is inactive and has NO price set in the base data
+  if (!taskStates.value[taskId] && (!taskPrices.value[taskId] || taskPrices.value[taskId] <= 0)) {
+    taskStates.value[taskId] = true // Slide visually
+    taskFormVisible.value[taskId] = true // Show form
+    localActivations[taskId] = true // Mark as local draft
+    return
+  }
+
+  // Case 2: Canceling a local activation (draft)
+  if (taskStates.value[taskId] && localActivations[taskId]) {
+    taskStates.value[taskId] = false
+    taskFormVisible.value[taskId] = false
+    delete localActivations[taskId]
+    return
+  }
+
   try {
     loadingMessage.value = 'Mise à jour du statut...'
     showLoadingModal.value = true
@@ -1318,9 +1536,6 @@ const toggleTask = async (taskId) => {
 
       const proceed = await handlePendingInterventions('task', taskId, taskName)
       if (!proceed) {
-        // Since the UI toggle might have already happened, we might need to sync it back
-        // but usually this is called from @click which happens before the state change if we are careful
-        // but here taskStates.value[taskId] is already true (we are deactivating)
         return
       }
     }
@@ -1351,7 +1566,7 @@ const toggleTask = async (taskId) => {
     console.error('Error toggling task:', error)
     // Revert the state if API call failed
     taskStates.value[taskId] = !taskStates.value[taskId]
-    alert('Erreur lors de la modification du statut de la tâche')
+    await showError('Erreur lors de la modification du statut de la tâche')
   } finally {
     showLoadingModal.value = false
   }
@@ -1366,31 +1581,21 @@ const saveTaskConfig = async (taskId) => {
     return
   }
   
-  // Validate material prices
-  const materials = taskMaterials.value[taskId] || []
-  const materialsWithPrices = []
-  
-  for (const material of materials) {
-    const price = taskMaterialPrices.value[`${taskId}-${material}`]
-    if (!price || price <= 0) {
-      alert(`Le prix pour ${material} est obligatoire`)
-      return
-    }
-    materialsWithPrices.push({
-      name: material,
-      price: parseFloat(price)
-    })
-  }
+  // Material validation removed as materials are now managed at the service level
   
   try {
     // Send data to backend using the correct service
     const response = await intervenantTacheService.updateMyTache(taskId, {
-      hourlyRate: taskPrices.value[taskId],
-      materials: materialsWithPrices
+      hourlyRate: taskPrices.value[taskId]
     })
 
     // Hide the form but keep the task active
     taskFormVisible.value[taskId] = false
+    
+    // Clear local activation draft flag
+    if (localActivations[taskId]) {
+      delete localActivations[taskId]
+    }
     
     // Ensure task state remains active (this fixes the toggle issue)
     taskStates.value[taskId] = true
@@ -2483,4 +2688,35 @@ const getMaterialsByService = (serviceId) => {
 .font-semibold { font-weight: 600; }
 .text-lg { font-size: 1.125rem; }
 .text-gray-600 { color: #4B5563; }
+
+/* Generic UI Modal Styles */
+.bg-primary {
+  background-color: #92B08B !important;
+}
+
+.btn-confirm {
+  width: 100%;
+  padding: 0.875rem;
+  color: white;
+  border: none;
+  border-radius: var(--radius-lg);
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+}
+
+.btn-confirm:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+}
+
+.font-medium {
+  font-weight: 500;
+}
 </style>

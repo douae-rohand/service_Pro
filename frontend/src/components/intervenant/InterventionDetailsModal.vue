@@ -126,10 +126,10 @@
               </div>
               
               <!-- Client Provided -->
-              <div v-if="intervention.tache?.materiels?.length > 0" class="materials-group">
+              <div v-if="clientProvidedMaterials.length > 0" class="materials-group">
                 <p class="mat-label-small">Fournis par le client :</p>
                 <div class="materials-list">
-                  <div v-for="mat in intervention.tache.materiels" :key="'c'+mat.id" class="material-tag client-mat">
+                  <div v-for="mat in clientProvidedMaterials" :key="'c'+mat.id" class="material-tag client-mat">
                     {{ mat.nom_materiel }}
                   </div>
                 </div>
@@ -145,7 +145,7 @@
                 </div>
               </div>
 
-              <p v-if="!intervention.materiels?.length && !intervention.tache?.materiels?.length" class="empty-hint">Aucun matériel spécifique renseigné</p>
+              <p v-if="!intervention.materiels?.length && !clientProvidedMaterials.length" class="empty-hint">Aucun matériel spécifique renseigné</p>
             </div>
 
             <!-- Photo Gallery Block -->
@@ -374,6 +374,19 @@ const groupedPhotos = computed(() => {
     }
   })
   return groups
+})
+
+const clientProvidedMaterials = computed(() => {
+  if (!intervention.value?.tache?.materiels) return []
+  
+  const taskMaterials = intervention.value.tache.materiels
+  const intervenantMaterials = intervention.value.materiels || []
+  
+  // Get IDs of materials provided by intervenant
+  const intervenantMaterialIds = intervenantMaterials.map(m => m.id)
+  
+  // Filter task materials to only include those NOT provided by intervenant
+  return taskMaterials.filter(material => !intervenantMaterialIds.includes(material.id))
 })
 
 watch(() => props.show, (newVal) => {

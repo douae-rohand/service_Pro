@@ -26,6 +26,7 @@ class ServiceController extends Controller
             // Load relationships with only necessary columns
             $services = $query->with([
                 'taches:id,service_id,nom_tache,description,image_url',
+                'taches.materiels:id,nom_materiel',
                 'materiels:id,service_id,nom_materiel'
             ])->get();
             
@@ -42,7 +43,8 @@ class ServiceController extends Controller
                             'service_id' => $tache->service_id,
                             'name' => $tache->nom_tache, // Map nom_tache to name
                             'description' => $tache->description,
-                            'image_url' => $tache->image_url
+                            'image_url' => $tache->image_url,
+                            'required_materials' => $tache->materiels->pluck('nom_materiel')->toArray()
                         ];
                     }),
                     'materials' => $service->materiels->map(function($m) {

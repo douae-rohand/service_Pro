@@ -137,7 +137,7 @@
           @click="$emit('open-reclamation')"
           class="px-6 py-2.5 bg-red-50 text-red-600 font-bold rounded-xl text-sm transition-transform hover:scale-105"
         >
-          Signaler un problème
+          Réclamer
         </button>
         <button
           @click="$emit('close')"

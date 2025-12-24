@@ -29,7 +29,7 @@ class InterventionAccepted extends Mailable
      */
     public function build()
     {
-        return $this->subject('Détails de votre nouvelle intervention - Service Pro')
+        return $this->subject('Détails de votre nouvelle intervention - Verde Net')
                     ->view('emails.intervention-accepted')
                     ->with([
                         'intervention' => $this->intervention,

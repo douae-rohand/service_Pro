@@ -13,7 +13,7 @@
                     <!-- Header -->
                     <tr>
                         <td style="background: linear-gradient(135deg, #E8793F 0%, #D16834 100%); padding: 30px 20px; text-align: center;">
-                            <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;">Service Pro</h1>
+                            <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;">Verde Net</h1>
                             <p style="margin: 5px 0 0 0; color: #ffffff; font-size: 16px;">Confirmation d'intervention</p>
                         </td>
                     </tr>
@@ -70,7 +70,7 @@
 
                             <p style="margin: 30px 0 0 0; color: #333333; font-size: 15px; line-height: 1.7;">
                                 Bonne chance pour votre intervention !<br>
-                                <strong style="color: #E8793F;">L'équipe Service Pro</strong>
+                                <strong style="color: #E8793F;">L'équipe Verde Net</strong>
                             </p>
                         </td>
                     </tr>
@@ -78,7 +78,7 @@
                     <!-- Footer -->
                     <tr>
                         <td style="background-color: #f9f9f9; padding: 25px 30px; text-align: center; border-top: 1px solid #eeeeee;">
-                            <p style="margin: 0; color: #999999; font-size: 12px;">© {{ date('Y') }} Service Pro. Tous droits réservés.</p>
+                            <p style="margin: 0; color: #999999; font-size: 12px;">© {{ date('Y') }} Verde Net. Tous droits réservés.</p>
                         </td>
                     </tr>
                 </table>

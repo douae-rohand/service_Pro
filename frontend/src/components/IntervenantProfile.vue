@@ -755,7 +755,8 @@ export default {
           name: t.nom_tache || 'Service',
           description: t.description || '',
           duration: t.duree || '',
-          price: t.pivot?.prix_tache || t.prix || 0
+          price: t.pivot?.prix_tache || t.prix || 0,
+          serviceId: t.service_id || t.service?.id // Provide serviceId
         }));
     },
     
@@ -925,14 +926,19 @@ export default {
         // Ne pas changer l'état en cas d'erreur (il restera dans son état précédent)
       }
     },
+
     handleBookingClick(service = null, task = null) {
       // Vérifier si l'utilisateur est connecté
       if (!authService.isAuthenticated()) {
         // Stocker les paramètres pour après connexion
         localStorage.setItem('booking_intervenantId', this.intervenant.id);
-        if (service) {
-          localStorage.setItem('booking_serviceId', service.id);
+        
+        // Use task.serviceId if available
+        const effectiveServiceId = service?.id || task?.serviceId || this.intervenant.serviceId;
+        if (effectiveServiceId) {
+          localStorage.setItem('booking_serviceId', effectiveServiceId);
         }
+        
         if (task) {
           localStorage.setItem('booking_taskId', task.id);
         }
@@ -941,18 +947,18 @@ export default {
         return;
       }
       
+      const effectiveServiceId = service?.id || task?.serviceId || this.intervenant.serviceId;
+
       // Si connecté, rediriger vers la page de réservation
       this.$emit('navigate-booking', {
         intervenantId: this.intervenant.id,
-        serviceId: service?.id || null,
+        serviceId: effectiveServiceId,
         taskId: task?.id || null
       });
-      if (!authService.isAuthenticated()) {
-        this.$emit('login-required');
-        return;
-      }
+      
       this.selectedServiceForBooking = service;
       this.selectedTaskForBooking = task;
+      // Note: BookingModal might not be needed if navigation happens
       this.showBookingModal = true;
     },
     handleBookingSuccess() {

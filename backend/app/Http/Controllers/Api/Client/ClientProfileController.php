@@ -110,7 +110,15 @@ class ClientProfileController extends Controller
                     'date' => $intervention->date_intervention ? $intervention->date_intervention->format('d/m/Y') : 'N/A',
                     'price' => $intervention->facture->ttc ?? 0,
                     'rating' => $overallRating,
-                    'comment' => $comment
+                    'comment' => $comment,
+                    'invoice' => [
+                        'date' => $intervention->facture->created_at ?? $intervention->date_intervention,
+                        'num_facture' => $intervention->facture->num_facture ?? null,
+                        'laborCost' => $intervention->facture->ttc ?? 0,
+                        'materialsCost' => 0, // Placeholder as detailed breakdown not in DB
+                        'actualDuration' => $intervention->duration_hours ?? 1,
+                        'materialsDescription' => 'Aucun matériel facturé'
+                    ]
                 ];
             });
 

@@ -31,7 +31,7 @@ class ServiceRequestRejected extends Mailable
             ? implode(', ', $this->services) 
             : (!empty($this->services) ? $this->services : 'service');
         
-        return $this->subject('Votre demande de service a été refusée - Service Pro')
+        return $this->subject('Votre demande de service a été refusée - Verde Net')
                     ->view('emails.service-request-rejected')
                     ->with([
                         'intervenant' => $this->intervenant,

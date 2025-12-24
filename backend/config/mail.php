@@ -111,7 +111,7 @@ return [
 
     'from' => [
         'address' => env('MAIL_FROM_ADDRESS', 'service_pro@pro.ma'),
-        'name' => env('MAIL_FROM_NAME', 'Service Pro'),
+        'name' => env('MAIL_FROM_NAME', 'Verde Net'),
     ],
 
 ];

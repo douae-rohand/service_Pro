@@ -62,7 +62,7 @@
 </head>
 <body>
     <div class="header">
-        <h1>Service Pro</h1>
+        <h1>Verde Net</h1>
     </div>
     
     <div class="content">
@@ -81,10 +81,10 @@
         
         <p>Nous espérons que cette résolution répond à vos attentes. Si vous avez des questions supplémentaires ou des préoccupations, n'hésitez pas à nous contacter.</p>
         
-        <p>Nous vous remercions de votre patience et de votre confiance en Service Pro.</p>
+        <p>Nous vous remercions de votre patience et de votre confiance en Verde Net.</p>
         
         <p>Cordialement,<br>
-        <strong>L'équipe Service Pro</strong></p>
+        <strong>L'équipe Verde Net</strong></p>
     </div>
     
     <div class="footer">

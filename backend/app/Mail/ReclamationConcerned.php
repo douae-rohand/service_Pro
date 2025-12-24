@@ -39,7 +39,7 @@ class ReclamationConcerned extends Mailable
      */
     public function build()
     {
-        return $this->subject('⚠️ Réclamation vous concernant - Service Pro')
+        return $this->subject('⚠️ Réclamation vous concernant - Verde Net')
                     ->view('emails.reclamation-concerned')
                     ->with([
                         'reclamation' => $this->reclamation,

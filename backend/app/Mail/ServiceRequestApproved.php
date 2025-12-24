@@ -29,7 +29,7 @@ class ServiceRequestApproved extends Mailable
     {
         $servicesList = is_array($this->services) ? implode(', ', $this->services) : $this->services;
         
-        return $this->subject('Votre demande de service a été acceptée - Service Pro')
+        return $this->subject('Votre demande de service a été acceptée - Verde Net')
                     ->view('emails.service-request-approved')
                     ->with([
                         'intervenant' => $this->intervenant,

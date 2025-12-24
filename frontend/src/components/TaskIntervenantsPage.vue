@@ -201,15 +201,17 @@
                     </div>
                   </l-tooltip>
                   <l-popup>
-                    <div class="p-2">
-                      <div class="font-bold mb-1">{{ iv.name }}</div>
-                      <button
-                        @click="viewProfile(iv)"
-                        class="mt-2 px-3 py-1 text-xs rounded text-white"
-                        :style="{ backgroundColor: currentService.color }"
-                      >
-                        Voir profil
-                      </button>
+                    <div class="p-2 min-w-[150px]">
+                      <div class="font-bold mb-2 text-gray-900 border-b pb-1 text-center">{{ iv.name }}</div>
+                      <div class="flex flex-col gap-2">
+                        <button
+                          @click="viewProfile(iv)"
+                          class="px-3 py-1.5 text-xs rounded-lg text-white font-bold transition-transform hover:scale-105"
+                          :style="{ backgroundColor: currentService.color }"
+                        >
+                          Voir profil
+                        </button>
+                      </div>
                     </div>
                   </l-popup>
                   </l-marker>
@@ -868,7 +870,7 @@ export default {
             `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}&limit=1&countrycodes=ma`,
             {
               headers: {
-                'User-Agent': 'ServicePro App' // Requis par Nominatim
+                'User-Agent': 'VerdeNet App' // Requis par Nominatim
               }
             }
           );

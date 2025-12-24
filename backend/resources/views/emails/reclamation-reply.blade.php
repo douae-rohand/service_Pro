@@ -81,7 +81,7 @@
 </head>
 <body>
     <div class="header">
-        <h1>Service Pro</h1>
+        <h1>Verde Net</h1>
     </div>
     
     <div class="content">
@@ -107,7 +107,7 @@
         <p>Si vous avez des questions supplémentaires, n'hésitez pas à nous contacter.</p>
         
         <p>Cordialement,<br>
-        <strong>L'équipe Service Pro</strong></p>
+        <strong>L'équipe Verde Net</strong></p>
     </div>
     
     <div class="footer">

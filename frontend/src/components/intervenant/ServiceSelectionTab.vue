@@ -471,6 +471,9 @@ import interventionService from '@/services/interventionService'
 import axios from 'axios'
 import LoadingModal from './LoadingModal.vue'
 import SkeletonLoader from './SkeletonLoader.vue'
+import { useSse } from '@/composables/useSse'
+
+const { initSse, closeSse } = useSse()
 
 const router = useRouter()
 const currentUser = ref(null)
@@ -728,6 +731,26 @@ onMounted(async () => {
       await fetchServices()
       // Load active services and tasks for the authenticated intervenant
       await loadIntervenantActiveData(currentUser.value.id)
+
+      // Initialize SSE for Intervenant
+      initSse(`/sse/stream?type=intervenant&id=${currentUser.value.id}`, {
+        request_update: (data) => {
+          // Show notification based on status
+          if (data.status === 'active') {
+             // Use custom success message or standard one
+             showSuccessMessage.value = true
+             // You might want a dedicated toast here instead of the big success message div
+             // But for now, let's just reload the data to show the new status
+          } else if (data.status === 'refuse') {
+             // Show pending notification area repurposed or new notification
+             showPendingNotification.value = true
+             pendingNotificationMessage.value = data.message || `Votre demande pour ${data.service} a été refusée.`
+          }
+          
+          // Reload data
+          loadIntervenantActiveData(currentUser.value.id)
+        }
+      })
     }
   } catch (e) {
     console.error("Error in initial load", e)

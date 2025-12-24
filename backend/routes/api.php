@@ -175,6 +175,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // SSE pour les réservations en temps réel
     Route::get('/reservations/stream', [App\Http\Controllers\Api\Intervention\ReservationSSEController::class, 'stream']);
+    
+    // Generic SSE Stream for Notifications
+    Route::get('/sse/stream', [App\Http\Controllers\Api\SseController::class, 'stream']);
 
     // Actions sur Intervenant par ID (pour Admin ou autres)
     Route::put('intervenants/{id}/taches/{tacheId}/configure', [IntervenantController::class, 'configureTask']);

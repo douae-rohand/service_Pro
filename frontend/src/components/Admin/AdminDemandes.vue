@@ -425,9 +425,11 @@ import { User, CheckCircle, XCircle, Eye, UserCheck, X, Download, FileText } fro
 import adminService from '@/services/adminService'
 import { useNotifications } from '@/composables/useNotifications'
 import { useServiceColor } from '@/composables/useServiceColor'
+import { useSse } from '@/composables/useSse'
 
 const { success, error, info, confirm: confirmDialog } = useNotifications()
 const { getServiceBadgeColors } = useServiceColor()
+const { initSse, closeSse } = useSse()
 
 const props = defineProps({
   loading: Boolean
@@ -544,6 +546,25 @@ const loadServices = async () => {
   }
 }
 
+onMounted(() => {
+  loadServices()
+  loadDemandes()
+
+  // Initialize SSE for Admin
+  initSse('/sse/stream?type=admin', {
+    new_request: (data) => {
+      // Show notification
+      success(data.message || 'Nouvelle demande d\'activation reçue !')
+      
+      // Reload list
+      loadDemandes()
+      
+      // Emit update event
+      emit('stats-updated')
+    }
+  })
+})
+
 const loadDemandes = async () => {
   try {
     loading.value = true
@@ -638,10 +659,10 @@ const approveDemande = async (intervenantId, serviceId) => {
       await loadDemandes()
       // Émettre un événement pour recharger les stats (badge de demandes en attente)
       emit('stats-updated')
-    } catch (error) {
-      console.error('Erreur approbation demande:', error)
-      const errorMessage = error.response?.data?.message || 
-                          error.response?.data?.error || 
+    } catch (err) {
+      console.error('Erreur approbation demande:', err)
+      const errorMessage = err.response?.data?.message || 
+                          err.response?.data?.error || 
                           'Erreur lors de l\'approbation de la demande'
       error(errorMessage)
       // En cas d'erreur, recharger les demandes pour restaurer le statut correct

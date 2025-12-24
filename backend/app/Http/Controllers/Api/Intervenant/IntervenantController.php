@@ -1321,13 +1321,16 @@ class IntervenantController extends Controller
                 ]);
             }
 
-            DB::commit();
+        DB::commit();
 
-            return response()->json([
-                'message' => 'Demande d\'activation envoyée avec succès',
-                'status' => 'demmande',
-                'isActive' => false
-            ]);
+        // Notify Admin via SSE
+        \Illuminate\Support\Facades\Cache::put('admin_new_request', time(), 60);
+
+        return response()->json([
+            'message' => 'Demande d\'activation envoyée avec succès',
+            'status' => 'demmande',
+            'isActive' => false
+        ]);
 
         } catch (\Exception $e) {
             DB::rollBack();

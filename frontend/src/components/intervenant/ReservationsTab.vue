@@ -158,7 +158,7 @@
               <div class="reservation-header">
                 <!-- Actions for Pending -->
                 <div v-if="selectedTab === 'pending'" class="action-buttons">
-                  <button @click="acceptReservation(reservation.id)" class="accept-btn">
+                  <button @click="handleAcceptReservation(reservation.id)" class="accept-btn">
                     <Check :size="18" />
                     Accepter
                   </button>
@@ -784,38 +784,37 @@ const fetchReservations = async (silent = false) => {
   }
 }
 
-// const generateInvoice = async (id) => {
-//   try {
-//     const data = await reservationService.generateInvoice(id)
-//     if (data.url) {
-//       window.open(data.url, '_blank')
-//     } else {
-//       alert('Erreur: URL de facture manquante')
-//     }
-//   } catch (err) {
-//     alert(err.message || 'Erreur lors de la génération de la facture')
-//     console.error(err)
-//   }
 // }
 
-const acceptReservation = async (id) => {
+const handleAcceptReservation = async (id) => {
   try {
     loadingMessage.value = 'Acceptation en cours...'
     showLoadingModal.value = true
-    await reservationService.acceptReservation(id)
     
-    // Optimistic Update
-    const index = reservations.value.findIndex(r => r.id === id)
-    if (index !== -1) {
-      reservations.value[index].status = 'accepted'
+    const response = await reservationService.acceptReservation(id)
+    
+    // Check for mail_sent flag from backend
+    if (response && response.mail_sent) {
+      notification.value = "Réservation acceptée. Un email avec les détails du client vous a été envoyé."
+    } else {
+      notification.value = "Réservation acceptée avec succès."
     }
+    
+    // Auto hide notification
+    setTimeout(() => {
+      notification.value = null
+    }, 5000)
+    
+    // Refresh list
+    fetchReservations(true)
   } catch (err) {
-    alert(err.message || 'Erreur lors de l\'acceptation de la réservation')
-    console.error(err)
+    error.value = err.message || "Erreur lors de l'acceptation"
+    setTimeout(() => { error.value = null }, 3000)
   } finally {
     showLoadingModal.value = false
   }
 }
+
 
 const refuseReservation = (id) => {
   refusalId.value = id

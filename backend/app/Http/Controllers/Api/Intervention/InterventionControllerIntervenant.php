@@ -149,6 +149,8 @@ class InterventionControllerIntervenant extends Controller
 
         $intervention->update($data);
 
+        $mailSent = false;
+
         // Generate Fiche de Payement if status is accepted or finished
         if (isset($data['status']) && in_array($data['status'], ['acceptee', 'termine'])) {
             try {
@@ -157,11 +159,24 @@ class InterventionControllerIntervenant extends Controller
             } catch (\Exception $e) {
                 \Log::error("Failed to generate payment slip for intervention {$intervention->id}: " . $e->getMessage());
             }
+
+            // Send Email to Intervenant if accepted
+            if ($data['status'] === 'acceptee') {
+                try {
+                    $intervention->load(['client.utilisateur', 'intervenant.utilisateur', 'tache.service']);
+                    // Send email to Intervenant
+                    \Illuminate\Support\Facades\Mail::to($intervention->intervenant->utilisateur->email)->send(new \App\Mail\InterventionAccepted($intervention));
+                    $mailSent = true;
+                } catch (\Exception $e) {
+                     \Log::error("Failed to send acceptance email for intervention {$intervention->id}: " . $e->getMessage());
+                }
+            }
         }
 
         return response()->json([
             'message' => 'Intervention mise à jour avec succès',
             'intervention' => $intervention->load(['client.utilisateur', 'intervenant.utilisateur', 'tache', 'fichePayement']),
+            'mail_sent' => $mailSent
         ]);
     }
 

@@ -114,7 +114,7 @@
     </div>
 
     <div class="footer">
-        <p>Cette fiche de payement est générée automatiquement par la plateforme Service Pro.</p>
+        <p>Cette fiche de payement est générée automatiquement par la plateforme VERDE NET.</p>
     </div>
 </body>
 </html>

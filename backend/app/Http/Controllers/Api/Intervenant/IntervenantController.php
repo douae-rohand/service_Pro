@@ -743,6 +743,7 @@ class IntervenantController extends Controller
                     'active' => $pivot->status ?? true, // Status from intervenant_tache pivot
                     'completedJobs' => $completedJobs,
                     'materials' => $ownedMaterials,
+                    'required_materials' => $tache->materiels->pluck('nom_materiel')->toArray(),
                 ];
             });
             
@@ -1152,6 +1153,7 @@ class IntervenantController extends Controller
                     'price' => $tache->pivot->prix_tache,
                     'status' => $tache->pivot->status, // This is the task status (active/inactive)
                     'materials' => $ownedMaterials,
+                    'required_materials' => $tache->materiels->pluck('nom_materiel')->toArray(),
                 ];
             });
 

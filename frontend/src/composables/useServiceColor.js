@@ -31,7 +31,7 @@ const getAllStoredColors = () => {
 const getServiceColors = (serviceName) => {
   if (!serviceName) return null
   const serviceNameLower = String(serviceName).toLowerCase().trim()
-  
+
   // Détection pour Jardinage (insensible à la casse et aux espaces)
   if (serviceNameLower === 'jardinage' || serviceNameLower.includes('jardinage')) {
     return {
@@ -44,7 +44,7 @@ const getServiceColors = (serviceName) => {
       badgeText: '#92B08B'   // Texte pour badges
     }
   }
-  
+
   // Détection pour Ménage (insensible à la casse et aux espaces)
   if (serviceNameLower === 'ménage' || serviceNameLower.includes('ménage') || serviceNameLower === 'menage' || serviceNameLower.includes('menage')) {
     return {
@@ -57,7 +57,7 @@ const getServiceColors = (serviceName) => {
       badgeText: '#1A5FA3'   // Texte pour badges
     }
   }
-  
+
   // Couleurs par défaut (utiliser la couleur du service)
   return null
 }
@@ -80,7 +80,7 @@ export function useServiceColor() {
    */
   const getServiceColor = (serviceName, serviceId = null, servicesList = []) => {
     if (!serviceName) return '#5B7C99'
-    
+
     // PRIORITÉ 1 : Chercher d'abord la couleur stockée dans la base de données/localStorage
     // Si un serviceId est fourni, chercher dans la liste des services
     if (serviceId && servicesList && servicesList.length > 0) {
@@ -90,7 +90,7 @@ export function useServiceColor() {
         return service.couleur
       }
     }
-    
+
     // Chercher par nom dans la liste des services (support nom_service et nom pour compatibilité)
     if (servicesList && servicesList.length > 0) {
       const service = servicesList.find(s => {
@@ -102,7 +102,7 @@ export function useServiceColor() {
         return service.couleur
       }
     }
-    
+
     // Chercher dans localStorage si serviceId est fourni
     if (serviceId) {
       const storedColor = getStoredServiceColor(serviceId)
@@ -110,13 +110,13 @@ export function useServiceColor() {
         return storedColor
       }
     }
-    
+
     // PRIORITÉ 2 : Si aucune couleur stockée, utiliser les couleurs par défaut pour Jardinage/Ménage
     const customColors = getServiceColors(serviceName)
     if (customColors) {
       return customColors.primary
     }
-    
+
     // PRIORITÉ 3 : Couleur par défaut
     return '#5B7C99'
   }
@@ -136,7 +136,7 @@ export function useServiceColor() {
         color: '#1A5FA3'
       }
     }
-    
+
     // PRIORITÉ 1 : Vérifier si le service a une couleur stockée
     let serviceData = null
     if (serviceId && servicesList && servicesList.length > 0) {
@@ -148,7 +148,7 @@ export function useServiceColor() {
         return serviceNom && serviceNom.toLowerCase().trim() === serviceName.toLowerCase().trim()
       })
     }
-    
+
     // Si le service a une couleur stockée, l'utiliser
     if (serviceData && serviceData.couleur && serviceData.couleur !== '#808080') {
       const primaryColor = serviceData.couleur
@@ -157,7 +157,7 @@ export function useServiceColor() {
         color: primaryColor
       }
     }
-    
+
     // Chercher dans localStorage si serviceId est fourni
     if (serviceId) {
       const storedColor = getStoredServiceColor(serviceId)
@@ -168,7 +168,7 @@ export function useServiceColor() {
         }
       }
     }
-    
+
     // PRIORITÉ 2 : Si aucune couleur stockée, utiliser les couleurs par défaut pour Jardinage/Ménage
     const customColors = getServiceColors(serviceName)
     if (customColors) {
@@ -177,7 +177,7 @@ export function useServiceColor() {
         color: customColors.badgeText
       }
     }
-    
+
     // PRIORITÉ 3 : Générer des couleurs de badge basées sur la couleur principale
     const primaryColor = getServiceColor(serviceName, serviceId, servicesList)
     return {
@@ -206,11 +206,11 @@ export function useServiceColor() {
         return serviceNom && serviceNom.toLowerCase().trim() === serviceName.toLowerCase().trim()
       })
     }
-    
+
     if (serviceData && serviceData.couleur && serviceData.couleur !== '#808080') {
       return `${serviceData.couleur}20` // 20% d'opacité
     }
-    
+
     // Chercher dans localStorage si serviceId est fourni
     if (serviceId) {
       const storedColor = getStoredServiceColor(serviceId)
@@ -218,13 +218,13 @@ export function useServiceColor() {
         return `${storedColor}20`
       }
     }
-    
+
     // PRIORITÉ 2 : Si aucune couleur stockée, utiliser les couleurs par défaut pour Jardinage/Ménage
     const customColors = getServiceColors(serviceName)
     if (customColors) {
       return customColors.light
     }
-    
+
     // PRIORITÉ 3 : Génération automatique
     const primaryColor = getServiceColor(serviceName, serviceId, servicesList)
     return `${primaryColor}20` // 20% d'opacité
@@ -241,10 +241,10 @@ export function useServiceColor() {
   const getAllServiceColors = (serviceName, serviceId = null, servicesList = []) => {
     // Obtenir la couleur principale (qui respecte déjà la priorité)
     const primaryColor = getServiceColor(serviceName, serviceId, servicesList)
-    
+
     // Vérifier si c'est une couleur par défaut (Jardinage/Ménage)
     const customColors = getServiceColors(serviceName)
-    
+
     // Si le service a une couleur stockée différente des couleurs par défaut, l'utiliser
     let serviceData = null
     if (serviceId && servicesList && servicesList.length > 0) {
@@ -256,7 +256,7 @@ export function useServiceColor() {
         return serviceNom && serviceNom.toLowerCase().trim() === serviceName.toLowerCase().trim()
       })
     }
-    
+
     // Si le service a une couleur stockée, utiliser cette couleur pour tous les usages
     if (serviceData && serviceData.couleur && serviceData.couleur !== '#808080') {
       const storedColor = serviceData.couleur
@@ -270,12 +270,12 @@ export function useServiceColor() {
         badgeText: storedColor
       }
     }
-    
+
     // Si c'est une couleur par défaut (Jardinage/Ménage), utiliser les couleurs personnalisées
     if (customColors) {
       return customColors
     }
-    
+
     // Sinon, générer à partir de la couleur principale
     return {
       primary: primaryColor,

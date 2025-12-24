@@ -273,6 +273,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('historique', [AdminController::class, 'getHistorique']);
         Route::get('historique/export/csv', [AdminController::class, 'exportHistoriqueCSV']);
         Route::get('historique/export/pdf', [AdminController::class, 'exportHistoriquePDF']);
+        
+        // SSE
+        Route::get('stream', [\App\Http\Controllers\Api\Admin\AdminSSEController::class, 'stream']);
     });
 
     // Routes for current intervenant's taches

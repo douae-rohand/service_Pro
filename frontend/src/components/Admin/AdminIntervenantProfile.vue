@@ -675,6 +675,7 @@ import {
 } from 'lucide-vue-next'
 import adminService from '@/services/adminService'
 import { useServiceColor } from '@/composables/useServiceColor'
+import { useAdminRealtimeSync } from '@/composables/useAdminRealtimeSync'
 
 const { getServiceColor: getServiceColorUtil } = useServiceColor()
 
@@ -726,11 +727,25 @@ const loadServices = async () => {
   }
 }
 
-const fetchIntervenantDetails = async (id) => {
+const fetchIntervenantDetails = async (id, options = {}) => {
+  const { silent = false } = options
   try {
-    loading.value = true
+    if (!silent) {
+      loading.value = true
+    }
     const response = await adminService.getIntervenantDetails(id)
-    fullIntervenantData.value = response.data
+    
+    if (silent && fullIntervenantData.value) {
+      // Mise à jour intelligente : fusionner les données existantes avec les nouvelles
+      const newData = response.data
+      Object.keys(newData).forEach(key => {
+        if (JSON.stringify(fullIntervenantData.value[key]) !== JSON.stringify(newData[key])) {
+          fullIntervenantData.value[key] = newData[key]
+        }
+      })
+    } else {
+      fullIntervenantData.value = response.data
+    }
     
     // Debug: Log the response to see if allServicesWithDetailsAll is present
     console.log('fetchIntervenantDetails response:', {
@@ -740,10 +755,14 @@ const fetchIntervenantDetails = async (id) => {
     })
   } catch (error) {
     console.error('Erreur lors du chargement des détails:', error)
-    // Fallback to props data if API call fails
-    fullIntervenantData.value = props.intervenant
+    if (!silent) {
+      // Fallback to props data if API call fails
+      fullIntervenantData.value = props.intervenant
+    }
   } finally {
-    loading.value = false
+    if (!silent) {
+      loading.value = false
+    }
   }
 }
 
@@ -758,6 +777,25 @@ watch([() => props.isOpen, () => props.intervenant?.id], async ([isOpen, interve
     // Réinitialiser quand le modal se ferme
     fullIntervenantData.value = null
     isFetching = false
+  }
+}, { immediate: true })
+
+// Synchronisation en temps réel - Recharger les détails de l'intervenant toutes les 3 secondes quand le modal est ouvert
+const { start: startSync, stop: stopSync } = useAdminRealtimeSync(
+  async ({ silent = false }) => {
+    if (props.isOpen && props.intervenant?.id && !isFetching) {
+      await fetchIntervenantDetails(props.intervenant.id, { silent })
+    }
+  },
+  { interval: 3000, loadOnMount: false, enabled: false }
+)
+
+// Démarrer/arrêter la synchronisation selon l'état du modal
+watch(() => props.isOpen, (isOpen) => {
+  if (isOpen && props.intervenant?.id) {
+    startSync()
+  } else {
+    stopSync()
   }
 }, { immediate: true })
 

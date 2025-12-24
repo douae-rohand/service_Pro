@@ -16,15 +16,22 @@
       </h2>
       <div class="flex gap-1.5">
         <button
-          @click="showArchived = false; loadReclamations()"
-          :class="!showArchived ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'"
+          @click="changeTab('actives')"
+          :class="activeTab === 'actives' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'"
           class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
         >
           Actives
         </button>
         <button
-          @click="showArchived = true; loadArchivedReclamations()"
-          :class="showArchived ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'"
+          @click="changeTab('historique')"
+          :class="activeTab === 'historique' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'"
+          class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+        >
+          Historique
+        </button>
+        <button
+          @click="changeTab('archivees')"
+          :class="activeTab === 'archivees' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'"
           class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
         >
           Archivées
@@ -109,13 +116,13 @@
     </div>
 
     <!-- Reclamations List -->
-    <div v-else-if="(!showArchived && reclamations.length > 0) || (showArchived && archivedReclamations.length > 0)" class="space-y-2.5">
-      <!-- Active Reclamations -->
-      <template v-if="!showArchived">
+    <div v-else-if="currentReclamations.length > 0" class="space-y-2.5">
+      <!-- Reclamations Items -->
       <div
-        v-for="reclamation in reclamations"
+        v-for="reclamation in currentReclamations"
         :key="reclamation.id"
         class="bg-white rounded-lg p-3 shadow-sm border border-gray-100 hover:shadow-md transition-all"
+        :class="{ 'opacity-75': activeTab === 'archivees' }"
       >
         <div class="flex items-start gap-2.5 mb-2.5">
           <div
@@ -331,20 +338,30 @@
         </div>
 
         <!-- Action Buttons ou Statut Résolu -->
-        <!-- Si statut = Résolu: afficher uniquement "Résolu" -->
+        <!-- Si statut = Résolu: afficher uniquement "Résolu" (sauf si archivé) -->
         <!-- Sinon: afficher les boutons d'action -->
-        <div v-if="reclamation.statut === 'resolu' && !reclamation.archived" class="text-center py-1.5">
-          <span
-            class="px-3 py-1.5 rounded-lg text-xs font-medium"
-            :style="{
-              backgroundColor: '#E8F5E9',
-              color: '#4CAF50'
-            }"
+        <div v-if="reclamation.statut === 'resolu' && activeTab === 'historique'" class="flex gap-1.5">
+          <div class="flex-1 text-center py-1.5">
+            <span
+              class="px-3 py-1.5 rounded-lg text-xs font-medium"
+              :style="{
+                backgroundColor: '#E8F5E9',
+                color: '#4CAF50'
+              }"
+            >
+              Résolu
+            </span>
+          </div>
+          <button
+            @click="handleReclamation(reclamation.id, 'archive')"
+            class="px-3 py-1.5 rounded-lg flex items-center justify-center gap-1 transition-all text-xs hover:shadow-md"
+            style="background-color: #FFD4D4; color: #8B4545"
           >
-            Résolu
-          </span>
+            <XCircle :size="12" />
+            Archiver
+          </button>
         </div>
-        <div v-else-if="!reclamation.archived" class="flex gap-1.5">
+        <div v-else-if="activeTab === 'actives'" class="flex gap-1.5">
           <button
             @click="handleReclamation(reclamation.id, 'reply')"
             class="flex-1 px-3 py-1.5 rounded-lg flex items-center justify-center gap-1 transition-all text-xs hover:shadow-md"
@@ -370,202 +387,26 @@
             Archiver
           </button>
         </div>
-      </div>
-      </template>
 
-      <!-- Archived Reclamations -->
-      <template v-else>
-        <div
-          v-for="reclamation in archivedReclamations"
-          :key="reclamation.id"
-          class="bg-white rounded-lg p-3 shadow-sm border border-gray-100 hover:shadow-md transition-all opacity-75"
-        >
-          <div class="flex items-start gap-2.5 mb-2.5">
-            <div
-              class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-              style="background-color: #FFEBEE"
-            >
-              <AlertTriangle :size="16" style="color: #D32F2F" />
-            </div>
-
-            <div class="flex-1">
-              <div class="flex items-center gap-1.5 mb-1 flex-wrap">
-                <h3 class="text-sm font-semibold" style="color: #2F4F4F">
-                  Signalé il y a {{ formatTimeAgo(reclamation.date) }}
-                </h3>
-                <span
-                  class="px-1.5 py-0.5 rounded text-xs"
-                  :style="{
-                    backgroundColor: getPriorityColor(reclamation.priorite),
-                    color: '#FFFFFF'
-                  }"
-                >
-                  Priorité {{ reclamation.priorite }}
-                </span>
-                <span
-                  class="px-1.5 py-0.5 rounded text-xs"
-                  :style="{
-                    backgroundColor: getStatusColor(reclamation.statut),
-                    color: '#FFFFFF'
-                  }"
-                >
-                  {{ formatStatus(reclamation.statut) }}
-                </span>
-                <span class="px-1.5 py-0.5 rounded text-xs bg-gray-400 text-white">
-                  Archivée
-                </span>
-              </div>
-              <p class="text-xs text-gray-600 mb-0.5">
-                Signalé par : <span style="color: #2F4F4F">{{ reclamation.signalePar }}</span>
-              </p>
-              <p class="text-xs text-gray-600">
-                Raison : <span style="color: #2F4F4F">{{ reclamation.raison }}</span>
-              </p>
-            </div>
-          </div>
-
-          <div class="bg-gray-50 rounded-lg p-2.5 mb-2.5">
-            <p class="text-xs text-gray-600 mb-1">Message du rapporteur :</p>
-            <p class="text-xs italic" style="color: #2F4F4F">"{{ reclamation.message }}"</p>
-          </div>
-
-          <!-- Linked Intervention (Archived) -->
-          <div v-if="reclamation.intervention" class="bg-gray-50 rounded-lg p-2.5 mb-2.5 border border-gray-200">
-            <div class="flex items-center gap-2 mb-2">
-              <Calendar :size="14" class="text-gray-400" />
-              <div>
-                <p class="text-[10px] text-gray-500 font-medium">Intervention : {{ reclamation.intervention.service }}</p>
-                <p class="text-[10px] text-gray-500">{{ formatDateShort(reclamation.intervention.date) }}</p>
-              </div>
-            </div>
-
-            <!-- Evaluations Section (Archived) -->
-            <div v-if="reclamation.intervention.evaluations" class="mt-2 space-y-2">
-              <!-- Client Evaluations -->
-              <div v-if="reclamation.intervention.evaluations.client && reclamation.intervention.evaluations.client.count > 0" 
-                   class="bg-white rounded-lg p-2 border border-gray-200">
-                <div class="flex items-center justify-between mb-1.5">
-                  <p class="text-[10px] font-semibold text-gray-700 uppercase">Évaluation Client</p>
-                  <div v-if="reclamation.intervention.evaluations.client.average_note" class="flex items-center gap-1">
-                    <Star :size="10" fill="#FEE347" style="color: #FEE347" />
-                    <span class="text-xs font-semibold text-gray-800">{{ reclamation.intervention.evaluations.client.average_note }}/5</span>
-                  </div>
-                </div>
-                
-                <!-- Evaluation Details -->
-                <div v-if="reclamation.intervention.evaluations.client.details && reclamation.intervention.evaluations.client.details.length > 0" 
-                     class="space-y-1 mb-1.5">
-                  <div v-for="detail in reclamation.intervention.evaluations.client.details" 
-                       :key="detail.id" 
-                       class="flex items-center justify-between text-[10px]">
-                    <span class="text-gray-600">{{ detail.critere }}</span>
-                    <div class="flex items-center gap-0.5">
-                      <Star v-for="n in 5" :key="n" :size="8" 
-                            :fill="n <= detail.note ? '#FEE347' : 'none'"
-                            style="color: #FEE347" />
-                      <span class="ml-0.5 text-gray-700 font-medium">{{ detail.note }}/5</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <!-- Client Comment -->
-                <div v-if="reclamation.intervention.evaluations.client.comment" 
-                     class="bg-red-50 rounded p-1.5 border border-red-100">
-                  <p class="text-[10px] text-red-700 font-medium mb-0.5">Commentaire client:</p>
-                  <p class="text-[10px] text-red-800 italic">"{{ reclamation.intervention.evaluations.client.comment }}"</p>
-                </div>
-              </div>
-
-              <!-- Intervenant Evaluations -->
-              <div v-if="reclamation.intervention.evaluations.intervenant && reclamation.intervention.evaluations.intervenant.count > 0" 
-                   class="bg-white rounded-lg p-2 border border-gray-200">
-                <div class="flex items-center justify-between mb-1.5">
-                  <p class="text-[10px] font-semibold text-gray-700 uppercase">Évaluation Intervenant</p>
-                  <div v-if="reclamation.intervention.evaluations.intervenant.average_note" class="flex items-center gap-1">
-                    <Star :size="10" fill="#FEE347" style="color: #FEE347" />
-                    <span class="text-xs font-semibold text-gray-800">{{ reclamation.intervention.evaluations.intervenant.average_note }}/5</span>
-                  </div>
-                </div>
-                
-                <!-- Evaluation Details -->
-                <div v-if="reclamation.intervention.evaluations.intervenant.details && reclamation.intervention.evaluations.intervenant.details.length > 0" 
-                     class="space-y-1 mb-1.5">
-                  <div v-for="detail in reclamation.intervention.evaluations.intervenant.details" 
-                       :key="detail.id" 
-                       class="flex items-center justify-between text-[10px]">
-                    <span class="text-gray-600">{{ detail.critere }}</span>
-                    <div class="flex items-center gap-0.5">
-                      <Star v-for="n in 5" :key="n" :size="8" 
-                            :fill="n <= detail.note ? '#FEE347' : 'none'"
-                            style="color: #FEE347" />
-                      <span class="ml-0.5 text-gray-700 font-medium">{{ detail.note }}/5</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <!-- Intervenant Comment -->
-                <div v-if="reclamation.intervention.evaluations.intervenant.comment" 
-                     class="bg-orange-50 rounded p-1.5 border border-orange-100">
-                  <p class="text-[10px] text-orange-700 font-medium mb-0.5">Commentaire intervenant:</p>
-                  <p class="text-[10px] text-orange-800 italic">"{{ reclamation.intervention.evaluations.intervenant.comment }}"</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="flex items-center gap-2.5 mb-2.5">
-            <div class="flex-1">
-              <div class="flex items-center gap-1.5 mb-1">
-                <div class="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs"
-                     :style="{ backgroundColor: '#92B08B' }">
-                  {{ getInitials(reclamation.signalePar) }}
-                </div>
-                <div>
-                  <p class="text-xs font-medium" style="color: #2F4F4F">{{ reclamation.signalePar }}</p>
-                  <p class="text-xs text-gray-500">{{ reclamation.signaleParType === 'Client' ? 'Cliente' : 'Intervenante' }}</p>
-                </div>
-              </div>
-            </div>
-
-            <div class="flex-1 px-2.5 border-l" style="border-color: #E5E7EB">
-              <div class="flex items-center gap-1.5 mb-1">
-                <div class="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs"
-                     :style="{ backgroundColor: '#1A5FA3' }">
-                  {{ getInitials(reclamation.concernant) }}
-                </div>
-                <div>
-                  <p class="text-xs font-medium" style="color: #2F4F4F">{{ reclamation.concernant }}</p>
-                  <p class="text-xs text-gray-500">{{ reclamation.concernantType === 'Client' ? 'Cliente' : 'Intervenante' }}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div v-if="reclamation.notes" class="bg-gray-50 rounded-lg p-2.5 mb-2.5">
-            <p class="text-xs text-gray-600 mb-1">Notes de l'administration :</p>
-            <p class="text-xs" style="color: #2F4F4F">{{ reclamation.notes }}</p>
-          </div>
-
-          <!-- Unarchive Button -->
-          <div class="flex justify-end mt-2.5">
-            <button
-              @click="handleReclamation(reclamation.id, 'unarchive')"
-              class="px-3 py-1.5 rounded-lg flex items-center justify-center gap-1 transition-all text-xs hover:shadow-md"
-              style="background-color: #E3F2FD; color: #1565C0"
-            >
-              <CheckCheck :size="12" />
-              Désarchiver
-            </button>
-          </div>
+        <!-- Unarchive Button for Archived Tab -->
+        <div v-if="activeTab === 'archivees'" class="flex justify-end mt-2.5">
+          <button
+            @click="handleReclamation(reclamation.id, 'unarchive')"
+            class="px-3 py-1.5 rounded-lg flex items-center justify-center gap-1 transition-all text-xs hover:shadow-md"
+            style="background-color: #E3F2FD; color: #1565C0"
+          >
+            <CheckCheck :size="12" />
+            Désarchiver
+          </button>
         </div>
-      </template>
+      </div>
     </div>
 
     <!-- Empty State -->
     <div v-else-if="!loading" class="text-center py-8">
       <AlertTriangle :size="48" class="mx-auto mb-3 text-gray-300" />
       <p class="text-gray-500 text-base">
-        {{ showArchived ? 'Aucune réclamation archivée trouvée' : 'Aucune réclamation trouvée' }}
+        {{ emptyStateMessage }}
       </p>
       <p v-if="hasActiveFilters" class="text-gray-400 text-xs mt-2">
         Essayez de modifier vos filtres
@@ -573,17 +414,14 @@
     </div>
 
     <!-- Pagination -->
-    <div v-if="!loading && (reclamations.length > 0 || archivedReclamations.length > 0 || pagination.total > 0)" class="mt-6 flex items-center justify-between flex-wrap gap-4">
+    <div v-if="!loading && (currentReclamations.length > 0 || pagination.total > 0)" class="mt-6 flex items-center justify-between flex-wrap gap-4">
       <!-- Info -->
       <div class="text-sm text-gray-600">
         <span v-if="pagination.total > 0">
           Affichage de {{ pagination.from || 0 }} à {{ pagination.to || 0 }} sur {{ pagination.total }} réclamation{{ pagination.total > 1 ? 's' : '' }}
         </span>
-        <span v-else-if="!showArchived && reclamations.length > 0">
-          {{ reclamations.length }} réclamation{{ reclamations.length > 1 ? 's' : '' }}
-        </span>
-        <span v-else-if="showArchived && archivedReclamations.length > 0">
-          {{ archivedReclamations.length }} réclamation{{ archivedReclamations.length > 1 ? 's' : '' }} archivée{{ archivedReclamations.length > 1 ? 's' : '' }}
+        <span v-else-if="currentReclamations.length > 0">
+          {{ currentReclamations.length }} réclamation{{ currentReclamations.length > 1 ? 's' : '' }}
         </span>
       </div>
 
@@ -711,18 +549,20 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { AlertTriangle, Star, CheckCheck, Ban, XCircle, Calendar } from 'lucide-vue-next'
 import adminService from '@/services/adminService'
 import AdminIntervenantProfile from './AdminIntervenantProfile.vue'
 import AdminClientDetails from './AdminClientDetails.vue'
 import { useNotifications } from '@/composables/useNotifications'
+import { useAdminRealtimeSync } from '@/composables/useAdminRealtimeSync'
 
 const emit = defineEmits(['back', 'view-profile'])
 const { success, error, confirm: confirmDialog } = useNotifications()
 
 const reclamations = ref([])
-const archivedReclamations = ref([])
+const activeTab = ref('actives')
+
 const loading = ref(false)
 const showIntervenantProfile = ref(false)
 const selectedIntervenant = ref(null)
@@ -731,7 +571,6 @@ const selectedClient = ref(null)
 const showMarkStatusModal = ref(false)
 const selectedReclamationId = ref(null)
 const selectedMarkStatus = ref('en_cours')
-const showArchived = ref(false)
 
 // Filters
 const filters = ref({
@@ -753,10 +592,20 @@ const pagination = ref({
 
 // Computed
 const hasActiveFilters = computed(() => {
-  return filters.value.statut !== 'all' || 
+  return (activeTab.value === 'actives' && filters.value.statut !== 'all') || 
          filters.value.priorite !== 'all' || 
          filters.value.dateDebut !== '' || 
          filters.value.dateFin !== ''
+})
+
+const currentReclamations = computed(() => reclamations.value)
+
+const emptyStateMessage = computed(() => {
+  switch (activeTab.value) {
+    case 'historique': return 'Aucune réclamation résolue trouvée'
+    case 'archivees': return 'Aucune réclamation archivée trouvée'
+    default: return 'Aucune réclamation active trouvée'
+  }
 })
 
 const visiblePages = computed(() => {
@@ -810,18 +659,34 @@ const visiblePages = computed(() => {
 })
 
 // Methods
-const loadReclamations = async () => {
+const loadReclamations = async (options = {}) => {
+  const { silent = false } = options
   try {
-    loading.value = true
+    if (!silent) {
+      loading.value = true
+    }
     const params = {
       page: pagination.value.current_page,
-      per_page: pagination.value.per_page,
-      archived: 'false'
+      per_page: pagination.value.per_page
     }
     
-    if (filters.value.statut !== 'all') {
-      params.statut = filters.value.statut
+    // Configurer les paramètres selon l'onglet
+    if (activeTab.value === 'actives') {
+      params.archived = 'false'
+      params.exclude_status = 'resolu'
+      if (filters.value.statut !== 'all') {
+        params.statut = filters.value.statut
+      }
+    } else if (activeTab.value === 'historique') {
+      params.archived = 'false'
+      params.statut = 'resolu'
+    } else if (activeTab.value === 'archivees') {
+      params.archived = 'true'
+      if (filters.value.statut !== 'all') {
+        params.statut = filters.value.statut
+      }
     }
+
     if (filters.value.priorite !== 'all') {
       params.priorite = filters.value.priorite
     }
@@ -834,78 +699,69 @@ const loadReclamations = async () => {
     
     const response = await adminService.getReclamations(params)
     
-    // Gérer la structure de la réponse
     if (response && response.data) {
-      if (response.data.data && Array.isArray(response.data.data)) {
-        // Structure avec pagination
-        reclamations.value = response.data.data
-        if (response.data.pagination) {
-          // Conserver le per_page actuel ou utiliser celui de la réponse
-          const currentPerPage = pagination.value.per_page || 5
-          pagination.value = {
-            current_page: parseInt(response.data.pagination.current_page) || 1,
-            per_page: parseInt(response.data.pagination.per_page) || currentPerPage,
-            total: parseInt(response.data.pagination.total) || 0,
-            last_page: Math.max(parseInt(response.data.pagination.last_page) || 1, 1),
-            from: parseInt(response.data.pagination.from) || 0,
-            to: parseInt(response.data.pagination.to) || 0
+      const data = response.data.data || response.data
+      const newReclamations = Array.isArray(data) ? data : []
+      
+      if (silent) {
+        // Mise à jour intelligente
+        const reclamationsMap = new Map(reclamations.value.map(r => [r.id, r]))
+        newReclamations.forEach(newRec => {
+          const existing = reclamationsMap.get(newRec.id)
+          if (existing) {
+            const hasChanges = JSON.stringify(existing) !== JSON.stringify(newRec)
+            if (hasChanges) {
+              Object.assign(existing, newRec)
+            }
+          } else {
+            // Ajouter à la fin ou au début selon le tri (ici newest first unshift)
+            reclamations.value.unshift(newRec)
           }
-        } else {
-          // Si pas de pagination dans la réponse, calculer depuis les données
-          const total = response.data.data.length
-          const perPage = pagination.value.per_page || 10
-          pagination.value = {
-            current_page: 1,
-            per_page: perPage,
-            total: total,
-            last_page: Math.ceil(total / perPage) || 1,
-            from: total > 0 ? 1 : 0,
-            to: total
-          }
+        })
+        const newIds = new Set(newReclamations.map(r => r.id))
+        reclamations.value = reclamations.value.filter(r => newIds.has(r.id))
+      } else {
+        reclamations.value = newReclamations
+      }
+
+      // Pagination
+      if (response.data.pagination) {
+        pagination.value = {
+          current_page: parseInt(response.data.pagination.current_page) || 1,
+          per_page: parseInt(response.data.pagination.per_page) || pagination.value.per_page,
+          total: parseInt(response.data.pagination.total) || 0,
+          last_page: Math.max(parseInt(response.data.pagination.last_page) || 1, 1),
+          from: parseInt(response.data.pagination.from) || 0,
+          to: parseInt(response.data.pagination.to) || 0
         }
-      } else if (Array.isArray(response.data)) {
-        // Structure sans pagination (fallback)
-        reclamations.value = response.data
-        const total = response.data.length
-        const perPage = pagination.value.per_page || 10
+      } else {
+        const total = newReclamations.length
         pagination.value = {
           current_page: 1,
-          per_page: perPage,
+          per_page: pagination.value.per_page,
           total: total,
-          last_page: Math.ceil(total / perPage) || 1,
+          last_page: 1,
           from: total > 0 ? 1 : 0,
           to: total
         }
-      } else {
-        reclamations.value = []
-        const perPage = pagination.value.per_page || 10
-        pagination.value = {
-          current_page: 1,
-          per_page: perPage,
-          total: 0,
-          last_page: 1,
-          from: 0,
-          to: 0
-        }
-      }
-    } else {
-      reclamations.value = []
-      const perPage = pagination.value.per_page || 10
-      pagination.value = {
-        current_page: 1,
-        per_page: perPage,
-        total: 0,
-        last_page: 1,
-        from: 0,
-        to: 0
       }
     }
   } catch (error) {
     console.error('Erreur chargement réclamations:', error)
-    reclamations.value = []
+    if (!silent) reclamations.value = []
   } finally {
-    loading.value = false
+    if (!silent) loading.value = false
   }
+}
+
+const changeTab = (tab) => {
+  activeTab.value = tab
+  pagination.value.current_page = 1
+  // Reset statut filter if switching to/from Historique
+  if (tab === 'historique') {
+    filters.value.statut = 'all'
+  }
+  loadReclamations()
 }
 
 const applyFilters = () => {
@@ -935,11 +791,7 @@ const changePage = (page) => {
   
   if (page >= 1 && page <= lastPage && page !== currentPage) {
     pagination.value.current_page = page
-    if (showArchived.value) {
-      loadArchivedReclamations()
-    } else {
-      loadReclamations()
-    }
+    loadReclamations()
     // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -947,65 +799,10 @@ const changePage = (page) => {
 
 const changePerPage = () => {
   pagination.value.current_page = 1
-  if (showArchived.value) {
-    loadArchivedReclamations()
-  } else {
-    loadReclamations()
-  }
+  loadReclamations()
 }
 
-const loadArchivedReclamations = async () => {
-  try {
-    loading.value = true
-    const params = {
-      page: pagination.value.current_page,
-      per_page: pagination.value.per_page,
-      archived: 'true'
-    }
-    
-    if (filters.value.statut !== 'all') {
-      params.statut = filters.value.statut
-    }
-    if (filters.value.priorite !== 'all') {
-      params.priorite = filters.value.priorite
-    }
-    if (filters.value.dateDebut) {
-      params.dateDebut = filters.value.dateDebut
-    }
-    if (filters.value.dateFin) {
-      params.dateFin = filters.value.dateFin
-    }
-    
-    const response = await adminService.getReclamations(params)
-    
-    // Gérer la structure de la réponse
-    if (response && response.data) {
-      if (response.data.data && Array.isArray(response.data.data)) {
-        archivedReclamations.value = response.data.data
-        if (response.data.pagination) {
-          const currentPerPage = pagination.value.per_page || 5
-          pagination.value = {
-            current_page: parseInt(response.data.pagination.current_page) || 1,
-            per_page: parseInt(response.data.pagination.per_page) || currentPerPage,
-            total: parseInt(response.data.pagination.total) || 0,
-            last_page: Math.max(parseInt(response.data.pagination.last_page) || 1, 1),
-            from: parseInt(response.data.pagination.from) || 0,
-            to: parseInt(response.data.pagination.to) || 0
-          }
-        }
-      } else {
-        archivedReclamations.value = []
-      }
-    } else {
-      archivedReclamations.value = []
-    }
-  } catch (error) {
-    console.error('Erreur chargement réclamations archivées:', error)
-    archivedReclamations.value = []
-  } finally {
-    loading.value = false
-  }
-}
+// Retirer loadArchivedReclamations car fusionné avec loadReclamations
 
 const showMarkModal = (id) => {
   selectedReclamationId.value = id
@@ -1031,10 +828,7 @@ const confirmMark = async () => {
 }
 
 const handleReclamation = async (id, action) => {
-  let reclamation = reclamations.value.find(r => r.id === id)
-  if (!reclamation) {
-    reclamation = archivedReclamations.value.find(r => r.id === id)
-  }
+  const reclamation = reclamations.value.find(r => r.id === id)
   if (!reclamation) return
 
   const actionMessages = {
@@ -1054,11 +848,7 @@ const handleReclamation = async (id, action) => {
       }
       success(`Réclamation ${successMessages[action]} avec succès`)
       // Recharger en gardant les filtres et la page actuelle
-      if (showArchived.value) {
-        await loadArchivedReclamations()
-      } else {
-        await loadReclamations()
-      }
+      await loadReclamations()
     } catch (error) {
       console.error('Erreur traitement réclamation:', error)
       error('Erreur lors du traitement de la réclamation')
@@ -1161,6 +951,12 @@ const viewInterventionDetails = (id) => {
   alert(`Détails de l'intervention #${id}`)
 }
 
+// Synchronisation en temps réel (Polling toutes les 3s)
+useAdminRealtimeSync(async () => {
+    await loadReclamations({ silent: true })
+}, { enabled: true })
+
+// Lifecycle
 onMounted(async () => {
   await loadReclamations()
 })

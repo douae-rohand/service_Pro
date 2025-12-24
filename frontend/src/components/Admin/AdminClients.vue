@@ -209,19 +209,19 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { User, Phone } from 'lucide-vue-next'
+import adminService from '@/services/adminService'
+import { useAdminRealtimeSync } from '@/composables/useAdminRealtimeSync'
 
-const props = defineProps({
-  clients: {
-    type: Array,
-    required: true,
-    default: () => []
-  },
-  loading: Boolean
-})
+const props = defineProps({})
 
 const emit = defineEmits(['back', 'view-client', 'suspend-client'])
+
+
+
+const clients = ref([])
+const loading = ref(false)
 
 const searchTerm = ref('')
 const filterStatus = ref('tous')
@@ -231,14 +231,14 @@ const currentPage = ref(1)
 const itemsPerPage = ref(10)
 
 const statusFilters = computed(() => {
-  const actifsCount = props.clients.filter(c => c.statut && c.statut === 'actif').length
-  const suspendusCount = props.clients.filter(c => c.statut && c.statut === 'suspendu').length
+  const actifsCount = clients.value.filter(c => c.statut && c.statut === 'actif').length
+  const suspendusCount = clients.value.filter(c => c.statut && c.statut === 'suspendu').length
   
   return [
     { 
       value: 'tous', 
       label: 'Tous', 
-      count: props.clients.length, 
+      count: clients.value.length, 
       activeColor: '#FBBF24' 
     },
     { 
@@ -257,7 +257,7 @@ const statusFilters = computed(() => {
 })
 
 const filteredClients = computed(() => {
-  return props.clients.filter(client => {
+  return clients.value.filter(client => {
     const matchesSearch = (client.nom || '').toLowerCase().includes(searchTerm.value.toLowerCase()) ||
                          (client.prenom || '').toLowerCase().includes(searchTerm.value.toLowerCase()) ||
                          (client.email || '').toLowerCase().includes(searchTerm.value.toLowerCase())
@@ -332,4 +332,60 @@ watch([searchTerm, filterStatus], () => {
 const viewClientDetails = (client) => {
   emit('view-client', client)
 }
+
+const loadClients = async (options = {}) => {
+  const { silent = false } = options
+  try {
+    if (!silent) {
+      loading.value = true
+    }
+    const response = await adminService.getClients()
+    const newClients = response.data?.data || response.data || []
+    
+    if (silent) {
+      // Mise à jour intelligente
+      // 1. Créer une map des clients existants
+      const clientsMap = new Map(clients.value.map(c => [c.id, c]))
+      
+      // 2. Construire la nouvelle liste en conservant l'ordre de l'API
+      const mergedClients = newClients.map(newClient => {
+        const existing = clientsMap.get(newClient.id)
+        if (existing) {
+          // Client existant : mettre à jour
+          const hasChanges = Object.keys(newClient).some(key => existing[key] !== newClient[key])
+          if (hasChanges) {
+            Object.assign(existing, newClient)
+          }
+          return existing
+        } else {
+          // Nouveau client
+          return newClient
+        }
+      })
+      
+      // 3. Remplacer la liste complète pour garantir l'ordre
+      clients.value = mergedClients
+    } else {
+      clients.value = newClients
+    }
+  } catch (error) {
+    console.error('Erreur chargement clients:', error)
+    if (!silent) {
+      clients.value = []
+    }
+  } finally {
+    if (!silent) {
+      loading.value = false
+    }
+  }
+}
+
+// Synchronisation en temps réel (3s polling)
+useAdminRealtimeSync(async () => {
+  await loadClients({ silent: true })
+}, { enabled: true })
+
+onMounted(() => {
+  loadClients()
+})
 </script>

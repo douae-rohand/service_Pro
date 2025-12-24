@@ -17,7 +17,7 @@
       <div v-else-if="profileData" class="profile-content">
         <!-- Header -->
         <div class="profile-header">
-          <img :src="profileData.client.photo" :alt="profileData.client.name" class="profile-photo" />
+          <img :src="getImageUrl(profileData.client.photo)" :alt="profileData.client.name" class="profile-photo" />
           <div class="profile-info">
             <h2>{{ profileData.client.name }}</h2>
             <p class="member-since">Membre depuis {{ formatDate(profileData.client.member_since) }}</p>
@@ -248,6 +248,12 @@ const formatDate = (dateString) => {
     month: 'long', 
     day: 'numeric' 
   })
+}
+
+const getImageUrl = (path) => {
+  if (!path) return 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=400&h=300&fit=crop'
+  if (path.startsWith('http')) return path
+  return `http://127.0.0.1:8000/storage/${path.replace(/^\/+/, '')}`
 }
 
 const close = () => {

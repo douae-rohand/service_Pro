@@ -6,8 +6,8 @@
         <Check :size="20" />
       </div>
       <div>
-        <p class="erfolg-title">Votre demande a été envoyée avec succès !</p>
-        <p class="success-subtitle">Elle sera examinée par notre équipe dans les plus brefs délais.</p>
+        <p class="erfolg-title">{{ successMessage }}</p>
+        <p v-if="successSubtitle" class="success-subtitle">{{ successSubtitle }}</p>
       </div>
     </div>
 
@@ -114,10 +114,25 @@
               <label>
                 Carte nationale ou Passeport <span class="required">*</span>
               </label>
-              <div class="upload-area" @click="triggerFileInput('idCard')">
-                <Upload :size="24" class="upload-icon" />
-                <p v-if="!activationForm.idCard">Cliquez pour télécharger</p>
-                <p v-else class="file-name">{{ activationForm.idCard.name }}</p>
+              <div 
+                class="upload-area" 
+                :class="{ 'upload-success': idCardDoc }"
+                @click="triggerFileInput('idCard')"
+              >
+                <div v-if="!idCardDoc">
+                  <Upload :size="24" class="upload-icon" />
+                  <p>Cliquez pour télécharger</p>
+                </div>
+                <div v-else class="file-success">
+                  <FileText :size="24" class="success-icon-file" />
+                  <div class="file-details">
+                    <p class="file-name">{{ idCardDoc.file.name }}</p>
+                    <p class="file-size">{{ (idCardDoc.file.size / 1024 / 1024).toFixed(2) }} MB</p>
+                  </div>
+                  <div class="change-file">
+                    <span class="change-text">Modifier</span>
+                  </div>
+                </div>
                 <input
                   ref="idCardInput"
                   type="file"
@@ -135,10 +150,25 @@
               <label>
                 Assurance professionnelle <span class="required">*</span>
               </label>
-              <div class="upload-area" @click="triggerFileInput('insurance')">
-                <Upload :size="24" class="upload-icon" />
-                <p v-if="!activationForm.insurance">Cliquez pour télécharger</p>
-                <p v-else class="file-name">{{ activationForm.insurance.name }}</p>
+              <div 
+                class="upload-area" 
+                :class="{ 'upload-success': insuranceDoc }"
+                @click="triggerFileInput('insurance')"
+              >
+                <div v-if="!insuranceDoc">
+                  <Upload :size="24" class="upload-icon" />
+                  <p>Cliquez pour télécharger</p>
+                </div>
+                <div v-else class="file-success">
+                   <FileText :size="24" class="success-icon-file" />
+                  <div class="file-details">
+                    <p class="file-name">{{ insuranceDoc.file.name }}</p>
+                    <p class="file-size">{{ (insuranceDoc.file.size / 1024 / 1024).toFixed(2) }} MB</p>
+                  </div>
+                   <div class="change-file">
+                    <span class="change-text">Modifier</span>
+                  </div>
+                </div>
                 <input
                   ref="insuranceInput"
                   type="file"
@@ -482,6 +512,7 @@ const authError = ref(null)
 
 const showSuccessMessage = ref(false)
 const successMessage = ref('')
+const successSubtitle = ref('')
 const showActivationModal = ref(false)
 const currentService = ref(null)
 const showLoadingModal = ref(false)
@@ -508,6 +539,9 @@ const activationForm = ref({
   experienceMonths: 0,
   documents: [] // Array of { type: string, file: File }
 })
+
+const idCardDoc = computed(() => activationForm.value.documents.find(d => d.type === 'idCard'))
+const insuranceDoc = computed(() => activationForm.value.documents.find(d => d.type === 'insurance'))
 
 // Services data from API
 const services = ref([])
@@ -1064,6 +1098,7 @@ const saveServiceMaterials = async (serviceId) => {
     successMessage.value = materials.length > 0 
       ? 'Matériaux enregistrés avec succès !' 
       : 'Aucun matériau sélectionné - Configuration enregistrée !'
+    successSubtitle.value = ''
 
     setTimeout(() => {
       showSuccessMessage.value = false
@@ -1247,7 +1282,12 @@ const submitActivationRequest = async () => {
     
     // Show success message
     showSuccessMessage.value = true
-    successMessage.value = 'Demande d\'activation envoyée avec succès !'
+    successMessage.value = 'Votre demande a été envoyée avec succès !'
+    successSubtitle.value = 'Elle sera examinée par notre équipe dans les plus brefs délais.'
+    
+    setTimeout(() => {
+      showSuccessMessage.value = false
+    }, 5000)
     
     // Update service state to show it's pending
     serviceStates.value[currentService.value.id] = false // Will be updated when data is refreshed
@@ -1725,6 +1765,39 @@ const getMaterialsByService = (serviceId) => {
   font-size: 0.75rem;
   color: var(--color-gray-500);
   margin-top: var(--spacing-2);
+}
+
+.upload-success {
+  border-color: var(--color-primary-green);
+  background: #F0F9FF; /* Light blue/green tint */
+}
+
+.file-success {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  text-align: left;
+}
+
+.success-icon-file {
+  color: var(--color-primary-green);
+}
+
+.file-details {
+  flex: 1;
+}
+
+.file-size {
+  font-size: 0.75rem;
+  color: var(--color-gray-500);
+  margin: 0;
+}
+
+.change-file {
+  font-size: 0.75rem;
+  color: var(--color-primary-green);
+  font-weight: 500;
+  text-decoration: underline;
 }
 
 /* Skeleton Styles */

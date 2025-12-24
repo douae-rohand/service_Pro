@@ -1625,10 +1625,16 @@ class IntervenantController extends Controller
             $clientUser = $client ? $client->utilisateur : null;
             $tache = $intervention->tache;
 
-            // Get materials provided by client (from tache materiels)
+            // Get materials provided by client (from tache materiels, excluding intervenant's materials)
             $clientProvidedMaterials = collect([]);
             if ($tache && $tache->materiels) {
-                $clientProvidedMaterials = $tache->materiels->map(function ($materiel) {
+                // Get IDs of materials provided by intervenant for this intervention
+                $intervenantMaterialIds = $intervention->materiels->pluck('id')->toArray();
+                
+                // Filter task materials to only include those NOT provided by intervenant
+                $clientProvidedMaterials = $tache->materiels->filter(function ($materiel) use ($intervenantMaterialIds) {
+                    return !in_array($materiel->id, $intervenantMaterialIds);
+                })->map(function ($materiel) {
                     return [
                         'id' => $materiel->id,
                         'name' => $materiel->nom_materiel,

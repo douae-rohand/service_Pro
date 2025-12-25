@@ -324,9 +324,6 @@ import statsService from '@/services/statsService'
 import axios from '@/services/api' // Use the configured api service
 import SkeletonLoader from './SkeletonLoader.vue'
 
-// Define emits
-defineEmits(['profileUpdated'])
-
 // Authentication state
 const currentUser = ref(null)
 const isLoadingUser = ref(true)

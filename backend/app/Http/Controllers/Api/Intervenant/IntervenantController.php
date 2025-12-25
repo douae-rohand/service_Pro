@@ -13,7 +13,7 @@ use App\Models\Service;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use App\Models\Portfolio;
+use Illuminate\Support\Facades\Cache;
 
 
 
@@ -148,8 +148,7 @@ class IntervenantController extends Controller
                     $q->where('type_auteur', 'client');
                 },
                 'interventions.client.utilisateur:id,nom,prenom',
-                'disponibilites',
-                'portfolio'
+                'disponibilites'
             ])->find($id);
 
             if (!$intervenant) {
@@ -1333,6 +1332,9 @@ class IntervenantController extends Controller
 
             DB::commit();
 
+            // Invalider le cache des stats admin pour mettre à jour immédiatement les badges
+            Cache::forget('admin_stats');
+
             return response()->json([
                 'message' => 'Demande d\'activation envoyée avec succès',
                 'status' => 'demmande',
@@ -1591,6 +1593,9 @@ class IntervenantController extends Controller
                 'updated_at' => now(),
             ]);
 
+            // Invalider le cache des stats admin pour mettre à jour immédiatement les badges
+            Cache::forget('admin_stats');
+
             return response()->json([
                 'message' => 'Demande d\'activation envoyée',
                 'status' => 'demmande',
@@ -1838,60 +1843,5 @@ class IntervenantController extends Controller
         $intervention->save();
 
         return response()->json(['message' => 'Réservation refusée avec succès']);
-    }
-
-    /**
-     * Add a portfolio item
-     */
-    public function addPortfolioItem(Request $request)
-    {
-        $user = $request->user();
-        if (!$user || !$user->intervenant) {
-            return response()->json(['error' => 'Unauthorized'], 401);
-        }
-
-        $validated = $request->validate([
-            'image' => 'required|image|max:10240', // 10MB
-            'description' => 'nullable|string|max:255',
-            'service_id' => 'nullable|exists:service,id',
-        ]);
-
-        $path = $request->file('image')->store('portfolio', 'public');
-
-        $portfolio = Portfolio::create([
-            'intervenant_id' => $user->intervenant->id,
-            'image_path' => $path,
-            'description' => $validated['description'] ?? null,
-            'service_id' => $validated['service_id'] ?? null,
-        ]);
-
-        return response()->json([
-            'message' => 'Image ajoutée au portfolio',
-            'portfolio' => $portfolio
-        ]);
-    }
-
-    /**
-     * Delete a portfolio item
-     */
-    public function deletePortfolioItem(Request $request, $id)
-    {
-         $user = $request->user();
-        if (!$user || !$user->intervenant) {
-            return response()->json(['error' => 'Unauthorized'], 401);
-        }
-
-        $item = Portfolio::where('id', $id)
-            ->where('intervenant_id', $user->intervenant->id)
-            ->firstOrFail();
-
-        // Delete file
-        if (Storage::disk('public')->exists($item->image_path)) {
-            Storage::disk('public')->delete($item->image_path);
-        }
-
-        $item->delete();
-
-        return response()->json(['message' => 'Image supprimée']);
     }
 }

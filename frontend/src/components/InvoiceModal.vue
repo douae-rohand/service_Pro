@@ -210,11 +210,9 @@ export default {
     totalBrut() {
       return (Number(this.invoice.laborCost) || 0) + (Number(this.invoice.materialsCost) || 0);
     },
-    commission() {
-      return this.totalBrut * 0.20;
-    },
+   
     totalNet() {
-      return this.totalBrut - this.commission;
+      return this.totalBrut;
     }
   },
   methods: {

@@ -283,7 +283,6 @@ export default {
         accepted: { label: 'Acceptées', color: '#4682B4', count: this.statusCounts.accepted },
         'in-progress': { label: 'En cours', color: '#1A5FA3', count: this.statusCounts['in-progress'] },
         completed: { label: 'Terminées', color: '#92B08B', count: this.statusCounts.completed },
-        cancelled: { label: 'Annulées', color: '#E8793F', count: this.statusCounts.cancelled },
         rejected: { label: 'Refusées', color: '#DC2626', count: this.statusCounts.rejected }
       };
     },

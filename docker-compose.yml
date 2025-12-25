@@ -1,9 +1,7 @@
 services:
   # Laravel Backend (PHP-FPM)
   app:
-    build:
-      context: ./backend
-      dockerfile: dockerfile
+    image: aymanesbe3/service-pro-app:latest
     container_name: laravel_app
     restart: unless-stopped
     working_dir: /var/www
@@ -26,9 +24,7 @@ services:
 
   # Reverb WebSocket Server (Service Dédié)
   reverb:
-    build:
-      context: ./backend
-      dockerfile: dockerfile
+    image: aymanesbe3/service-pro-app:latest
     container_name: laravel_reverb
     restart: unless-stopped
     working_dir: /var/www
@@ -85,9 +81,7 @@ services:
 
   # Frontend (Vue.js)
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: aymanesbe3/service-pro-frontend:latest
     container_name: vue_frontend
     restart: unless-stopped
     ports:

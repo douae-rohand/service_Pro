@@ -2562,7 +2562,8 @@ class AdminController extends Controller
 
             // Récupérer les informations de concernant (dérivé de l'intervention)
             if ($concernantId && $concernantType) {
-                if ($concernantType === 'Client' && isset($clients[$concernantId])) {
+                $concernantTypeNormalized = $concernantType ? strtolower($concernantType) : null;
+                if ($concernantTypeNormalized === 'client' && isset($clients[$concernantId])) {
                     $client = $clients[$concernantId];
                     if ($client && $client->utilisateur) {
                         $prenom = $client->utilisateur->prenom ?? '';
@@ -2572,7 +2573,7 @@ class AdminController extends Controller
                             $concernantName = 'N/A';
                         }
                     }
-                } elseif ($concernantType === 'Intervenant' && isset($intervenants[$concernantId])) {
+                } elseif ($concernantTypeNormalized === 'intervenant' && isset($intervenants[$concernantId])) {
                     $intervenant = $intervenants[$concernantId];
                     if ($intervenant && $intervenant->utilisateur) {
                         $prenom = $intervenant->utilisateur->prenom ?? '';
@@ -2647,6 +2648,9 @@ class AdminController extends Controller
         $oldStatus = $reclamation->statut;
         $message = '';
 
+        // Normaliser le type signale_par pour la comparaison (peut être 'client' ou 'Client')
+        $signaleParTypeNormalized = strtolower($reclamation->signale_par_type ?? '');
+        
         // Dériver concernant_id et concernant_type depuis l'intervention
         $concernantId = null;
         $concernantType = null;
@@ -2655,17 +2659,17 @@ class AdminController extends Controller
             $intervention = $reclamation->intervention;
             // Si signale_par est un Client, alors concernant est l'Intervenant de l'intervention
             // Si signale_par est un Intervenant, alors concernant est le Client de l'intervention
-            if ($reclamation->signale_par_type === 'Client') {
+            if ($signaleParTypeNormalized === 'client') {
                 $concernantId = $intervention->intervenant_id;
-                $concernantType = 'Intervenant';
-            } elseif ($reclamation->signale_par_type === 'Intervenant') {
+                $concernantType = 'intervenant';
+            } elseif ($signaleParTypeNormalized === 'intervenant') {
                 $concernantId = $intervention->client_id;
-                $concernantType = 'Client';
+                $concernantType = 'client';
             }
         } else {
             // Si pas d'intervention, utiliser les valeurs stockées (pour compatibilité)
             $concernantId = $reclamation->concernant_id;
-            $concernantType = $reclamation->concernant_type;
+            $concernantType = $reclamation->concernant_type ? strtolower($reclamation->concernant_type) : null;
         }
 
         if ($validated['action'] === 'reply') {
@@ -2684,107 +2688,142 @@ class AdminController extends Controller
             $reclamation->save();
 
             // Send emails - DIFFERENT emails for signale_par and concernant
-            try {
-                // Get signale_par name for concernant email
-                $signaleParName = 'N/A';
-                if ($reclamation->signale_par_id) {
-                    if ($reclamation->signale_par_type === 'Client') {
-                        $signaleParTemp = Client::with('utilisateur')->find($reclamation->signale_par_id);
-                        if ($signaleParTemp && $signaleParTemp->utilisateur) {
-                            $signaleParName = $signaleParTemp->utilisateur->prenom . ' ' . $signaleParTemp->utilisateur->nom;
-                        }
-                    } elseif ($reclamation->signale_par_type === 'Intervenant') {
-                        $signaleParTemp = Intervenant::with('utilisateur')->find($reclamation->signale_par_id);
-                        if ($signaleParTemp && $signaleParTemp->utilisateur) {
-                            $signaleParName = $signaleParTemp->utilisateur->prenom . ' ' . $signaleParTemp->utilisateur->nom;
-                        }
+            // Utiliser les relations déjà chargées pour éviter les requêtes redondantes
+            $emailsSent = 0;
+            $emailsFailed = 0;
+            
+            // Get signale_par name for concernant email
+            // Normaliser le type (peut être 'client' ou 'Client' selon la source)
+            $signaleParType = strtolower($reclamation->signale_par_type ?? '');
+            $signaleParName = 'N/A';
+            $signaleParUtilisateur = null;
+            
+            if ($reclamation->signale_par_id) {
+                if ($signaleParType === 'client') {
+                    $signalePar = Client::with('utilisateur')->find($reclamation->signale_par_id);
+                    if ($signalePar && $signalePar->utilisateur) {
+                        $signaleParUtilisateur = $signalePar->utilisateur;
+                        $signaleParName = $signalePar->utilisateur->prenom . ' ' . $signalePar->utilisateur->nom;
+                    }
+                } elseif ($signaleParType === 'intervenant') {
+                    $signalePar = Intervenant::with('utilisateur')->find($reclamation->signale_par_id);
+                    if ($signalePar && $signalePar->utilisateur) {
+                        $signaleParUtilisateur = $signalePar->utilisateur;
+                        $signaleParName = $signalePar->utilisateur->prenom . ' ' . $signalePar->utilisateur->nom;
                     }
                 }
+            }
 
-                // Send email to signale_par (person who reported) - Standard reply email
-                if ($reclamation->signale_par_id) {
-                    if ($reclamation->signale_par_type === 'Client') {
-                        $signalePar = Client::with('utilisateur')->find($reclamation->signale_par_id);
-                        if ($signalePar && $signalePar->utilisateur && $signalePar->utilisateur->email) {
-                            Mail::to($signalePar->utilisateur->email)->send(
-                                new ReclamationReply(
-                                    $reclamation,
-                                    $signalePar->utilisateur,
-                                    'Client',
-                                    $reclamation->notes_admin,
-                                    $reclamation->priorite,
-                                    $reclamation->statut,
-                                    $reclamation->raison
-                                )
-                            );
-                            Log::info("Email de réponse envoyé au signale_par (Client) ID {$reclamation->signale_par_id}");
-                        }
-                    } elseif ($reclamation->signale_par_type === 'Intervenant') {
-                        $signalePar = Intervenant::with('utilisateur')->find($reclamation->signale_par_id);
-                        if ($signalePar && $signalePar->utilisateur && $signalePar->utilisateur->email) {
-                            Mail::to($signalePar->utilisateur->email)->send(
-                                new ReclamationReply(
-                                    $reclamation,
-                                    $signalePar->utilisateur,
-                                    'Intervenant',
-                                    $reclamation->notes_admin,
-                                    $reclamation->priorite,
-                                    $reclamation->statut,
-                                    $reclamation->raison
-                                )
-                            );
-                            Log::info("Email de réponse envoyé au signale_par (Intervenant) ID {$reclamation->signale_par_id}");
-                        }
-                    }
+            // Send email to signale_par (person who reported) - Standard reply email
+            // Utiliser un try-catch séparé pour que l'échec d'un email n'empêche pas l'autre
+            if ($signaleParUtilisateur && $signaleParUtilisateur->email) {
+                try {
+                    // Normaliser le type pour l'email (utiliser la première lettre en majuscule)
+                    $recipientType = ucfirst($signaleParType);
+                    Mail::to($signaleParUtilisateur->email)->send(
+                        new ReclamationReply(
+                            $reclamation,
+                            $signaleParUtilisateur,
+                            $recipientType,
+                            $reclamation->notes_admin,
+                            $reclamation->priorite,
+                            $reclamation->statut,
+                            $reclamation->raison
+                        )
+                    );
+                    $emailsSent++;
+                    Log::info("Email de réponse envoyé au signale_par ({$recipientType}) ID {$reclamation->signale_par_id}, Email: {$signaleParUtilisateur->email}");
+                } catch (\Exception $e) {
+                    $emailsFailed++;
+                    Log::error("Erreur lors de l'envoi de l'email de réponse au signale_par pour la réclamation ID {$id}", [
+                        'signale_par_id' => $reclamation->signale_par_id,
+                        'signale_par_type' => $reclamation->signale_par_type,
+                        'email' => $signaleParUtilisateur->email ?? 'N/A',
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
                 }
-
-                // Send email to concernant (person concerned) - Warning email with alerts
-                // Utiliser concernant_id et concernant_type dérivés de l'intervention
-                if ($concernantId && $concernantType) {
-                    if ($concernantType === 'Client') {
-                        $concernant = Client::with('utilisateur')->find($concernantId);
-                        if ($concernant && $concernant->utilisateur && $concernant->utilisateur->email) {
-                            Mail::to($concernant->utilisateur->email)->send(
-                                new ReclamationConcerned(
-                                    $reclamation,
-                                    $concernant->utilisateur,
-                                    'Client',
-                                    $reclamation->notes_admin,
-                                    $reclamation->priorite,
-                                    $reclamation->statut,
-                                    $reclamation->raison,
-                                    $signaleParName
-                                )
-                            );
-                            Log::info("Email d'avertissement envoyé au concernant (Client) ID {$concernantId}");
-                        }
-                    } elseif ($concernantType === 'Intervenant') {
-                        $concernant = Intervenant::with('utilisateur')->find($concernantId);
-                        if ($concernant && $concernant->utilisateur && $concernant->utilisateur->email) {
-                            Mail::to($concernant->utilisateur->email)->send(
-                                new ReclamationConcerned(
-                                    $reclamation,
-                                    $concernant->utilisateur,
-                                    'Intervenant',
-                                    $reclamation->notes_admin,
-                                    $reclamation->priorite,
-                                    $reclamation->statut,
-                                    $reclamation->raison,
-                                    $signaleParName
-                                )
-                            );
-                            Log::info("Email d'avertissement envoyé au concernant (Intervenant) ID {$concernantId}");
-                        }
-                    }
-                }
-            } catch (\Exception $emailException) {
-                Log::error("Erreur lors de l'envoi de l'email de réponse pour la réclamation ID {$id}", [
-                    'error' => $emailException->getMessage(),
-                    'trace' => $emailException->getTraceAsString()
+            } else {
+                Log::warning("Impossible d'envoyer l'email au signale_par pour la réclamation ID {$id}: utilisateur ou email manquant", [
+                    'signale_par_id' => $reclamation->signale_par_id,
+                    'signale_par_type' => $reclamation->signale_par_type
                 ]);
             }
 
-            $message = 'Réponse envoyée avec succès.';
+            // Send email to concernant (person concerned) - Warning email with alerts
+            // Utiliser concernant_id et concernant_type dérivés de l'intervention
+            // Normaliser le type (peut être 'Client' ou 'client' selon la source)
+            $concernantTypeNormalized = $concernantType ? strtolower($concernantType) : null;
+            
+            if ($concernantId && $concernantTypeNormalized) {
+                $concernantUtilisateur = null;
+                
+                // Utiliser les relations déjà chargées si disponibles
+                if ($reclamation->intervention) {
+                    if ($concernantTypeNormalized === 'client' && $reclamation->intervention->client && $reclamation->intervention->client->utilisateur) {
+                        $concernantUtilisateur = $reclamation->intervention->client->utilisateur;
+                    } elseif ($concernantTypeNormalized === 'intervenant' && $reclamation->intervention->intervenant && $reclamation->intervention->intervenant->utilisateur) {
+                        $concernantUtilisateur = $reclamation->intervention->intervenant->utilisateur;
+                    }
+                }
+                
+                // Si les relations ne sont pas chargées, faire une requête
+                if (!$concernantUtilisateur) {
+                    if ($concernantTypeNormalized === 'client') {
+                        $concernant = Client::with('utilisateur')->find($concernantId);
+                        if ($concernant && $concernant->utilisateur) {
+                            $concernantUtilisateur = $concernant->utilisateur;
+                        }
+                    } elseif ($concernantTypeNormalized === 'intervenant') {
+                        $concernant = Intervenant::with('utilisateur')->find($concernantId);
+                        if ($concernant && $concernant->utilisateur) {
+                            $concernantUtilisateur = $concernant->utilisateur;
+                        }
+                    }
+                }
+                
+                if ($concernantUtilisateur && $concernantUtilisateur->email) {
+                    try {
+                        // Normaliser le type pour l'email (utiliser la première lettre en majuscule)
+                        $recipientType = ucfirst($concernantTypeNormalized);
+                        Mail::to($concernantUtilisateur->email)->send(
+                            new ReclamationConcerned(
+                                $reclamation,
+                                $concernantUtilisateur,
+                                $recipientType,
+                                $reclamation->notes_admin,
+                                $reclamation->priorite,
+                                $reclamation->statut,
+                                $reclamation->raison,
+                                $signaleParName
+                            )
+                        );
+                        $emailsSent++;
+                        Log::info("Email d'avertissement envoyé au concernant ({$recipientType}) ID {$concernantId}, Email: {$concernantUtilisateur->email}");
+                    } catch (\Exception $e) {
+                        $emailsFailed++;
+                        Log::error("Erreur lors de l'envoi de l'email d'avertissement au concernant pour la réclamation ID {$id}", [
+                            'concernant_id' => $concernantId,
+                            'concernant_type' => $concernantType,
+                            'email' => $concernantUtilisateur->email ?? 'N/A',
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString()
+                        ]);
+                    }
+                } else {
+                    Log::warning("Impossible d'envoyer l'email au concernant pour la réclamation ID {$id}: utilisateur ou email manquant", [
+                        'concernant_id' => $concernantId,
+                        'concernant_type' => $concernantType
+                    ]);
+                }
+            } else {
+                Log::info("Pas d'email à envoyer au concernant pour la réclamation ID {$id}: concernant_id ou concernant_type manquant");
+            }
+            
+            // Log résumé
+            Log::info("Résumé envoi emails pour réclamation ID {$id} (action: reply): {$emailsSent} envoyé(s), {$emailsFailed} échec(s)");
+
+            $message = 'Réponse envoyée avec succès' . ($emailsSent > 0 ? " ({$emailsSent} email(s) envoyé(s))" : '') . ($emailsFailed > 0 ? " ({$emailsFailed} échec(s))" : '') . '.';
         } elseif ($validated['action'] === 'mark') {
             // Action: Marquer - Update status to en cours/en attente/résolue
             // 
@@ -2806,81 +2845,102 @@ class AdminController extends Controller
             
             // Envoyer automatiquement un email si le statut est changé à "resolu"
             if ($newStatus === 'resolu' && $oldStatus !== 'resolu') {
-                try {
-                    // Récupérer le nom de signale_par pour l'email
-                    $signaleParName = 'N/A';
-                    $concernantName = null;
-                    
-                    // Récupérer le nom de signale_par
-                    if ($reclamation->signale_par_id) {
-                        if ($reclamation->signale_par_type === 'Client') {
-                            $signaleParTemp = Client::with('utilisateur')->find($reclamation->signale_par_id);
-                            if ($signaleParTemp && $signaleParTemp->utilisateur) {
-                                $signaleParName = $signaleParTemp->utilisateur->prenom . ' ' . $signaleParTemp->utilisateur->nom;
-                            }
-                        } elseif ($reclamation->signale_par_type === 'Intervenant') {
-                            $signaleParTemp = Intervenant::with('utilisateur')->find($reclamation->signale_par_id);
-                            if ($signaleParTemp && $signaleParTemp->utilisateur) {
-                                $signaleParName = $signaleParTemp->utilisateur->prenom . ' ' . $signaleParTemp->utilisateur->nom;
-                            }
+                $emailSent = false;
+                $emailError = null;
+                
+                // Récupérer le nom de signale_par pour l'email
+                // Normaliser le type (peut être 'client' ou 'Client' selon la source)
+                $signaleParTypeNormalized = strtolower($reclamation->signale_par_type ?? '');
+                $signaleParName = 'N/A';
+                $signaleParUtilisateur = null;
+                $concernantName = null;
+                
+                // Récupérer signale_par - utiliser les relations déjà chargées si disponibles
+                if ($reclamation->signale_par_id) {
+                    if ($signaleParTypeNormalized === 'client') {
+                        $signalePar = Client::with('utilisateur')->find($reclamation->signale_par_id);
+                        if ($signalePar && $signalePar->utilisateur) {
+                            $signaleParUtilisateur = $signalePar->utilisateur;
+                            $signaleParName = $signalePar->utilisateur->prenom . ' ' . $signalePar->utilisateur->nom;
+                        }
+                    } elseif ($signaleParTypeNormalized === 'intervenant') {
+                        $signalePar = Intervenant::with('utilisateur')->find($reclamation->signale_par_id);
+                        if ($signalePar && $signalePar->utilisateur) {
+                            $signaleParUtilisateur = $signalePar->utilisateur;
+                            $signaleParName = $signalePar->utilisateur->prenom . ' ' . $signalePar->utilisateur->nom;
+                        }
+                    }
+                }
+                
+                // Récupérer le nom de concernant pour l'affichage dans l'email
+                // Utiliser concernant_id et concernant_type dérivés de l'intervention
+                $concernantTypeNormalized = $concernantType ? strtolower($concernantType) : null;
+                if ($concernantId && $concernantTypeNormalized) {
+                    // Utiliser les relations déjà chargées si disponibles
+                    if ($reclamation->intervention) {
+                        if ($concernantTypeNormalized === 'client' && $reclamation->intervention->client && $reclamation->intervention->client->utilisateur) {
+                            $concernantName = $reclamation->intervention->client->utilisateur->prenom . ' ' . $reclamation->intervention->client->utilisateur->nom;
+                        } elseif ($concernantTypeNormalized === 'intervenant' && $reclamation->intervention->intervenant && $reclamation->intervention->intervenant->utilisateur) {
+                            $concernantName = $reclamation->intervention->intervenant->utilisateur->prenom . ' ' . $reclamation->intervention->intervenant->utilisateur->nom;
                         }
                     }
                     
-                    // Récupérer le nom de concernant pour l'affichage dans l'email
-                    // Utiliser concernant_id et concernant_type dérivés de l'intervention
-                    if ($concernantId && $concernantType) {
-                        if ($concernantType === 'Client') {
+                    // Si les relations ne sont pas chargées, faire une requête
+                    if (!$concernantName) {
+                        if ($concernantTypeNormalized === 'client') {
                             $concernantTemp = Client::with('utilisateur')->find($concernantId);
                             if ($concernantTemp && $concernantTemp->utilisateur) {
                                 $concernantName = $concernantTemp->utilisateur->prenom . ' ' . $concernantTemp->utilisateur->nom;
                             }
-                        } elseif ($concernantType === 'Intervenant') {
+                        } elseif ($concernantTypeNormalized === 'intervenant') {
                             $concernantTemp = Intervenant::with('utilisateur')->find($concernantId);
                             if ($concernantTemp && $concernantTemp->utilisateur) {
                                 $concernantName = $concernantTemp->utilisateur->prenom . ' ' . $concernantTemp->utilisateur->nom;
                             }
                         }
                     }
-                    
-                    // Envoyer l'email uniquement à signale_par (la personne qui a signalé la réclamation)
-                    if ($reclamation->signale_par_id) {
-                        if ($reclamation->signale_par_type === 'Client') {
-                            $signalePar = Client::with('utilisateur')->find($reclamation->signale_par_id);
-                            if ($signalePar && $signalePar->utilisateur && $signalePar->utilisateur->email) {
-                                Mail::to($signalePar->utilisateur->email)->send(
-                                    new ReclamationResolved(
-                                        $reclamation,
-                                        $signalePar->utilisateur,
-                                        'Client',
-                                        $reclamation->notes_admin,
-                                        $reclamation->raison,
-                                        $signaleParName,
-                                        $concernantName
-                                    )
-                                );
-                                Log::info("Email de résolution envoyé au signale_par (Client) ID {$reclamation->signale_par_id}");
-                            }
-                        } elseif ($reclamation->signale_par_type === 'Intervenant') {
-                            $signalePar = Intervenant::with('utilisateur')->find($reclamation->signale_par_id);
-                            if ($signalePar && $signalePar->utilisateur && $signalePar->utilisateur->email) {
-                                Mail::to($signalePar->utilisateur->email)->send(
-                                    new ReclamationResolved(
-                                        $reclamation,
-                                        $signalePar->utilisateur,
-                                        'Intervenant',
-                                        $reclamation->notes_admin,
-                                        $reclamation->raison,
-                                        $signaleParName,
-                                        $concernantName
-                                    )
-                                );
-                                Log::info("Email de résolution envoyé au signale_par (Intervenant) ID {$reclamation->signale_par_id}");
-                            }
-                        }
+                }
+                
+                // Envoyer l'email uniquement à signale_par (la personne qui a signalé la réclamation)
+                if ($signaleParUtilisateur && $signaleParUtilisateur->email) {
+                    try {
+                        // Normaliser le type pour l'email (utiliser la première lettre en majuscule)
+                        $recipientType = ucfirst($signaleParTypeNormalized);
+                        Mail::to($signaleParUtilisateur->email)->send(
+                            new ReclamationResolved(
+                                $reclamation,
+                                $signaleParUtilisateur,
+                                $recipientType,
+                                $reclamation->notes_admin,
+                                $reclamation->raison,
+                                $signaleParName,
+                                $concernantName
+                            )
+                        );
+                        $emailSent = true;
+                        Log::info("Email de résolution envoyé au signale_par ({$recipientType}) ID {$reclamation->signale_par_id}, Email: {$signaleParUtilisateur->email}");
+                    } catch (\Exception $e) {
+                        $emailError = $e->getMessage();
+                        Log::error("Erreur lors de l'envoi de l'email de résolution pour la réclamation ID {$reclamation->id}", [
+                            'signale_par_id' => $reclamation->signale_par_id,
+                            'signale_par_type' => $reclamation->signale_par_type,
+                            'email' => $signaleParUtilisateur->email ?? 'N/A',
+                            'error' => $emailError,
+                            'trace' => $e->getTraceAsString()
+                        ]);
+                        // Ne pas faire échouer la requête si l'email échoue
                     }
-                } catch (\Exception $e) {
-                    Log::error("Erreur lors de l'envoi de l'email de résolution pour la réclamation ID {$reclamation->id}: " . $e->getMessage());
-                    // Ne pas faire échouer la requête si l'email échoue
+                } else {
+                    Log::warning("Impossible d'envoyer l'email de résolution pour la réclamation ID {$reclamation->id}: signale_par utilisateur ou email manquant", [
+                        'signale_par_id' => $reclamation->signale_par_id,
+                        'signale_par_type' => $reclamation->signale_par_type
+                    ]);
+                }
+                
+                if ($emailSent) {
+                    Log::info("Email de résolution envoyé avec succès pour la réclamation ID {$reclamation->id}");
+                } elseif ($emailError) {
+                    Log::error("Échec de l'envoi de l'email de résolution pour la réclamation ID {$reclamation->id}: {$emailError}");
                 }
             }
             

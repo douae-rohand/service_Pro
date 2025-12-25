@@ -139,6 +139,7 @@ class TacheController extends Controller
 
     /**
      * Get intervenants for a specific tache
+     * IMPORTANT: Only return intervenants where the parent service is active for them
      */
     public function getIntervenants($id)
     {
@@ -148,8 +149,14 @@ class TacheController extends Controller
             $tache = Tache::findOrFail($id);
             
             // Query intervenants directly via the relationship
+            // CRITICAL FIX: Also check that the parent service is active for this intervenant
             $intervenants = $tache->intervenants()
-                ->where('is_active', true) // Only active ones
+                ->where('is_active', true) // Only active intervenants
+                ->whereHas('services', function ($q) use ($tache) {
+                    // Check that the parent service of this task is active for the intervenant
+                    $q->where('service.id', $tache->service_id)
+                      ->where('intervenant_service.status', 'active');
+                })
                 ->with(['utilisateur']) // Essential
                 ->withAvg('evaluations', 'note')
                 ->withCount(['evaluations', 'interventions'])

@@ -339,23 +339,8 @@
                 </div>
               </div>
 
-              <!-- Terms and Submit -->
+              <!-- Login Redirect Section (previously Terms) -->
               <div class="border-t-2 pt-3 mt-3" style="border-color: #F3E293">
-                <label class="flex items-start gap-2 mb-3 cursor-pointer group">
-                  <input
-                    v-model="formData.acceptTerms"
-                    type="checkbox"
-                    required
-                    class="mt-0.5 w-4 h-4 rounded-md cursor-pointer"
-                    style="accent-color: #92B08B"
-                  />
-                  <span class="text-xs text-gray-600 group-hover:text-gray-900 transition-colors">
-                    J'accepte les
-                    <span class="font-semibold underline" style="color: #92B08B">conditions</span>
-                    et la
-                    <span class="font-semibold underline" style="color: #92B08B">politique</span>
-                  </span>
-                </label>
 
                 <button
                   type="submit"
@@ -377,7 +362,7 @@
                 <div class="mt-3 text-center p-2.5 rounded-xl shadow-sm" style="background: linear-gradient(135deg, #E8F5E9 0%, #F3F9F1 100%)">
                   <p class="text-xs font-medium" style="color: #5A6B4F">
                     Déjà un compte ?
-                    <button type="button" @click="handleClose" class="font-bold hover:underline transition-all ml-1" style="color: #92B08B">
+                    <button type="button" @click="handleLoginRedirect" class="font-bold hover:underline transition-all ml-1" style="color: #92B08B">
                       Se connecter
                     </button>
                   </p>
@@ -432,7 +417,6 @@ const formData = ref({
   confirmPassword: '',
   adresse: '',
   ville: '',
-  acceptTerms: false,
 })
 
 const benefits = computed(() => {
@@ -445,6 +429,11 @@ const benefits = computed(() => {
 
 const handleClose = () => {
   emit('close')
+}
+
+const handleLoginRedirect = () => {
+  handleClose()
+  emit('open-login-modal')
 }
 
 const handleSubmit = async () => {

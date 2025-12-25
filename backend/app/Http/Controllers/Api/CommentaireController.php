@@ -15,6 +15,7 @@ class CommentaireController extends Controller
     {
         // Récupérer les 3 derniers commentaires des clients
         $commentaires = Commentaire::where('type_auteur', 'client')
+            ->where('is_public', true)
             ->with(['intervention.client.utilisateur'])
             ->latest()
             ->take(3) // Prendre les 3 derniers

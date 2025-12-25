@@ -1,4 +1,3 @@
-
 services:
   # Laravel Backend (PHP-FPM)
   app:
@@ -18,26 +17,14 @@ services:
       DB_USERNAME: root
       DB_PASSWORD: rootpassword
       APP_URL: http://localhost:8000
+      BROADCAST_CONNECTION: reverb
       REVERB_HOST: reverb
       REVERB_PORT: 8085
       REVERB_SCHEME: http
     depends_on:
       - db
 
-  # Nginx for Backend (serves API and delegates to PHP-FPM)
-  backend-web:
-    image: nginx:alpine
-    container_name: laravel_nginx
-    restart: unless-stopped
-    ports:
-      - "8000:80"
-    volumes:
-      - ./backend:/var/www
-      - ./backend/nginx/conf.d/:/etc/nginx/conf.d/
-    depends_on:
-      - app
-
-  # Reverb WebSocket Server
+  # Reverb WebSocket Server (Service Dédié)
   reverb:
     build:
       context: ./backend
@@ -45,6 +32,7 @@ services:
     container_name: laravel_reverb
     restart: unless-stopped
     working_dir: /var/www
+    # Commande spécifique pour lancer le serveur WebSocket
     command: php artisan reverb:start --host=0.0.0.0 --port=8085
     ports:
       - "8085:8085"
@@ -57,19 +45,36 @@ services:
       DB_DATABASE: service_pro
       DB_USERNAME: root
       DB_PASSWORD: rootpassword
+      REVERB_APP_ID: ${REVERB_APP_ID}
+      REVERB_APP_KEY: ${REVERB_APP_KEY}
+      REVERB_APP_SECRET: ${REVERB_APP_SECRET}
       REVERB_HOST: "0.0.0.0"
       REVERB_PORT: 8085
       REVERB_SCHEME: http
-      BROADCAST_CONNECTION: reverb
     depends_on:
       - db
       - app
 
-  # Database
+  # Nginx for Backend (serves API)
+  backend-web:
+    image: nginx:alpine
+    container_name: laravel_nginx
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    volumes:
+      - ./backend:/var/www
+      - ./backend/nginx/conf.d/:/etc/nginx/conf.d/
+    depends_on:
+      - app
+
+  # Database (MySQL 8.0)
   db:
     image: mysql:8.0
     container_name: mysql_db
     restart: unless-stopped
+    # Optimisation mémoire pour EC2 Free Tier
+    command: --performance-schema=OFF --innodb-buffer-pool-size=64M
     environment:
       MYSQL_DATABASE: service_pro
       MYSQL_ROOT_PASSWORD: rootpassword
@@ -78,7 +83,7 @@ services:
     ports:
       - "33060:3306"
 
-  # Frontend (Vue.js + Nginx Proxy)
+  # Frontend (Vue.js)
   frontend:
     build:
       context: ./frontend
@@ -89,6 +94,7 @@ services:
       - "80:80"
     depends_on:
       - backend-web
+      - reverb
 
   # phpMyAdmin
   phpmyadmin:

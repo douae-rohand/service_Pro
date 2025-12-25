@@ -3,6 +3,10 @@ import App from './App.vue'
 import './style.css'
 import router from './router'
 import './assets/main.css'
+import echo from './echo'
+
+window.Echo = echo
+
 
 const app = createApp(App)
 

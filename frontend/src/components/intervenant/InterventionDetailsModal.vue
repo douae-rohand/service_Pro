@@ -383,10 +383,10 @@ const clientProvidedMaterials = computed(() => {
   const intervenantMaterials = intervention.value.materiels || []
   
   // Get IDs of materials provided by intervenant
-  const intervenantMaterialIds = intervenantMaterials.map(m => m.id)
+  const intervenantMaterialIds = intervenantMaterials.map(m => String(m.id))
   
   // Filter task materials to only include those NOT provided by intervenant
-  return taskMaterials.filter(material => !intervenantMaterialIds.includes(material.id))
+  return taskMaterials.filter(material => !intervenantMaterialIds.includes(String(material.id)))
 })
 
 watch(() => props.show, (newVal) => {

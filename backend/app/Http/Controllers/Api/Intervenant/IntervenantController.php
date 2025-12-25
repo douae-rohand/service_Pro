@@ -179,6 +179,7 @@ class IntervenantController extends Controller
             'bio' => 'nullable|string',
             'is_active' => 'nullable|boolean',
             'admin_id' => 'nullable|exists:admin,id',
+            'telephone' => 'nullable|string|max:20', // Add telephone validation
         ]);
 
         $updateData = [
@@ -195,6 +196,13 @@ class IntervenantController extends Controller
         }
 
         $intervenant->update($updateData);
+
+        // Update user telephone if provided
+        if ($request->has('telephone')) {
+            $intervenant->utilisateur->update([
+                'telephone' => $validated['telephone'] ?? $request->input('telephone')
+            ]);
+        }
 
         // Update service experience if provided
         if ($request->has('services') && is_array($request->services)) {
@@ -1700,7 +1708,7 @@ class IntervenantController extends Controller
                     return [
                         'id' => $intervention->id,
                         'clientName' => $clientUser ? ($clientUser->nom . ' ' . $clientUser->prenom) : 'Client inconnu',
-                        'clientImage' => $clientUser?->url ?? $clientUser?->profile_photo ?? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop',
+                        'clientImage' => $clientUser?->profile_photo ?? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop',
                         'service' => $tache?->service?->nom_service ?? 'Service inconnu',
                         'task' => $tache?->nom_tache ?? 'Tâche inconnue',
                         'date' => $intervention->date_intervention?->format('Y-m-d') ?? 'N/A',

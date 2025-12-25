@@ -116,6 +116,12 @@ class Utilisateur extends Authenticatable
     {
         if (!$value) return null;
         if (strpos($value, 'http') === 0) return $value;
+        
+        // Prevent double storage/ path if already present
+        if (strpos($value, 'storage/') === 0) {
+            return url($value);
+        }
+        
         return url('storage/' . $value);
     }
 

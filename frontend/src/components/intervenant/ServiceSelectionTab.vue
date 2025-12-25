@@ -700,13 +700,18 @@ const fetchServices = async () => {
 // Load intervenant's active services and tasks from DB
 const loadIntervenantActiveData = async (intervenantId) => {
   try {
+    console.log('[loadIntervenantActiveData] Called with intervenant ID:', intervenantId)
     const data = await intervenantService.getActiveServicesAndTasks(intervenantId)
+    console.log('[loadIntervenantActiveData] API Response:', data)
     
     // Activate the services that are active in DB
     if (data && data.services && data.services.length > 0) {
+      console.log('[loadIntervenantActiveData] Processing services:', data.services)
       // Use Promise.all to properly await all material fetches
       await Promise.all(data.services.map(async (service) => {
+        console.log(`[loadIntervenantActiveData] Service ${service.id} (${service.name}): status=${service.status}`)
         if (service.status === 'active' && serviceStates.value[service.id] !== undefined) {
+          console.log(`[loadIntervenantActiveData] Setting service ${service.id} to ACTIVE`)
           serviceStates.value[service.id] = true
         } else if (service.status === 'archive' && serviceStates.value[service.id] !== undefined) {
           // If archived, we mark it so we can fast-reactivate
@@ -872,10 +877,12 @@ onMounted(async () => {
     await loadAuthenticatedUser()
 
     // Only proceed if user is authenticated and is an intervenant
-    if (currentUser.value && currentUser.value.id) {
+    if (currentUser.value && currentUser.value.intervenant?.id) {
+      console.log('[onMounted] currentUser:', currentUser.value)
+      console.log('[onMounted] intervenant.id:', currentUser.value.intervenant.id)
       await fetchServices()
       // Load active services and tasks for the authenticated intervenant
-      await loadIntervenantActiveData(currentUser.value.id)
+      await loadIntervenantActiveData(currentUser.value.intervenant.id)
 
       // Real-time listener logic
       const token = localStorage.getItem('token')
@@ -894,8 +901,9 @@ onMounted(async () => {
          channel.listen('.intervenant.status.updated', async (event) => {
              console.log('[ServiceSelectionTab] 📩 Received event:', event)
              
-             // Refresh data
-             await loadIntervenantActiveData(userId)
+             // Refresh data - use intervenant ID, not user ID
+             console.log('[ServiceSelectionTab] Refreshing data for intervenant:', currentUser.value.intervenant.id)
+             await loadIntervenantActiveData(currentUser.value.intervenant.id)
              
              // Show success message
              showSuccessMessage.value = true

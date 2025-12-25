@@ -35,7 +35,7 @@
                 <h3>Client</h3>
               </div>
               <div class="client-mini-card">
-                <img :src="getImageUrl(intervention.client?.utilisateur?.profile_photo)" class="mini-avatar" />
+                <img :src="getImageUrl(intervention.client?.utilisateur?.profile_photo || intervention.client?.utilisateur?.url)" class="mini-avatar" />
                 <div class="mini-info">
                   <p class="name">{{ intervention.client?.utilisateur?.nom }} {{ intervention.client?.utilisateur?.prenom }}</p>
                   
@@ -456,7 +456,7 @@ const formatStatus = (status) => {
 
 
 const getImageUrl = (path) => {
-  if (!path) return 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=400&h=300&fit=crop'
+  if (!path) return 'https://ui-avatars.com/api/?name=Client&background=E5E7EB&color=6B7280'
   if (path.startsWith('http')) return path
   return `http://127.0.0.1:8000/storage/${path.replace(/^\/+/, '')}`
 }

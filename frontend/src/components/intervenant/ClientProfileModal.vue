@@ -251,7 +251,7 @@ const formatDate = (dateString) => {
 }
 
 const getImageUrl = (path) => {
-  if (!path) return 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=400&h=300&fit=crop'
+  if (!path) return 'https://ui-avatars.com/api/?name=Client&background=E5E7EB&color=6B7280'
   if (path.startsWith('http')) return path
   return `http://127.0.0.1:8000/storage/${path.replace(/^\/+/, '')}`
 }

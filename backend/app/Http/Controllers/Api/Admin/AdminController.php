@@ -1469,12 +1469,13 @@ class AdminController extends Controller
 
             // Notify Intervenant via Reverb
             Log::info("🔔 Dispatching ServiceRequestStatusUpdated event", [
-                'intervenant_id' => $id,
+                'intervenant_id' => $intervenant->id,
+                'user_id' => $intervenant->utilisateur->id,
                 'service_name' => $serviceName,
                 'status' => 'active',
-                'channel' => 'intervenant.' . $id
+                'channel' => 'intervenant.' . $intervenant->utilisateur->id
             ]);
-            ServiceRequestStatusUpdated::dispatch($id, $serviceName, 'active', "Votre demande pour le service '{$serviceName}' a été acceptée.");
+            ServiceRequestStatusUpdated::dispatch($intervenant->utilisateur->id, $serviceName, 'active', "Votre demande pour le service '{$serviceName}' a été acceptée.");
 
             // Récupérer tous les services activés (anciens + nouveau) pour le retour
             $intervenant->refresh();

@@ -41,6 +41,7 @@
           <div>
             <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">INTERVENANT</h3>
             <div class="font-bold text-gray-800 text-lg mb-1">{{ demand.intervenant.name }}</div>
+            <div class="text-sm text-gray-600">Référence : {{ invoiceReference }}</div>
             <div class="text-sm text-gray-600">{{ demand.intervenant.email || 'contact@verdenet.com' }}</div>
           </div>
           
@@ -94,12 +95,7 @@
                    <td class="py-3 px-4 text-sm text-gray-700">Matériel : {{ materialsDescription }}</td>
                    <td class="py-3 px-4 text-right text-sm text-gray-700">{{ formatPrice(invoice.materialsCost) }} MAD</td>
                 </tr>
-                 <!-- Ligne vide pour espacement ou autres frais si nécessaire -->
-                <tr class="border-b border-gray-200" v-if="!invoice.materialsCost">
-                   <td class="py-3 px-4 text-sm text-gray-700">Matériel</td>
-                   <td class="py-3 px-4 text-right text-sm text-gray-700">0.00 MAD</td>
-                </tr>
-             </tbody>
+              </tbody>
            </table>
         </div>
 
@@ -244,7 +240,7 @@ export default {
       const element = document.getElementById('invoice-content');
       const opt = {
         margin: [10, 10, 10, 10], // top, left, bottom, right
-        filename: `fiche_payement_${this.invoiceReference}.pdf`,
+        filename: `Facture_${this.invoiceReference}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }

@@ -14,7 +14,7 @@ const echo = new Echo({
     enabledTransports: ['ws', 'wss'],
 
     // Authentication for private channels
-    authEndpoint: 'http://localhost:8000/broadcasting/auth',
+    authEndpoint: import.meta.env.VITE_API_BASE_URL + '/broadcasting/auth',
     auth: {
         headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`,

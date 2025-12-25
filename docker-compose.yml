@@ -34,6 +34,34 @@ services:
     depends_on:
       - app
 
+  # Reverb WebSocket Server
+  reverb:
+    build:
+      context: ./backend
+      dockerfile: dockerfile
+    container_name: laravel_reverb
+    restart: unless-stopped
+    working_dir: /var/www
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend:/var/www
+    environment:
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: service_pro
+      DB_USERNAME: root
+      DB_PASSWORD: rootpassword
+      REVERB_HOST: "0.0.0.0"
+      REVERB_PORT: 8080
+      REVERB_SCHEME: http
+      BROADCAST_CONNECTION: reverb
+    depends_on:
+      - db
+      - app
+
   # Database
   db:
     image: mysql:8.0

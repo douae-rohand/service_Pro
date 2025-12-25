@@ -5,8 +5,8 @@ services:
     container_name: laravel_app
     restart: unless-stopped
     working_dir: /var/www
-    volumes:
-      - ./backend:/var/www
+    # volumes:
+    #   - ./backend:/var/www
     environment:
       DB_CONNECTION: mysql
       DB_HOST: db
@@ -32,8 +32,8 @@ services:
     command: php artisan reverb:start --host=0.0.0.0 --port=8085
     ports:
       - "8085:8085"
-    volumes:
-      - ./backend:/var/www
+    # volumes:
+    #   - ./backend:/var/www
     environment:
       DB_CONNECTION: mysql
       DB_HOST: db
@@ -59,7 +59,7 @@ services:
     ports:
       - "8000:80"
     volumes:
-      - ./backend:/var/www
+      # - ./backend:/var/www
       - ./backend/nginx/conf.d/:/etc/nginx/conf.d/
     depends_on:
       - app

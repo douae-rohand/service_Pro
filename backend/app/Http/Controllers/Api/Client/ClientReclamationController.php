@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Cache;
 
 class ClientReclamationController extends Controller
 {
@@ -329,6 +330,9 @@ class ClientReclamationController extends Controller
                 'concernant_id' => $request->concernant_id,
                 'concernant_type' => $request->concernant_type,
             ]);
+
+            // Invalider le cache des stats admin pour mettre à jour immédiatement les badges
+            Cache::forget('admin_stats');
 
             return response()->json([
                 'status' => 'success',

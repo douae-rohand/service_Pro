@@ -104,6 +104,27 @@ class AdminController extends Controller
                 ? round((($heuresTotal - $heuresLastMonth) / $heuresLastMonth) * 100) 
                 : 0;
 
+            // Calcul des demandes en attente
+            // Compter les demandes avec status='demmande' pour les intervenants actifs et services actifs
+            $demandesQuery = DB::table('intervenant_service')
+                ->join('intervenant', 'intervenant_service.intervenant_id', '=', 'intervenant.id')
+                ->join('service', 'intervenant_service.service_id', '=', 'service.id')
+                ->where('intervenant.is_active', true)
+                ->where('intervenant_service.status', 'demmande');
+            
+            // Vérifier que le service est actif si la colonne status existe
+            if (Schema::hasColumn('service', 'status')) {
+                $demandesQuery->where('service.status', 'active');
+            }
+            
+            $demandesEnAttente = $demandesQuery->count();
+
+            // Calcul des réclamations en attente (non résolues et non archivées)
+            // Statuts considérés comme "en attente" : 'en_attente' et 'en_cours'
+            $reclamationsNouvelles = Reclamation::where('archived', false)
+                ->whereIn('statut', ['en_attente', 'en_cours'])
+                ->count();
+
             return [
                 'totalClients' => $totalClients,
                 'clientsGrowth' => ($clientsGrowth >= 0 ? '+' : '') . $clientsGrowth . '%',
@@ -114,12 +135,11 @@ class AdminController extends Controller
                 'satisfaction' => $satisfaction,
                 'satisfactionLabel' => $satisfactionLabel,
                 'heuresTotal' => $heuresTotal,
-                'heuresGrowth' => ($heuresGrowth >= 0 ? '+' : '') . $heuresGrowth . '%'
+                'heuresGrowth' => ($heuresGrowth >= 0 ? '+' : '') . $heuresGrowth . '%',
+                'demandesEnAttente' => $demandesEnAttente,
+                'reclamationsNouvelles' => $reclamationsNouvelles
             ];
         });
-
-        // Badge des demandes en attente désactivé - toujours à 0
-        $stats['demandesEnAttente'] = 0;
 
         return response()->json($stats);
     }
@@ -1465,6 +1485,9 @@ class AdminController extends Controller
             $this->logAdminAction('approve_request', 'intervenant', $id, 
                 "Demande d'intervenant ID {$id} approuvée pour le service: {$serviceName}");
 
+            // Invalider le cache des stats pour mettre à jour immédiatement les badges
+            Cache::forget('admin_stats');
+
             // Envoyer un email à l'intervenant
             try {
                 $emailSent = Mail::to($intervenant->utilisateur->email)->send(
@@ -1592,6 +1615,9 @@ class AdminController extends Controller
             // Log de l'action
             $this->logAdminAction('reject_request', 'intervenant', $id, 
                 "Demande d'intervenant ID {$id} rejetée pour le service: {$serviceName}. Statut mis à 'refuse'. Intervenant conservé dans la base.");
+
+            // Invalider le cache des stats pour mettre à jour immédiatement les badges
+            Cache::forget('admin_stats');
 
             // Envoyer un email à l'intervenant
             try {
@@ -2886,6 +2912,9 @@ class AdminController extends Controller
         }
 
         $this->logAdminAction('handle_reclamation', 'reclamation', $id, "Réclamation ID {$id} : {$oldStatus} -> {$reclamation->statut}");
+
+        // Invalider le cache des stats pour mettre à jour immédiatement les badges
+        Cache::forget('admin_stats');
 
         return response()->json([
             'message' => $message,

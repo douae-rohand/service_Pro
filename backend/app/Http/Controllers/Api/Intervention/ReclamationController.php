@@ -9,6 +9,7 @@ use App\Models\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class ReclamationController extends Controller
 {
@@ -60,6 +61,9 @@ class ReclamationController extends Controller
                 'priorite' => $request->priorite,
                 'statut' => 'en_attente',
             ]);
+
+            // Invalider le cache des stats admin pour mettre à jour immédiatement les badges
+            Cache::forget('admin_stats');
 
             return response()->json([
                 'message' => 'Réclamation envoyée avec succès',

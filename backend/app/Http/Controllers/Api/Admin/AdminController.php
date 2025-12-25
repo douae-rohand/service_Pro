@@ -152,7 +152,7 @@ class AdminController extends Controller
         // Charger uniquement les données nécessaires pour la liste
         $query = Client::with([
             'utilisateur:id,nom,prenom,email,telephone', // Limiter les colonnes
-            'interventions:id,client_id,date_intervention' // Seulement les colonnes nécessaires
+            'interventions:id,client_id,date_intervention,tache_id,intervenant_id,duration_hours' // Ajouter les colonnes nécessaires pour le calcul du prix
         ]);
 
         // Filtrer par statut
@@ -177,14 +177,17 @@ class AdminController extends Controller
         $clients = $query->get();
         
         // Récupérer tous les IDs d'interventions en une seule fois
-        $allInterventionIds = $clients->pluck('interventions')->flatten()->pluck('id')->unique()->filter();
+        $allInterventions = $clients->pluck('interventions')->flatten();
+        $allInterventionIds = $allInterventions->pluck('id')->unique()->filter();
         
         // Précharger toutes les factures et évaluations en une seule requête
         $facturesByIntervention = [];
         $evaluationsByIntervention = [];
-        $dernieresInterventions = [];
+        $dernieresInterventions = collect([]);
+        $prixTachesByIntervention = [];
+        $prixMateriauxByIntervention = [];
         
-        if ($allInterventionIds->isNotEmpty()) {
+        if ($allInterventionIds->isNotEmpty() && $allInterventions->isNotEmpty()) {
             // Récupérer toutes les factures groupées par intervention_id
             $factures = DB::table('facture')
                 ->select('intervention_id', DB::raw('SUM(ttc) as total'))
@@ -194,7 +197,7 @@ class AdminController extends Controller
                 ->keyBy('intervention_id');
             
             foreach ($factures as $interventionId => $facture) {
-                $facturesByIntervention[$interventionId] = $facture->total;
+                $facturesByIntervention[$interventionId] = (float)$facture->total;
             }
             
             // Récupérer toutes les évaluations distinctes par intervention
@@ -221,10 +224,73 @@ class AdminController extends Controller
                 ->map(function($group) {
                     return $group->first()->date_intervention;
                 });
+            
+            // Précharger les prix des tâches pour toutes les interventions
+            $interventionsData = DB::table('intervention')
+                ->select('id', 'tache_id', 'intervenant_id', 'duration_hours')
+                ->whereIn('id', $allInterventionIds)
+                ->whereNotNull('tache_id')
+                ->whereNotNull('intervenant_id')
+                ->get();
+            
+            $tacheIds = $interventionsData->pluck('tache_id')->unique()->filter();
+            $intervenantIds = $interventionsData->pluck('intervenant_id')->unique()->filter();
+            
+            if ($tacheIds->isNotEmpty() && $intervenantIds->isNotEmpty()) {
+                // Récupérer les prix des tâches
+                $prixTaches = DB::table('intervenant_tache')
+                    ->select('tache_id', 'intervenant_id', 'prix_tache')
+                    ->whereIn('tache_id', $tacheIds)
+                    ->whereIn('intervenant_id', $intervenantIds)
+                    ->get();
+                
+                foreach ($interventionsData as $intervention) {
+                    $prixTache = $prixTaches->first(function($pt) use ($intervention) {
+                        return $pt->tache_id == $intervention->tache_id && $pt->intervenant_id == $intervention->intervenant_id;
+                    });
+                    
+                    if ($prixTache) {
+                        $duration = (float)($intervention->duration_hours ?? 1);
+                        $prixTachesByIntervention[$intervention->id] = (float)$prixTache->prix_tache * $duration;
+                    }
+                }
+                
+                // Récupérer les prix des matériaux pour toutes les interventions
+                $materiauxInterventions = DB::table('intervention_materiel')
+                    ->select('intervention_id', 'materiel_id')
+                    ->whereIn('intervention_id', $allInterventionIds)
+                    ->get();
+                
+                if ($materiauxInterventions->isNotEmpty()) {
+                    $materielIds = $materiauxInterventions->pluck('materiel_id')->unique()->filter();
+                    
+                    $prixMateriaux = DB::table('intervenant_materiel')
+                        ->select('materiel_id', 'intervenant_id', 'prix_materiel')
+                        ->whereIn('materiel_id', $materielIds)
+                        ->whereIn('intervenant_id', $intervenantIds)
+                        ->get();
+                    
+                    foreach ($materiauxInterventions as $matIntervention) {
+                        $intervention = $interventionsData->firstWhere('id', $matIntervention->intervention_id);
+                        if ($intervention) {
+                            $prixMateriel = $prixMateriaux->first(function($pm) use ($matIntervention, $intervention) {
+                                return $pm->materiel_id == $matIntervention->materiel_id && $pm->intervenant_id == $intervention->intervenant_id;
+                            });
+                            
+                            if ($prixMateriel) {
+                                if (!isset($prixMateriauxByIntervention[$matIntervention->intervention_id])) {
+                                    $prixMateriauxByIntervention[$matIntervention->intervention_id] = 0;
+                                }
+                                $prixMateriauxByIntervention[$matIntervention->intervention_id] += (float)$prixMateriel->prix_materiel;
+                            }
+                        }
+                    }
+                }
+            }
         }
         
         // Mapper les clients avec les données préchargées
-        $clientsData = $clients->map(function($client) use ($facturesByIntervention, $evaluationsByIntervention, $dernieresInterventions) {
+        $clientsData = $clients->map(function($client) use ($facturesByIntervention, $evaluationsByIntervention, $dernieresInterventions, $prixTachesByIntervention, $prixMateriauxByIntervention) {
             // Vérifier si l'utilisateur existe
             if (!$client->utilisateur) {
                 return null;
@@ -234,10 +300,17 @@ class AdminController extends Controller
             $interventionsIds = $interventions->pluck('id');
             
             // Calculer le montant total depuis les données préchargées
+            // Utiliser la facture si elle existe, sinon calculer à partir du prix de la tâche et des matériaux
             $montantTotal = 0;
             foreach ($interventionsIds as $interventionId) {
                 if (isset($facturesByIntervention[$interventionId])) {
+                    // Si une facture existe, utiliser son montant
                     $montantTotal += $facturesByIntervention[$interventionId];
+                } else {
+                    // Sinon, calculer à partir du prix de la tâche et des matériaux
+                    $prixTache = $prixTachesByIntervention[$interventionId] ?? 0;
+                    $prixMateriaux = $prixMateriauxByIntervention[$interventionId] ?? 0;
+                    $montantTotal += ($prixTache + $prixMateriaux);
                 }
             }
             

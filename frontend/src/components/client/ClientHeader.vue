@@ -29,51 +29,9 @@
           </div>
         </div>
 
-        <!-- Right: Notification & User Profile & Logout -->
+        <!-- Right: User Profile & Logout -->
         <div class="flex items-center gap-4 sm:gap-6">
           
-          <!-- Notifications -->
-          <div class="relative">
-            <button 
-              @click="showNotifications = !showNotifications"
-              class="p-2 rounded-full hover:bg-gray-50 transition-colors relative"
-            >
-              <Bell :size="20" class="text-gray-600" />
-              <span v-if="unreadCount > 0" class="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
-            </button>
-
-            <!-- Dropdown -->
-            <div v-if="showNotifications" class="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden animate-slide-down origin-top-right">
-              <div class="p-4 border-b border-gray-50 flex justify-between items-center">
-                <h3 class="font-bold text-gray-800">Notifications</h3>
-                <button @click="markAllAsRead" class="text-xs text-[#4682B4] font-medium hover:underline">Tout marquer comme lu</button>
-              </div>
-              
-              <div class="max-h-80 overflow-y-auto">
-                <div v-if="notifications.length === 0" class="p-8 text-center text-gray-400 text-sm">
-                  Aucune notification
-                </div>
-                <div 
-                  v-for="notification in notifications" 
-                  :key="notification.id"
-                  class="p-4 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 cursor-pointer"
-                  :class="{ 'bg-blue-50/50': !notification.read_at }"
-                  @click="markAsRead(notification)"
-                >
-                  <div class="flex gap-3">
-                    <div class="flex-shrink-0 mt-1">
-                      <div class="w-2 h-2 rounded-full bg-[#4682B4]" v-if="!notification.read_at"></div>
-                    </div>
-                    <div>
-                      <p class="text-sm text-gray-800" :class="{ 'font-semibold': !notification.read_at }">{{ notification.message }}</p>
-                      <p class="text-xs text-gray-400 mt-1">{{ formatDate(notification.created_at) }}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
           <!-- User Profile -->
           <div class="flex items-center gap-3 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100">
             <img
@@ -102,17 +60,15 @@
 </template>
 
 <script>
-import { Menu, X, LogOut, Bell, Check } from 'lucide-vue-next';
+import { Menu, X, LogOut, Check } from 'lucide-vue-next';
 import api from '@/services/api';
 
 export default {
   name: 'ClientHeader',
   components: {
     Menu,
-    Menu,
     X,
     LogOut,
-    Bell,
     Check
   },
   props: {
@@ -133,22 +89,7 @@ export default {
   emits: ['logout', 'toggle-sidebar', 'nav-change'],
   data() {
     return {
-      showNotifications: false,
-      notifications: [],
-      unreadCount: 0,
-      pollInterval: null
     };
-  },
-  mounted() {
-    this.fetchNotifications();
-    this.pollInterval = setInterval(this.fetchNotifications, 30000); // Poll every 30s
-    
-    // Close dropdown when clicking outside
-    document.addEventListener('click', this.handleClickOutside);
-  },
-  beforeUnmount() {
-    if (this.pollInterval) clearInterval(this.pollInterval);
-    document.removeEventListener('click', this.handleClickOutside);
   },
   methods: {
     handleLogout() {
@@ -156,52 +97,6 @@ export default {
     },
     handleToggleSidebar() {
       this.$emit('toggle-sidebar');
-    },
-    async fetchNotifications() {
-      try {
-        const response = await api.get('notifications');
-        // Ensure data exists and is an array or object with data property
-        const data = response.data.data ? response.data.data : (Array.isArray(response.data) ? response.data : []);
-        this.notifications = data;
-        this.unreadCount = response.data.unread_count || 0;
-      } catch (error) {
-        console.error('Error fetching notifications (silent)', error);
-      }
-    },
-    async markAsRead(notification) {
-      if (notification.read_at) return;
-      try {
-        await api.post(`notifications/${notification.id}/read`);
-        notification.read_at = new Date().toISOString();
-        this.unreadCount = Math.max(0, this.unreadCount - 1);
-      } catch (e) {
-        console.error("Error marking as read", e);
-      }
-    },
-    async markAllAsRead() {
-      try {
-        await api.post('notifications/read-all');
-        this.notifications.forEach(n => n.read_at = new Date().toISOString());
-        this.unreadCount = 0;
-      } catch (e) {
-        console.error("Error marking all as read", e);
-      }
-    },
-    formatDate(date) {
-      if (!date) return '';
-      const d = new Date(date);
-      const now = new Date();
-      const diff = Math.floor((now - d) / 1000); // seconds
-      
-      if (diff < 60) return 'À l\'instant';
-      if (diff < 3600) return `Il y a ${Math.floor(diff/60)} min`;
-      if (diff < 86400) return `Il y a ${Math.floor(diff/3600)} h`;
-      return d.toLocaleDateString('fr-FR');
-    },
-    handleClickOutside(event) {
-      if (this.showNotifications && !this.$el.contains(event.target)) {
-        this.showNotifications = false;
-      }
     }
   }
 };

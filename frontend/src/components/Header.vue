@@ -147,15 +147,6 @@
               <div class="w-px h-8 bg-gray-200/60 mx-1"></div>
               
               <div class="flex items-center gap-1">
-                <!-- Icon Notifications -->
-                <button
-                  class="p-2.5 rounded-xl text-gray-500 hover:text-[#4682B4] hover:bg-white transition-all duration-200 group relative"
-                  title="Notifications"
-                >
-                  <Bell class="w-5 h-5 group-hover:scale-110" />
-                  <span class="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-                </button>
-
                 <!-- Icon Mon Profil -->
                 <button
                   @click="$emit('navigate', 'profile')"
@@ -295,8 +286,7 @@ import {
   Calendar, 
   ChevronDown, 
   Menu, 
-  X,
-  Bell
+  X
 } from 'lucide-vue-next'
 import SignupModal from './SignupModal.vue'
 import LoginModal from './LoginModal.vue'

@@ -32,7 +32,7 @@ RUN COMPOSER_MEMORY_LIMIT=-1 composer install --no-interaction --prefer-dist --o
 COPY . .
 
 # Generate the autoloader and run any post-autoload scripts if necessary
-RUN composer dump-autoload --optimize
+RUN composer dump-autoload --optimize --no-scripts
 
 # Set permissions for storage and bootstrap/cache
 RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache

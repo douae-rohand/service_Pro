@@ -245,54 +245,64 @@ const fetchServices = async () => {
   }
 }
 
-onMounted(() => {
-  fetchServices()
+onMounted(async () => {
+  await fetchServices()
   
   // Setup real-time listener for service status updates
+  const token = localStorage.getItem('token')
   const userStr = localStorage.getItem('user')
-  console.log('[MyServicesTab] User from localStorage:', userStr)
   
   if (userStr && window.Echo) {
     try {
       const user = JSON.parse(userStr)
       const userId = user.id
-      console.log('[MyServicesTab] Setting up listener for user ID:', userId)
-      console.log('[MyServicesTab] Echo instance:', window.Echo)
       
-      window.Echo.private(`intervenant.${userId}`)
-        .listen('ServiceRequestStatusUpdated', (event) => {
-          console.log('[MyServicesTab] ✅ Received status update:', event)
+      console.log('[MyServicesTab] Setting up Reverb listener for user ID:', userId)
+      
+      // Ensure Echo has the latest token
+      if (token && window.Echo.connector && window.Echo.connector.options.auth) {
+         window.Echo.connector.options.auth.headers.Authorization = `Bearer ${token}`
+         console.log('[MyServicesTab] Updated Echo auth token')
+      }
+
+      // Listen to private channel
+      // Channel: intervenant.{id}
+      const channel = window.Echo.private(`intervenant.${userId}`)
+      
+      channel.on('pusher:subscription_succeeded', () => {
+          console.log('[MyServicesTab] ✅ Successfully subscribed to channel: intervenant.' + userId)
+      })
+      
+      channel.on('pusher:subscription_error', (status) => {
+          console.error('[MyServicesTab] ❌ Subscription error:', status)
+      })
+
+      channel.listen('.intervenant.status.updated', (event) => {
+          console.log('[MyServicesTab] 📩 Received event:', event)
           
-          // Show notification
-          notification.value = event.message
+          notification.value = event.message || 'Statut du service mis à jour'
           setTimeout(() => {
             notification.value = null
-          }, 5000)
+          }, 6000)
           
-          // Refresh services to get updated status
           fetchServices()
         })
-      
-      console.log('[MyServicesTab] Listener setup complete for channel: intervenant.' + userId)
+        
     } catch (err) {
       console.error('[MyServicesTab] Error setting up real-time listener:', err)
     }
   } else {
-    console.warn('[MyServicesTab] Cannot setup listener:', {
-      hasUser: !!userStr,
-      hasEcho: !!window.Echo
-    })
+    console.warn('[MyServicesTab] Cannot setup listener - User or Echo missing')
   }
 })
 
 onUnmounted(() => {
-  // Clean up Echo listener
   const userStr = localStorage.getItem('user')
   if (userStr && window.Echo) {
     try {
       const user = JSON.parse(userStr)
-      const userId = user.id
-      window.Echo.leave(`intervenant.${userId}`)
+      window.Echo.leave(`intervenant.${user.id}`)
+      console.log('[MyServicesTab] Left channel: intervenant.' + user.id)
     } catch (err) {
       console.error('Error cleaning up Echo:', err)
     }

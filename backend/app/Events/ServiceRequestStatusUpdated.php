@@ -56,4 +56,14 @@ class ServiceRequestStatusUpdated implements ShouldBroadcastNow
             'timestamp' => now()->toIso8601String(),
         ];
     }
+
+    /**
+     * The event's broadcast name.
+     *
+     * @return string
+     */
+    public function broadcastAs()
+    {
+        return 'intervenant.status.updated';
+    }
 }

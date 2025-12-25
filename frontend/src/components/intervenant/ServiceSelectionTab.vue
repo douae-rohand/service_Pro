@@ -525,7 +525,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Plus, Trash2, FileText, AlertCircle, Upload, Send, X, Archive, Check, AlertTriangle } from 'lucide-vue-next'
 import authService from '@/services/authService'
@@ -864,6 +864,7 @@ const loadAuthenticatedUser = async () => {
 }
 
 // Load services on component mount
+// Load services on component mount
 onMounted(async () => {
   isLoading.value = true
   try {
@@ -876,12 +877,47 @@ onMounted(async () => {
       // Load active services and tasks for the authenticated intervenant
       await loadIntervenantActiveData(currentUser.value.id)
 
-      // Real-time notifications are handled in MyServicesTab component
+      // Real-time listener logic
+      const token = localStorage.getItem('token')
+      const userId = currentUser.value.id
+      
+      if (window.Echo) {
+         console.log('[ServiceSelectionTab] Setting up Reverb listener for user ID:', userId)
+         
+         // Ensure Echo has the latest token
+         if (token && window.Echo.connector && window.Echo.connector.options.auth) {
+            window.Echo.connector.options.auth.headers.Authorization = `Bearer ${token}`
+         }
+         
+         const channel = window.Echo.private(`intervenant.${userId}`)
+         
+         channel.listen('.intervenant.status.updated', async (event) => {
+             console.log('[ServiceSelectionTab] 📩 Received event:', event)
+             
+             // Refresh data
+             await loadIntervenantActiveData(userId)
+             
+             // Show success message
+             showSuccessMessage.value = true
+             successMessage.value = event.message || 'Statut du service mis à jour'
+             successSubtitle.value = ''
+             setTimeout(() => { showSuccessMessage.value = false }, 5000)
+         })
+         
+         console.log('[ServiceSelectionTab] Listener setup complete')
+      }
     }
   } catch (e) {
     console.error("Error in initial load", e)
   } finally {
     isLoading.value = false
+  }
+})
+
+onUnmounted(() => {
+  if (currentUser.value && currentUser.value.id && window.Echo) {
+    window.Echo.leave(`intervenant.${currentUser.value.id}`)
+    console.log('[ServiceSelectionTab] Left channel')
   }
 })
 

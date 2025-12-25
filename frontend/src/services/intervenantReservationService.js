@@ -27,7 +27,12 @@ const reservationService = {
         // Use raw strings from backend as requested
         date: r.date || 'N/A',
         time: r.time ? r.time.substring(0, 5) : 'N/A', // Ensure H:i format
-        location: r.ville || r.location || 'Adresse non spécifiée'
+        location: r.ville || r.location || 'Adresse non spécifiée',
+
+        // Material Mapping Logic - backend returns consolidated 'materials' array with 'provided_by'
+        intervenantMaterials: (r.materials || []).filter(m => m.provided_by === 'intervenant'),
+        clientProvidedMaterials: (r.materials || []).filter(m => m.provided_by === 'client'),
+        materials: r.materials || []
       }));
 
       return { reservations: mappedReservations };

@@ -555,24 +555,7 @@ onMounted(() => {
   loadDemandes()
 })
 
-onMounted(() => {
-  loadServices()
-  loadDemandes()
 
-  // Initialize SSE for Admin
-  initSse('/sse/stream?type=admin', {
-    new_request: (data) => {
-      // Show notification
-      success(data.message || 'Nouvelle demande d\'activation reçue !')
-      
-      // Reload list
-      loadDemandes()
-      
-      // Emit update event
-      emit('stats-updated')
-    }
-  })
-})
 
 const loadDemandes = async (options = {}) => {
   const { silent = false } = options
@@ -868,13 +851,5 @@ const getStatutColor = (statut) => {
   return colors[statut] || colors['demmande']
 }
 
-// Synchronisation en temps réel - Recharger les demandes toutes les 3 secondes
-useAdminRealtimeSync(async () => {
-  await loadDemandes({ silent: true })
-}, { enabled: true })
 
-
-onMounted(async () => {
-  await Promise.all([loadServices(), loadDemandes()])
-})
 </script>

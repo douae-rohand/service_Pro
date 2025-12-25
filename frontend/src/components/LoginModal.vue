@@ -148,7 +148,7 @@
               </div>
 
               <!-- Google Login Button -->
-              <button
+             <!-- <button
                 type="button"
                 @click="handleGoogleLogin"
                 class="w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-gray-200 rounded-xl hover:bg-gray-50 transition-all group"
@@ -157,7 +157,7 @@
                 <span class="text-sm font-medium text-gray-700 group-hover:text-gray-900">
                   Continuer avec Google
                 </span>
-              </button>
+              </button>-->
 
               <!-- Signup Link -->
               <div class="text-center pt-2">

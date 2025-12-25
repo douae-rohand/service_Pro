@@ -123,7 +123,6 @@ export default {
     Star,
     MapPin,
     Calendar,
-    Calendar,
     AlertCircle
   },
   props: {
@@ -170,7 +169,7 @@ export default {
         this.favorites = rawFavorites.map(fav => ({
           ...fav,
           name: `${fav.prenom || ''} ${fav.nom || ''}`.trim(),
-          image: fav.photo_url || `https://ui-avatars.com/api/?name=${fav.prenom}+${fav.nom}&background=random`,
+          image: this.getIntervenantImage(fav),
           services: [fav.nom_service],
           location: fav.ville || fav.adresse || 'Non spécifiée',
           averageRating: fav.note_globale || 0,
@@ -186,6 +185,24 @@ export default {
       } finally {
         this.loading = false;
       }
+    },
+    getIntervenantImage(fav) {
+      // Logic from ClientProfile.vue adapted for favorites objects
+      // Favorites object from FavoritesController usually has: photo_url, profile_photo, url
+      const img = fav.photo_url || fav.profile_photo || fav.url || fav.avatar;
+      const name = `${fav.prenom || ''} ${fav.nom || ''}`.trim() || 'Intervenant';
+      
+      if (!img || img === 'https://via.placeholder.com/150' || img.includes('unsplash')) {
+         const encodedName = encodeURIComponent(name);
+         return `https://ui-avatars.com/api/?name=${encodedName}&background=E5E7EB&color=6B7280`;
+      }
+      
+      if (img.startsWith('http')) return img;
+      
+      // Handle relative paths
+      const basePath = 'http://127.0.0.1:8000';
+      const cleanPath = img.replace(/^\/+/, '').replace(/^storage\//, '');
+      return `${basePath}/storage/${cleanPath}`;
     },
     async removeFavorite(favorite) {
       if (!confirm(`Êtes-vous sûr de vouloir retirer ${favorite.name} de vos favoris pour le service ${favorite.nom_service} ?`)) {

@@ -147,7 +147,7 @@ const fetchCurrentUser = async () => {
       email: user.email || '',
       phone: user.telephone || '',
       profileImage: user.profile_photo ? `${user.profile_photo}${user.profile_photo.includes('?') ? '&' : '?'}t=${Date.now()}` : null,
-      location: user.address || 'Non spécifié',
+      location: user.intervenant?.address || user.intervenant?.ville || user.address || 'Non spécifié',
       memberSince: user.created_at ? new Date(user.created_at).getFullYear().toString() : new Date().getFullYear().toString()
     }
   } catch (error) {

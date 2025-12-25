@@ -10,6 +10,7 @@ use App\Models\Intervention;
 use App\Models\Materiel;
 use Illuminate\Support\Facades\Log;
 use App\Models\Service;
+use App\Events\ReservationStatusUpdated;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -195,6 +196,7 @@ class IntervenantController extends Controller
             'bio' => 'nullable|string',
             'is_active' => 'nullable|boolean',
             'admin_id' => 'nullable|exists:admin,id',
+            'telephone' => 'nullable|string|max:20', // Add telephone validation
         ]);
 
         $updateData = [
@@ -211,6 +213,13 @@ class IntervenantController extends Controller
         }
 
         $intervenant->update($updateData);
+
+        // Update user telephone if provided
+        if ($request->has('telephone')) {
+            $intervenant->utilisateur->update([
+                'telephone' => $validated['telephone'] ?? $request->input('telephone')
+            ]);
+        }
 
         // Update service experience if provided
         if ($request->has('services') && is_array($request->services)) {
@@ -1151,14 +1160,19 @@ class IntervenantController extends Controller
      */
     public function getActiveServicesAndTasks($intervenantId)
     {
-        $intervenant = Intervenant::with(['services', 'taches'])->find($intervenantId);
+        // Use fresh() to bypass any model caching and get latest data from DB
+        $intervenant = Intervenant::find($intervenantId);
 
         if (!$intervenant) {
             return response()->json(['error' => 'Intervenant not found'], 404);
         }
 
+        // Refresh the model to clear any cached relations
+        $intervenant->refresh();
+
         // Get services with relevant statuses (active, archive, desactive, demmande)
         // We include 'demmande' so the frontend knows there is a pending request
+        // Use fresh query (not with()) to avoid cached relations
         $activeServices = $intervenant->services()
             ->wherePivotIn('status', ['active', 'archive', 'desactive', 'demmande'])
             ->get()
@@ -1732,7 +1746,7 @@ class IntervenantController extends Controller
                     return [
                         'id' => $intervention->id,
                         'clientName' => $clientUser ? ($clientUser->nom . ' ' . $clientUser->prenom) : 'Client inconnu',
-                        'clientImage' => $clientUser?->url ?? $clientUser?->profile_photo ?? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop',
+                        'clientImage' => $clientUser?->profile_photo ?? $clientUser?->url ?? 'https://ui-avatars.com/api/?name=Client&background=E5E7EB&color=6B7280',
                         'service' => $tache?->service?->nom_service ?? 'Service inconnu',
                         'task' => $tache?->nom_tache ?? 'Tâche inconnue',
                         'date' => $intervention->date_intervention?->format('Y-m-d') ?? 'N/A',
@@ -1821,9 +1835,25 @@ class IntervenantController extends Controller
         $intervention->status = 'acceptee';
         $intervention->save();
 
+        // Load relationships for event and email
+        $intervention->load(['client.utilisateur', 'intervenant.utilisateur', 'tache.service']);
+
+        // Dispatch real-time event to client
+        $clientUserId = $intervention->client->utilisateur->id;
+        $intervenantName = $intervention->intervenant->utilisateur->prenom . ' ' . $intervention->intervenant->utilisateur->nom;
+        $serviceName = $intervention->tache->service->nom_service ?? 'Service';
+        
+        ReservationStatusUpdated::dispatch(
+            $clientUserId,
+            $intervention->id,
+            'acceptee',
+            "Votre réservation pour {$serviceName} a été acceptée par {$intervenantName}",
+            $intervenantName,
+            $serviceName
+        );
+
         // Envoyer l'email de confirmation à l'intervenant avec toutes les infos
         try {
-            $intervention->load(['client.utilisateur', 'intervenant.utilisateur', 'tache.service']);
             \Illuminate\Support\Facades\Mail::to($intervenant->email)->send(new \App\Mail\InterventionAccepted($intervention));
             return response()->json([
                 'message' => 'Réservation acceptée avec succès. Un email contenant les détails complets vous a été envoyé.',
@@ -1859,6 +1889,23 @@ class IntervenantController extends Controller
 
         $intervention->status = 'refuse';
         $intervention->save();
+
+        // Load relationships for event
+        $intervention->load(['client.utilisateur', 'intervenant.utilisateur', 'tache.service']);
+
+        // Dispatch real-time event to client
+        $clientUserId = $intervention->client->utilisateur->id;
+        $intervenantName = $intervention->intervenant->utilisateur->prenom . ' ' . $intervention->intervenant->utilisateur->nom;
+        $serviceName = $intervention->tache->service->nom_service ?? 'Service';
+        
+        ReservationStatusUpdated::dispatch(
+            $clientUserId,
+            $intervention->id,
+            'refuse',
+            "Votre réservation pour {$serviceName} a été refusée par {$intervenantName}",
+            $intervenantName,
+            $serviceName
+        );
 
         return response()->json(['message' => 'Réservation refusée avec succès']);
     }

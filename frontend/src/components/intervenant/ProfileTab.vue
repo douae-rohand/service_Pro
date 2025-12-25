@@ -531,7 +531,11 @@ const handlePortfolioUpload = async (event) => {
         const formData = new FormData();
         formData.append('image', file);
         
-        const response = await api.post('intervenants/me/portfolio', formData);
+        const response = await api.post('intervenants/me/portfolio', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        });
         
         // Add to list
         const newItem = response.data.portfolio;

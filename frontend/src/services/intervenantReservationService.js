@@ -19,15 +19,20 @@ const reservationService = {
         task: r.task || r.tache?.nom_tache || 'Tâche Inconnue',
         clientName: r.clientName || (r.client?.utilisateur ? `${r.client.utilisateur.prenom} ${r.client.utilisateur.nom}` : 'Client Inconnu'),
         clientImage: (function () {
-          const img = r.clientImage || r.client?.utilisateur?.profile_photo;
-          if (!img) return 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=400&h=300&fit=crop';
+          const img = r.clientImage || r.client?.utilisateur?.profile_photo || r.client?.utilisateur?.url;
+          if (!img) return 'https://ui-avatars.com/api/?name=Client&background=E5E7EB&color=6B7280';
           if (img.startsWith('http')) return img;
           return `http://127.0.0.1:8000/storage/${img}`;
         })(),
         // Use raw strings from backend as requested
         date: r.date || 'N/A',
         time: r.time ? r.time.substring(0, 5) : 'N/A', // Ensure H:i format
-        location: r.ville || r.location || 'Adresse non spécifiée'
+        location: r.ville || r.location || 'Adresse non spécifiée',
+
+        // Material Mapping Logic - backend returns consolidated 'materials' array with 'provided_by'
+        intervenantMaterials: (r.materials || []).filter(m => m.provided_by === 'intervenant'),
+        clientProvidedMaterials: (r.materials || []).filter(m => m.provided_by === 'client'),
+        materials: r.materials || []
       }));
 
       return { reservations: mappedReservations };

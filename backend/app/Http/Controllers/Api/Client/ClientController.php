@@ -269,7 +269,7 @@ class ClientController extends Controller
                 'phone' => $client->utilisateur->numTel ?? 'Non renseigné',
                 'address' => $client->address ?? 'Non renseignée',
                 'ville' => $client->ville ?? 'Non renseignée',
-                'photo' => $client->utilisateur->profile_photo ?? 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop',
+                'photo' => $client->utilisateur->profile_photo ?? $client->utilisateur->url ?? 'https://ui-avatars.com/api/?name=Client&background=E5E7EB&color=6B7280',
                 'member_since' => $client->created_at
             ],
             'rating_summary' => [

@@ -265,7 +265,7 @@
                   >
                     <div class="flex items-start gap-4">
                       <img
-                        :src="evaluation.intervenantImage || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(evaluation.intervenantName) + '&background=F0F4F8&color=4682B4'"
+                        :src="getIntervenantImage(evaluation.intervenantImage, evaluation.intervenantName)"
                         class="w-12 h-12 rounded-xl object-cover shadow-sm"
                       />
                       <div class="flex-1 min-w-0">
@@ -307,7 +307,7 @@
                   >
                     <div class="flex items-start gap-4">
                       <img
-                        :src="item.providerImage || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(item.providerName) + '&background=F0F4F8&color=92B08B'"
+                        :src="getIntervenantImage(item.providerImage, item.providerName)"
                         class="w-12 h-12 rounded-xl object-cover shadow-sm"
                       />
                       <div class="flex-1 min-w-0">
@@ -659,6 +659,20 @@ export default {
         this.uploadingAvatar = false;
         event.target.value = '';
       }
+    },
+    getIntervenantImage(img, name) {
+      if (!img || img === 'https://via.placeholder.com/150' || img.includes('unsplash')) {
+         const encodedName = encodeURIComponent(name || 'Intervenant');
+         return `https://ui-avatars.com/api/?name=${encodedName}&background=E5E7EB&color=6B7280`;
+      }
+      
+      if (img.startsWith('http')) return img;
+      
+      // Handle relative paths
+      const basePath = 'http://127.0.0.1:8000';
+      // Remove double slashes or leading storage
+      const cleanPath = img.replace(/^\/+/, '').replace(/^storage\//, '');
+      return `${basePath}/storage/${cleanPath}`;
     }
   }
 };

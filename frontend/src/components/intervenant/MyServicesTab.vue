@@ -5,6 +5,11 @@
       {{ error }}
     </div>
 
+    <!-- Success Notification Toast -->
+    <div v-if="notification" class="success-notification">
+      {{ notification }}
+    </div>
+
     <!-- Stats -->
     <div class="stats-grid">
       <template v-if="loading">
@@ -171,7 +176,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Edit2, Trash2, Coins } from 'lucide-vue-next'
 import intervenantTacheService from '@/services/intervenantTacheService'
 import SkeletonLoader from './SkeletonLoader.vue'
@@ -179,6 +184,7 @@ import SkeletonLoader from './SkeletonLoader.vue'
 const services = ref([])
 const loading = ref(true)
 const error = ref(null)
+const notification = ref(null)
 
 const materialsByService = {
   menage: [
@@ -239,8 +245,68 @@ const fetchServices = async () => {
   }
 }
 
-onMounted(() => {
-  fetchServices()
+onMounted(async () => {
+  await fetchServices()
+  
+  // Setup real-time listener for service status updates
+  const token = localStorage.getItem('token')
+  const userStr = localStorage.getItem('user')
+  
+  if (userStr && window.Echo) {
+    try {
+      const user = JSON.parse(userStr)
+      const userId = user.id
+      
+      console.log('[MyServicesTab] Setting up Reverb listener for user ID:', userId)
+      
+      // Ensure Echo has the latest token
+      if (token && window.Echo.connector && window.Echo.connector.options.auth) {
+         window.Echo.connector.options.auth.headers.Authorization = `Bearer ${token}`
+         console.log('[MyServicesTab] Updated Echo auth token')
+      }
+
+      // Listen to private channel
+      // Channel: intervenant.{id}
+      const channel = window.Echo.private(`intervenant.${userId}`)
+      
+      channel.on('pusher:subscription_succeeded', () => {
+          console.log('[MyServicesTab] ✅ Successfully subscribed to channel: intervenant.' + userId)
+      })
+      
+      channel.on('pusher:subscription_error', (status) => {
+          console.error('[MyServicesTab] ❌ Subscription error:', status)
+      })
+
+      channel.listen('.intervenant.status.updated', (event) => {
+          console.log('[MyServicesTab] 📩 Received event:', event)
+          
+          notification.value = event.message || 'Statut du service mis à jour'
+          setTimeout(() => {
+            notification.value = null
+          }, 6000)
+          
+          fetchServices()
+        })
+        
+    } catch (err) {
+      console.error('[MyServicesTab] Error setting up real-time listener:', err)
+    }
+  } else {
+    console.warn('[MyServicesTab] Cannot setup listener - User or Echo missing')
+  }
+})
+
+onUnmounted(() => {
+  const userStr = localStorage.getItem('user')
+  if (userStr && window.Echo) {
+    try {
+      const user = JSON.parse(userStr)
+      window.Echo.leave(`intervenant.${user.id}`)
+      console.log('[MyServicesTab] Left channel: intervenant.' + user.id)
+    } catch (err) {
+      console.error('Error cleaning up Echo:', err)
+    }
+  }
 })
 
 const toggleActive = async (id) => {
@@ -681,6 +747,31 @@ const deleteService = async (id) => {
   border-radius: var(--radius-lg);
   margin-bottom: var(--spacing-4);
   border: 1px solid #FCA5A5;
+}
+
+.success-notification {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  padding: var(--spacing-4);
+  background-color: #D1FAE5;
+  color: #065F46;
+  border-radius: var(--radius-lg);
+  border: 1px solid #6EE7B7;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  z-index: 1000;
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 @media (max-width: 768px) {

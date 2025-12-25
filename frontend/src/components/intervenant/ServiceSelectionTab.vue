@@ -525,7 +525,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Plus, Trash2, FileText, AlertCircle, Upload, Send, X, Archive, Check, AlertTriangle } from 'lucide-vue-next'
 import authService from '@/services/authService'
@@ -536,9 +536,7 @@ import interventionService from '@/services/interventionService'
 import axios from 'axios'
 import LoadingModal from './LoadingModal.vue'
 import SkeletonLoader from './SkeletonLoader.vue'
-import { useSse } from '@/composables/useSse'
 
-const { initSse, closeSse } = useSse()
 
 const router = useRouter()
 const currentUser = ref(null)
@@ -702,13 +700,18 @@ const fetchServices = async () => {
 // Load intervenant's active services and tasks from DB
 const loadIntervenantActiveData = async (intervenantId) => {
   try {
+    console.log('[loadIntervenantActiveData] Called with intervenant ID:', intervenantId)
     const data = await intervenantService.getActiveServicesAndTasks(intervenantId)
+    console.log('[loadIntervenantActiveData] API Response:', data)
     
     // Activate the services that are active in DB
     if (data && data.services && data.services.length > 0) {
+      console.log('[loadIntervenantActiveData] Processing services:', data.services)
       // Use Promise.all to properly await all material fetches
       await Promise.all(data.services.map(async (service) => {
+        console.log(`[loadIntervenantActiveData] Service ${service.id} (${service.name}): status=${service.status}`)
         if (service.status === 'active' && serviceStates.value[service.id] !== undefined) {
+          console.log(`[loadIntervenantActiveData] Setting service ${service.id} to ACTIVE`)
           serviceStates.value[service.id] = true
         } else if (service.status === 'archive' && serviceStates.value[service.id] !== undefined) {
           // If archived, we mark it so we can fast-reactivate
@@ -866,6 +869,7 @@ const loadAuthenticatedUser = async () => {
 }
 
 // Load services on component mount
+// Load services on component mount
 onMounted(async () => {
   isLoading.value = true
   try {
@@ -873,35 +877,55 @@ onMounted(async () => {
     await loadAuthenticatedUser()
 
     // Only proceed if user is authenticated and is an intervenant
-    if (currentUser.value && currentUser.value.id) {
+    if (currentUser.value && currentUser.value.intervenant?.id) {
+      console.log('[onMounted] currentUser:', currentUser.value)
+      console.log('[onMounted] intervenant.id:', currentUser.value.intervenant.id)
       await fetchServices()
       // Load active services and tasks for the authenticated intervenant
-      await loadIntervenantActiveData(currentUser.value.id)
+      await loadIntervenantActiveData(currentUser.value.intervenant.id)
 
-      // Initialize SSE for Intervenant
-      initSse(`/sse/stream?type=intervenant&id=${currentUser.value.id}`, {
-        request_update: (data) => {
-          // Show notification based on status
-          if (data.status === 'active') {
-             // Use custom success message or standard one
+      // Real-time listener logic
+      const token = localStorage.getItem('token')
+      const userId = currentUser.value.id
+      
+      if (window.Echo) {
+         console.log('[ServiceSelectionTab] Setting up Reverb listener for user ID:', userId)
+         
+         // Ensure Echo has the latest token
+         if (token && window.Echo.connector && window.Echo.connector.options.auth) {
+            window.Echo.connector.options.auth.headers.Authorization = `Bearer ${token}`
+         }
+         
+         const channel = window.Echo.private(`intervenant.${userId}`)
+         
+         channel.listen('.intervenant.status.updated', async (event) => {
+             console.log('[ServiceSelectionTab] 📩 Received event:', event)
+             
+             // Refresh data - use intervenant ID, not user ID
+             console.log('[ServiceSelectionTab] Refreshing data for intervenant:', currentUser.value.intervenant.id)
+             await loadIntervenantActiveData(currentUser.value.intervenant.id)
+             
+             // Show success message
              showSuccessMessage.value = true
-             // You might want a dedicated toast here instead of the big success message div
-             // But for now, let's just reload the data to show the new status
-          } else if (data.status === 'refuse') {
-             // Show pending notification area repurposed or new notification
-             showPendingNotification.value = true
-             pendingNotificationMessage.value = data.message || `Votre demande pour ${data.service} a été refusée.`
-          }
-          
-          // Reload data
-          loadIntervenantActiveData(currentUser.value.id)
-        }
-      })
+             successMessage.value = event.message || 'Statut du service mis à jour'
+             successSubtitle.value = ''
+             setTimeout(() => { showSuccessMessage.value = false }, 5000)
+         })
+         
+         console.log('[ServiceSelectionTab] Listener setup complete')
+      }
     }
   } catch (e) {
     console.error("Error in initial load", e)
   } finally {
     isLoading.value = false
+  }
+})
+
+onUnmounted(() => {
+  if (currentUser.value && currentUser.value.id && window.Echo) {
+    window.Echo.leave(`intervenant.${currentUser.value.id}`)
+    console.log('[ServiceSelectionTab] Left channel')
   }
 })
 

@@ -10,6 +10,7 @@ use App\Models\Intervention;
 use App\Models\Service;
 use App\Models\Tache;
 use App\Models\Reclamation; // Add this line
+use App\Events\ServiceRequestStatusUpdated;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log; // Add this line
 use Illuminate\Support\Facades\Schema;
@@ -1539,13 +1540,15 @@ class AdminController extends Controller
             
             $serviceName = $service->nom_service;
 
-            // Notify Intervenant via SSE
-            \Illuminate\Support\Facades\Cache::put("intervenant_request_update_{$id}", [
+            // Notify Intervenant via Reverb
+            Log::info("🔔 Dispatching ServiceRequestStatusUpdated event", [
+                'intervenant_id' => $intervenant->id,
+                'user_id' => $intervenant->utilisateur->id,
+                'service_name' => $serviceName,
                 'status' => 'active',
-                'service' => $serviceName,
-                'message' => "Votre demande pour le service '{$serviceName}' a été acceptée.",
-                'timestamp' => time()
-            ], 60);
+                'channel' => 'intervenant.' . $intervenant->utilisateur->id
+            ]);
+            ServiceRequestStatusUpdated::dispatch($intervenant->utilisateur->id, $serviceName, 'active', "Votre demande pour le service '{$serviceName}' a été acceptée.");
 
             // Récupérer tous les services activés (anciens + nouveau) pour le retour
             $intervenant->refresh();
@@ -1672,13 +1675,8 @@ class AdminController extends Controller
             'updated_at' => now()
         ]);
 
-        // Notify Intervenant via SSE
-        \Illuminate\Support\Facades\Cache::put("intervenant_request_update_{$id}", [
-            'status' => 'refuse',
-            'service' => $serviceName,
-            'message' => "Votre demande pour le service '{$serviceName}' a été refusée.",
-            'timestamp' => time()
-        ], 60);
+        // Notify Intervenant via Reverb
+        ServiceRequestStatusUpdated::dispatch($id, $serviceName, 'refuse', "Votre demande pour le service '{$serviceName}' a été refusée.");
         
         // L'intervenant reste dans la base
             // Si c'était sa première demande et qu'elle est rejetée, is_active reste false

@@ -26,6 +26,45 @@
 
     <!-- Content -->
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+      <!-- Real-time Notification Toast -->
+      <div 
+        v-if="showNotification"
+        class="fixed top-24 right-8 z-50 animate-slide-in-right"
+      >
+        <div 
+          class="bg-white rounded-2xl shadow-2xl border-2 p-4 min-w-[320px] max-w-md"
+          :style="{ borderColor: notificationType === 'success' ? '#92B08B' : '#FCD34D' }"
+        >
+          <div class="flex items-start gap-3">
+            <div 
+              class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+              :style="{ backgroundColor: notificationType === 'success' ? '#E8F5E9' : '#FEF3C7' }"
+            >
+              <svg v-if="notificationType === 'success'" class="w-5 h-5" style="color: #92B08B" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+              <svg v-else class="w-5 h-5" style="color: #FCD34D" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+              </svg>
+            </div>
+            <div class="flex-1">
+              <p class="font-semibold text-gray-900 mb-1">
+                {{ notificationType === 'success' ? 'Réservation acceptée !' : 'Réservation refusée' }}
+              </p>
+              <p class="text-sm text-gray-600">{{ notificationMessage }}</p>
+            </div>
+            <button 
+              @click="showNotification = false"
+              class="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Error State -->
       <div v-if="error" class="bg-red-50 border border-red-200 rounded-3xl p-6 text-red-600 mb-8 flex items-center gap-4 animate-fade-in">
         <AlertCircle :size="24" class="flex-shrink-0" />
@@ -104,7 +143,7 @@
               <!-- Minimalist Avatar -->
               <div class="relative flex-shrink-0">
                 <img
-                  :src="demand.intervenant.image || 'https://via.placeholder.com/150'"
+                  :src="getIntervenantImage(demand.intervenant)"
                   :alt="demand.intervenant.name"
                   class="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm"
                 />
@@ -272,7 +311,11 @@ export default {
         completed: 0,
         cancelled: 0,
         rejected: 0
-      }
+      },
+      // Notification state
+      showNotification: false,
+      notificationMessage: '',
+      notificationType: 'success' // 'success' or 'warning'
     };
   },
   computed: {
@@ -298,8 +341,42 @@ export default {
     if (user && user.client) {
       this.clientId = user.client.id || user.client_id || user.id;
       await this.loadDemands();
+
+      // Setup real-time listener for reservation updates
+      const userId = user.id;
+      if (window.Echo) {
+        console.log('[ClientReservationsPage] Setting up Reverb listener for user ID:', userId);
+        
+        window.Echo.private(`client.${userId}`)
+          .listen('.reservation.status.updated', async (event) => {
+            console.log('[ClientReservationsPage] 📩 Received event:', event);
+            
+            // Refresh reservations data
+            await this.loadDemands();
+            
+            // Show notification
+            this.notificationMessage = event.message;
+            this.notificationType = event.status === 'acceptee' ? 'success' : 'warning';
+            this.showNotification = true;
+            
+            // Auto-dismiss after 5 seconds
+            setTimeout(() => {
+              this.showNotification = false;
+            }, 5000);
+          });
+        
+        console.log('[ClientReservationsPage] Listener setup complete');
+      }
     } else {
       this.error = 'Vous devez être connecté pour voir vos réservations';
+    }
+  },
+  beforeUnmount() {
+    // Cleanup Echo listener
+    const user = authService.getUserSync();
+    if (user && window.Echo) {
+      window.Echo.leave(`client.${user.id}`);
+      console.log('[ClientReservationsPage] Left channel');
     }
   },
   methods: {
@@ -419,6 +496,30 @@ export default {
         const errorMessage = error.response?.data?.message || error.message || 'Erreur lors de la publication de l\'évaluation. Veuillez réessayer.';
         alert(errorMessage);
       }
+    },
+    getIntervenantImage(intervenant) {
+      if (!intervenant) return 'https://ui-avatars.com/api/?name=Intervenant&background=E5E7EB&color=6B7280';
+      
+      // Check for various image sources
+      // The backend might return profile_photo directly on intervenant.utilisateur or mapped to image
+      const img = intervenant.image || 
+                  intervenant.profile_photo || 
+                  intervenant.utilisateur?.profile_photo || 
+                  intervenant.url || 
+                  intervenant.utilisateur?.url;
+      
+      if (!img || img === 'https://via.placeholder.com/150' || img.includes('unsplash')) {
+         const name = intervenant.name || intervenant.utilisateur?.prenom || 'Intervenant';
+         return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=E5E7EB&color=6B7280`;
+      }
+      
+      if (img.startsWith('http')) return img;
+      
+      // Handle relative paths
+      const basePath = 'http://127.0.0.1:8000';
+      // Remove double slashes or leading storage
+      const cleanPath = img.replace(/^\/+/, '').replace(/^storage\//, '');
+      return `${basePath}/storage/${cleanPath}`;
     }
   }
 };
@@ -472,6 +573,21 @@ export default {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
 }
 </style>
 

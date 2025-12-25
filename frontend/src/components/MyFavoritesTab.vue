@@ -101,18 +101,7 @@
               <span class="text-lg font-bold text-gray-800">{{ favorite.totalMissions }}</span>
             </div>
           </div>
-        </div>
-
-        <!-- Book Button -->
-        <button
-          @click="handleBooking(favorite)"
-          class="w-full py-3 rounded-lg text-white font-semibold hover:shadow-lg transition-all flex items-center justify-center gap-2 hover:opacity-90 transform hover:scale-[1.02]"
-          style="background-color: #4682B4"
-        >
-          <Calendar :size="20" />
-          Réserver maintenant
-        </button>
-      </div>
+        </div></div>
     </div>
 
   </div>
@@ -211,13 +200,7 @@ export default {
         alert('Erreur lors de la suppression du favori');
       }
     },
-    handleBooking(favorite) {
-      // Emit event to navigate to the global BookingPage
-      this.$emit('navigate-booking', {
-        intervenantId: favorite.id, // Assuming favorite.id is the intervenant ID
-        serviceId: favorite.service_id
-      });
-    },
+
     getServiceColor(service) {
       const colors = {
         'Jardinage': 'bg-green-100 text-green-700',

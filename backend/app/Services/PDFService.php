@@ -153,9 +153,9 @@ class PDFService
 
         // 3. Totals and Commission (TVA)
         $htTotal = $htTache + $htMateriel;
-        $tvaTaux = 20.00; // Fixed 20%
-        $tvaMontant = $htTotal * ($tvaTaux / 100); // This is the platform commission
-        $ttc = $htTotal - $tvaMontant; // This is the net earnings for the intervenant
+        $tvaTaux = 0.00; // Commission set to 0 as per user request
+        $tvaMontant = $htTotal * ($tvaTaux / 100);
+        $ttc = $htTotal; // Total à percevoir is now the full total
 
         $data = [
             'intervention' => $intervention,

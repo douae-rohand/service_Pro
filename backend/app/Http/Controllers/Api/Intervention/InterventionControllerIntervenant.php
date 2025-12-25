@@ -167,6 +167,32 @@ class InterventionControllerIntervenant extends Controller
                     // Send email to Intervenant
                     \Illuminate\Support\Facades\Mail::to($intervention->intervenant->utilisateur->email)->send(new \App\Mail\InterventionAccepted($intervention));
                     $mailSent = true;
+                    
+                    // Generate and send invoice to Client
+                    try {
+                        $pdfService = new \App\Services\PDFService();
+                        $result = $pdfService->generateInvoice($intervention);
+                        
+                        // Create or update Facture record
+                        $facture = \App\Models\Facture::updateOrCreate(
+                            ['intervention_id' => $intervention->id],
+                            [
+                                'fichier_path' => $result['path'],
+                                'ttc' => $result['ttc']
+                            ]
+                        );
+                        
+                        // Reload intervention with facture
+                        $intervention->load('facture');
+                        
+                        // Send invoice email to Client
+                        \Illuminate\Support\Facades\Mail::to($intervention->client->utilisateur->email)
+                            ->send(new \App\Mail\InterventionInvoiceMail($intervention));
+                        
+                        \Log::info("Invoice email sent to client for intervention {$intervention->id}");
+                    } catch (\Exception $invoiceEx) {
+                        \Log::error("Failed to generate/send invoice for intervention {$intervention->id}: " . $invoiceEx->getMessage());
+                    }
                 } catch (\Exception $e) {
                      \Log::error("Failed to send acceptance email for intervention {$intervention->id}: " . $e->getMessage());
                 }

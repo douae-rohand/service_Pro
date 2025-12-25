@@ -95,6 +95,7 @@
 
     <div class="totals">
         <table>
+            @if($tva_montant > 0)
             <tr>
                 <th>Total Brut (HT)</th>
                 <td style="text-align: right;">{{ number_format($ht_total, 2) }} MAD</td>
@@ -103,14 +104,17 @@
                 <th>Commission Plateforme ({{ $tva_taux }}%)</th>
                 <td style="text-align: right;">{{ number_format($tva_montant, 2) }} MAD</td>
             </tr>
+            @endif
             <tr style="font-size: 1.2em; font-weight: bold; background-color: #f9f9f9;">
-                <th>Total Net à Percevoir</th>
-                <td style="text-align: right;" class="highlight">{{ number_format($ttc, 2) }} MAD</td>
+                <th style="padding: 12px;">Total à Percevoir</th>
+                <td style="text-align: right; padding: 12px;" class="highlight">{{ number_format($ttc, 2) }} MAD</td>
             </tr>
         </table>
+        @if($tva_montant > 0)
         <p style="font-size: 0.8em; color: #777; margin-top: 10px; text-align: right; width: 100%;">
             * Cette déduction de {{ $tva_taux }}% correspond aux frais de service de la plateforme.
         </p>
+        @endif
     </div>
 
     <div class="footer">

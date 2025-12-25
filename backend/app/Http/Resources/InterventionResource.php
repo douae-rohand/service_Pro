@@ -135,9 +135,19 @@ class InterventionResource extends JsonResource
                 }
             }
             
-            // Calculate labor cost (total TTC - materials cost)
-            $totalTTC = $this->facture->ttc ?? 0;
-            $laborCost = max(0, $totalTTC - $materialsCost);
+            // Calculate labor cost independently of TTC to ensure 100% amount is shown
+            $laborCost = 0;
+            if ($this->tache && $this->intervenant_id) {
+                $intervenantTache = \App\Models\IntervenantTache::where('tache_id', $this->tache_id)
+                    ->where('intervenant_id', $this->intervenant_id)
+                    ->first();
+                $laborCost = $intervenantTache ? (float)($intervenantTache->prix_tache ?? 0) * (float)($this->duration_hours ?? 1) : 0;
+            }
+            // Fallback to TTC - materials if calculation above failed (shouldn't happen)
+            if ($laborCost <= 0) {
+                $totalTTC = $this->facture->ttc ?? 0;
+                $laborCost = max(0, $totalTTC - $materialsCost);
+            }
             
             $invoice = [
                 'date' => $this->facture->created_at?->format('Y-m-d'),

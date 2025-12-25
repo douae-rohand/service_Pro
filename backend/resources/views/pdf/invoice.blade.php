@@ -124,6 +124,27 @@
         <div class="clear"></div>
     </div>
 
+    @php
+        $duration = $intervention->duration_hours ?? 1;
+        $hourlyRate = 0;
+        $intervenantTache = \App\Models\IntervenantTache::where('tache_id', $intervention->tache_id)
+            ->where('intervenant_id', $intervention->intervenant_id)
+            ->first();
+        if ($intervenantTache) {
+            $hourlyRate = $intervenantTache->prix_tache;
+        }
+        $taskTotal = $hourlyRate * $duration;
+        
+        $materialsCost = 0;
+        $materialsCostInfo = $intervention->informations->where('nom', 'Coût_Matériel')->first();
+        if ($materialsCostInfo) {
+            $costString = $materialsCostInfo->pivot->information ?? '0';
+            $materialsCost = (float) preg_replace('/[^0-9.]/', '', $costString);
+        }
+        
+        $total = $taskTotal + $materialsCost;
+    @endphp
+
     <table>
         <thead>
             <tr>
@@ -139,7 +160,7 @@
                     <small>Durée estimée / réalisée : {{ $intervention->duration_hours }}h</small>
                 </td>
                 <td class="text-right">
-                    {{ number_format($intervention->facture->ttc ?? $intervention->tache->prix_j_h ?? 0, 2) }} DH
+                    {{ number_format($taskTotal, 2) }} DH
                 </td>
             </tr>
             @if($intervention->informations && $intervention->informations->isNotEmpty())
@@ -158,8 +179,7 @@
     <div class="total-section">
         <!-- Assuming TTC is the final price stored in Facture model or we calculate it -->
         @php
-            $total = $intervention->facture->ttc ?? 0;
-            // Add material cost if separated logic exists, but typically included or handled in total logic
+            // Using calculated $total from above
         @endphp
         
         <div class="total-row">

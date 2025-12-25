@@ -197,6 +197,64 @@ const adminService = {
         return api.delete(`admin/taches/${tacheId}`);
     },
 
+    // ============== CONTRAINTES ==============
+    /**
+     * Récupérer les contraintes d'une tâche
+     */
+    getTacheContraintes(tacheId) {
+        return api.get(`admin/taches/${tacheId}/contraintes`);
+    },
+
+    /**
+     * Créer une contrainte pour une tâche
+     */
+    createContrainte(tacheId, data) {
+        return api.post(`admin/taches/${tacheId}/contraintes`, data);
+    },
+
+    /**
+     * Modifier une contrainte
+     */
+    updateContrainte(contrainteId, data) {
+        return api.put(`admin/contraintes/${contrainteId}`, data);
+    },
+
+    /**
+     * Supprimer une contrainte
+     */
+    deleteContrainte(contrainteId) {
+        return api.delete(`admin/contraintes/${contrainteId}`);
+    },
+
+    // ============== MATÉRIELS ==============
+    /**
+     * Récupérer les matériels d'un service
+     */
+    getServiceMateriels(serviceId) {
+        return api.get(`admin/services/${serviceId}/materiels`);
+    },
+
+    /**
+     * Créer un matériel pour un service
+     */
+    createMateriel(serviceId, data) {
+        return api.post(`admin/services/${serviceId}/materiels`, data);
+    },
+
+    /**
+     * Modifier un matériel
+     */
+    updateMateriel(materielId, data) {
+        return api.put(`admin/materiels/${materielId}`, data);
+    },
+
+    /**
+     * Supprimer un matériel
+     */
+    deleteMateriel(materielId) {
+        return api.delete(`admin/materiels/${materielId}`);
+    },
+
     // ============== RECLAMATIONS ==============
     /**
      * Récupérer toutes les réclamations avec filtres et pagination

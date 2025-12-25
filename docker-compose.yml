@@ -47,9 +47,9 @@ services:
       DB_DATABASE: service_pro
       DB_USERNAME: root
       DB_PASSWORD: rootpassword
-      REVERB_APP_ID: ${REVERB_APP_ID}
-      REVERB_APP_KEY: ${REVERB_APP_KEY}
-      REVERB_APP_SECRET: ${REVERB_APP_SECRET}
+      REVERB_APP_ID: ${REVERB_APP_ID:-637618}
+      REVERB_APP_KEY: ${REVERB_APP_KEY:-rniokldezyhcx1fxn6yy}
+      REVERB_APP_SECRET: ${REVERB_APP_SECRET:-gxc2a9mpdezzxuaj124p}
       REVERB_HOST: "0.0.0.0"
       REVERB_PORT: 8085
       REVERB_SCHEME: http

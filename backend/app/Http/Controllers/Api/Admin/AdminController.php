@@ -1810,17 +1810,100 @@ class AdminController extends Controller
                 'nom_service' => 'required|string|max:100',
                 'description' => 'nullable|string',
                 'status' => 'nullable|string|in:active,inactive',
+                'couleur' => 'nullable|string|max:7',
+                // Tâches optionnelles
+                'taches' => 'nullable|array',
+                'taches.*.nom_tache' => 'required_with:taches|string|max:150',
+                'taches.*.description' => 'nullable|string',
+                'taches.*.status' => 'nullable|string|in:actif,inactif',
+                'taches.*.image_url' => 'nullable|string|max:255',
+                'taches.*.contraintes' => 'nullable|array',
+                'taches.*.contraintes.*.nom' => 'required_with:taches.*.contraintes|string|max:150',
+                'taches.*.contraintes.*.seuil' => 'nullable|numeric|min:0',
+                'taches.*.contraintes.*.unite' => 'nullable|string|max:50',
+                // Matériels associés aux tâches (indices dans le tableau materiels)
+                'taches.*.materiel_indices' => 'nullable|array',
+                'taches.*.materiel_indices.*' => 'integer|min:0',
+                // Matériels optionnels du service
+                'materiels' => 'nullable|array',
+                'materiels.*.nom_materiel' => 'required_with:materiels|string|max:150',
+                'materiels.*.description' => 'nullable|string',
             ]);
 
+            DB::beginTransaction();
+
+            // Créer le service
             $service = \App\Models\Service::create([
                 'nom_service' => $validated['nom_service'],
                 'description' => $validated['description'] ?? null,
                 'status' => $validated['status'] ?? 'active',
             ]);
 
-            Log::info("Service créé", [
+            $createdTaches = [];
+            $createdMateriels = [];
+
+            // Créer les matériels du service
+            if (isset($validated['materiels']) && is_array($validated['materiels'])) {
+                foreach ($validated['materiels'] as $materielData) {
+                    $materiel = \App\Models\Materiel::create([
+                        'service_id' => $service->id,
+                        'nom_materiel' => $materielData['nom_materiel'],
+                        'description' => $materielData['description'] ?? null,
+                    ]);
+                    $createdMateriels[] = $materiel;
+                }
+            }
+
+            // Créer les tâches avec leurs contraintes et associer les matériels
+            if (isset($validated['taches']) && is_array($validated['taches'])) {
+                foreach ($validated['taches'] as $tacheIndex => $tacheData) {
+                    $tache = Tache::create([
+                        'service_id' => $service->id,
+                        'nom_tache' => $tacheData['nom_tache'],
+                        'description' => $tacheData['description'] ?? null,
+                        'status' => $tacheData['status'] ?? 'actif',
+                        'image_url' => $tacheData['image_url'] ?? null,
+                    ]);
+
+                    // Associer les matériels à cette tâche via la table pivot tache_materiel
+                    // Utiliser les indices pour mapper vers les IDs des matériels créés
+                    if (isset($tacheData['materiel_indices']) && is_array($tacheData['materiel_indices']) && !empty($tacheData['materiel_indices']) && !empty($createdMateriels)) {
+                        $materialIdsToAttach = [];
+                        foreach ($tacheData['materiel_indices'] as $materialIndex) {
+                            // Vérifier que l'index est valide
+                            if (isset($createdMateriels[$materialIndex])) {
+                                $materialIdsToAttach[] = $createdMateriels[$materialIndex]->id;
+                            }
+                        }
+                        
+                        if (!empty($materialIdsToAttach)) {
+                            $tache->materiels()->attach($materialIdsToAttach);
+                        }
+                    }
+
+                    // Créer les contraintes pour cette tâche
+                    if (isset($tacheData['contraintes']) && is_array($tacheData['contraintes'])) {
+                        foreach ($tacheData['contraintes'] as $contrainteData) {
+                            \App\Models\Contrainte::create([
+                                'tache_id' => $tache->id,
+                                'nom' => $contrainteData['nom'],
+                                'seuil' => $contrainteData['seuil'] ?? null,
+                                'unite' => $contrainteData['unite'] ?? null,
+                            ]);
+                        }
+                    }
+
+                    $createdTaches[] = $tache->load(['contraintes', 'materiels']);
+                }
+            }
+
+            DB::commit();
+
+            Log::info("Service créé avec tâches et matériels", [
                 'service_id' => $service->id,
-                'nom_service' => $service->nom_service
+                'nom_service' => $service->nom_service,
+                'taches_count' => count($createdTaches),
+                'materiels_count' => count($createdMateriels)
             ]);
 
             return response()->json([
@@ -1832,15 +1915,19 @@ class AdminController extends Controller
                     'status' => $service->status,
                     'created_at' => $service->created_at,
                     'updated_at' => $service->updated_at,
-                ]
+                ],
+                'taches' => $createdTaches,
+                'materiels' => $createdMateriels
             ], 201);
         } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
             return response()->json([
                 'error' => 'Erreur de validation',
                 'message' => $e->getMessage(),
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
+            DB::rollBack();
             Log::error('Erreur createService: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString()
             ]);
@@ -3646,6 +3733,7 @@ class AdminController extends Controller
         try {
             $service = Service::findOrFail($serviceId);
             $taches = Tache::where('service_id', $serviceId)
+                ->with('materiels')
                 ->orderBy('created_at', 'desc')
                 ->get();
 
@@ -3662,6 +3750,13 @@ class AdminController extends Controller
                         'description' => $tache->description,
                         'status' => $tache->status,
                         'image_url' => $tache->image_url,
+                        'materiels' => $tache->materiels->map(function($materiel) {
+                            return [
+                                'id' => $materiel->id,
+                                'nom_materiel' => $materiel->nom_materiel,
+                                'description' => $materiel->description,
+                            ];
+                        }),
                         'created_at' => $tache->created_at,
                         'updated_at' => $tache->updated_at,
                     ];
@@ -3693,7 +3788,11 @@ class AdminController extends Controller
                 'description' => 'nullable|string',
                 'status' => 'nullable|string|in:actif,inactif',
                 'image_url' => 'nullable|string|max:255',
+                'materiel_ids' => 'nullable|array',
+                'materiel_ids.*' => 'integer|exists:materiel,id',
             ]);
+
+            DB::beginTransaction();
 
             $tache = new Tache();
             $tache->service_id = $serviceId;
@@ -3703,6 +3802,21 @@ class AdminController extends Controller
             $tache->image_url = $validated['image_url'] ?? null;
             $tache->save();
 
+            // Associer les matériels à cette tâche
+            if (isset($validated['materiel_ids']) && is_array($validated['materiel_ids']) && !empty($validated['materiel_ids'])) {
+                // Vérifier que les matériels appartiennent bien au service
+                $validMaterialIds = \App\Models\Materiel::where('service_id', $serviceId)
+                    ->whereIn('id', $validated['materiel_ids'])
+                    ->pluck('id')
+                    ->toArray();
+                
+                if (!empty($validMaterialIds)) {
+                    $tache->materiels()->attach($validMaterialIds);
+                }
+            }
+
+            DB::commit();
+
             Log::info("Tâche créée", [
                 'tache_id' => $tache->id,
                 'service_id' => $serviceId,
@@ -3711,24 +3825,17 @@ class AdminController extends Controller
 
             return response()->json([
                 'message' => 'Sous-service créé avec succès',
-                'tache' => [
-                    'id' => $tache->id,
-                    'service_id' => $tache->service_id,
-                    'nom_tache' => $tache->nom_tache,
-                    'description' => $tache->description,
-                    'status' => $tache->status,
-                    'image_url' => $tache->image_url,
-                    'created_at' => $tache->created_at,
-                    'updated_at' => $tache->updated_at,
-                ]
+                'tache' => $tache->load(['materiels'])
             ], 201);
         } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
             return response()->json([
                 'error' => 'Erreur de validation',
                 'message' => $e->getMessage(),
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
+            DB::rollBack();
             Log::error('Erreur createTache: ' . $e->getMessage(), [
                 'service_id' => $serviceId,
                 'trace' => $e->getTraceAsString()
@@ -3754,7 +3861,11 @@ class AdminController extends Controller
                 'description' => 'nullable|string',
                 'status' => 'nullable|string|in:actif,inactif',
                 'image_url' => 'nullable|string|max:255',
+                'materiel_ids' => 'nullable|array',
+                'materiel_ids.*' => 'integer|exists:materiel,id',
             ]);
+
+            DB::beginTransaction();
 
             if (isset($validated['nom_tache'])) {
                 $tache->nom_tache = $validated['nom_tache'];
@@ -3771,6 +3882,20 @@ class AdminController extends Controller
             
             $tache->save();
 
+            // Mettre à jour les associations de matériels
+            if (isset($validated['materiel_ids'])) {
+                // Vérifier que les matériels appartiennent bien au service de la tâche
+                $validMaterialIds = \App\Models\Materiel::where('service_id', $tache->service_id)
+                    ->whereIn('id', $validated['materiel_ids'])
+                    ->pluck('id')
+                    ->toArray();
+                
+                // Synchroniser les matériels (remplace toutes les associations existantes)
+                $tache->materiels()->sync($validMaterialIds);
+            }
+
+            DB::commit();
+
             Log::info("Tâche modifiée", [
                 'tache_id' => $tache->id,
                 'nom_tache' => $tache->nom_tache
@@ -3778,24 +3903,17 @@ class AdminController extends Controller
 
             return response()->json([
                 'message' => 'Sous-service modifié avec succès',
-                'tache' => [
-                    'id' => $tache->id,
-                    'service_id' => $tache->service_id,
-                    'nom_tache' => $tache->nom_tache,
-                    'description' => $tache->description,
-                    'status' => $tache->status,
-                    'image_url' => $tache->image_url,
-                    'created_at' => $tache->created_at,
-                    'updated_at' => $tache->updated_at,
-                ]
+                'tache' => $tache->load(['materiels'])
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
             return response()->json([
                 'error' => 'Erreur de validation',
                 'message' => $e->getMessage(),
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
+            DB::rollBack();
             Log::error('Erreur updateTache: ' . $e->getMessage(), [
                 'tache_id' => $tacheId,
                 'trace' => $e->getTraceAsString()
@@ -3848,6 +3966,308 @@ class AdminController extends Controller
             
             return response()->json([
                 'error' => 'Erreur lors de la suppression du sous-service',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Create a constraint for a tache
+     */
+    public function createContrainte(Request $request, $tacheId)
+    {
+        try {
+            $tache = Tache::findOrFail($tacheId);
+
+            $validated = $request->validate([
+                'nom' => 'required|string|max:150',
+                'seuil' => 'nullable|numeric|min:0',
+                'unite' => 'nullable|string|max:50',
+            ]);
+
+            $contrainte = \App\Models\Contrainte::create([
+                'tache_id' => $tacheId,
+                'nom' => $validated['nom'],
+                'seuil' => $validated['seuil'] ?? null,
+                'unite' => $validated['unite'] ?? null,
+            ]);
+
+            Log::info("Contrainte créée", [
+                'contrainte_id' => $contrainte->id,
+                'tache_id' => $tacheId,
+                'nom' => $contrainte->nom
+            ]);
+
+            return response()->json([
+                'message' => 'Contrainte créée avec succès',
+                'contrainte' => $contrainte
+            ], 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => 'Erreur de validation',
+                'message' => $e->getMessage(),
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Erreur createContrainte: ' . $e->getMessage(), [
+                'tache_id' => $tacheId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'error' => 'Erreur lors de la création de la contrainte',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update a constraint
+     */
+    public function updateContrainte(Request $request, $contrainteId)
+    {
+        try {
+            $contrainte = \App\Models\Contrainte::findOrFail($contrainteId);
+
+            $validated = $request->validate([
+                'nom' => 'sometimes|required|string|max:150',
+                'seuil' => 'nullable|numeric|min:0',
+                'unite' => 'nullable|string|max:50',
+            ]);
+
+            if (isset($validated['nom'])) {
+                $contrainte->nom = $validated['nom'];
+            }
+            if (isset($validated['seuil'])) {
+                $contrainte->seuil = $validated['seuil'];
+            }
+            if (isset($validated['unite'])) {
+                $contrainte->unite = $validated['unite'];
+            }
+            
+            $contrainte->save();
+
+            Log::info("Contrainte modifiée", [
+                'contrainte_id' => $contrainte->id,
+                'nom' => $contrainte->nom
+            ]);
+
+            return response()->json([
+                'message' => 'Contrainte modifiée avec succès',
+                'contrainte' => $contrainte
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Erreur updateContrainte: ' . $e->getMessage(), [
+                'contrainte_id' => $contrainteId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'error' => 'Erreur lors de la modification de la contrainte',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete a constraint
+     */
+    public function deleteContrainte($contrainteId)
+    {
+        try {
+            $contrainte = \App\Models\Contrainte::findOrFail($contrainteId);
+            $contrainteNom = $contrainte->nom;
+            
+            $contrainte->delete();
+
+            Log::info("Contrainte supprimée", [
+                'contrainte_id' => $contrainteId,
+                'nom' => $contrainteNom
+            ]);
+
+            return response()->json([
+                'message' => 'Contrainte supprimée avec succès'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Erreur deleteContrainte: ' . $e->getMessage(), [
+                'contrainte_id' => $contrainteId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'error' => 'Erreur lors de la suppression de la contrainte',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Create a material for a service
+     */
+    public function createMateriel(Request $request, $serviceId)
+    {
+        try {
+            $service = Service::findOrFail($serviceId);
+
+            $validated = $request->validate([
+                'nom_materiel' => 'required|string|max:150',
+                'description' => 'nullable|string',
+            ]);
+
+            $materiel = \App\Models\Materiel::create([
+                'service_id' => $serviceId,
+                'nom_materiel' => $validated['nom_materiel'],
+                'description' => $validated['description'] ?? null,
+            ]);
+
+            Log::info("Matériel créé", [
+                'materiel_id' => $materiel->id,
+                'service_id' => $serviceId,
+                'nom_materiel' => $materiel->nom_materiel
+            ]);
+
+            return response()->json([
+                'message' => 'Matériel créé avec succès',
+                'materiel' => $materiel
+            ], 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'error' => 'Erreur de validation',
+                'message' => $e->getMessage(),
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Erreur createMateriel: ' . $e->getMessage(), [
+                'service_id' => $serviceId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'error' => 'Erreur lors de la création du matériel',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update a material
+     */
+    public function updateMateriel(Request $request, $materielId)
+    {
+        try {
+            $materiel = \App\Models\Materiel::findOrFail($materielId);
+
+            $validated = $request->validate([
+                'nom_materiel' => 'sometimes|required|string|max:150',
+                'description' => 'nullable|string',
+            ]);
+
+            if (isset($validated['nom_materiel'])) {
+                $materiel->nom_materiel = $validated['nom_materiel'];
+            }
+            if (isset($validated['description'])) {
+                $materiel->description = $validated['description'];
+            }
+            
+            $materiel->save();
+
+            Log::info("Matériel modifié", [
+                'materiel_id' => $materiel->id,
+                'nom_materiel' => $materiel->nom_materiel
+            ]);
+
+            return response()->json([
+                'message' => 'Matériel modifié avec succès',
+                'materiel' => $materiel
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Erreur updateMateriel: ' . $e->getMessage(), [
+                'materiel_id' => $materielId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'error' => 'Erreur lors de la modification du matériel',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete a material
+     */
+    public function deleteMateriel($materielId)
+    {
+        try {
+            $materiel = \App\Models\Materiel::findOrFail($materielId);
+            $materielNom = $materiel->nom_materiel;
+            
+            $materiel->delete();
+
+            Log::info("Matériel supprimé", [
+                'materiel_id' => $materielId,
+                'nom_materiel' => $materielNom
+            ]);
+
+            return response()->json([
+                'message' => 'Matériel supprimé avec succès'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Erreur deleteMateriel: ' . $e->getMessage(), [
+                'materiel_id' => $materielId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'error' => 'Erreur lors de la suppression du matériel',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get constraints for a tache
+     */
+    public function getTacheContraintes($tacheId)
+    {
+        try {
+            $tache = Tache::with('contraintes')->findOrFail($tacheId);
+            
+            return response()->json([
+                'contraintes' => $tache->contraintes
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Erreur getTacheContraintes: ' . $e->getMessage(), [
+                'tache_id' => $tacheId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'error' => 'Erreur lors de la récupération des contraintes',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get materials for a service
+     */
+    public function getServiceMateriels($serviceId)
+    {
+        try {
+            $service = Service::with('materiels')->findOrFail($serviceId);
+            
+            return response()->json([
+                'materiels' => $service->materiels
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Erreur getServiceMateriels: ' . $e->getMessage(), [
+                'service_id' => $serviceId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'error' => 'Erreur lors de la récupération des matériels',
                 'message' => $e->getMessage()
             ], 500);
         }

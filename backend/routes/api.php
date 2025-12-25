@@ -270,6 +270,18 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('taches/{tacheId}', [AdminController::class, 'updateTache']);
         Route::delete('taches/{tacheId}', [AdminController::class, 'deleteTache']);
 
+        // Contraintes
+        Route::get('taches/{tacheId}/contraintes', [AdminController::class, 'getTacheContraintes']);
+        Route::post('taches/{tacheId}/contraintes', [AdminController::class, 'createContrainte']);
+        Route::put('contraintes/{contrainteId}', [AdminController::class, 'updateContrainte']);
+        Route::delete('contraintes/{contrainteId}', [AdminController::class, 'deleteContrainte']);
+
+        // Matériels
+        Route::get('services/{serviceId}/materiels', [AdminController::class, 'getServiceMateriels']);
+        Route::post('services/{serviceId}/materiels', [AdminController::class, 'createMateriel']);
+        Route::put('materiels/{materielId}', [AdminController::class, 'updateMateriel']);
+        Route::delete('materiels/{materielId}', [AdminController::class, 'deleteMateriel']);
+
         Route::get('reclamations', [AdminController::class, 'getReclamations']);
         Route::post('reclamations/{id}/handle', [AdminController::class, 'handleReclamation']);
 
@@ -277,8 +289,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('historique/export/csv', [AdminController::class, 'exportHistoriqueCSV']);
         Route::get('historique/export/pdf', [AdminController::class, 'exportHistoriquePDF']);
         
-        // SSE
-        Route::get('stream', [\App\Http\Controllers\Api\Admin\AdminSSEController::class, 'stream']);
     });
 
     // Routes for current intervenant's taches

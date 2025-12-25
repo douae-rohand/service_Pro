@@ -647,6 +647,38 @@
               />
             </div>
 
+            <!-- Matériels pour ce sous-service -->
+            <div v-if="serviceMaterials && serviceMaterials.length > 0" class="border-t border-gray-200 pt-3 mt-3">
+              <label class="block text-xs font-medium text-gray-700 mb-2">
+                Matériels nécessaires
+              </label>
+              <p class="text-xs text-gray-500 mb-3">Sélectionnez les matériels requis pour ce sous-service</p>
+              <div v-if="loadingMaterials" class="text-xs text-gray-400 py-2">
+                Chargement des matériels...
+              </div>
+              <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <label
+                  v-for="materiel in serviceMaterials"
+                  :key="materiel.id"
+                  class="flex items-center gap-2 p-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                  :class="{ 'bg-blue-50 border-blue-300': isMaterialSelectedForSubService(materiel.id) }"
+                >
+                  <input
+                    type="checkbox"
+                    :checked="isMaterialSelectedForSubService(materiel.id)"
+                    @change="toggleSubServiceMaterial(materiel.id)"
+                    class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span class="text-xs text-gray-700 flex-1">{{ materiel.nom_materiel }}</span>
+                </label>
+              </div>
+            </div>
+            <div v-else-if="!loadingMaterials" class="border-t border-gray-200 pt-3 mt-3">
+              <p class="text-xs text-gray-400 italic">
+                Aucun matériel disponible pour ce service. Ajoutez d'abord des matériels au service.
+              </p>
+            </div>
+
             <div class="flex gap-2 pt-3">
               <button
                 type="button"
@@ -707,13 +739,16 @@
       class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
       @click.self="closeAddServiceModal"
     >
-      <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col">
+      <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         <!-- Header -->
         <div
           class="p-4 flex items-center justify-between"
           style="background-color: #7FB3D3; color: white;"
         >
-          <h2 class="text-lg font-semibold">Ajouter un Service</h2>
+          <div>
+            <h2 class="text-lg font-semibold">Ajouter un Service</h2>
+            <p class="text-xs opacity-90 mt-1">Étape {{ currentServiceStep }} / 3</p>
+          </div>
           <button
             @click="closeAddServiceModal"
             class="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
@@ -724,7 +759,10 @@
 
         <!-- Form -->
         <div class="flex-1 overflow-y-auto p-4">
-          <form @submit.prevent="saveService" class="space-y-3">
+          <!-- Step 1: Service Info -->
+          <div v-if="currentServiceStep === 1" class="space-y-3">
+            <h3 class="text-base font-semibold text-gray-800 mb-4">Informations du service</h3>
+            
             <div>
               <label class="block text-xs font-medium text-gray-700 mb-1.5">
                 Nom du service <span class="text-red-500">*</span>
@@ -735,7 +773,7 @@
                 required
                 maxlength="100"
                 class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Ex: Jardinage, Ménage, Plomberie..."
+                placeholder="Ex: Jardinage, Ménage, Plomberie, Peinture..."
               />
             </div>
 
@@ -773,14 +811,220 @@
                 Annuler
               </button>
               <button
-                type="submit"
+                type="button"
+                @click="currentServiceStep = 2"
+                class="flex-1 px-3 py-2 rounded-lg text-white text-xs font-medium hover:shadow-md transition-all"
+                style="background-color: #7FB3D3"
+              >
+                Suivant : Matériels
+              </button>
+            </div>
+          </div>
+
+          <!-- Step 2: Materials -->
+          <div v-if="currentServiceStep === 2" class="space-y-3">
+            <h3 class="text-base font-semibold text-gray-800 mb-4">Matériels du service</h3>
+            <p class="text-xs text-gray-500 mb-4">Ajoutez les matériels nécessaires pour ce service (optionnel)</p>
+
+            <div v-for="(materiel, index) in serviceForm.materiels" :key="index" class="border border-gray-200 rounded-lg p-3 space-y-2">
+              <div class="flex items-start justify-between">
+                <div class="flex-1 space-y-2">
+                  <input
+                    v-model="materiel.nom_materiel"
+                    type="text"
+                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Nom du matériel"
+                  />
+                  <textarea
+                    v-model="materiel.description"
+                    rows="2"
+                    class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Description (optionnel)"
+                  ></textarea>
+                </div>
+                <button
+                  type="button"
+                  @click="removeMateriel(index)"
+                  class="ml-2 p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  <X :size="16" />
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              @click="addMateriel"
+              class="w-full px-3 py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 text-xs font-medium hover:border-blue-500 hover:text-blue-600 transition-colors flex items-center justify-center gap-2"
+            >
+              <Plus :size="16" />
+              Ajouter un matériel
+            </button>
+
+            <div class="flex gap-2 pt-3">
+              <button
+                type="button"
+                @click="currentServiceStep = 1"
+                class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-gray-700 text-xs font-medium hover:bg-gray-50 transition-colors"
+              >
+                Précédent
+              </button>
+              <button
+                type="button"
+                @click="currentServiceStep = 3"
+                class="flex-1 px-3 py-2 rounded-lg text-white text-xs font-medium hover:shadow-md transition-all"
+                style="background-color: #7FB3D3"
+              >
+                Suivant : Tâches
+              </button>
+            </div>
+          </div>
+
+          <!-- Step 3: Tasks with Constraints -->
+          <div v-if="currentServiceStep === 3" class="space-y-3">
+            <h3 class="text-base font-semibold text-gray-800 mb-4">Tâches du service</h3>
+            <p class="text-xs text-gray-500 mb-4">Ajoutez les tâches (sous-services) avec leurs contraintes (optionnel)</p>
+
+            <div v-for="(tache, tacheIndex) in serviceForm.taches" :key="tacheIndex" class="border border-gray-200 rounded-lg p-4 space-y-3 mb-4">
+              <div class="flex items-start justify-between mb-3">
+                <h4 class="text-sm font-semibold text-gray-700">Tâche {{ tacheIndex + 1 }}</h4>
+                <button
+                  type="button"
+                  @click="removeTache(tacheIndex)"
+                  class="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  <X :size="16" />
+                </button>
+              </div>
+
+              <div class="space-y-2">
+                <input
+                  v-model="tache.nom_tache"
+                  type="text"
+                  class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Nom de la tâche *"
+                />
+                <textarea
+                  v-model="tache.description"
+                  rows="2"
+                  class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Description (optionnel)"
+                ></textarea>
+                <input
+                  v-model="tache.image_url"
+                  type="url"
+                  class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="URL de l'image (optionnel)"
+                />
+                <select
+                  v-model="tache.status"
+                  class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="actif">Actif</option>
+                  <option value="inactif">Inactif</option>
+                </select>
+              </div>
+
+              <!-- Matériels pour cette tâche -->
+              <div v-if="serviceForm.materiels && serviceForm.materiels.length > 0" class="mt-3 pt-3 border-t border-gray-200">
+                <div class="flex items-center justify-between mb-2">
+                  <label class="text-xs font-medium text-gray-700">Matériels nécessaires</label>
+                  <span class="text-xs text-gray-500">Sélectionnez les matériels requis pour cette tâche</span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <label
+                    v-for="(materiel, materielIndex) in serviceForm.materiels"
+                    :key="materielIndex"
+                    class="flex items-center gap-2 p-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                    :class="{ 'bg-blue-50 border-blue-300': isMaterialSelectedForTask(tacheIndex, materielIndex) }"
+                  >
+                    <input
+                      type="checkbox"
+                      :checked="isMaterialSelectedForTask(tacheIndex, materielIndex)"
+                      @change="toggleTaskMaterial(tacheIndex, materielIndex)"
+                      class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <span class="text-xs text-gray-700 flex-1">{{ materiel.nom_materiel || 'Matériel sans nom' }}</span>
+                  </label>
+                </div>
+                <p v-if="serviceForm.materiels.length === 0" class="text-xs text-gray-400 italic">
+                  Ajoutez d'abord des matériels à l'étape précédente pour pouvoir les associer aux tâches
+                </p>
+              </div>
+
+              <!-- Contraintes pour cette tâche -->
+              <div class="mt-3 pt-3 border-t border-gray-200">
+                <div class="flex items-center justify-between mb-2">
+                  <label class="text-xs font-medium text-gray-700">Contraintes</label>
+                  <button
+                    type="button"
+                    @click="addContrainte(tacheIndex)"
+                    class="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded transition-colors flex items-center gap-1"
+                  >
+                    <Plus :size="12" />
+                    Ajouter
+                  </button>
+                </div>
+
+                <div v-for="(contrainte, contrainteIndex) in tache.contraintes" :key="contrainteIndex" class="flex gap-2 mb-2">
+                  <input
+                    v-model="contrainte.nom"
+                    type="text"
+                    class="flex-1 px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Nom (ex: Surface maximale)"
+                  />
+                  <input
+                    v-model.number="contrainte.seuil"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    class="w-24 px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Seuil"
+                  />
+                  <input
+                    v-model="contrainte.unite"
+                    type="text"
+                    class="w-20 px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Unité"
+                  />
+                  <button
+                    type="button"
+                    @click="removeContrainte(tacheIndex, contrainteIndex)"
+                    class="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                  >
+                    <X :size="14" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              @click="addTache"
+              class="w-full px-3 py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 text-xs font-medium hover:border-blue-500 hover:text-blue-600 transition-colors flex items-center justify-center gap-2"
+            >
+              <Plus :size="16" />
+              Ajouter une tâche
+            </button>
+
+            <div class="flex gap-2 pt-3">
+              <button
+                type="button"
+                @click="currentServiceStep = 2"
+                class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-gray-700 text-xs font-medium hover:bg-gray-50 transition-colors"
+              >
+                Précédent
+              </button>
+              <button
+                type="button"
+                @click="saveService"
                 class="flex-1 px-3 py-2 rounded-lg text-white text-xs font-medium hover:shadow-md transition-all"
                 style="background-color: #7FB3D3"
               >
                 Créer le service
               </button>
             </div>
-          </form>
+          </div>
         </div>
       </div>
     </div>
@@ -817,15 +1061,23 @@ const subServiceForm = ref({
   nom_tache: '',
   description: '',
   status: 'actif',
-  image_url: ''
+  image_url: '',
+  materiel_ids: [] // IDs des matériels sélectionnés
 })
+
+// Matériels du service actuel pour sélection
+const serviceMaterials = ref([])
+const loadingMaterials = ref(false)
 
 // Service management
 const showAddServiceModal = ref(false)
+const currentServiceStep = ref(1)
 const serviceForm = ref({
   nom_service: '',
   description: '',
-  status: 'active'
+  status: 'active',
+  materiels: [],
+  taches: []
 })
 
 // Pagination pour les services
@@ -1421,6 +1673,39 @@ const loadSubServices = async (serviceId) => {
   }
 }
 
+const loadServiceMaterials = async () => {
+  if (!currentService.value?.id) return
+  try {
+    loadingMaterials.value = true
+    const response = await adminService.getServiceMateriels(currentService.value.id)
+    serviceMaterials.value = response.data.materiels || []
+  } catch (error) {
+    console.error('Erreur chargement matériels:', error)
+    serviceMaterials.value = []
+  } finally {
+    loadingMaterials.value = false
+  }
+}
+
+// Toggle material selection for sub-service
+const toggleSubServiceMaterial = (materielId) => {
+  if (!subServiceForm.value.materiel_ids) {
+    subServiceForm.value.materiel_ids = []
+  }
+  
+  const index = subServiceForm.value.materiel_ids.indexOf(materielId)
+  if (index > -1) {
+    subServiceForm.value.materiel_ids.splice(index, 1)
+  } else {
+    subServiceForm.value.materiel_ids.push(materielId)
+  }
+}
+
+// Check if a material is selected for sub-service
+const isMaterialSelectedForSubService = (materielId) => {
+  return subServiceForm.value.materiel_ids?.includes(materielId) || false
+}
+
 // Pagination pour les sous-services
 const paginatedSubServices = computed(() => {
   if (!subServices.value || subServices.value.length === 0) return []
@@ -1441,23 +1726,29 @@ watch(() => currentService.value?.id, () => {
   currentSubServicesPage.value = 1
 })
 
-const openAddModal = () => {
+const openAddModal = async () => {
   subServiceForm.value = {
     nom_tache: '',
     description: '',
     status: 'actif',
-    image_url: ''
+    image_url: '',
+    materiel_ids: []
   }
+  await loadServiceMaterials()
   showAddModal.value = true
 }
 
-const openEditModal = (subService) => {
+const openEditModal = async (subService) => {
   selectedSubService.value = subService
+  await loadServiceMaterials()
+  // Charger les matériels déjà associés à cette tâche
+  const associatedMaterialIds = subService.materiels ? subService.materiels.map(m => m.id) : []
   subServiceForm.value = {
     nom_tache: subService.nom_tache,
     description: subService.description || '',
     status: subService.status || 'actif',
-    image_url: subService.image_url || ''
+    image_url: subService.image_url || '',
+    materiel_ids: associatedMaterialIds
   }
   showEditModal.value = true
 }
@@ -1474,6 +1765,13 @@ const closeModals = () => {
   showEditModal.value = false
   showDeleteModal.value = false
   selectedSubService.value = null
+  subServiceForm.value = {
+    nom_tache: '',
+    description: '',
+    status: 'actif',
+    image_url: '',
+    materiel_ids: []
+  }
 }
 
 const saveSubService = async () => {
@@ -1515,18 +1813,87 @@ const openAddServiceModal = () => {
   serviceForm.value = {
     nom_service: '',
     description: '',
-    status: 'active'
+    status: 'active',
+    materiels: [],
+    taches: []
   }
+  currentServiceStep.value = 1
   showAddServiceModal.value = true
+}
+
+// Toggle material selection for a task
+const toggleTaskMaterial = (tacheIndex, materielIndex) => {
+  if (!serviceForm.value.taches[tacheIndex].materiel_indices) {
+    serviceForm.value.taches[tacheIndex].materiel_indices = []
+  }
+  
+  const index = serviceForm.value.taches[tacheIndex].materiel_indices.indexOf(materielIndex)
+  if (index > -1) {
+    serviceForm.value.taches[tacheIndex].materiel_indices.splice(index, 1)
+  } else {
+    serviceForm.value.taches[tacheIndex].materiel_indices.push(materielIndex)
+  }
+}
+
+// Check if a material is selected for a task
+const isMaterialSelectedForTask = (tacheIndex, materielIndex) => {
+  return serviceForm.value.taches[tacheIndex]?.materiel_indices?.includes(materielIndex) || false
 }
 
 const closeAddServiceModal = () => {
   showAddServiceModal.value = false
+  currentServiceStep.value = 1
   serviceForm.value = {
     nom_service: '',
     description: '',
-    status: 'active'
+    status: 'active',
+    materiels: [],
+    taches: []
   }
+}
+
+// Material management
+const addMateriel = () => {
+  serviceForm.value.materiels.push({
+    nom_materiel: '',
+    description: ''
+  })
+}
+
+const removeMateriel = (index) => {
+  serviceForm.value.materiels.splice(index, 1)
+}
+
+// Task management
+const addTache = () => {
+  serviceForm.value.taches.push({
+    nom_tache: '',
+    description: '',
+    status: 'actif',
+    image_url: '',
+    contraintes: [],
+    materiel_indices: [] // Indices des matériels sélectionnés
+  })
+}
+
+const removeTache = (index) => {
+  serviceForm.value.taches.splice(index, 1)
+}
+
+// Constraint management
+const addContrainte = (tacheIndex) => {
+  if (!serviceForm.value.taches[tacheIndex].contraintes) {
+    serviceForm.value.taches[tacheIndex].contraintes = []
+  }
+  serviceForm.value.taches[tacheIndex].contraintes.push({
+    nom: '',
+    seuil: null,
+    unite: ''
+  })
+}
+
+const removeContrainte = (tacheIndex, contrainteIndex) => {
+  serviceForm.value.taches[tacheIndex].contraintes.splice(contrainteIndex, 1)
 }
 
 const saveService = async () => {
@@ -1536,13 +1903,34 @@ const saveService = async () => {
       return
     }
 
+    // Valider que les tâches ont au moins un nom
+    for (let i = 0; i < serviceForm.value.taches.length; i++) {
+      if (!serviceForm.value.taches[i].nom_tache.trim()) {
+        error(`La tâche ${i + 1} doit avoir un nom`)
+        return
+      }
+    }
+
     // Générer une couleur unique pour le nouveau service
     const uniqueColor = generateUniqueServiceColor()
     
-    // Ajouter la couleur au formulaire avant l'envoi
+    // Préparer les données pour l'envoi
     const serviceData = {
-      ...serviceForm.value,
-      couleur: uniqueColor
+      nom_service: serviceForm.value.nom_service,
+      description: serviceForm.value.description || null,
+      status: serviceForm.value.status,
+      couleur: uniqueColor,
+      materiels: serviceForm.value.materiels.filter(m => m.nom_materiel.trim()),
+      taches: serviceForm.value.taches
+        .filter(t => t.nom_tache.trim())
+        .map(t => ({
+          nom_tache: t.nom_tache,
+          description: t.description || null,
+          status: t.status || 'actif',
+          image_url: t.image_url || null,
+          contraintes: (t.contraintes || []).filter(c => c.nom.trim()),
+          materiel_indices: t.materiel_indices || [] // Inclure les indices des matériels sélectionnés
+        }))
     }
 
     const response = await adminService.createService(serviceData)
@@ -1552,12 +1940,15 @@ const saveService = async () => {
       storeServiceColor(response.data.service.id, uniqueColor)
     }
     
-    success('Service créé avec succès')
+    const tachesCount = response.data?.taches?.length || 0
+    const materielsCount = response.data?.materiels?.length || 0
+    
+    success(`Service créé avec succès${tachesCount > 0 ? ` (${tachesCount} tâche${tachesCount > 1 ? 's' : ''}, ${materielsCount} matériel${materielsCount > 1 ? 's' : ''})` : ''}`)
     closeAddServiceModal()
     await loadServices({ silent: true })
-  } catch (error) {
-    console.error('Erreur création service:', error)
-    error(error.response?.data?.message || error.response?.data?.error || 'Erreur lors de la création du service')
+  } catch (err) {
+    console.error('Erreur création service:', err)
+    error(err.response?.data?.message || err.response?.data?.error || 'Erreur lors de la création du service')
   }
 }
 

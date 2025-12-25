@@ -40,10 +40,18 @@
           @mouseleave="(e) => e.currentTarget.style.boxShadow = `0 4px 20px ${nav.shadowColor}`"
         >
           <div 
-            class="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform" 
+            class="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform relative" 
             :style="{ backgroundColor: nav.bgColor }"
           >
             <component :is="nav.icon" :size="24" :style="{ color: nav.iconColor }" />
+            <!-- Badge -->
+            <span
+              v-if="nav.badge !== null && nav.badge > 0"
+              class="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-md"
+              :style="{ backgroundColor: nav.badgeColor }"
+            >
+              {{ nav.badge > 99 ? '99+' : nav.badge }}
+            </span>
           </div>
           <h4 class="mb-1" :style="{ color: nav.titleColor }">{{ nav.title }}</h4>
           <p class="text-xs text-gray-500">{{ nav.description }}</p>
@@ -172,8 +180,8 @@ const navigationItems = computed(() => [
     titleColor: '#FF9800',
     shadowColor: 'rgba(255, 152, 0, 0.2)',
     shadowColorHover: 'rgba(255, 152, 0, 0.35)',
-    badge: null,
-    badgeColor: null
+    badge: props.stats.demandesEnAttente > 0 ? props.stats.demandesEnAttente : null,
+    badgeColor: '#FF9800'
   },
   {
     section: 'services',
@@ -198,8 +206,8 @@ const navigationItems = computed(() => [
     titleColor: '#F44336',
     shadowColor: 'rgba(244, 67, 54, 0.2)',
     shadowColorHover: 'rgba(244, 67, 54, 0.35)',
-    badge: null,
-    badgeColor: null
+    badge: props.stats.reclamationsNouvelles > 0 ? props.stats.reclamationsNouvelles : null,
+    badgeColor: '#F44336'
   },
   {
     section: 'historique',

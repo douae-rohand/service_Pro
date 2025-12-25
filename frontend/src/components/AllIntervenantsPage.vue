@@ -400,15 +400,15 @@ export default {
       },
       currentPage: 1,
       itemsPerPage: 4,
+      pollingTimer: null
     };
   },
   mounted() {
-    Promise.all([
-      this.loadServiceInfo(),
-      this.loadIntervenants(false)
-    ]).catch(error => {
-      console.error('Erreur lors du chargement des données:', error);
-    });
+    this.loadData();
+    this.startPolling();
+  },
+  beforeUnmount() {
+    this.stopPolling();
   },
   watch: {
     service() {
@@ -543,6 +543,58 @@ export default {
     }
   },
   methods: {
+    async loadData() {
+      this.loadingIntervenants = true;
+      try {
+        await Promise.all([
+          this.loadServiceInfo(),
+          this.loadIntervenants(false)
+        ]);
+      } catch (error) {
+        console.error('Erreur lors du chargement des données:', error);
+      } finally {
+        this.loadingIntervenants = false;
+      }
+    },
+
+    startPolling() {
+      this.stopPolling();
+      this.pollingTimer = setInterval(() => {
+        this.loadIntervenants(true);
+      }, 5000); // Poll every 5 seconds
+    },
+
+    stopPolling() {
+      if (this.pollingTimer) {
+        clearInterval(this.pollingTimer);
+        this.pollingTimer = null;
+      }
+    },
+
+    smartMerge(newData) {
+      if (!this.intervenantsFromApi || this.intervenantsFromApi.length === 0) {
+        this.intervenantsFromApi = newData;
+        return;
+      }
+
+      const fetchedIds = new Set(newData.map(item => item.id));
+      
+      // 1. Remove items no longer in fetched data
+      this.intervenantsFromApi = this.intervenantsFromApi.filter(item => fetchedIds.has(item.id));
+
+      // 2. Update existing or add new
+      newData.forEach(newItem => {
+        const index = this.intervenantsFromApi.findIndex(item => item.id === newItem.id);
+        if (index !== -1) {
+          // Update existing (shallow merge to preserve reactivity where possible)
+          Object.assign(this.intervenantsFromApi[index], newItem);
+        } else {
+          // Add new
+          this.intervenantsFromApi.push(newItem);
+        }
+      });
+    },
+
     async loadServiceInfo() {
       if (this.service) { // Check souple (string ou number)
         try {
@@ -555,7 +607,8 @@ export default {
       }
     },
     
-    async loadIntervenants(showLoading = false) {
+    async loadIntervenants(isPolling = false) {
+      if (!isPolling) this.loadingIntervenants = true;
       try {
         const params = { active: 'true' };
         
@@ -565,8 +618,7 @@ export default {
         
         const response = await intervenantService.getAll(params);
         const intervenants = response.data || [];
-        
-        this.intervenantsFromApi = intervenants.map(intervenant => {
+        const processedData = intervenants.map(intervenant => {
           const utilisateur = intervenant.utilisateur || {};
           const taches = intervenant.taches || [];
           
@@ -612,15 +664,23 @@ export default {
             fullData: intervenant
           };
         });
+
+        if (isPolling) {
+          this.smartMerge(processedData);
+        } else {
+          this.intervenantsFromApi = processedData;
+        }
         
         this.intervenantsLoaded = true;
         
       } catch (error) {
         console.error('Erreur lors du chargement des intervenants:', error);
-        this.intervenantsFromApi = [];
+        if (!isPolling) {
+          this.intervenantsFromApi = [];
+        }
         this.intervenantsLoaded = true;
       } finally {
-        if (showLoading) {
+        if (!isPolling) {
           this.loadingIntervenants = false;
         }
       }

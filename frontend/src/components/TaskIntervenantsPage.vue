@@ -489,12 +489,17 @@ export default {
       userLocation: null,
       loadingLocation: false,
       mappedIntervenants: [],
+      pollingTimer: null,
     };
   },
   mounted() {
     this.loadData();
     this.initializeMap();
     this.getUserLocation();
+    this.startPolling();
+  },
+  beforeUnmount() {
+    this.stopPolling();
   },
   watch: {
     taskId() {
@@ -586,6 +591,49 @@ export default {
     }
   },
   methods: {
+    startPolling() {
+      this.stopPolling();
+      this.pollingTimer = setInterval(() => {
+        this.loadIntervenants(true);
+      }, 5000); // Poll every 5 seconds
+    },
+
+    stopPolling() {
+      if (this.pollingTimer) {
+        clearInterval(this.pollingTimer);
+        this.pollingTimer = null;
+      }
+    },
+
+    smartMerge(newData) {
+      if (!this.intervenantsFromApi || this.intervenantsFromApi.length === 0) {
+        this.intervenantsFromApi = newData;
+        return;
+      }
+
+      const fetchedIds = new Set(newData.map(item => item.id));
+      
+      // 1. Remove items no longer in fetched data
+      this.intervenantsFromApi = this.intervenantsFromApi.filter(item => fetchedIds.has(item.id));
+
+      // 2. Update existing or add new
+      newData.forEach(newItem => {
+        const index = this.intervenantsFromApi.findIndex(item => item.id === newItem.id);
+        if (index !== -1) {
+          // Update existing
+          Object.assign(this.intervenantsFromApi[index], newItem);
+        } else {
+          // Add new
+          this.intervenantsFromApi.push(newItem);
+        }
+      });
+      
+      // If we are in map view, we need to regenerate markers
+      if (this.viewMode === 'map') {
+        this.generateMapMarkers();
+      }
+    },
+
     async loadData() {
       this.loading = true;
       this.error = null;
@@ -628,7 +676,8 @@ export default {
       };
     },
     
-    async loadIntervenants() {
+    async loadIntervenants(isPolling = false) {
+      if (!isPolling) this.intervenantsLoaded = false;
       try {
         // Récupérer les intervenants filtrés par tacheId
         const params = { 
@@ -639,7 +688,7 @@ export default {
         const response = await intervenantService.getAll(params);
         const intervenants = response.data || [];
         
-        this.intervenantsFromApi = intervenants.map(intervenant => {
+        const processedData = intervenants.map(intervenant => {
           const utilisateur = intervenant.utilisateur || {};
           const taches = intervenant.taches || [];
           
@@ -715,9 +764,17 @@ export default {
           };
         });
         
+        if (isPolling) {
+          this.smartMerge(processedData);
+        } else {
+          this.intervenantsFromApi = processedData;
+        }
+        
       } catch (error) {
         console.error('Erreur lors du chargement des intervenants:', error);
-        this.intervenantsFromApi = [];
+        if (!isPolling) {
+          this.intervenantsFromApi = [];
+        }
       }
     },
     

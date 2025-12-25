@@ -10,8 +10,8 @@ const echo = new Echo({
     wsHost: import.meta.env.VITE_REVERB_HOST,
     wsPort: import.meta.env.VITE_REVERB_PORT ?? 6001,
     wssPort: import.meta.env.VITE_REVERB_PORT ?? 6001,
-    forceTLS: (import.meta.env.VITE_REVERB_SCHEME ?? 'http') === 'https',
-    enabledTransports: ['ws', 'wss'],
+    forceTLS:false,
+    enabledTransports: ['ws'],
 
     // Authentication for private channels
     authEndpoint: import.meta.env.VITE_API_BASE_URL + '/broadcasting/auth',

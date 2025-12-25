@@ -68,6 +68,7 @@ class AuthController extends Controller
                 'telephone' => $validated['telephone'] ?? null,
                 'email_verification_code' => $verificationCode,
                 'email_verification_expires_at' => now()->addMinutes(15),
+                'estActive' => true,
                 'created_at' => now(),
                 'updated_at' => now(),
             ], 'id');
@@ -89,7 +90,7 @@ class AuthController extends Controller
                     'id' => $userId,
                     'address' => $validated['adresse'] ?? null,
                     'ville' => $validated['ville'] ?? null,
-                    'is_active' => false, // Nouveau intervenant en attente de validation
+                    'is_active' => true, // Nouveau intervenant en attente de validation
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
@@ -148,6 +149,16 @@ class AuthController extends Controller
                     'email' => ['Les identifiants sont incorrects.'],
                 ],
             ], 401);
+        }
+
+        // Vérifier si le compte est actif
+        if (!$user->estActive) {
+            return response()->json([
+                'message' => 'Votre compte est désactivé. Veuillez contacter l\'administration.',
+                'errors' => [
+                    'email' => ['Votre compte est désactivé.'],
+                ],
+            ], 403);
         }
 
         // Révoquer les anciens tokens
@@ -387,6 +398,7 @@ class AuthController extends Controller
                     'password' => Hash::make(uniqid()), // Mot de passe aléatoire
                     'google_id' => $googleUser->getId(),
                     'avatar' => $googleUser->getAvatar(),
+                    'estActive' => true,
                 ]);
 
                 // Créer automatiquement un client pour le nouvel utilisateur

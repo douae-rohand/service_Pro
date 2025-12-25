@@ -27,20 +27,20 @@
           <!-- Profile Photo with Initials -->
           <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-white text-sm font-semibold"
                :style="{ backgroundColor: '#5EAD5F' }">
-            {{ getInitials(client.prenom, client.nom) }}
+            {{ getInitials(client?.prenom, client?.nom) }}
           </div>
 
           <div class="flex-1">
             <!-- Name and Status -->
             <div class="flex items-center gap-1.5 mb-1">
               <h3 class="text-sm font-semibold" style="color: #1F2937">
-                {{ client.prenom }} {{ client.nom }}
+                {{ client?.prenom }} {{ client?.nom }}
               </h3>
               <span 
                 class="px-1.5 py-0.5 rounded text-xs font-medium text-white"
-                :style="{ backgroundColor: client.statut === 'actif' ? '#5EAD5F' : '#5B7C99' }"
+                :style="{ backgroundColor: client?.statut === 'actif' ? '#5EAD5F' : '#5B7C99' }"
               >
-                {{ client.statut }}
+                {{ client?.statut }}
               </span>
             </div>
 
@@ -48,20 +48,20 @@
             <div class="space-y-0 text-xs" style="color: #6B7280; line-height: 1.4;">
               <div class="flex items-center gap-1">
                 <Mail :size="10" />
-                <span class="truncate">{{ client.email }}</span>
+                <span class="truncate">{{ client?.email }}</span>
               </div>
               <div class="flex items-center gap-1">
                 <Phone :size="10" />
-                <span>{{ client.telephone }}</span>
+                <span>{{ client?.telephone }}</span>
               </div>
               <div class="flex items-center gap-1">
                 <MapPin :size="10" />
-                <span v-if="client.adresse" class="truncate">{{ client.adresse }}</span>
+                <span v-if="client?.adresse" class="truncate">{{ client?.adresse }}</span>
                 <span v-else class="text-gray-400 italic">Adresse non renseignée</span>
               </div>
               <div class="flex items-center gap-1">
                 <Calendar :size="10" />
-                <span>Inscrit le {{ formatDateShort(client.dateInscription) }}</span>
+                <span>Inscrit le {{ formatDateShort(client?.dateInscription) }}</span>
               </div>
             </div>
           </div>
@@ -73,7 +73,7 @@
           <div class="text-center p-2 rounded-lg" style="background-color: #EFF6FF">
             <p class="text-xs mb-0.5" style="color: #6B7280">Réservations</p>
             <p class="text-lg font-semibold" style="color: #1F2937">
-              {{ client.reservations }}
+              {{ client?.reservations || 0 }}
             </p>
           </div>
 
@@ -81,7 +81,7 @@
           <div class="text-center p-2 rounded-lg" style="background-color: #F0FDF4">
             <p class="text-xs mb-0.5" style="color: #6B7280">Dépenses totales</p>
             <p class="text-base font-semibold" style="color: #5EAD5F">
-              {{ client.montantTotal }}DH
+              {{ client?.montantTotal || 0 }}DH
             </p>
           </div>
 
@@ -89,15 +89,15 @@
           <div class="text-center p-2 rounded-lg" style="background-color: #FEF9E7">
             <p class="text-xs mb-0.5" style="color: #6B7280">Dernier service</p>
             <p class="text-xs font-semibold" style="color: #1F2937">
-              {{ formatDateShort(client.dernierService) }}
+              {{ formatDateShort(client?.dernierService) }}
             </p>
           </div>
         </div>
 
         <!-- Feedbacks Section -->
-        <div v-if="client.feedbacks && client.feedbacks.length > 0" class="mb-4 flex-1 flex flex-col min-h-0">
+        <div v-if="client?.feedbacks && client?.feedbacks.length > 0" class="mb-4 flex-1 flex flex-col min-h-0">
           <h4 class="text-xs font-semibold mb-2.5 flex-shrink-0" style="color: #1F2937">
-            Feedbacks du client ({{ client.feedbacks.length }})
+            Feedbacks du client ({{ client?.feedbacks.length }})
           </h4>
 
           <!-- Zone scrollable pour les feedbacks uniquement -->
@@ -207,7 +207,7 @@
         <!-- Action Buttons -->
         <div class="flex gap-2 flex-shrink-0">
           <button
-            v-if="client.statut === 'actif'"
+            v-if="client?.statut === 'actif'"
             @click="$emit('suspend', client)"
             class="flex-1 py-2 rounded-lg text-xs font-medium text-white transition-all hover:opacity-90 flex items-center justify-center gap-1.5"
             style="background-color: #EF4444"
@@ -244,6 +244,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { X, Mail, Phone, MapPin, Calendar, Star, AlertCircle, CheckCircle } from 'lucide-vue-next'
 import adminService from '@/services/adminService'
 import { useServiceColor } from '@/composables/useServiceColor'
+import { useAdminRealtimeSync } from '@/composables/useAdminRealtimeSync'
 
 const { getServiceBadgeColors } = useServiceColor()
 
@@ -323,6 +324,82 @@ const formatDateShort = (dateString) => {
     day: '2-digit' 
   })
 }
+
+// Données client chargées depuis l'API
+const clientData = ref(null)
+const loadingClient = ref(false)
+
+// Fonction pour charger les détails complets du client
+const loadClientDetails = async (options = {}) => {
+  if (!props.client?.id || !props.isOpen) return
+  
+  const { silent = false } = options
+  try {
+    if (!silent) {
+      loadingClient.value = true
+    }
+    const response = await adminService.getClientDetails(props.client.id)
+    
+    if (silent && clientData.value) {
+      // Mise à jour intelligente : fusionner les données existantes avec les nouvelles
+      const newData = response.data
+      Object.keys(newData).forEach(key => {
+        if (JSON.stringify(clientData.value[key]) !== JSON.stringify(newData[key])) {
+          clientData.value[key] = newData[key]
+        }
+      })
+    } else {
+      clientData.value = response.data
+    }
+  } catch (error) {
+    console.error('Erreur chargement détails client:', error)
+    if (!silent) {
+      // En cas d'erreur, utiliser les données des props
+      clientData.value = props.client
+    }
+  } finally {
+    if (!silent) {
+      loadingClient.value = false
+    }
+  }
+}
+
+// Charger les détails quand le modal s'ouvre
+watch([() => props.isOpen, () => props.client?.id], async ([isOpen, clientId]) => {
+  if (isOpen && clientId) {
+    await loadClientDetails()
+  } else if (!isOpen) {
+    clientData.value = null
+  }
+}, { immediate: true })
+
+// Utiliser les données chargées si disponibles, sinon les props
+const client = computed(() => {
+  return clientData.value || props.client
+})
+
+// Synchronisation en temps réel - Recharger les détails du client toutes les 3 secondes quand le modal est ouvert
+const { start: startSync, stop: stopSync } = useAdminRealtimeSync(
+  async ({ silent = false }) => {
+    if (props.isOpen && props.client?.id) {
+      await loadClientDetails({ silent })
+    }
+  },
+  { interval: 3000, loadOnMount: false, enabled: false }
+)
+
+// Démarrer/arrêter la synchronisation selon l'état du modal
+watch(() => props.isOpen, (isOpen) => {
+  if (isOpen && props.client?.id) {
+    startSync()
+  } else {
+    stopSync()
+  }
+}, { immediate: true })
+
+onMounted(async () => {
+  await loadServices()
+})
 </script>
 
 <style scoped>
@@ -346,10 +423,6 @@ const formatDateShort = (dateString) => {
 }
 
 /* Support pour Firefox */
-onMounted(async () => {
-  await loadServices()
-})
-
 .feedbacks-scrollable {
   scrollbar-width: thin;
   scrollbar-color: #5B7C99 #F9FAFB;

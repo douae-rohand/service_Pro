@@ -246,6 +246,43 @@ const interventionService = {
         'Content-Type': 'multipart/form-data'
       }
     });
+  },
+
+  /**
+   * Compter les interventions en attente pour un service spécifique (Espace Intervenant)
+   */
+  countPendingByService(serviceId) {
+    return api.get(`intervenant-interventions/pending-count/service/${serviceId}`).then(res => res.data);
+  },
+
+  /**
+   * Compter les interventions en attente pour une tâche spécifique (Espace Intervenant)
+   */
+  countPendingByTache(tacheId) {
+    return api.get(`intervenant-interventions/pending-count/tache/${tacheId}`).then(res => res.data);
+  },
+
+  /**
+   * Refuser toutes les interventions en attente pour un service spécifique (Espace Intervenant)
+   */
+  refusePendingByService(serviceId) {
+    return api.post(`intervenant-interventions/pending-refuse/service/${serviceId}`).then(res => res.data);
+  },
+
+  /**
+   * Refuser toutes les interventions en attente pour une tâche spécifique (Espace Intervenant)
+   */
+  refusePendingByTache(tacheId) {
+    return api.post(`intervenant-interventions/pending-refuse/tache/${tacheId}`).then(res => res.data);
+  },
+
+  /**
+   * Add a method to download the payment slip PDF using the new API route. Use blob response to handle the PDF file.
+   */
+  downloadSlip(id) {
+    return api.get(`/intervenant-interventions/${id}/slip`, {
+      responseType: 'blob'
+    });
   }
 };
 

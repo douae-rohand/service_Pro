@@ -19,6 +19,7 @@ class Commentaire extends Model
         'commentaire',
         'intervention_id',
         'type_auteur',
+        'is_public',
     ];
 
     /**

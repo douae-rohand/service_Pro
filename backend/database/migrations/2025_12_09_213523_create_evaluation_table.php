@@ -19,6 +19,7 @@ return new class extends Migration
             $table->integer('intervention_id')->nullable()->index('intervention_id');
             $table->integer('critaire_id')->nullable()->index('critaire_id');
             $table->enum('type_auteur', ['client', 'intervenant'])->nullable();
+            $table->boolean('is_public')->default(false);
         });
     }
 

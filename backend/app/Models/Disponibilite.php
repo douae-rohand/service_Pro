@@ -25,6 +25,7 @@ class Disponibilite extends Model
         'date_specific',
         'heure_debut',
         'heure_fin',
+        'reason',
     ];
 
     protected function casts(): array

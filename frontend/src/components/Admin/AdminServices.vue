@@ -793,6 +793,7 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { Package, Activity, Star, Clock, X, Users, Briefcase, TrendingUp, Plus, Edit, Trash2 } from 'lucide-vue-next'
 import adminService from '@/services/adminService'
 import { useNotifications } from '@/composables/useNotifications'
+import { useAdminRealtimeSync } from '@/composables/useAdminRealtimeSync'
 
 const emit = defineEmits(['back', 'demandes-updated'])
 const { success, error, confirm: confirmDialog } = useNotifications()
@@ -1034,9 +1035,12 @@ const getAllStoredColors = () => {
 }
 
 // Methods
-const loadServices = async () => {
+const loadServices = async (options = {}) => {
+  const { silent = false } = options
   try {
-    loading.value = true
+    if (!silent) {
+      loading.value = true
+    }
     const response = await adminService.getServices()
     // Handle paginated response structure (new) or direct array (old for compatibility)
     const loadedServices = response.data?.data || response.data || []
@@ -1045,7 +1049,7 @@ const loadServices = async () => {
     const storedColors = getAllStoredColors()
     
     // Mapper les services avec leurs couleurs stockées ou générer de nouvelles
-    services.value = loadedServices.map(service => {
+    const newServices = loadedServices.map(service => {
       // Vérifier si une couleur est déjà stockée pour ce service
       const storedColor = storedColors[service.id]
       
@@ -1076,13 +1080,47 @@ const loadServices = async () => {
       }
     })
     
-    // Réinitialiser la pagination après chargement
-    currentPage.value = 1
+    if (silent) {
+      // Mise à jour intelligente : fusionner les données existantes avec les nouvelles
+      const servicesMap = new Map(services.value.map(s => [s.id, s]))
+      newServices.forEach(newService => {
+        const existing = servicesMap.get(newService.id)
+        if (existing) {
+          // Mettre à jour seulement si quelque chose a changé (sauf la couleur qui est gérée localement)
+          const hasChanges = Object.keys(newService).some(k => {
+            if (k === 'couleur') return false // Ne pas comparer la couleur
+            const oldVal = existing[k]
+            const newVal = newService[k]
+            return JSON.stringify(oldVal) !== JSON.stringify(newVal)
+          })
+          if (hasChanges) {
+            // Préserver la couleur existante
+            const existingColor = existing.couleur
+            Object.assign(existing, newService)
+            existing.couleur = existingColor
+          }
+        } else {
+          // Nouveau service : l'ajouter
+          services.value.push(newService)
+        }
+      })
+      // Retirer les services qui n'existent plus
+      const newIds = new Set(newServices.map(s => s.id))
+      services.value = services.value.filter(s => newIds.has(s.id))
+    } else {
+      services.value = newServices
+      // Réinitialiser la pagination après chargement
+      currentPage.value = 1
+    }
   } catch (error) {
     console.error('Erreur chargement services:', error)
-    services.value = []
+    if (!silent) {
+      services.value = []
+    }
   } finally {
-    loading.value = false
+    if (!silent) {
+      loading.value = false
+    }
   }
 }
 
@@ -1139,7 +1177,7 @@ const toggleService = async (serviceParam) => {
     
     success(successMessage)
     
-    await loadServices()
+    await loadServices({ silent: true })
     
     // Émettre un événement pour rafraîchir les demandes si nécessaire
     // Car la désactivation/réactivation d'un service peut affecter les demandes en attente
@@ -1516,12 +1554,20 @@ const saveService = async () => {
     
     success('Service créé avec succès')
     closeAddServiceModal()
-    await loadServices()
+    await loadServices({ silent: true })
   } catch (error) {
     console.error('Erreur création service:', error)
     error(error.response?.data?.message || error.response?.data?.error || 'Erreur lors de la création du service')
   }
 }
+
+// Synchronisation en temps réel - Recharger les services toutes les 3 secondes
+useAdminRealtimeSync(
+  async () => {
+    await loadServices({ silent: true })
+  },
+  { interval: 3000, loadOnMount: false, enabled: true }
+)
 
 onMounted(async () => {
   await loadServices()

@@ -39,8 +39,6 @@
       <!-- Clients Section -->
       <template v-if="activeSection === 'clients'">
         <AdminClients 
-          :clients="clients"
-          :loading="loading"
           @back="activeSection = 'overview'"
           @view-client="viewClient"
           @suspend-client="suspendClient"
@@ -50,8 +48,6 @@
       <!-- Intervenants Section -->
       <template v-if="activeSection === 'intervenants'">
         <AdminIntervenants
-          :intervenants="intervenants"
-          :loading="loading"
           @back="activeSection = 'overview'"
           @view-intervenant="viewIntervenant"
           @suspend-intervenant="suspendIntervenant"
@@ -136,7 +132,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import adminService from '@/services/adminService'
 
 // Sub-components
@@ -153,6 +149,7 @@ import AdminIntervenantProfile from './AdminIntervenantProfile.vue'
 import AdminClientDetails from './AdminClientDetails.vue'
 import NotificationContainer from './NotificationContainer.vue'
 import { useNotifications } from '@/composables/useNotifications'
+import { useAdminRealtimeSync } from '@/composables/useAdminRealtimeSync'
 
 const emit = defineEmits(['logout'])
 const { success, error, confirm: confirmDialog } = useNotifications()
@@ -187,61 +184,48 @@ const stats = ref({
   reclamationsNouvelles: 0
 })
 
-const clients = ref([])
-const intervenants = ref([])
+
 
 // Methods
-const loadStats = async () => {
+const loadStats = async (options = {}) => {
+  const { silent = false } = options
   try {
     const response = await adminService.getStats()
-    stats.value = response.data
+    // Mise à jour silencieuse : ne mettre à jour que si les valeurs ont changé
+    const newStats = response.data
+    if (silent) {
+      // Comparer et mettre à jour seulement les changements
+      Object.keys(newStats).forEach(key => {
+        if (stats.value[key] !== newStats[key]) {
+          stats.value[key] = newStats[key]
+        }
+      })
+    } else {
+      stats.value = newStats
+    }
   } catch (error) {
     console.error('Erreur chargement stats:', error)
-    // Données par défaut si l'API échoue
-    stats.value = {
-      totalClients: 0,
-      clientsGrowth: '+0%',
-      totalIntervenants: 0,
-      intervenantsGrowth: '+0%',
-      interventionsMois: 0,
-      interventionsGrowth: '+0%',
-      satisfaction: 0,
-      satisfactionLabel: '0/5',
-      heuresTotal: 0,
-      heuresGrowth: '+0%',
-      demandesEnAttente: 0,
-      reclamationsNouvelles: 0
+    if (!silent) {
+      // Données par défaut si l'API échoue (seulement si ce n'est pas une mise à jour silencieuse)
+      stats.value = {
+        totalClients: 0,
+        clientsGrowth: '+0%',
+        totalIntervenants: 0,
+        intervenantsGrowth: '+0%',
+        interventionsMois: 0,
+        interventionsGrowth: '+0%',
+        satisfaction: 0,
+        satisfactionLabel: '0/5',
+        heuresTotal: 0,
+        heuresGrowth: '+0%',
+        demandesEnAttente: 0,
+        reclamationsNouvelles: 0
+      }
     }
   }
 }
 
-const loadClients = async () => {
-  try {
-    loading.value = true
-    const response = await adminService.getClients()
-    // Handle paginated response structure (new) or direct array (old for compatibility)
-    clients.value = response.data?.data || response.data || []
-  } catch (error) {
-    console.error('Erreur chargement clients:', error)
-    clients.value = []
-  } finally {
-    loading.value = false
-  }
-}
 
-const loadIntervenants = async () => {
-  try {
-    loading.value = true
-    const response = await adminService.getIntervenants()
-    // Handle paginated response structure (new) or direct array (old for compatibility)
-    intervenants.value = response.data?.data || response.data || []
-  } catch (error) {
-    console.error('Erreur chargement intervenants:', error)
-    intervenants.value = []
-  } finally {
-    loading.value = false
-  }
-}
 
 
 // Actions
@@ -265,7 +249,7 @@ const suspendClient = async (clientId) => {
     try {
       const response = await adminService.toggleClientStatus(clientId)
       success(response.data.message)
-      await loadClients()
+      success(response.data.message)
       await loadStats()
     } catch (err) {
       console.error('Erreur changement statut client:', err)
@@ -281,7 +265,7 @@ const handleSuspendClient = async (client) => {
       const response = await adminService.toggleClientStatus(client.id)
       success(response.data.message)
       showClientDetails.value = false
-      await loadClients()
+      showClientDetails.value = false
       await loadStats()
     } catch (err) {
       console.error('Erreur suspension client:', err)
@@ -297,7 +281,7 @@ const handleActivateClient = async (client) => {
       const response = await adminService.toggleClientStatus(client.id)
       success(response.data.message)
       showClientDetails.value = false
-      await loadClients()
+      showClientDetails.value = false
       await loadStats()
     } catch (err) {
       console.error('Erreur activation client:', err)
@@ -318,7 +302,7 @@ const handleSuspendIntervenant = async (intervenantId) => {
       const response = await adminService.toggleIntervenantStatus(intervenantId)
       success(response.data.message)
       showIntervenantProfile.value = false
-      await loadIntervenants()
+      showIntervenantProfile.value = false
       await loadStats()
     } catch (err) {
       console.error('Erreur changement statut intervenant:', err)
@@ -400,23 +384,51 @@ const handleDemandesUpdated = async () => {
 // Navigation handler - Charger les données appropriées lors du changement de section
 const handleNavigate = async (section) => {
   activeSection.value = section
-  
-  // Charger les données correspondantes à la section
-  switch (section) {
-    case 'clients':
-      await loadClients()
-      break
-    case 'intervenants':
-      await loadIntervenants()
-      break
-  }
 }
+
+// Synchronisation en temps réel - SSE
+// Synchronisation en temps réel - SSE (Maintenant Polling)
+// Écoute les mises à jour globales des stats
+const { start: startStatsSync, stop: stopStatsSync } = useAdminRealtimeSync(
+  async () => {
+    // Polling simple : on recharge les stats complètes
+    await loadStats({ silent: true })
+  },
+  { enabled: true }
+)
+
+
+
+// Synchronisation pour les demandes (si section active)
+// Note: On peut ajouter ceci si on veut que la liste des demandes se rafraîchisse aussi
+const { start: startDemandesSync, stop: stopDemandesSync } = useAdminRealtimeSync(
+  async (data) => {
+    if (!data || data.demandesEnAttente !== stats.value.demandesEnAttente) {
+      // AdminDemandes a sa propre logique, mais on pourrait trigger un event global
+      // Ici on laisse AdminDemandes gérer son état, ou on pourrait émettre un event global bus
+      // Pour l'instant on se contente de rafraîchir les stats qui sont passées en props
+    }
+  },
+  { enabled: false }
+)
+
+// Démarrer/arrêter la synchronisation selon la section active
+watch(activeSection, (newSection) => {
+  // Stats sync est toujours actif (défini plus haut avec enabled: true)
+  
+  if (newSection === 'demandes') {
+    startDemandesSync()
+  } else {
+    stopDemandesSync()
+  }
+}, { immediate: true })
 
 // Lifecycle - Charger les stats au démarrage
 onMounted(async () => {
   loading.value = true
   try {
     await loadStats()
+    // Le SSE démarre automatiquement via le composable statsSync (enabled: true)
   } catch (error) {
     console.error('Erreur initialisation:', error)
   } finally {

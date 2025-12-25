@@ -37,3 +37,29 @@ Schedule::call(function () {
         }
     }
 })->everyMinute();
+
+/**
+ * Tâche planifiée pour marquer les évaluations comme publiques après 7 jours.
+ * S'exécute tous les jours à minuit.
+ */
+Schedule::command('evaluations:mark-public')
+    ->daily()
+    ->at('00:00')
+    ->timezone('Africa/Casablanca');
+
+/**
+ * Tâche planifiée pour annuler les demandes en attente depuis 48h.
+ * S'exécute toutes les minutes (pour les tests).
+ */
+Schedule::command('intervention:cancel-stale')
+    ->everyMinute();
+
+/**
+ * Tâche planifiée pour envoyer les rappels d'évaluation.
+ * S'exécute tous les jours à 9h00.
+ */
+Schedule::command('evaluations:send-reminders')
+    ->everyMinute()
+    ->at('11:00')
+    ->timezone('Africa/Casablanca');
+

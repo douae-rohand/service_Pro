@@ -356,7 +356,26 @@ const fetchClientStats = async (clientId) => {
 // Vérifier si l'utilisateur est connecté au chargement
 onMounted(async () => {
   const token = authService.getToken()
-  if (token) {
+  
+  // CRITICAL FIX: Clear stale user data if no token exists
+  if (!token) {
+    console.log('🧹 No token found, clearing stale user data from localStorage');
+    localStorage.removeItem('user');
+    currentUser.value = null;
+    
+    // Si pas de token, on s'assure qu'on ne reste pas sur une page protégée
+    const protectedPages = [
+      'client-home', 'client-reservations', 'client-profile', 'client-favorites', 
+      'client-reclamations', 'admin', 'booking', 'intervenant-profile', 
+      'task-intervenants', 'service-detail'
+    ]
+    if (protectedPages.includes(currentPage.value)) {
+      console.warn('🛡️ Access denied to protected page (no token), redirecting...');
+      currentPage.value = 'home'
+      localStorage.removeItem('current_app_page')
+    }
+  } else {
+    // Token exists, validate user
     try {
       const response = await authService.getCurrentUser()
       const user = response.data
@@ -383,18 +402,6 @@ onMounted(async () => {
       console.error('Erreur lors de la récupération de l\'utilisateur:', error)
       authService.setAuthToken(null)
       currentUser.value = null
-      currentPage.value = 'home'
-      localStorage.removeItem('current_app_page')
-    }
-  } else {
-    // Si pas de token, on s'assure qu'on ne reste pas sur une page protégée
-    const protectedPages = [
-      'client-home', 'client-reservations', 'client-profile', 'client-favorites', 
-      'client-reclamations', 'admin', 'booking', 'intervenant-profile', 
-      'task-intervenants', 'service-detail'
-    ]
-    if (protectedPages.includes(currentPage.value)) {
-      console.warn('🛡️ Access denied to protected page (no token), redirecting...');
       currentPage.value = 'home'
       localStorage.removeItem('current_app_page')
     }

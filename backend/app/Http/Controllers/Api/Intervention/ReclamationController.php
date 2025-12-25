@@ -1,10 +1,11 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\Api\Intervention;
 
 use App\Http\Controllers\Controller;
 use App\Models\Reclamation;
 use App\Models\Intervention;
+use App\Models\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -37,6 +38,11 @@ class ReclamationController extends Controller
                 return response()->json(['message' => 'Unauthorized access to intervention'], 403);
             }
 
+            // Ensure intervention is completed
+            if ($intervention->status !== 'termine') {
+                return response()->json(['message' => 'Réclamation uniquement autorisée pour les interventions terminées'], 403);
+            }
+
             $client = $intervention->client;
 
             if (!$client) {
@@ -48,6 +54,7 @@ class ReclamationController extends Controller
                 'signale_par_type' => 'Intervenant',
                 'concernant_id' => $client->id,
                 'concernant_type' => 'Client',
+                'intervention_id' => $intervention->id,
                 'raison' => $request->raison,
                 'message' => $request->message,
                 'priorite' => $request->priorite,
@@ -61,6 +68,36 @@ class ReclamationController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Error storing reclamation: ' . $e->getMessage());
+            return response()->json(['message' => 'Erreur serveur', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Get reclamations made by the authenticated intervenant for a specific intervention.
+     */
+    public function myReclamations(Request $request, $id)
+    {
+        try {
+            $user = Auth::user();
+            if (!$user || !$user->intervenant) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $intervenant = $user->intervenant;
+
+            // Find requests made by this intervenant for this intervention
+            $reclamations = Reclamation::where('intervention_id', $id)
+                ->where('signale_par_id', $intervenant->id)
+                ->where('signale_par_type', 'Intervenant')
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            return response()->json([
+                'reclamations' => $reclamations
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error fetching my reclamations: ' . $e->getMessage());
             return response()->json(['message' => 'Erreur serveur', 'error' => $e->getMessage()], 500);
         }
     }

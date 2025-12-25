@@ -63,13 +63,14 @@ class StatsController extends Controller
             // Get all interventions for this intervenant that are completed
             $interventions = Intervention::where('intervenant_id', $intervenantId)
                 ->where('status', 'termine')
-                ->with(['evaluations', 'commentaires', 'client.utilisateur', 'facture', 'tache.service'])
+                ->with(['evaluations', 'commentaires', 'client.utilisateur', 'fichePayement', 'tache.service'])
                 ->orderBy('updated_at', 'desc')
                 ->get();
 
             // Filter interventions to only include those with public ratings
+            // Check if any evaluation for this intervention is public
             $publicInterventions = $interventions->filter(function ($intervention) {
-                return $intervention->areRatingsPublic();
+                return $intervention->evaluations->where('is_public', true)->isNotEmpty();
             });
 
             // Calculate statistics
@@ -79,8 +80,10 @@ class StatsController extends Controller
             $reviews = [];
 
             foreach ($publicInterventions as $intervention) {
-                // Get evaluations for this intervention
-                $evaluations = $intervention->evaluations->where('type_auteur', 'client');
+                // Get PUBLIC evaluations only for this intervention
+                $evaluations = $intervention->evaluations
+                    ->where('type_auteur', 'client')
+                    ->where('is_public', true);
 
                 // Calculate average rating for this intervention
                 $interventionAvgRating = 0;
@@ -158,14 +161,14 @@ class StatsController extends Controller
                 return strtotime($b['date']) - strtotime($a['date']);
             });
 
-            // Calculate completed missions count (only public ones)
-            $completedMissions = $publicInterventions->count();
+            // Calculate completed missions count (ALL completed interventions)
+            $completedMissions = $interventions->count();
 
-            // Calculate total revenue from completed interventions (only public ones)
+            // Calculate total revenue from ALL completed interventions
             $totalAmount = 0;
-            foreach ($publicInterventions as $intervention) {
-                if ($intervention->facture && $intervention->facture->ttc !== null) {
-                    $totalAmount += (float) $intervention->facture->ttc;
+            foreach ($interventions as $intervention) {
+                if ($intervention->fichePayement && $intervention->fichePayement->ttc !== null) {
+                    $totalAmount += (float) $intervention->fichePayement->ttc;
                 }
             }
 

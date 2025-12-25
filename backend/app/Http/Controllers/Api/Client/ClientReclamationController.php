@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Reclamation;
 use App\Models\Client;
 use App\Models\Intervenant;
+use App\Models\Intervention;
+use App\Models\Utilisateur;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -20,8 +22,8 @@ class ClientReclamationController extends Controller
     {
         try {
             $user = Auth::user();
-            
-            if (!$user) {
+
+            if (!$user instanceof Utilisateur) {
                 Log::error('No authenticated user in index');
                 return response()->json([
                     'status' => 'error',
@@ -69,28 +71,104 @@ class ClientReclamationController extends Controller
 
             $reclamations = $query->get();
 
-            // Load intervenants separately to avoid relationship issues
-            $intervenantIds = $reclamations->where('concernant_type', 'Intervenant')
-                ->pluck('concernant_id')
-                ->filter()
-                ->unique();
+            // Charger les interventions liées
+            $interventionIds = $reclamations->pluck('intervention_id')->filter()->unique();
+            $linkedInterventions = [];
+            if ($interventionIds->isNotEmpty()) {
+                $linkedInterventions = Intervention::with([
+                    'client.utilisateur:id,nom,prenom',
+                    'intervenant.utilisateur:id,nom,prenom'
+                ])
+                ->whereIn('id', $interventionIds)
+                ->get()
+                ->keyBy('id');
+            }
             
+            // Collecter tous les IDs de concernant (depuis interventions et réclamations)
+            $intervenantIds = collect();
+            $clientIds = collect();
+            
+            foreach ($reclamations as $reclamation) {
+                $concernantId = $reclamation->concernant_id;
+                $concernantType = $reclamation->concernant_type;
+                
+                // Dériver depuis l'intervention si elle existe
+                if ($reclamation->intervention_id && isset($linkedInterventions[$reclamation->intervention_id])) {
+                    $intervention = $linkedInterventions[$reclamation->intervention_id];
+                    if ($reclamation->signale_par_type === 'Client') {
+                        $concernantId = $intervention->intervenant_id;
+                        $concernantType = 'Intervenant';
+                    } elseif ($reclamation->signale_par_type === 'Intervenant') {
+                        $concernantId = $intervention->client_id;
+                        $concernantType = 'Client';
+                    }
+                }
+                
+                if ($concernantId && $concernantType) {
+                    if ($concernantType === 'Intervenant') {
+                        $intervenantIds->push($concernantId);
+                    } elseif ($concernantType === 'Client') {
+                        $clientIds->push($concernantId);
+                    }
+                }
+            }
+            
+            // Charger tous les intervenants et clients
             $intervenants = [];
             if ($intervenantIds->isNotEmpty()) {
                 $intervenants = Intervenant::with('utilisateur:id,nom,prenom')
-                    ->whereIn('id', $intervenantIds)
+                    ->whereIn('id', $intervenantIds->unique())
+                    ->get()
+                    ->keyBy('id');
+            }
+            
+            $clients = [];
+            if ($clientIds->isNotEmpty()) {
+                $clients = Client::with('utilisateur:id,nom,prenom')
+                    ->whereIn('id', $clientIds->unique())
                     ->get()
                     ->keyBy('id');
             }
 
             // Transform data for frontend
-            $reclamations->transform(function ($reclamation) use ($intervenants) {
+            $reclamations->transform(function ($reclamation) use ($intervenants, $clients, $linkedInterventions) {
                 $concernantName = 'N/A';
+                $concernantId = $reclamation->concernant_id;
+                $concernantType = $reclamation->concernant_type;
                 
-                if ($reclamation->concernant_type === 'Intervenant' && $reclamation->concernant_id) {
-                    $intervenant = $intervenants[$reclamation->concernant_id] ?? null;
-                    if ($intervenant && $intervenant->utilisateur) {
-                        $concernantName = trim($intervenant->utilisateur->prenom . ' ' . $intervenant->utilisateur->nom);
+                // Dériver depuis l'intervention si elle existe
+                if ($reclamation->intervention_id && isset($linkedInterventions[$reclamation->intervention_id])) {
+                    $intervention = $linkedInterventions[$reclamation->intervention_id];
+                    if ($reclamation->signale_par_type === 'Client') {
+                        $concernantId = $intervention->intervenant_id;
+                        $concernantType = 'Intervenant';
+                    } elseif ($reclamation->signale_par_type === 'Intervenant') {
+                        $concernantId = $intervention->client_id;
+                        $concernantType = 'Client';
+                    }
+                }
+                
+                if ($concernantId && $concernantType) {
+                    if ($concernantType === 'Intervenant' && isset($intervenants[$concernantId])) {
+                        $intervenant = $intervenants[$concernantId];
+                        if ($intervenant && $intervenant->utilisateur) {
+                            $prenom = $intervenant->utilisateur->prenom ?? '';
+                            $nom = $intervenant->utilisateur->nom ?? '';
+                            $concernantName = trim($prenom . ' ' . $nom);
+                            if (empty($concernantName)) {
+                                $concernantName = 'N/A';
+                            }
+                        }
+                    } elseif ($concernantType === 'Client' && isset($clients[$concernantId])) {
+                        $client = $clients[$concernantId];
+                        if ($client && $client->utilisateur) {
+                            $prenom = $client->utilisateur->prenom ?? '';
+                            $nom = $client->utilisateur->nom ?? '';
+                            $concernantName = trim($prenom . ' ' . $nom);
+                            if (empty($concernantName)) {
+                                $concernantName = 'N/A';
+                            }
+                        }
                     }
                 }
 
@@ -100,8 +178,8 @@ class ClientReclamationController extends Controller
                     'message' => $reclamation->message,
                     'priorite' => $reclamation->priorite,
                     'statut' => $reclamation->statut,
-                    'concernant_id' => $reclamation->concernant_id,
-                    'concernant_type' => $reclamation->concernant_type,
+                    'concernant_id' => $concernantId,
+                    'concernant_type' => $concernantType,
                     'concernant_name' => $concernantName ?: 'N/A',
                     'intervention_id' => $reclamation->intervention_id,
                     'notes_admin' => $reclamation->notes_admin,
@@ -133,8 +211,8 @@ class ClientReclamationController extends Controller
     {
         try {
             $user = Auth::user();
-            
-            if (!$user) {
+
+            if (!$user instanceof Utilisateur) {
                 Log::error('No authenticated user');
                 return response()->json([
                     'status' => 'error',
@@ -277,8 +355,8 @@ class ClientReclamationController extends Controller
     {
         try {
             $user = Auth::user();
-            
-            if (!$user) {
+
+            if (!$user instanceof Utilisateur) {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'Non authentifié'
@@ -310,10 +388,36 @@ class ClientReclamationController extends Controller
             }
 
             $concernantName = 'N/A';
-            if ($reclamation->concernant_type === 'Intervenant' && $reclamation->concernant_id) {
-                $intervenant = Intervenant::with('utilisateur:id,nom,prenom')->find($reclamation->concernant_id);
-                if ($intervenant && $intervenant->utilisateur) {
-                    $concernantName = trim($intervenant->utilisateur->prenom . ' ' . $intervenant->utilisateur->nom);
+            // Dériver concernant depuis l'intervention si elle existe
+            $concernantId = $reclamation->concernant_id;
+            $concernantType = $reclamation->concernant_type;
+            
+            if ($reclamation->intervention_id) {
+                $intervention = Intervention::with(['client.utilisateur:id,nom,prenom', 'intervenant.utilisateur:id,nom,prenom'])->find($reclamation->intervention_id);
+                if ($intervention) {
+                    // Si signale_par est un Client, alors concernant est l'Intervenant
+                    // Si signale_par est un Intervenant, alors concernant est le Client
+                    if ($reclamation->signale_par_type === 'Client') {
+                        $concernantId = $intervention->intervenant_id;
+                        $concernantType = 'Intervenant';
+                    } elseif ($reclamation->signale_par_type === 'Intervenant') {
+                        $concernantId = $intervention->client_id;
+                        $concernantType = 'Client';
+                    }
+                }
+            }
+            
+            if ($concernantId && $concernantType) {
+                if ($concernantType === 'Intervenant') {
+                    $intervenant = Intervenant::with('utilisateur:id,nom,prenom')->find($concernantId);
+                    if ($intervenant && $intervenant->utilisateur) {
+                        $concernantName = trim(($intervenant->utilisateur->prenom ?? '') . ' ' . ($intervenant->utilisateur->nom ?? ''));
+                    }
+                } elseif ($concernantType === 'Client') {
+                    $client = Client::with('utilisateur:id,nom,prenom')->find($concernantId);
+                    if ($client && $client->utilisateur) {
+                        $concernantName = trim(($client->utilisateur->prenom ?? '') . ' ' . ($client->utilisateur->nom ?? ''));
+                    }
                 }
             }
 

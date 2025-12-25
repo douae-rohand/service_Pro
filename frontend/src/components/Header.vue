@@ -176,18 +176,6 @@
               </div>
             </div>
           </template>
-
-          <template v-else>
-            <!-- Design pour Intervenant / Autres -->
-            <button
-              @click="$emit('dashboard-click')"
-              class="text-white font-bold px-5 py-2.5 rounded-xl transition-all duration-300 shadow-lg shadow-[#92B08B]/20 hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-2 active:scale-95"
-              style="background-color: #92B08B"
-            >
-              <User class="w-5 h-5" />
-              <span>Mon Espace</span>
-            </button>
-          </template>
         </div>
 
         <!-- Mobile menu button -->

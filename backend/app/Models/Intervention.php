@@ -26,6 +26,8 @@ class Intervention extends Model
         'client_id',
         'intervenant_id',
         'tache_id',
+        'client_last_reminder_sent_at',
+        'intervenant_last_reminder_sent_at',
     ];
 
     protected function casts(): array
@@ -33,6 +35,8 @@ class Intervention extends Model
         return [
             'date_intervention' => 'datetime',
             'duration_hours' => 'decimal:2',
+            'client_last_reminder_sent_at' => 'datetime',
+            'intervenant_last_reminder_sent_at' => 'datetime',
         ];
     }
 
@@ -101,6 +105,14 @@ class Intervention extends Model
     }
 
     /**
+     * Get the payment slip for this intervention.
+     */
+    public function fichePayement()
+    {
+        return $this->hasOne(FichePayement::class, 'intervention_id', 'id');
+    }
+
+    /**
      * Get the informations for this intervention.
      */
     public function informations()
@@ -125,6 +137,14 @@ class Intervention extends Model
             'intervention_id',
             'materiel_id'
         )->withTimestamps();
+    }
+
+    /**
+     * Get the reclamations for this intervention.
+     */
+    public function reclamations()
+    {
+        return $this->hasMany(Reclamation::class, 'intervention_id', 'id');
     }
 
     /**

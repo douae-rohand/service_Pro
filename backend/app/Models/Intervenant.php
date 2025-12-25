@@ -132,6 +132,14 @@ class Intervenant extends Model
     }
 
     /**
+     * Get the portfolio items for this intervenant.
+     */
+    public function portfolio()
+    {
+        return $this->hasMany(Portfolio::class, 'intervenant_id', 'id');
+    }
+
+    /**
      * Scope a query to only include active intervenants.
      */
     public function scopeActive(Builder $query): Builder

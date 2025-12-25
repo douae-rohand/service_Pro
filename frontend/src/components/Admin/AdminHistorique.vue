@@ -117,7 +117,6 @@
               <th class="text-left py-3 px-4 text-xs font-semibold text-gray-700">Date</th>
               <th class="text-left py-3 px-4 text-xs font-semibold text-gray-700">Durée</th>
               <th class="text-left py-3 px-4 text-xs font-semibold text-gray-700">Montant</th>
-              <th class="text-left py-3 px-4 text-xs font-semibold text-gray-700">Note</th>
               <th class="text-left py-3 px-4 text-xs font-semibold text-gray-700">Statut</th>
             </tr>
           </thead>
@@ -144,13 +143,6 @@
               <td class="py-3 px-4 text-sm" style="color: #2F4F4F">{{ item.date }}</td>
               <td class="py-3 px-4 text-sm" style="color: #2F4F4F">{{ item.duree }}</td>
               <td class="py-3 px-4 text-sm font-semibold" style="color: #4CAF50">{{ item.montant }}DH</td>
-              <td class="py-3 px-4 text-sm">
-                <div v-if="item.note !== null && item.note !== undefined" class="flex items-center gap-1">
-                  <Star :size="14" :fill="'#FEE347'" style="color: #FEE347" />
-                  <span style="color: #2F4F4F">{{ item.note }}</span>
-                </div>
-                <span v-else style="color: #9E9E9E">-</span>
-              </td>
               <td class="py-3 px-4 text-sm">
                 <span
                   class="px-2.5 py-1 rounded-full text-xs font-medium"
@@ -258,6 +250,7 @@ import { History, Download, Star } from 'lucide-vue-next'
 import adminService from '@/services/adminService'
 import { useNotifications } from '@/composables/useNotifications'
 import { useServiceColor } from '@/composables/useServiceColor'
+import { useAdminRealtimeSync } from '@/composables/useAdminRealtimeSync'
 
 const emit = defineEmits(['back'])
 const { success, error } = useNotifications()
@@ -330,9 +323,12 @@ const visiblePages = computed(() => {
 })
 
 // Methods
-const loadHistorique = async () => {
+const loadHistorique = async (options = {}) => {
+  const { silent = false } = options
   try {
-    loading.value = true
+    if (!silent) {
+      loading.value = true
+    }
     // Nettoyer les paramètres pour ne pas envoyer les valeurs vides
     const params = {
       page: currentPage.value,
@@ -357,21 +353,67 @@ const loadHistorique = async () => {
     // La réponse Laravel paginate() est encapsulée dans response.data par axios
     // Structure: { data: [...], total: X, per_page: Y, current_page: Z, ... }
     if (response.data && response.data.data) {
-      historique.value = response.data.data
+      const newItems = response.data.data
+      
+      if (silent) {
+        // Mise à jour intelligente : conserver l'ordre de l'API (pour le tri par date)
+        const currentMap = new Map(historique.value.map(h => [h.id, h]))
+        
+        historique.value = newItems.map(newItem => {
+          const existing = currentMap.get(newItem.id)
+          if (existing) {
+            // Mettre à jour les données existantes pour préserver la réactivité
+            const hasChanges = Object.keys(newItem).some(k => 
+              JSON.stringify(existing[k]) !== JSON.stringify(newItem[k])
+            )
+            if (hasChanges) {
+              Object.assign(existing, newItem)
+            }
+            return existing
+          }
+          return newItem
+        })
+      } else {
+        historique.value = newItems
+      }
       totalItems.value = response.data.total || 0
     } else if (Array.isArray(response.data)) {
       // Fallback si la réponse n'est pas paginée
-      historique.value = response.data
+      const newItems = response.data
+      if (silent) {
+        const currentMap = new Map(historique.value.map(h => [h.id, h]))
+        historique.value = newItems.map(newItem => {
+          const existing = currentMap.get(newItem.id)
+          if (existing) {
+            const hasChanges = Object.keys(newItem).some(k => 
+              JSON.stringify(existing[k]) !== JSON.stringify(newItem[k])
+            )
+            if (hasChanges) {
+              Object.assign(existing, newItem)
+            }
+            return existing
+          }
+          return newItem
+        })
+      } else {
+        historique.value = newItems
+      }
       totalItems.value = response.data.length
     } else {
-      historique.value = []
-      totalItems.value = 0
+      if (!silent) {
+        historique.value = []
+        totalItems.value = 0
+      }
     }
   } catch (error) {
     console.error('Erreur chargement historique:', error)
-    historique.value = []
+    if (!silent) {
+      historique.value = []
+    }
   } finally {
-    loading.value = false
+    if (!silent) {
+      loading.value = false
+    }
   }
 }
 
@@ -551,6 +593,14 @@ const loadServices = async () => {
     allServices.value = []
   }
 }
+
+// Synchronisation en temps réel - Recharger l'historique toutes les 3 secondes
+useAdminRealtimeSync(
+  async () => {
+    await loadHistorique({ silent: true })
+  },
+  { interval: 3000, loadOnMount: false, enabled: true }
+)
 
 onMounted(async () => {
   await Promise.all([loadServices(), loadHistorique()])

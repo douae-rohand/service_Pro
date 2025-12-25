@@ -45,11 +45,27 @@ class IntervenantController extends Controller
             }
 
             // Filtrer par tâche spécifique et s'assurer que la tâche est active pour cet intervenant
+            // ET que le service parent est actif pour cet intervenant
             if ($request->has('tacheId')) {
-                $query->whereHas('taches', function ($q) use ($request) {
-                    $q->where('tache.id', $request->tacheId)
-                      ->where('intervenant_tache.status', 1);
-                });
+                // First, get the service_id for this tache
+                $tache = Tache::find($request->tacheId);
+                if ($tache && $tache->service_id) {
+                    $query->whereHas('taches', function ($q) use ($request) {
+                        $q->where('tache.id', $request->tacheId)
+                          ->where('intervenant_tache.status', 1);
+                    })
+                    // Also check that the intervenant has the parent service active
+                    ->whereHas('services', function ($q) use ($tache) {
+                        $q->where('service.id', $tache->service_id)
+                          ->where('intervenant_service.status', 'active');
+                    });
+                } else {
+                    // If tache not found or no service_id, just filter by tache (fallback)
+                    $query->whereHas('taches', function ($q) use ($request) {
+                        $q->where('tache.id', $request->tacheId)
+                          ->where('intervenant_tache.status', 1);
+                    });
+                }
             }
 
             // Filtrer par service et s'assurer que le service est actif pour cet intervenant
@@ -468,14 +484,30 @@ class IntervenantController extends Controller
         }
 
         // Filter by specific sub-service (tache)
+        // IMPORTANT: Also check that the parent service is active for this intervenant
         if ($request->has('tacheId') && $request->tacheId != 'all') {
             $tacheId = $request->tacheId;
             Log::info('Filtering by tacheId: ' . $tacheId);
             
-            $query->whereHas('taches', function ($q) use ($tacheId) {
-                $q->where('tache.id', $tacheId)
-                  ->where('intervenant_tache.status', 1);
-            });
+            // First, get the service_id for this tache
+            $tache = Tache::find($tacheId);
+            if ($tache && $tache->service_id) {
+                $query->whereHas('taches', function ($q) use ($tacheId) {
+                    $q->where('tache.id', $tacheId)
+                      ->where('intervenant_tache.status', 1);
+                })
+                // Also check that the intervenant has the parent service active
+                ->whereHas('services', function ($q) use ($tache) {
+                    $q->where('service.id', $tache->service_id)
+                      ->where('intervenant_service.status', 'active');
+                });
+            } else {
+                // If tache not found or no service_id, just filter by tache (fallback)
+                $query->whereHas('taches', function ($q) use ($tacheId) {
+                    $q->where('tache.id', $tacheId)
+                      ->where('intervenant_tache.status', 1);
+                });
+            }
         }
         
         // Filter by city

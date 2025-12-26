@@ -10,11 +10,13 @@ const echo = new Echo({
     wsHost: import.meta.env.VITE_REVERB_HOST,
     wsPort: import.meta.env.VITE_REVERB_PORT ?? 6001,
     wssPort: import.meta.env.VITE_REVERB_PORT ?? 6001,
+
     forceTLS:false,
+
     enabledTransports: ['ws'],
 
     // Authentication for private channels
-    authEndpoint: import.meta.env.VITE_API_BASE_URL + '/broadcasting/auth',
+    authEndpoint: 'http://34.204.17.175:8000/broadcasting/auth',
     auth: {
         headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`,
